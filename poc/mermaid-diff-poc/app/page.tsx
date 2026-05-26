@@ -7,11 +7,39 @@ import RepoSelector from '@/components/RepoSelector';
 import FileBrowser from '@/components/FileBrowser';
 import { getGitHubService, GitHubRepo } from '@/lib/github';
 
+// Types for parsed code (matching codeParser types)
+interface PropertyInfo {
+  name: string;
+  type: string;
+  visibility: string;
+}
+
+interface MethodInfo {
+  name: string;
+  parameters: string[];
+  returnType: string;
+  visibility: string;
+  body?: string;
+}
+
+interface ClassInfo {
+  name: string;
+  properties: PropertyInfo[];
+  methods: MethodInfo[];
+  extends?: string;
+  implements?: string[];
+}
+
 export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [selectedRepo, setSelectedRepo] = useState<GitHubRepo | null>(null);
   const [selectedFile, setSelectedFile] = useState<{ path: string; content: string } | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
+  const [parsedClasses, setParsedClasses] = useState<ClassInfo[]>([]);
+  const [generatedClassDiagram, setGeneratedClassDiagram] = useState<string>('');
+  const [currentClass, setCurrentClass] = useState<ClassInfo | null>(null);
+  const [sequenceDiagram, setSequenceDiagram] = useState<string>('');
+  const [loadingSequence, setLoadingSequence] = useState(false);
 
   // Check if already authenticated on mount
   useEffect(() => {
@@ -20,6 +48,45 @@ export default function Home() {
       setIsAuthenticated(true);
     }
   }, []);
+
+  // Parse file when selected
+  useEffect(() => {
+    if (selectedFile) {
+      const parseCode = async () => {
+        try {
+          const response = await fetch('/api/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              code: selectedFile.content,
+              fileName: selectedFile.path,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to parse code');
+          }
+
+          const data = await response.json();
+          setParsedClasses(data.classes || []);
+          setGeneratedClassDiagram(data.classDiagram || '');
+          setCurrentClass(data.classes && data.classes.length > 0 ? data.classes[0] : null);
+          setSelectedMethod(null);
+        } catch (error) {
+          console.error('Failed to parse code:', error);
+          setParsedClasses([]);
+          setGeneratedClassDiagram('');
+          setCurrentClass(null);
+        }
+      };
+
+      parseCode();
+    } else {
+      setParsedClasses([]);
+      setGeneratedClassDiagram('');
+      setCurrentClass(null);
+    }
+  }, [selectedFile]);
 
   const handleAuthenticated = () => {
     const token = localStorage.getItem('github_token');
@@ -52,10 +119,75 @@ export default function Home() {
     setSelectedFile(null);
   };
 
-  // Handle method click
+  // Handle method click - generate sequence diagram from parsed method
   const handleMethodClick = (methodName: string) => {
     console.log('handleMethodClick called with:', methodName);
     setSelectedMethod(methodName);
+  };
+
+  // Load sequence diagram when method is selected
+  useEffect(() => {
+    if (selectedMethod) {
+      setLoadingSequence(true);
+      getSequenceDiagram(selectedMethod).then(diagram => {
+        setSequenceDiagram(diagram);
+        setLoadingSequence(false);
+      });
+    } else {
+      setSequenceDiagram('');
+      setLoadingSequence(false);
+    }
+  }, [selectedMethod, currentClass]);
+
+  // Get sequence diagram for clicked method - now from parsed code via API!
+  const getSequenceDiagram = async (methodName: string): Promise<string> => {
+    if (!currentClass) {
+      return `sequenceDiagram
+        Note over Client: No class selected`;
+    }
+
+    // Find the method in the current class
+    const method = currentClass.methods.find(m => {
+      const fullMethodName = `${m.name}(${m.parameters.join(', ')})`;
+      return fullMethodName === methodName || m.name === methodName.split('(')[0];
+    });
+
+    if (method) {
+      try {
+        // Generate sequence diagram from the actual parsed method via API
+        const response = await fetch('/api/sequence', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            method,
+            className: currentClass.name,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          return data.sequenceDiagram;
+        }
+      } catch (error) {
+        console.error('Failed to generate sequence diagram:', error);
+      }
+    }
+
+    // Fallback for demo methods
+    if (sequenceDiagrams[methodName]) {
+      return sequenceDiagrams[methodName];
+    }
+
+    // Default generic diagram
+    return `sequenceDiagram
+      participant Client
+      participant ${currentClass.name}
+      
+      Client->>+${currentClass.name}: ${methodName}
+      ${currentClass.name}->>${currentClass.name}: process
+      ${currentClass.name}-->>-Client: result
+      
+      Note over Client,${currentClass.name}: Method implementation not available`;
   };
 
   // Debug: log when selectedMethod changes
@@ -215,28 +347,6 @@ export default function Home() {
       end`
   };
 
-  // Get sequence diagram for clicked method
-  const getSequenceDiagram = (methodName: string): string => {
-    // Try exact match first
-    if (sequenceDiagrams[methodName]) {
-      return sequenceDiagrams[methodName];
-    }
-    
-    // Default sequence diagram for methods without specific implementations
-    return `sequenceDiagram
-      participant Client
-      participant Service
-      participant Database
-      
-      Client->>+Service: ${methodName}
-      Service->>Service: process request
-      Service->>+Database: execute query
-      Database-->>-Service: result
-      Service-->>-Client: response
-      
-      Note over Client,Database: Sequence diagram for ${methodName}<br/>Click other methods to see their flows`;
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       {/* Show authentication if not authenticated */}
@@ -299,9 +409,35 @@ export default function Home() {
               <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
                 {selectedFile ? (
                   <div>
-                    <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm mb-4">
-                      📄 {selectedFile.path.split('/').pop()} selected<br/>
-                      <span className="text-xs">Phase 2 will parse this file and generate diagrams</span>
+                    {generatedClassDiagram ? (
+                      <>
+                        <div className="text-center py-2 text-green-600 dark:text-green-400 text-sm mb-4 flex items-center justify-center gap-2">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                          ✨ Generated from: {selectedFile.path.split('/').pop()}
+                          {parsedClasses.length > 0 && <span className="text-xs text-slate-500">({parsedClasses.length} class{parsedClasses.length > 1 ? 'es' : ''} found)</span>}
+                        </div>
+                        <MermaidDiagram 
+                          chart={generatedClassDiagram} 
+                          className="flex justify-center"
+                          onMethodClick={handleMethodClick}
+                        />
+                      </>
+                    ) : (
+                      <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+                        <svg className="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p className="font-medium mb-1">No classes found</p>
+                        <p className="text-sm">This file doesn't contain any class definitions</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-center py-4 text-slate-500 dark:text-slate-400 text-sm mb-4">
+                      👈 Select a file to see its class structure
                     </div>
                     <MermaidDiagram 
                       chart={classDiagram} 
@@ -309,12 +445,6 @@ export default function Home() {
                       onMethodClick={handleMethodClick}
                     />
                   </div>
-                ) : (
-                  <MermaidDiagram 
-                    chart={classDiagram} 
-                    className="flex justify-center"
-                    onMethodClick={handleMethodClick}
-                  />
                 )}
               </div>
             </div>
@@ -349,9 +479,14 @@ export default function Home() {
               </div>
               
               <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-700 min-h-[400px]">
-                {selectedMethod ? (
+                {loadingSequence ? (
+                  <div className="flex flex-col items-center justify-center h-[400px] text-slate-400">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                    <p className="font-medium">Generating sequence diagram...</p>
+                  </div>
+                ) : selectedMethod && sequenceDiagram ? (
                   <MermaidDiagram 
-                    chart={getSequenceDiagram(selectedMethod)} 
+                    chart={sequenceDiagram} 
                     className="flex justify-center"
                   />
                 ) : (
