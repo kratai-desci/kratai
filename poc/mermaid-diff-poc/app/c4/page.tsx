@@ -9,6 +9,8 @@ export default function C4OverviewPage() {
   const [currentLevel, setCurrentLevel] = useState<'context' | 'container' | 'component'>('context');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [selectedRepo, setSelectedRepo] = useState<GitHubRepo | null>(null);
+  const [diagrams, setDiagrams] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // Check authentication and load repo from localStorage
@@ -25,68 +27,117 @@ export default function C4OverviewPage() {
     }
   }, []);
 
+  // Fetch diagrams when repo is loaded
+  useEffect(() => {
+    if (selectedRepo && isAuthenticated) {
+      loadDiagrams();
+    }
+  }, [selectedRepo, isAuthenticated]);
+
+  const loadDiagrams = async () => {
+    if (!selectedRepo) return;
+
+    setLoading(true);
+    const token = localStorage.getItem('github_token');
+    
+    try {
+      // Fetch all three levels
+      const [contextRes, containerRes, componentRes] = await Promise.all([
+        fetch('/api/c4', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            level: 'context',
+            owner: selectedRepo.owner.login,
+            repo: selectedRepo.name,
+          }),
+        }),
+        fetch('/api/c4', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            level: 'container',
+            owner: selectedRepo.owner.login,
+            repo: selectedRepo.name,
+          }),
+        }),
+        fetch('/api/c4', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            level: 'component',
+            owner: selectedRepo.owner.login,
+            repo: selectedRepo.name,
+            folderPath: 'src',
+          }),
+        }),
+      ]);
+
+      const [contextData, containerData, componentData] = await Promise.all([
+        contextRes.json(),
+        containerRes.json(),
+        componentRes.json(),
+      ]);
+
+      setDiagrams({
+        context: contextData.diagram || getFallbackDiagram('context'),
+        container: containerData.diagram || getFallbackDiagram('container'),
+        component: componentData.diagram || getFallbackDiagram('component'),
+      });
+    } catch (error) {
+      console.error('Failed to load C4 diagrams:', error);
+      setDiagrams({
+        context: getFallbackDiagram('context'),
+        container: getFallbackDiagram('container'),
+        component: getFallbackDiagram('component'),
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getFallbackDiagram = (level: string) => {
+    return `C4Context
+      title ${level} Diagram
+      
+      Person(user, "User")
+      System(sys, "System")
+      
+      Rel(user, sys, "Uses")`;
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('github_token');
     localStorage.removeItem('selected_repo');
     window.location.href = '/';
   };
 
-  // Sample C4 diagrams for different levels
-  const c4Context = `C4Context
-    title System Context for Code Visualization Tool
-    
-    Person(dev, "Developer", "Views and analyzes code")
-    System(app, "Code Viz App", "Visualizes code structure and relationships")
-    System_Ext(github, "GitHub API", "Provides repository data")
-    System_Ext(parser, "TypeScript Parser", "Analyzes code structure")
-    
-    Rel(dev, app, "Uses to visualize code")
-    Rel(app, github, "Fetches code from")
-    Rel(app, parser, "Parses code with")
-  `;
-
-  const c4Container = `C4Container
-    title Container Diagram for Code Visualization
-    
-    Person(dev, "Developer")
-    
-    Container(web, "Web Application", "Next.js", "Provides UI for code visualization")
-    Container(api, "API Layer", "Next.js API Routes", "Handles parsing and diagram generation")
-    Container(parser, "Code Parser", "ts-morph", "Parses TypeScript/JavaScript code")
-    ContainerDb(cache, "Cache", "In-Memory", "Stores parsed results")
-    System_Ext(github, "GitHub API", "External")
-    
-    Rel(dev, web, "Uses")
-    Rel(web, api, "Calls", "HTTPS")
-    Rel(api, parser, "Uses")
-    Rel(api, cache, "Reads/Writes")
-    Rel(api, github, "Fetches from", "HTTPS")
-  `;
-
-  const c4Component = `C4Component
-    title Component Diagram for Parser Module
-    
-    Container(api, "API Layer", "Next.js")
-    
-    Component(codeParser, "CodeParser", "TypeScript", "Parses code structure")
-    Component(classExtractor, "ClassExtractor", "TypeScript", "Extracts class information")
-    Component(methodAnalyzer, "MethodAnalyzer", "TypeScript", "Analyzes method calls")
-    Component(diagramGen, "DiagramGenerator", "TypeScript", "Generates Mermaid diagrams")
-    ComponentDb(ast, "AST Cache", "In-Memory", "Cached syntax trees")
-    
-    Rel(api, codeParser, "Uses")
-    Rel(codeParser, classExtractor, "Uses")
-    Rel(codeParser, methodAnalyzer, "Uses")
-    Rel(classExtractor, diagramGen, "Provides data to")
-    Rel(methodAnalyzer, diagramGen, "Provides data to")
-    Rel(codeParser, ast, "Caches in")
-  `;
-
-  const diagrams = {
-    context: c4Context,
-    container: c4Container,
-    component: c4Component,
-  };
+  // Show loading state if no diagrams loaded yet
+  if (!selectedRepo) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <TopNav 
+          isAuthenticated={isAuthenticated}
+          selectedRepo={selectedRepo}
+          onLogout={handleLogout}
+        />
+        <main className="container mx-auto px-4 py-8">
+          <div className="text-center py-12">
+            <p className="text-slate-600 dark:text-slate-400">No repository selected. Go to Code View to select a repository.</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
@@ -151,16 +202,26 @@ export default function C4OverviewPage() {
                 {currentLevel === 'component' && 'Component Diagram'}
               </h2>
               <p className="text-slate-600 dark:text-slate-400 text-sm">
-                {currentLevel === 'context' && 'High-level view of the system and its external dependencies'}
-                {currentLevel === 'container' && 'Major containers (applications, services) and their relationships'}
-                {currentLevel === 'component' && 'Components within a container and their interactions'}
+                {currentLevel === 'context' && `High-level view of ${selectedRepo.name} and its external dependencies`}
+                {currentLevel === 'container' && `Major containers (modules) in ${selectedRepo.name}`}
+                {currentLevel === 'component' && `Components within the src folder`}
               </p>
             </div>
             
             <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-700 min-h-[600px]">
-              <MermaidDiagram 
-                chart={diagrams[currentLevel]}
-              />
+              {loading ? (
+                <div className="flex items-center justify-center py-24">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                </div>
+              ) : diagrams[currentLevel] ? (
+                <MermaidDiagram 
+                  chart={diagrams[currentLevel]}
+                />
+              ) : (
+                <div className="text-center py-24 text-slate-500 dark:text-slate-400">
+                  <p>No diagram available</p>
+                </div>
+              )}
             </div>
 
             {/* Navigation hint */}
