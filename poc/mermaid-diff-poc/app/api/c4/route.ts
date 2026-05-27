@@ -29,14 +29,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (level === 'context') {
-      const diagram = await generateContextDiagram(owner, repo, token);
-      return NextResponse.json({ diagram });
+      const result = await generateContextDiagram(owner, repo, token);
+      return NextResponse.json({ diagram: result.diagram, metadata: result.metadata });
     } else if (level === 'container') {
-      const diagram = await generateContainerDiagram(owner, repo, token);
-      return NextResponse.json({ diagram });
+      const result = await generateContainerDiagram(owner, repo, token);
+      return NextResponse.json({ diagram: result.diagram, metadata: result.metadata });
     } else if (level === 'component') {
-      const diagram = await generateComponentDiagram(owner, repo, folderPath || '', token);
-      return NextResponse.json({ diagram });
+      const result = await generateComponentDiagram(owner, repo, folderPath || '', token);
+      return NextResponse.json({ diagram: result.diagram, metadata: result.metadata });
     }
 
     return NextResponse.json({ error: 'Invalid level' }, { status: 400 });
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function generateContextDiagram(owner: string, repo: string, token: string): Promise<string> {
+async function generateContextDiagram(owner: string, repo: string, token: string): Promise<{ diagram: string; metadata: any }> {
   try {
     // Fetch package.json to understand dependencies
     const pkgResponse = await fetch(
@@ -92,10 +92,11 @@ async function generateContextDiagram(owner: string, repo: string, token: string
       diagram += `Rel(app, ${safeName}, "Uses")\n    `;
     });
 
-    return diagram;
+    return { diagram, metadata: { repoName: repo } };
   } catch (error) {
     console.error('Failed to generate context diagram:', error);
-    return `C4Context
+    return {
+      diagram: `C4Context
       title System Context for ${repo}
       
       Person(dev, "Developer")
@@ -103,11 +104,13 @@ async function generateContextDiagram(owner: string, repo: string, token: string
       
       Rel(dev, app, "Uses")
       
-      UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")`;
+      UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")`,
+      metadata: {}
+    };
   }
 }
 
-async function generateContainerDiagram(owner: string, repo: string, token: string): Promise<string> {
+async function generateContainerDiagram(owner: string, repo: string, token: string): Promise<{ diagram: string; metadata: any }> {
   try {
     // Fetch root directory structure
     const response = await fetch(
@@ -154,10 +157,18 @@ async function generateContainerDiagram(owner: string, repo: string, token: stri
       }
     }
 
-    return diagram;
+    // Add click callbacks to all containers
+    const folderMapping: Record<string, string> = {};
+    detectedContainers.forEach((folder: any) => {
+      const safeName = folder.name.replace(/[^a-zA-Z0-9]/g, '_');
+      folderMapping[safeName] = folder.name;
+    });
+
+    return { diagram, metadata: { folderMapping, folders: detectedContainers.map((f: any) => f.name) } };
   } catch (error) {
     console.error('Failed to generate container diagram:', error);
-    return `C4Container
+    return {
+      diagram: `C4Container
       title Container Diagram for ${repo}
       
       Person(dev, "Developer")
@@ -165,11 +176,13 @@ async function generateContainerDiagram(owner: string, repo: string, token: stri
         Container(app, "Application", "Code", "Main application code")
       }
       
-      Rel(dev, app, "Uses")`;
+      Rel(dev, app, "Uses")`,
+      metadata: {}
+    };
   }
 }
 
-async function generateComponentDiagram(owner: string, repo: string, folderPath: string, token: string): Promise<string> {
+async function generateComponentDiagram(owner: string, repo: string, folderPath: string, token: string): Promise<{ diagram: string; metadata: any }> {
   try {
     // Fetch folder contents
     const response = await fetch(
@@ -189,6 +202,19 @@ async function generateComponentDiagram(owner: string, repo: string, folderPath:
     ).slice(0, 10);
 
     const folderName = folderPath.split('/').pop() || 'Module';
+
+    // If no code files found, return a simple diagram
+    if (files.length === 0) {
+      return {
+        diagram: `C4Component
+      title Component Diagram for ${folderName}
+      
+      Container_Boundary(container, "${folderName}") {
+        Component(placeholder, "No code files", "Empty", "This folder contains no .ts/.tsx/.js/.jsx files")
+      }`,
+        metadata: { fileMapping: {}, folderPath, files: [] }
+      };
+    }
 
     let diagram = `C4Component
     title Component Diagram for ${folderName}
@@ -214,15 +240,26 @@ async function generateComponentDiagram(owner: string, repo: string, folderPath:
       }
     }
 
-    return diagram;
+    // Add click callbacks to all components
+    const fileMapping: Record<string, string> = {};
+    files.forEach((file: any) => {
+      const fileName = file.name.replace(/\.(ts|tsx|js|jsx)$/, '');
+      const safeName = fileName.replace(/[^a-zA-Z0-9]/g, '_');
+      fileMapping[safeName] = file.name;
+    });
+
+    return { diagram, metadata: { fileMapping, folderPath, files: files.map((f: any) => f.name) } };
   } catch (error) {
     console.error('Failed to generate component diagram:', error);
-    return `C4Component
+    return {
+      diagram: `C4Component
       title Component Diagram
       
       Container_Boundary(container, "Module") {
         Component(comp1, "Component", "Code", "Implementation")
-      }`;
+      }`,
+      metadata: {}
+    };
   }
 }
 

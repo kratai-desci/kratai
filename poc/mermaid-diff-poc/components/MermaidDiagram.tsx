@@ -7,9 +7,10 @@ interface MermaidDiagramProps {
   chart: string;
   className?: string;
   onMethodClick?: (methodName: string) => void;
+  onElementClick?: (elementId: string) => void;
 }
 
-export default function MermaidDiagram({ chart, className = '', onMethodClick }: MermaidDiagramProps) {
+export default function MermaidDiagram({ chart, className = '', onMethodClick, onElementClick }: MermaidDiagramProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +24,14 @@ export default function MermaidDiagram({ chart, className = '', onMethodClick }:
       theme: 'default',
       securityLevel: 'loose', // Required for click events
     });
+
+    // Register global click handler for C4 diagrams
+    if (onElementClick) {
+      (window as any).handleElementClick = (elementId: string) => {
+        console.log('Global handler called with:', elementId);
+        onElementClick(elementId);
+      };
+    }
 
     // Render the diagram
     const renderDiagram = async () => {
@@ -46,12 +55,103 @@ export default function MermaidDiagram({ chart, className = '', onMethodClick }:
     };
 
     renderDiagram();
-  }, [chart, diagramId]);
 
-  // Add click handlers to methods after SVG is rendered
+    // Cleanup global handler on unmount
+    return () => {
+      if (onElementClick) {
+        delete (window as any).handleElementClick;
+      }
+    };
+  }, [chart, diagramId, onElementClick]);
+
+  // Add click handlers after SVG is rendered for C4 diagrams
+  useEffect(() => {
+    if (!svg || !containerRef.current || !onElementClick) {
+      return;
+    }
+
+    const attemptSetup = (attempt = 1) => {
+      const svgElement = containerRef.current?.querySelector('svg');
+      
+      if (!svgElement) {
+        if (attempt < 5) {
+          setTimeout(() => attemptSetup(attempt + 1), 200);
+        }
+        return;
+      }
+
+      console.log('Setting up C4 click handlers...');
+      console.log('SVG HTML:', svgElement.innerHTML.substring(0, 500));
+
+      // Find all clickable elements in C4 diagrams
+      // C4 elements are typically in groups with class names containing the element type
+      const allGroups = svgElement.querySelectorAll('g');
+      console.log('Total groups found:', allGroups.length);
+      
+      let clickableCount = 0;
+      allGroups.forEach((group) => {
+        // Look for groups that contain rectangles (boxes in C4)
+        const rect = group.querySelector('rect');
+        const texts = group.querySelectorAll('text');
+        
+        // Skip if no rect
+        if (!rect || texts.length === 0) return;
+        
+        // Get all text content and find the main label (usually the first non-technical text)
+        let mainText = '';
+        for (const text of Array.from(texts)) {
+          const content = text.textContent?.trim() || '';
+          // Skip empty, technical labels, or descriptions in parentheses
+          if (content.length < 2) continue;
+          if (content.startsWith('<<') || content.startsWith('(') || content.startsWith('[')) continue;
+          // The main label is usually not all lowercase and not too long
+          if (content.length > 2 && content.length < 50) {
+            mainText = content;
+            break; // Use the first valid text we find
+          }
+        }
+        
+        // Skip if we didn't find valid text
+        if (!mainText) return;
+        
+        console.log('Making clickable:', mainText);
+        clickableCount++;
+        
+        // Make the entire group clickable
+        group.style.cursor = 'pointer';
+        group.style.transition = 'opacity 0.2s';
+        
+        // Add hover effect to the rectangle
+        group.addEventListener('mouseenter', () => {
+          rect.style.opacity = '0.7';
+          rect.style.filter = 'brightness(1.1)';
+        });
+        
+        group.addEventListener('mouseleave', () => {
+          rect.style.opacity = '1';
+          rect.style.filter = 'brightness(1)';
+        });
+        
+        // Add click handler - pass TEXT CONTENT
+        const clickHandler = (e: Event) => {
+          e.stopPropagation();
+          e.preventDefault();
+          console.log('🖱️ C4 Element clicked - Text:', mainText);
+          onElementClick(mainText);
+        };
+        
+        group.addEventListener('click', clickHandler);
+      });
+      
+      console.log('Total clickable C4 elements:', clickableCount);
+    };
+
+    setTimeout(() => attemptSetup(), 300);
+  }, [svg, onElementClick]);
+
+  // Add click handlers for method clicks in class diagrams
   useEffect(() => {
     if (!svg || !containerRef.current || !onMethodClick) {
-      console.log('Click handler setup skipped:', { hasSvg: !!svg, hasContainer: !!containerRef.current, hasCallback: !!onMethodClick });
       return;
     }
 
@@ -122,7 +222,9 @@ export default function MermaidDiagram({ chart, className = '', onMethodClick }:
             e.stopPropagation();
             e.preventDefault();
             console.log('Method clicked:', text);
-            onMethodClick(text);
+            if (onMethodClick) {
+              onMethodClick(text);
+            }
           };
           
           el.addEventListener('click', clickHandler);

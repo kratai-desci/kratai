@@ -10,7 +10,9 @@ export default function C4OverviewPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [selectedRepo, setSelectedRepo] = useState<GitHubRepo | null>(null);
   const [diagrams, setDiagrams] = useState<Record<string, string>>({});
+  const [metadata, setMetadata] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState<string>('src');
 
   useEffect(() => {
     // Check authentication and load repo from localStorage
@@ -27,12 +29,12 @@ export default function C4OverviewPage() {
     }
   }, []);
 
-  // Fetch diagrams when repo is loaded
+  // Fetch diagrams when repo is loaded or folder changes
   useEffect(() => {
     if (selectedRepo && isAuthenticated) {
       loadDiagrams();
     }
-  }, [selectedRepo, isAuthenticated]);
+  }, [selectedRepo, isAuthenticated, selectedFolder]);
 
   const loadDiagrams = async () => {
     if (!selectedRepo) return;
@@ -77,7 +79,7 @@ export default function C4OverviewPage() {
             level: 'component',
             owner: selectedRepo.owner.login,
             repo: selectedRepo.name,
-            folderPath: 'src',
+            folderPath: selectedFolder,
           }),
         }),
       ]);
@@ -92,6 +94,12 @@ export default function C4OverviewPage() {
         context: contextData.diagram || getFallbackDiagram('context'),
         container: containerData.diagram || getFallbackDiagram('container'),
         component: componentData.diagram || getFallbackDiagram('component'),
+      });
+
+      setMetadata({
+        context: contextData.metadata || {},
+        container: containerData.metadata || {},
+        component: componentData.metadata || {},
       });
     } catch (error) {
       console.error('Failed to load C4 diagrams:', error);
@@ -113,6 +121,68 @@ export default function C4OverviewPage() {
       System(sys, "System")
       
       Rel(user, sys, "Uses")`;
+  };
+
+  const handleElementClick = (elementId: string) => {
+    console.log('=== CLICK EVENT ===>>');
+    console.log('Element clicked:', elementId);
+    console.log('Current level:', currentLevel);
+    console.log('Selected repo:', selectedRepo?.name);
+    console.log('Available metadata:', metadata);
+    
+    if (currentLevel === 'context') {
+      // Context → Container: Click on main system (repo name) goes to container view
+      console.log('Context level - checking if', elementId, 'matches repo:', selectedRepo?.name);
+      
+      // Match if element text is the repo name (case-insensitive)
+      if (elementId.toLowerCase() === selectedRepo?.name.toLowerCase()) {
+        console.log('✅ MATCH! Navigating to container view');
+        setCurrentLevel('container');
+      } else {
+        console.log('❌ NO MATCH');
+        console.log('  Clicked:', elementId.toLowerCase());
+        console.log('  Expected:', selectedRepo?.name.toLowerCase());
+      }
+    } else if (currentLevel === 'container') {
+      // Container → Component: Click on a folder name
+      const folders = metadata.container?.folders || [];
+      
+      console.log('Available folders:', folders);
+      
+      // Check if clicked text matches any folder name
+      const matchedFolder = folders.find((f: string) => 
+        elementId.toLowerCase() === f.toLowerCase()
+      );
+      
+      if (matchedFolder) {
+        console.log('✅ Folder clicked:', matchedFolder);
+        setSelectedFolder(matchedFolder);
+        setCurrentLevel('component');
+      } else {
+        console.log('❌ No matching folder - available:', folders);
+      }
+    } else if (currentLevel === 'component') {
+      // Component → Code View: Click on a file name
+      const files = metadata.component?.files || [];
+      const folderPath = metadata.component?.folderPath || selectedFolder;
+      
+      console.log('Available files:', files);
+      
+      // Check if clicked text matches any file name (with or without extension)
+      const matchedFile = files.find((f: string) => {
+        const fileWithoutExt = f.replace(/\.(ts|tsx|js|jsx)$/, '');
+        return elementId.toLowerCase() === f.toLowerCase() ||
+               elementId.toLowerCase() === fileWithoutExt.toLowerCase();
+      });
+      
+      if (matchedFile) {
+        const filePath = `${folderPath}/${matchedFile}`;
+        console.log('✅ File clicked:', matchedFile, '→', filePath);
+        window.location.href = `/?file=${encodeURIComponent(filePath)}`;
+      } else {
+        console.log('❌ No matching file - available:', files);
+      }
+    }
   };
 
   const handleLogout = () => {
@@ -216,6 +286,7 @@ export default function C4OverviewPage() {
               ) : diagrams[currentLevel] ? (
                 <MermaidDiagram 
                   chart={diagrams[currentLevel]}
+                  onElementClick={handleElementClick}
                 />
               ) : (
                 <div className="text-center py-24 text-slate-500 dark:text-slate-400">
@@ -226,10 +297,20 @@ export default function C4OverviewPage() {
 
             {/* Navigation hint */}
             <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <p className="text-sm text-blue-800 dark:text-blue-200">
-                💡 <strong>Coming soon:</strong> Click on elements to zoom in and explore deeper levels. 
-                Navigate from system overview down to individual classes and functions.
-              </p>
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="text-sm text-blue-800 dark:text-blue-200">
+                  <p className="font-medium mb-1">💡 Interactive Navigation:</p>
+                  <ul className="list-disc list-inside space-y-1 text-xs">
+                    <li>Click on boxes/elements to drill down to the next level</li>
+                    <li>Context → Container → Component → Code</li>
+                    <li>Use the level buttons above to navigate back up</li>
+                    {currentLevel === 'component' && <li className="font-medium">🎯 Currently viewing: {selectedFolder}/</li>}
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
         </div>
