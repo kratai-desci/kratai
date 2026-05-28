@@ -63,7 +63,7 @@ export default function StaticView({ selectedFile, syncEnabled }: StaticViewProp
     if (activeTab === 'usecase' || activeTab === 'deployment' || activeTab === 'layers' || activeTab === 'class') {
       setMermaidRendered(false);
       setDiagramKey(prev => prev + 1); // Force remount
-      setTimeout(renderMermaid, 150);
+      setTimeout(renderMermaid, 200);
     }
   }, [activeTab]);
 
@@ -192,14 +192,36 @@ export default function StaticView({ selectedFile, syncEnabled }: StaticViewProp
                 </div>
               )}
               
-              {/* Mermaid Diagram */}
+              {/* Mermaid Diagram - Hidden until rendered */}
               <div 
                 key={diagramKey} 
-                className={`mermaid flex items-center justify-center ${!mermaidRendered ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300 ${(activeTab === 'deployment' || activeTab === 'layers') ? 'cursor-pointer hover:opacity-90' : ''}`}
+                className={`mermaid ${(activeTab === 'deployment' || activeTab === 'layers') ? 'cursor-pointer hover:opacity-90' : ''}`}
                 title={activeTab === 'deployment' ? 'Click to view Package diagram' : activeTab === 'layers' ? 'Click to view Class diagram' : ''}
+                style={{
+                  opacity: mermaidRendered ? 1 : 0,
+                  transition: 'opacity 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: '400px',
+                  color: 'transparent',
+                  overflow: 'hidden'
+                }}
               >
                 {diagram.mermaidCode}
               </div>
+              
+              {/* CSS to hide text content */}
+              <style jsx>{`
+                .mermaid {
+                  font-size: 0;
+                  line-height: 0;
+                }
+                .mermaid svg {
+                  font-size: 16px;
+                  line-height: 1.5;
+                }
+              `}</style>
             </div>
             
             <div className="mt-6 p-4 bg-slate-800/30 rounded-lg">
