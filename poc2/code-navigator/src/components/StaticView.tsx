@@ -4,6 +4,367 @@ import { useState, useEffect, useRef } from 'react';
 import { useCaseDiagram, deploymentDiagram, layersOverviewDiagram, classDiagram } from '@/data/diagrams';
 import { sequenceDiagrams } from '@/data/sequenceDiagrams';
 
+// Architecture documentation content
+const ARCHITECTURE_DOC = `# Architecture Documentation
+
+## Overview
+
+This document provides a comprehensive view of the system architecture for the AIBoard project. It follows a 4-layer clean architecture pattern with clear separation of concerns.
+
+## Table of Contents
+
+1. [Use Case Diagram](#use-case-diagram)
+2. [Deployment Diagram](#deployment-diagram)
+3. [Package Diagram (Layers)](#package-diagram)
+4. [Class Diagram](#class-diagram)
+5. [Design Principles](#design-principles)
+
+---
+
+## Use Case Diagram
+
+### Purpose
+The use case diagram shows the functional requirements from the user's perspective. It identifies actors, their goals, and how they interact with the system.
+
+### Key Actors
+- **User**: End user who manages projects and views analytics
+- **System**: Internal automated processes
+- **MongoDB**: Data persistence layer
+- **GitHub**: External integration for repository management
+
+### Diagram Code
+
+\`\`\`mermaid
+flowchart TB
+    User((User))
+    System((System))
+    
+    subgraph "Project Management"
+        UC1[Create Project]:::added
+        UC2[View Project]
+        UC3[Update Project]:::modified
+        UC4[Delete Project]
+    end
+    
+    subgraph "Analytics - NEW"
+        UC5[View Analytics Dashboard]:::added
+        UC6[Generate Reports]:::added
+    end
+    
+    subgraph "Agent Management"
+        UC7[Create Agent]
+        UC8[Configure Agent]
+        UC9[Upload Avatar]
+    end
+    
+    User --> UC1
+    User --> UC2
+    User --> UC3
+    User --> UC4
+    User --> UC5
+    User --> UC6
+    User --> UC7
+    User --> UC8
+    User --> UC9
+    
+    UC1 -.-> GitHub[GitHub API]:::external
+    UC5 -.-> MongoDB[MongoDB]:::external
+    
+    classDef added fill:#22c55e,stroke:#16a34a,stroke-width:3px
+    classDef modified fill:#eab308,stroke:#ca8a04,stroke-width:3px
+    classDef external fill:#3b82f6,stroke:#2563eb,stroke-width:2px
+\`\`\`
+
+### Recent Changes
+- ✅ **Added**: Analytics Dashboard use cases (View Analytics, Generate Reports)
+- 🔄 **Modified**: Project creation now integrates with GitHub
+- 🔄 **Modified**: Update Project enhanced with validation
+
+---
+
+## Deployment Diagram
+
+### Purpose
+Shows the physical deployment of the system across different runtime environments and how components are distributed.
+
+### Architecture Style
+- **Frontend**: Next.js 16 (React) deployed on Vercel
+- **Backend**: Serverless API routes (Next.js API)
+- **Database**: MongoDB Atlas (cloud-hosted)
+- **External Services**: GitHub API for repository management
+
+### Diagram Code
+
+\`\`\`mermaid
+C4Deployment
+    title Deployment Diagram - AIBoard
+
+    Deployment_Node(client, "Client Browser", "Web Browser") {
+        Container(spa, "AIBoard Web App", "Next.js, React", "User interface")
+    }
+    
+    Deployment_Node(vercel, "Vercel", "Cloud Platform") {
+        Container(api, "API Routes", "Next.js Serverless", "Handles API requests"):::modified
+    }
+    
+    Deployment_Node(atlas, "MongoDB Atlas", "Database Cloud") {
+        ContainerDb(db, "MongoDB", "NoSQL Database", "Stores all data")
+    }
+    
+    Deployment_Node(github, "GitHub", "External Service") {
+        Container(ghapi, "GitHub API", "REST API", "Repository management"):::added
+    }
+    
+    Rel(spa, api, "HTTPS/REST", "Makes API calls")
+    Rel(api, db, "MongoDB Protocol", "Reads/writes data")
+    Rel(api, ghapi, "HTTPS", "Creates repos")
+    
+    classDef modified fill:#eab308,stroke:#ca8a04,stroke-width:3px
+    classDef added fill:#22c55e,stroke:#16a34a,stroke-width:3px
+\`\`\`
+
+### Key Characteristics
+- **Scalability**: Serverless architecture auto-scales
+- **Reliability**: MongoDB Atlas provides 99.95% SLA
+- **Security**: All connections over HTTPS/TLS
+- **Performance**: CDN-backed Next.js deployment
+
+---
+
+## Package Diagram (4-Layer Architecture)
+
+### Purpose
+Illustrates the logical organization of code into layers, showing dependencies and package structure.
+
+### Layer Descriptions
+
+#### Layer 1: UI (l1_ui)
+- **Responsibility**: Presentation logic, user interaction
+- **Technologies**: React components, Tailwind CSS
+- **Dependencies**: Can only depend on Layer 2 (Controllers)
+- **Changes**: New AnalyticsDashboard component added
+
+#### Layer 2: Controllers (l2_controllers)
+- **Responsibility**: Application logic, use cases
+- **Technologies**: TypeScript classes (Use Cases)
+- **Dependencies**: Can depend on Layer 3 (Model)
+- **Changes**: Enhanced validation, GitHub integration
+
+#### Layer 3: Model (l3_model)
+- **Responsibility**: Business logic, domain entities
+- **Technologies**: Domain models, repository interfaces
+- **Dependencies**: No dependencies on outer layers
+- **Changes**: ProjectModel now includes githubRepo field
+
+#### Layer 4: Infrastructure (l4_infra)
+- **Responsibility**: Technical implementation, external integrations
+- **Technologies**: MongoDB drivers, API clients
+- **Dependencies**: Implements Layer 3 interfaces
+- **Changes**: Repository implementations updated
+
+### Diagram Code
+
+\`\`\`mermaid
+flowchart TB
+    subgraph Layer1["🎨 Layer 1: UI (l1_ui)"]
+        PD[ProjectDashboard]:::modified
+        AD[AnalyticsDashboard]:::added
+    end
+    
+    subgraph Layer2["🎯 Layer 2: Controllers (l2_controllers)"]
+        CPUC[CreateProjectUseCase]:::modified
+        VAUC[ViewAnalyticsUseCase]:::added
+        AgentUC[Agent Use Cases]
+    end
+    
+    subgraph Layer3["💼 Layer 3: Model (l3_model)"]
+        PM[ProjectModel]:::modified
+        AM[AgentModel]
+        IRepo[IProjectRepository]:::modified
+    end
+    
+    subgraph Layer4["🔧 Layer 4: Infrastructure (l4_infra)"]
+        MongoRepo[MongoProjectRepository]:::modified
+        GitHub[GitHubClient]:::added
+    end
+    
+    PD --> CPUC
+    AD --> VAUC
+    CPUC --> PM
+    CPUC --> IRepo
+    VAUC --> IRepo
+    IRepo --> MongoRepo
+    CPUC -.-> GitHub
+    
+    classDef added fill:#22c55e,stroke:#16a34a,stroke-width:3px
+    classDef modified fill:#eab308,stroke:#ca8a04,stroke-width:3px
+\`\`\`
+
+### Dependency Rules
+1. **Layer 1** can only depend on **Layer 2**
+2. **Layer 2** can only depend on **Layer 3**
+3. **Layer 3** has no dependencies (pure domain)
+4. **Layer 4** implements **Layer 3** interfaces
+
+---
+
+## Class Diagram
+
+### Purpose
+Details the classes, their attributes, methods, and relationships within the system.
+
+### Key Relationships
+- **Composition**: UI components compose use cases
+- **Dependency**: Use cases depend on repository interfaces
+- **Implementation**: Concrete repositories implement interfaces
+- **Association**: Models are passed between layers
+
+### Diagram Code
+
+\`\`\`mermaid
+classDiagram
+    %% Layer 1: UI
+    class ProjectDashboard {
+        +render()
+        +handleCreate()
+    }:::modified
+    
+    class AnalyticsDashboard {
+        +render()
+        +fetchMetrics()
+    }:::added
+    
+    %% Layer 2: Controllers
+    class CreateProjectUseCase {
+        -repo: IProjectRepository
+        +execute(data): ProjectModel
+    }:::modified
+    
+    class ViewAnalyticsUseCase {
+        -repo: ISessionRepository
+        +execute(projectId): AnalyticsMetrics
+    }:::added
+    
+    %% Layer 3: Model
+    class ProjectModel {
+        -id: string
+        -name: string
+        -githubRepo: string
+        +validate(): void
+    }:::modified
+    
+    class IProjectRepository {
+        <<interface>>
+        +create(model): ProjectModel
+        +findById(id): ProjectModel
+    }:::modified
+    
+    %% Layer 4: Infrastructure
+    class MongoProjectRepository {
+        -client: MongoClient
+        +create(model): ProjectModel
+        +findById(id): ProjectModel
+    }:::modified
+    
+    class GitHubClient {
+        -token: string
+        +createRepository(name): RepoInfo
+    }:::added
+    
+    %% Relationships
+    ProjectDashboard --> CreateProjectUseCase
+    AnalyticsDashboard --> ViewAnalyticsUseCase
+    CreateProjectUseCase --> ProjectModel
+    CreateProjectUseCase --> IProjectRepository
+    CreateProjectUseCase ..> GitHubClient
+    IProjectRepository <|.. MongoProjectRepository
+    
+    classDef added fill:#22c55e,stroke:#16a34a,stroke-width:3px
+    classDef modified fill:#eab308,stroke:#ca8a04,stroke-width:3px
+\`\`\`
+
+### Recent Changes Summary
+
+| Component | Type | Change Description |
+|-----------|------|-------------------|
+| AnalyticsDashboard | Added ✅ | New UI component for viewing metrics |
+| ViewAnalyticsUseCase | Added ✅ | New use case for analytics logic |
+| GitHubClient | Added ✅ | External integration for repo creation |
+| ProjectDashboard | Modified 🔄 | Enhanced with GitHub integration |
+| CreateProjectUseCase | Modified 🔄 | Now creates GitHub repos |
+| ProjectModel | Modified 🔄 | Added githubRepo field + validation |
+| MongoProjectRepository | Modified 🔄 | Updated document mapping |
+
+---
+
+## Design Principles
+
+### 1. Dependency Inversion
+- High-level modules don't depend on low-level modules
+- Both depend on abstractions (interfaces)
+- Example: \`CreateProjectUseCase\` depends on \`IProjectRepository\`, not \`MongoProjectRepository\`
+
+### 2. Single Responsibility
+- Each class has one reason to change
+- UI components handle presentation only
+- Use cases handle application logic only
+- Models contain business rules only
+
+### 3. Open/Closed Principle
+- Open for extension, closed for modification
+- Example: Adding GitHub integration didn't break existing project creation flow
+- New features added through composition, not modification
+
+### 4. Interface Segregation
+- Clients shouldn't depend on interfaces they don't use
+- Example: \`IProjectRepository\` has focused methods (create, findById)
+- Not a bloated "IRepository" with 50 methods
+
+### 5. Clean Architecture Benefits
+- ✅ **Testability**: Each layer can be tested independently
+- ✅ **Maintainability**: Changes isolated to specific layers
+- ✅ **Flexibility**: Easy to swap implementations (e.g., MongoDB → PostgreSQL)
+- ✅ **Scalability**: Clear boundaries enable team parallelization
+
+---
+
+## Usage with AI Agents
+
+### Context for AI Coding Assistants
+
+When working with AI agents on this codebase, provide this document as context along with:
+
+1. **Current Task**: Describe what you're building
+2. **Affected Layers**: Specify which layers will change
+3. **Integration Points**: Note where new code connects
+4. **Diagram References**: Point to specific diagrams
+
+### Example Prompt Template
+
+\`\`\`
+I'm adding a new feature: [FEATURE_NAME]
+
+Context from Architecture.md:
+- This affects Layer [1/2/3/4]
+- Related use cases: [USE_CASE_NAMES]
+- Involved classes: [CLASS_NAMES]
+
+Please implement following the established patterns shown in the [DIAGRAM_TYPE] diagram.
+Ensure dependency rules are maintained (Layer N depends only on Layer N+1).
+\`\`\`
+
+### Best Practices
+1. Always reference the appropriate diagram when discussing changes
+2. Maintain the color coding convention (green=new, yellow=modified)
+3. Update this document when adding major features
+4. Keep diagrams in sync with actual code structure
+
+---
+
+*Last Updated: 2026-05-31*
+*Version: 1.0*
+`;
+
 // Helper: find the class name for a clicked method element by walking up the SVG DOM
 function findClassForMethodElement(methodEl: Element): string | null {
   // Walk up to find the nearest <g> node group that represents a class
@@ -119,6 +480,7 @@ export default function StaticView({ selectedFile, syncEnabled, onFileSelect, on
   const [mermaidRendered, setMermaidRendered] = useState(false);
   const [diagramKey, setDiagramKey] = useState(0);
   const [renderedSvg, setRenderedSvg] = useState<string>('');
+  const [showArchitectureDoc, setShowArchitectureDoc] = useState(false);
   const diagramContainerRef = useRef<HTMLDivElement>(null);
 
   // Compute diagram and single class diagram BEFORE useEffect hooks
@@ -279,21 +641,22 @@ export default function StaticView({ selectedFile, syncEnabled, onFileSelect, on
           <h2 className="text-white font-semibold">Structure View</h2>
         </div>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => {
-              setActiveTab('usecase');
-              onFileSelect?.(null);
-            }}
-            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-              activeTab === 'usecase'
-                ? 'bg-slate-700/50 text-white'
-                : 'text-slate-400 hover:text-white hover:bg-slate-700/30'
-            }`}
-          >
-            Use Cases
-          </button>
+        {/* Tabs and Architecture Button */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                setActiveTab('usecase');
+                onFileSelect?.(null);
+              }}
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                activeTab === 'usecase'
+                  ? 'bg-slate-700/50 text-white'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/30'
+              }`}
+            >
+              Use Cases
+            </button>
           <button
             onClick={() => {
               setActiveTab('deployment');
@@ -332,6 +695,19 @@ export default function StaticView({ selectedFile, syncEnabled, onFileSelect, on
             }`}
           >
             Class
+          </button>
+          </div>
+          
+          {/* Architecture.md Button */}
+          <button
+            onClick={() => setShowArchitectureDoc(!showArchitectureDoc)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors bg-blue-500/10 border border-blue-500/30 text-blue-300 hover:bg-blue-500/20"
+            title="View Architecture Documentation"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Architecture.md
           </button>
         </div>
       </div>
@@ -609,6 +985,59 @@ export default function StaticView({ selectedFile, syncEnabled, onFileSelect, on
           {syncEnabled && <span className="text-green-500">● Synced</span>}
         </div>
       </div>
+      
+      {/* Architecture Documentation Modal */}
+      {showArchitectureDoc && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowArchitectureDoc(false)}>
+          <div className="bg-slate-800 rounded-lg w-full max-w-5xl h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+              <div className="flex items-center gap-3">
+                <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h2 className="text-xl font-semibold text-white">Architecture.md</h2>
+                <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs rounded">Documentation</span>
+              </div>
+              <button
+                onClick={() => setShowArchitectureDoc(false)}
+                className="p-2 hover:bg-slate-700/50 rounded text-slate-400 hover:text-white transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="flex-1 overflow-auto p-6">
+              <div className="prose prose-invert max-w-none">
+                <pre className="whitespace-pre-wrap text-sm text-slate-300 font-mono leading-relaxed bg-slate-900/50 p-6 rounded-lg">
+                  {ARCHITECTURE_DOC}
+                </pre>
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-700 flex items-center justify-between">
+              <div className="text-xs text-slate-400">
+                💡 <strong>Tip:</strong> Copy sections of this document to provide context when working with AI coding assistants
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(ARCHITECTURE_DOC);
+                }}
+                className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Copy All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
