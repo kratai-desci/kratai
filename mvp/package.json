@@ -14,8 +14,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "kratai.helloWorld",
-        "title": "Kratai: Hello World"
+        "command": "kratai.showFileSummary",
+        "title": "Kratai: Show File Summary"
       }
     ]
   },
