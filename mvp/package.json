@@ -15,7 +15,7 @@
     "commands": [
       {
         "command": "kratai.showFileSummary",
-        "title": "Kratai: Show File Summary"
+        "title": "Kratai: Show Git Changes"
       }
     ]
   },
