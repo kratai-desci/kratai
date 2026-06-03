@@ -3,114 +3,169 @@ import { ReactFlowNode, ReactFlowEdge } from '../types/diagram';
 export class ClassDiagramView {
 	
 	static generate(nodes: ReactFlowNode[], edges: ReactFlowEdge[], workspaceName: string): string {
-		// Group classes by folder
-		const folderGroups: Map<string, ReactFlowNode[]> = new Map();
-		
+		// Build hierarchical folder structure
+		interface FolderNode {
+			name: string;
+			fullPath: string;
+			children: Map<string, FolderNode>;
+			classes: ReactFlowNode[];
+		}
+
+		const root: FolderNode = { name: 'src', fullPath: 'src', children: new Map(), classes: [] };
+
 		nodes.forEach(node => {
 			const filePath = node.data.classInfo.filePath;
-			// Extract folder path from file path (e.g., "src/commands")
 			const match = filePath.match(/src\/(.+?)\/[^\/]+\.ts$/);
-			const folder = match ? `src/${match[1]}` : 'src';
+			const pathParts = match ? match[1].split('/') : [];
 			
-			if (!folderGroups.has(folder)) {
-				folderGroups.set(folder, []);
-			}
-			folderGroups.get(folder)!.push(node);
+			let current = root;
+			let currentPath = 'src';
+			
+			pathParts.forEach(part => {
+				currentPath += '/' + part;
+				if (!current.children.has(part)) {
+					current.children.set(part, {
+						name: part,
+						fullPath: currentPath,
+						children: new Map(),
+						classes: []
+					});
+				}
+				current = current.children.get(part)!;
+			});
+			
+			current.classes.push(node);
 		});
-
-		// Sort folders alphabetically
-		const sortedFolders = Array.from(folderGroups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
 
 		// Layout configuration
-		const boxWidth = 260;
-		const boxHeight = 200; // Approximate
-		const classSpacing = 25;
-		const folderSpacing = 60;
-		const folderPadding = 50;
-		const startX = 40;
-		const startY = 40;
+		const boxWidth = 250;
+		const boxHeight = 170;
+		const classSpacing = 18;
+		const folderHeaderHeight = 32;
+		const folderPadding = 12;
+		const folderMargin = 15;
 		
-		// Calculate positions for each folder group
-		let currentX = startX;
-		const folderPositions = new Map<string, { x: number; y: number; width: number; height: number }>();
 		const classPositions = new Map<string, { x: number; y: number }>();
-
-		sortedFolders.forEach(([folder, folderNodes]) => {
-			// Calculate grid layout within folder
-			const nodesPerRow = Math.ceil(Math.sqrt(folderNodes.length));
-			const rows = Math.ceil(folderNodes.length / nodesPerRow);
-			
-			const folderWidth = nodesPerRow * (boxWidth + classSpacing) + folderPadding * 2 - classSpacing;
-			const folderHeight = rows * (boxHeight + classSpacing) + folderPadding * 2 + 40; // +40 for folder header
-			
-			folderPositions.set(folder, { 
-				x: currentX, 
-				y: startY, 
-				width: folderWidth, 
-				height: folderHeight 
-			});
-
-			// Position classes within folder
-			folderNodes.forEach((node, index) => {
-				const row = Math.floor(index / nodesPerRow);
-				const col = index % nodesPerRow;
-				
-				const x = currentX + folderPadding + col * (boxWidth + classSpacing);
-				const y = startY + folderPadding + 40 + row * (boxHeight + classSpacing); // +40 for folder header
-				
-				classPositions.set(node.data.classInfo.name, { x, y });
-			});
-
-			currentX += folderWidth + folderSpacing;
-		});
-
+		const folderSizes = new Map<string, { x: number; y: number; width: number; height: number }>();
 		const nodeMap = new Map(nodes.map(n => [n.data.classInfo.name, n]));
 
-		// Generate folder backgrounds
-		const folderBackgrounds = sortedFolders.map(([folder]) => {
-			const pos = folderPositions.get(folder)!;
-			const folderIcon = folder.includes('commands') ? '⚡' : 
-							   folder.includes('services') ? '⚙️' : 
-							   folder.includes('views') ? '👁️' : 
-							   folder.includes('types') ? '📝' : '📁';
-			const folderNodes = folderGroups.get(folder)!;
+		// Recursive function to calculate folder size and layout
+		function layoutFolder(folder: FolderNode, x: number, y: number): { width: number; height: number } {
+			let contentY = y + folderHeaderHeight + folderPadding;
+			let maxWidth = 0;
+			const currentX = x + folderPadding;
 			
-			return `
-				<div style="
+			// Layout classes in this folder
+			const nodesPerRow = Math.min(4, Math.ceil(Math.sqrt(folder.classes.length)));
+			folder.classes.forEach((node, index) => {
+				const col = index % nodesPerRow;
+				const row = Math.floor(index / nodesPerRow);
+				
+				const classX = currentX + col * (boxWidth + classSpacing);
+				const classY = contentY + row * (boxHeight + classSpacing);
+				
+				classPositions.set(node.data.classInfo.name, { x: classX, y: classY });
+			});
+			
+			const classRows = Math.ceil(folder.classes.length / nodesPerRow);
+			const classAreaHeight = classRows > 0 ? classRows * boxHeight + (classRows - 1) * classSpacing : 0;
+			const classAreaWidth = Math.min(nodesPerRow, folder.classes.length) * boxWidth + (Math.min(nodesPerRow, folder.classes.length) - 1) * classSpacing;
+			
+			if (folder.classes.length > 0) {
+				contentY += classAreaHeight + folderMargin;
+				maxWidth = Math.max(maxWidth, classAreaWidth);
+			}
+			
+			// Layout child folders
+			const childFolders = Array.from(folder.children.values()).sort((a, b) => a.name.localeCompare(b.name));
+			childFolders.forEach(child => {
+				const childSize = layoutFolder(child, currentX, contentY);
+				contentY += childSize.height + folderMargin;
+				maxWidth = Math.max(maxWidth, childSize.width);
+			});
+			
+			const totalWidth = Math.max(maxWidth, 150) + folderPadding * 2;
+			const totalHeight = contentY - y + folderPadding;
+			
+			folderSizes.set(folder.fullPath, { x, y, width: totalWidth, height: totalHeight });
+			
+			return { width: totalWidth, height: totalHeight };
+		}
+		
+		// Calculate layout starting from root
+		const rootSize = layoutFolder(root, 40, 40);
+
+		// Recursive function to render folder boxes
+		function renderFolder(folder: FolderNode, depth: number): string {
+			const pos = folderSizes.get(folder.fullPath);
+			if (!pos) return '';
+			
+			const opacity = Math.max(0.06, 0.12 - depth * 0.015);
+			const borderOpacity = Math.max(0.25, 0.45 - depth * 0.04);
+			
+			const folderIcon = folder.name.includes('command') ? '⚡' : 
+							   folder.name.includes('service') ? '⚙️' : 
+							   folder.name.includes('view') ? '👁️' : 
+							   folder.name.includes('type') ? '📝' :
+							   folder.name.includes('app') ? '📱' : 
+							   folder.name.includes('util') ? '🔧' : '📁';
+			
+			const classCount = folder.classes.length;
+			const totalCount = countClasses(folder);
+			
+			let html = `
+				<div class="folder-box" style="
 					position: absolute;
 					left: ${pos.x}px;
 					top: ${pos.y}px;
 					width: ${pos.width}px;
 					height: ${pos.height}px;
-					background: rgba(255, 255, 255, 0.08);
-					border: 2px solid rgba(102, 126, 234, 0.3);
-					border-radius: 12px;
-					backdrop-filter: blur(10px);
+					background: rgba(255, 255, 255, ${opacity});
+					border: 2px solid rgba(102, 126, 234, ${borderOpacity});
+					border-radius: 6px;
+					backdrop-filter: blur(3px);
+					z-index: ${10 - depth};
 				">
 					<div style="
-						padding: 10px 15px;
-						background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
-						border-radius: 10px 10px 0 0;
+						padding: 6px 10px;
+						background: linear-gradient(135deg, rgba(102, 126, 234, ${0.18 + depth * 0.03}), rgba(118, 75, 162, ${0.18 + depth * 0.03}));
+						border-radius: 4px 4px 0 0;
 						color: white;
 						font-weight: 600;
-						font-size: 0.95em;
+						font-size: 0.8em;
 						display: flex;
 						align-items: center;
-						gap: 8px;
+						gap: 5px;
 					">
-						<span style="font-size: 1.2em;">${folderIcon}</span>
-						<span>${folder}</span>
-						<span style="
-							background: rgba(255, 255, 255, 0.3);
-							padding: 2px 8px;
-							border-radius: 10px;
-							font-size: 0.85em;
+						<span style="font-size: 1.05em;">${folderIcon}</span>
+						<span>${folder.name}</span>
+						${totalCount > 0 ? `<span style="
+							background: rgba(255, 255, 255, 0.25);
+							padding: 1px 5px;
+							border-radius: 6px;
+							font-size: 0.75em;
 							margin-left: auto;
-						">${folderNodes.length}</span>
+						">${totalCount}</span>` : ''}
 					</div>
 				</div>
 			`;
-		}).join('');
+			
+			// Render child folders
+			const childFolders = Array.from(folder.children.values()).sort((a, b) => a.name.localeCompare(b.name));
+			childFolders.forEach(child => {
+				html += renderFolder(child, depth + 1);
+			});
+			
+			return html;
+		}
+		
+		function countClasses(folder: FolderNode): number {
+			let count = folder.classes.length;
+			folder.children.forEach(child => count += countClasses(child));
+			return count;
+		}
+		
+		const folderBackgrounds = renderFolder(root, 0);
 
 		// Generate UML boxes
 		const classBoxes = nodes.map(node => {
@@ -129,62 +184,63 @@ export class ClassDiagramView {
 					width: ${boxWidth}px;
 					background: white;
 					border: 3px ${borderStyle} ${borderColor};
-					border-radius: 4px;
-					box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+					border-radius: 3px;
+					box-shadow: 0 2px 6px rgba(0,0,0,0.12);
 					font-family: 'Courier New', monospace;
-					font-size: 0.8em;
+					font-size: 0.75em;
+					z-index: 50;
 				">
 					<!-- Class name compartment -->
 					<div style="
 						background: ${borderColor};
 						color: white;
-						padding: 10px;
+						padding: 8px;
 						text-align: center;
 						font-weight: bold;
-						font-size: 0.95em;
-						border-radius: 1px 1px 0 0;
+						font-size: 0.9em;
+						border-radius: 0px;
 					">
 						${classInfo.isInterface ? '«interface»<br>' : classInfo.isAbstract ? '«abstract»<br>' : ''}${className}
 					</div>
 					
 					<!-- Properties compartment -->
 					<div style="
-						padding: 8px;
+						padding: 6px;
 						border-bottom: 1px solid ${borderColor};
-						min-height: 30px;
-						max-height: 70px;
+						min-height: 25px;
+						max-height: 65px;
 						overflow: hidden;
 						background: #fafafa;
-						font-size: 0.8em;
+						font-size: 0.78em;
 					">
 						${classInfo.properties.length > 0 ? classInfo.properties.slice(0, 4).map(prop => `
-							<div style="padding: 2px 4px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+							<div style="padding: 1px 3px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
 								<span style="color: ${prop.visibility === 'private' ? '#e74c3c' : prop.visibility === 'protected' ? '#f39c12' : '#27ae60'};">
 									${prop.visibility === 'private' ? '-' : prop.visibility === 'protected' ? '#' : '+'}
 								</span>
 								${prop.name}
 							</div>
-						`).join('') : '<div style="color: #999; font-style: italic; padding: 4px;">No properties</div>'}
-						${classInfo.properties.length > 4 ? `<div style="color: #999; font-style: italic; padding: 2px 4px;">+${classInfo.properties.length - 4}</div>` : ''}
+						`).join('') : '<div style="color: #999; font-style: italic; padding: 3px;">No properties</div>'}
+						${classInfo.properties.length > 4 ? `<div style="color: #999; font-style: italic; padding: 1px 3px;">+${classInfo.properties.length - 4}</div>` : ''}
 					</div>
 					
 					<!-- Methods compartment -->
 					<div style="
-						padding: 8px;
-						min-height: 30px;
-						max-height: 70px;
+						padding: 6px;
+						min-height: 25px;
+						max-height: 65px;
 						overflow: hidden;
-						font-size: 0.8em;
+						font-size: 0.78em;
 					">
 						${classInfo.methods.length > 0 ? classInfo.methods.slice(0, 4).map(method => `
-							<div style="padding: 2px 4px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+							<div style="padding: 1px 3px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
 								<span style="color: ${method.visibility === 'private' ? '#e74c3c' : method.visibility === 'protected' ? '#f39c12' : '#27ae60'};">
 									${method.visibility === 'private' ? '-' : method.visibility === 'protected' ? '#' : '+'}
 								</span>
 								${method.name}()
 							</div>
-						`).join('') : '<div style="color: #999; font-style: italic; padding: 4px;">No methods</div>'}
-						${classInfo.methods.length > 4 ? `<div style="color: #999; font-style: italic; padding: 2px 4px;">+${classInfo.methods.length - 4}</div>` : ''}
+						`).join('') : '<div style="color: #999; font-style: italic; padding: 3px;">No methods</div>'}
+						${classInfo.methods.length > 4 ? `<div style="color: #999; font-style: italic; padding: 1px 3px;">+${classInfo.methods.length - 4}</div>` : ''}
 					</div>
 				</div>
 			`;
@@ -203,7 +259,7 @@ export class ClassDiagramView {
 			const targetY = targetPos.y + boxHeight / 2;
 
 			const color = edge.type === 'extends' ? '#ff6b6b' : edge.type === 'implements' ? '#4ecdc4' : '#999';
-			const dashArray = edge.type === 'implements' ? '5,5' : '0';
+			const dashArray = edge.type === 'implements' ? '4,4' : '0';
 			const markerEnd = edge.type === 'implements' ? 'url(#triangle-implements)' : 'url(#triangle-extends)';
 			
 			// Draw curved line for better visibility
@@ -212,7 +268,7 @@ export class ClassDiagramView {
 			const dx = targetX - sourceX;
 			const dy = targetY - sourceY;
 			const dist = Math.sqrt(dx * dx + dy * dy);
-			const offset = Math.min(30, dist / 4);
+			const offset = Math.min(25, dist / 5);
 			const controlX = midX - dy * offset / dist;
 			const controlY = midY + dx * offset / dist;
 			
@@ -224,15 +280,21 @@ export class ClassDiagramView {
 					fill="none"
 					stroke-dasharray="${dashArray}"
 					marker-end="${markerEnd}"
-					opacity="0.6"
+					opacity="0.7"
 				/>
 			`;
 		}).join('');
 
 		// Calculate canvas size
-		const maxX = currentX + 50;
-		const maxFolderHeight = Math.max(...Array.from(folderPositions.values()).map(p => p.height));
-		const maxY = startY + maxFolderHeight + 50;
+		const maxX = 40 + rootSize.width + 50;
+		const maxY = 40 + rootSize.height + 50;
+		
+		function countFolders(folder: FolderNode): number {
+			let count = 1;
+			folder.children.forEach(child => count += countFolders(child));
+			return count;
+		}
+		const totalFolders = countFolders(root);
 
 		return `<!DOCTYPE html>
 <html lang="en">
@@ -302,8 +364,11 @@ export class ClassDiagramView {
         }
         .uml-box:hover {
             transform: scale(1.05);
-            z-index: 100;
+            z-index: 200 !important;
             box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        }
+        .folder-box {
+            transition: opacity 0.2s;
         }
         .zoom-controls {
             position: fixed;
@@ -362,7 +427,7 @@ export class ClassDiagramView {
             <input type="text" id="search" placeholder="Search classes..." oninput="filterClasses(this.value)">
         </div>
         <div class="stats">
-            ${sortedFolders.length} folders
+            ${totalFolders} folders
         </div>
     </div>
     
@@ -386,7 +451,7 @@ export class ClassDiagramView {
     
     <div style="overflow: auto; height: calc(100vh - 100px); background: rgba(255,255,255,0.05);" id="diagram-scroll">
         <div class="diagram-container" id="diagram">
-            <svg width="${maxX}" height="${maxY}" style="position: absolute; top: 0; left: 0; pointer-events: none; z-index: 1;">
+            <svg width="${maxX}" height="${maxY}" style="position: absolute; top: 0; left: 0; pointer-events: none; z-index: 2;">
                 <defs>
                     <marker id="triangle-extends" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
                         <polygon points="0,0 0,8 8,4" fill="#ff6b6b" />
