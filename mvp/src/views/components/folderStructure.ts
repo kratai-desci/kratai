@@ -59,7 +59,34 @@ export class FolderStructureBuilder {
 			unmatchedFiles.slice(0, 10).forEach(f => console.warn(`   ${f}`));
 		}
 
+		// Collapse pass-through folders (folders with no classes and only one child)
+		this.collapsePassThroughFolders(root);
+
 		return root;
+	}
+
+	// Collapse folders that have no classes and only one child folder
+	private static collapsePassThroughFolders(folder: FolderNode): void {
+		const childEntries = Array.from(folder.children.entries());
+		
+		for (const [childName, childFolder] of childEntries) {
+			// First, recursively collapse children
+			this.collapsePassThroughFolders(childFolder);
+			
+			// If this child has no classes and exactly one child of its own, collapse it
+			if (childFolder.classes.length === 0 && childFolder.children.size === 1) {
+				const [grandchildName, grandchildFolder] = Array.from(childFolder.children.entries())[0];
+				
+				// Merge the names: "github" + "repos" -> "github/repos"
+				grandchildFolder.name = `${childFolder.name}/${grandchildName}`;
+				
+				// Replace the child with the grandchild
+				folder.children.delete(childName);
+				folder.children.set(childFolder.name, grandchildFolder);
+				
+				console.log(`🔄 Collapsed ${childFolder.fullPath} -> ${grandchildFolder.name}`);
+			}
+		}
 	}
 
 	static logStructure(folder: FolderNode, indent = ''): void {
