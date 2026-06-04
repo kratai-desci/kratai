@@ -59,17 +59,17 @@ export class RelationshipRenderer {
 
 	private getEdgeColor(type: string): string {
 		switch (type) {
-			case 'extends': return '#ff6b6b';
-			case 'implements': return '#4ecdc4';
-			case 'uses': return '#999999';
-			default: return '#999';
+			case 'extends': return '#000000';
+			case 'implements': return '#000000';
+			case 'uses': return '#666666';
+			default: return '#666666';
 		}
 	}
 
 	private getDashArray(type: string): string {
 		switch (type) {
-			case 'implements': return '4,4';
-			case 'uses': return '2,2';
+			case 'implements': return '5,5';
+			case 'uses': return '3,3';
 			default: return '0';
 		}
 	}
@@ -85,14 +85,17 @@ export class RelationshipRenderer {
 	renderMarkerDefs(): string {
 		return `
 			<defs>
-				<marker id="triangle-extends" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-					<polygon points="0,0 0,8 8,4" fill="#ff6b6b" />
+				<!-- Inheritance arrow: white triangle with black border -->
+				<marker id="triangle-extends" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+					<polygon points="0,0 0,10 10,5" fill="white" stroke="#000000" stroke-width="2" />
 				</marker>
-				<marker id="triangle-implements" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-					<polygon points="0,0 0,8 8,4" fill="#4ecdc4" />
+				<!-- Implementation arrow: white triangle with black border -->
+				<marker id="triangle-implements" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+					<polygon points="0,0 0,10 10,5" fill="white" stroke="#000000" stroke-width="2" />
 				</marker>
-				<marker id="arrow-uses" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-					<path d="M 0,0 L 8,4 L 0,8" fill="none" stroke="#999999" stroke-width="1.5" />
+				<!-- Association arrow: simple open arrow -->
+				<marker id="arrow-uses" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+					<path d="M 0,0 L 10,5 L 0,10" fill="none" stroke="#666666" stroke-width="2" />
 				</marker>
 			</defs>
 		`;

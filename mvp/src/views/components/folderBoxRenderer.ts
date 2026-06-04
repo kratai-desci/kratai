@@ -33,42 +33,61 @@ export class FolderBoxRenderer {
 		totalCount: number,
 		depth: number
 	): string {
+		// UML Package tab-style notation
+		const tabWidth = Math.min(180, Math.max(120, folder.name.length * 8 + 60));
+		
 		return `
+			<!-- Package Tab -->
+			<div style="
+				position: absolute;
+				left: ${pos.x}px;
+				top: ${pos.y - 28}px;
+				width: ${tabWidth}px;
+				height: 28px;
+				background: #e8e8e8;
+				border: 2px solid #666;
+				border-bottom: none;
+				border-radius: 4px 4px 0 0;
+				z-index: ${6 - depth};
+				pointer-events: auto;
+				box-sizing: border-box;
+			">
+				<div style="
+					padding: 5px 12px;
+					color: #333;
+					font-weight: 600;
+					font-size: 13px;
+					display: flex;
+					align-items: center;
+					gap: 6px;
+					height: 100%;
+				">
+					<span>${icon}</span>
+					<span>${folder.name}</span>
+					${totalCount > 0 ? `<span style="
+						background: #d0d0d0;
+						padding: 1px 6px;
+						border-radius: 3px;
+						font-size: 11px;
+						margin-left: auto;
+						font-weight: 500;
+					">${totalCount}</span>` : ''}
+				</div>
+			</div>
+			<!-- Package Body -->
 			<div class="folder-box" style="
 				position: absolute;
 				left: ${pos.x}px;
 				top: ${pos.y}px;
 				width: ${pos.width}px;
 				height: ${pos.height}px;
-				background: rgba(255, 255, 255, ${bgOpacity});
-				border: 2px solid rgba(102, 126, 234, ${borderOpacity});
-				border-radius: 8px;
+				background: #fafafa;
+				border: 2px solid #666;
+				border-radius: 0 4px 4px 4px;
 				z-index: ${5 - depth};
 				pointer-events: none;
 				box-sizing: border-box;
 			">
-				<div style="
-					padding: 10px 14px;
-					background: linear-gradient(135deg, rgba(102, 126, 234, ${0.2 + depth * 0.03}), rgba(118, 75, 162, ${0.2 + depth * 0.03}));
-					border-radius: 6px 6px 0 0;
-					color: #222;
-					font-weight: 600;
-					font-size: 0.85em;
-					display: flex;
-					align-items: center;
-					gap: 6px;
-					pointer-events: auto;
-				">
-					<span style="font-size: 1.1em;">${icon}</span>
-					<span>${folder.name}</span>
-					${totalCount > 0 ? `<span style="
-						background: rgba(102, 126, 234, 0.2);
-						padding: 2px 6px;
-						border-radius: 8px;
-						font-size: 0.8em;
-						margin-left: auto;
-					">${totalCount}</span>` : ''}
-				</div>
 			</div>
 		`;
 	}

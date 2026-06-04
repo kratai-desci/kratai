@@ -180,17 +180,17 @@ export class ClassDiagramView {
         body {
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+            background: #f5f5f5;
             min-height: 100vh;
         }
         .header {
             position: sticky;
             top: 0;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
+            background: white;
             padding: 20px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-bottom: 2px solid #333;
             z-index: 1000;
             display: flex;
             justify-content: space-between;
@@ -199,19 +199,21 @@ export class ClassDiagramView {
         .header h1 {
             margin: 0;
             font-size: 1.5em;
-            color: #667eea;
+            color: #333;
+            font-weight: 600;
         }
         .header p {
             margin: 5px 0 0 0;
             color: #666;
-            font-size: 0.9em;
+            font-size: 0.95em;
         }
         .stats {
-            background: #667eea;
+            background: #333;
             color: white;
             padding: 10px 20px;
-            border-radius: 8px;
+            border-radius: 4px;
             font-size: 0.9em;
+            font-weight: 500;
         }
         .diagram-container {
             position: relative;
@@ -219,8 +221,8 @@ export class ClassDiagramView {
             height: ${maxY}px;
             margin: 30px;
             transform-origin: top left;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px dashed rgba(255, 255, 255, 0.2);
+            background: white;
+            border: none;
             min-width: 800px;
             min-height: 600px;
         }
@@ -250,23 +252,27 @@ export class ClassDiagramView {
             display: block;
             margin: 5px 0;
             padding: 8px 16px;
-            border: none;
-            background: #667eea;
-            color: white;
+            border: 2px solid #333;
+            background: white;
+            color: #333;
             border-radius: 4px;
             cursor: pointer;
             font-size: 0.9em;
             width: 100%;
+            font-weight: 500;
         }
         .zoom-controls button:hover {
-            background: #5568d3;
+            background: #f0f0f0;
         }
         .zoom-controls button.debug {
-            background: #ff6b6b;
+            background: #dc3545;
+            color: white;
+            border-color: #dc3545;
             margin-top: 10px;
         }
         .zoom-controls button.debug:hover {
-            background: #ee5a52;
+            background: #c82333;
+            border-color: #c82333;
         }
         .legend {
             position: fixed;
@@ -310,22 +316,22 @@ export class ClassDiagramView {
     </div>
     
     <div class="legend">
-        <div style="font-weight: 600; margin-bottom: 8px;">Relationships</div>
+        <div style="font-weight: 600; margin-bottom: 8px; color: #333;">Relationships</div>
         <div class="legend-item">
-            <div class="legend-line" style="background: #ff6b6b;"></div>
+            <div class="legend-line" style="background: #000; height: 2px;"></div>
             <span>Extends</span>
         </div>
         <div class="legend-item">
-            <div class="legend-line" style="background: #4ecdc4; border-bottom: 2px dashed #4ecdc4; height: 0;"></div>
+            <div class="legend-line" style="border-bottom: 2px dashed #000; height: 0;"></div>
             <span>Implements</span>
         </div>
         <div class="legend-item">
-            <div class="legend-line" style="background: #999; border-bottom: 1px dotted #999; height: 0;"></div>
+            <div class="legend-line" style="border-bottom: 2px dotted #666; height: 0;"></div>
             <span>Uses</span>
         </div>
     </div>
     
-    <div style="overflow: auto; height: calc(100vh - 100px); background: rgba(255,255,255,0.05);" id="diagram-scroll">
+    <div style="overflow: auto; height: calc(100vh - 100px); background: #f5f5f5;" id="diagram-scroll">
         <!-- Debug Info Panel -->
         <div id="debug-panel" style="display: none; position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 8px; z-index: 10000; font-family: monospace; font-size: 11px; max-width: 300px;">
             <strong>🐛 Render Debug</strong><br/>

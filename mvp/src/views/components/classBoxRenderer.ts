@@ -7,10 +7,8 @@ export class ClassBoxRenderer {
 	render(classInfo: ClassInfo, pos: Position): string {
 		const className = classInfo.name;
 		const isModule = className.startsWith('[');
-		const borderColor = isModule ? '#a78bfa' : 
-							classInfo.isInterface ? '#4ecdc4' : 
-							classInfo.isAbstract ? '#ff6b6b' : '#667eea';
-		const borderStyle = isModule ? 'solid' : classInfo.isInterface ? 'dashed' : 'solid';
+		const borderColor = '#000000';
+		const borderStyle = classInfo.isInterface ? 'dashed' : 'solid';
 		const displayName = isModule ? className.slice(1, -1) : className;
 
 		return `
@@ -20,67 +18,66 @@ export class ClassBoxRenderer {
 				top: ${pos.y}px;
 				width: ${this.boxWidth}px;
 				background: white;
-				border: 4px ${borderStyle} ${borderColor};
-				border-radius: 8px;
-				box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-				font-family: 'Courier New', monospace;
-				font-size: 0.75em;
+				border: 2px ${borderStyle} ${borderColor};
+				border-radius: 0;
+				box-shadow: 2px 2px 4px rgba(0,0,0,0.15);
+				font-family: Arial, Helvetica, sans-serif;
+				font-size: 12px;
 				z-index: 100;
 				pointer-events: auto;
 				box-sizing: border-box;
 			">
-				${this.renderHeader(classInfo, isModule, displayName, borderColor)}
-				${this.renderProperties(classInfo, isModule, borderColor)}
+				${this.renderHeader(classInfo, isModule, displayName)}
+				${this.renderProperties(classInfo, isModule)}
 				${this.renderMethods(classInfo, isModule)}
 			</div>
 		`;
 	}
 
-	private renderHeader(classInfo: ClassInfo, isModule: boolean, displayName: string, borderColor: string): string {
-		const label = isModule ? '«module»<br>' : 
-					  classInfo.isInterface ? '«interface»<br>' : 
-					  classInfo.isAbstract ? '«abstract»<br>' : '';
+	private renderHeader(classInfo: ClassInfo, isModule: boolean, displayName: string): string {
+		const stereotype = isModule ? '«module»' : 
+						   classInfo.isInterface ? '«interface»' : 
+						   classInfo.isAbstract ? '«abstract»' : '';
 		
 		return `
 			<div style="
-				background: ${borderColor};
-				color: white;
-				padding: 8px;
+				padding: 10px 8px;
 				text-align: center;
 				font-weight: bold;
-				font-size: 0.9em;
-				border-radius: 4px 4px 0 0;
+				font-size: 14px;
+				color: #000;
+				border-bottom: 2px solid #000;
 			">
-				${label}${displayName}
+				${stereotype ? `<div style="font-size: 11px; font-style: italic; font-weight: normal; margin-bottom: 4px;">${stereotype}</div>` : ''}
+				<div>${displayName}</div>
 			</div>
 		`;
 	}
 
-	private renderProperties(classInfo: ClassInfo, isModule: boolean, borderColor: string): string {
+	private renderProperties(classInfo: ClassInfo, isModule: boolean): string {
 		const label = isModule ? 'No exports' : 'No properties';
-		const items = classInfo.properties.slice(0, 4).map(prop => `
-			<div style="padding: 1px 3px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${prop.name}: ${prop.type}">
+		const items = classInfo.properties.slice(0, 5).map(prop => `
+			<div style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px;" title="${prop.name}: ${prop.type}">
 				<span style="color: ${this.getVisibilityColor(prop.visibility)};">
 					${this.getVisibilitySymbol(prop.visibility)}
 				</span>
-				${prop.name}
+				${prop.name}: ${this.truncateType(prop.type)}
 			</div>
 		`).join('');
 
-		const overflow = classInfo.properties.length > 4 ? 
-			`<div style="color: #999; font-style: italic; padding: 1px 3px;">+${classInfo.properties.length - 4}</div>` : '';
+		const overflow = classInfo.properties.length > 5 ? 
+			`<div style="color: #666; font-style: italic; padding: 3px 8px; font-size: 11px;">+${classInfo.properties.length - 5} more</div>` : '';
 
 		return `
 			<div style="
-				padding: 6px;
-				border-bottom: 1px solid ${borderColor};
-				min-height: 25px;
-				max-height: 65px;
+				padding: 8px 0;
+				border-bottom: 1px solid #000;
+				min-height: 30px;
+				max-height: 90px;
 				overflow: hidden;
-				background: #fafafa;
-				font-size: 0.78em;
+				background: white;
 			">
-				${items || `<div style="color: #999; font-style: italic; padding: 3px;">${label}</div>`}
+				${items || `<div style="color: #999; font-style: italic; padding: 3px 8px; font-size: 11px;">${label}</div>`}
 				${overflow}
 			</div>
 		`;
@@ -88,31 +85,43 @@ export class ClassBoxRenderer {
 
 	private renderMethods(classInfo: ClassInfo, isModule: boolean): string {
 		const label = isModule ? 'No functions' : 'No methods';
-		const items = classInfo.methods.slice(0, 4).map(method => `
-			<div style="padding: 1px 3px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" 
+		const items = classInfo.methods.slice(0, 5).map(method => `
+			<div style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px;" 
 				 title="${method.name}(${method.parameters.map(p => p.name).join(', ')})">
 				<span style="color: ${this.getVisibilityColor(method.visibility)};">
 					${this.getVisibilitySymbol(method.visibility)}
 				</span>
-				${method.name}()
+				${method.name}(${this.truncateParams(method.parameters)})
 			</div>
 		`).join('');
 
-		const overflow = classInfo.methods.length > 4 ? 
-			`<div style="color: #999; font-style: italic; padding: 1px 3px;">+${classInfo.methods.length - 4}</div>` : '';
+		const overflow = classInfo.methods.length > 5 ? 
+			`<div style="color: #666; font-style: italic; padding: 3px 8px; font-size: 11px;">+${classInfo.methods.length - 5} more</div>` : '';
 
 		return `
 			<div style="
-				padding: 6px;
-				min-height: 25px;
-				max-height: 65px;
+				padding: 8px 0;
+				min-height: 30px;
+				max-height: 90px;
 				overflow: hidden;
-				font-size: 0.78em;
 			">
-				${items || `<div style="color: #999; font-style: italic; padding: 3px;">${label}</div>`}
+				${items || `<div style="color: #999; font-style: italic; padding: 3px 8px; font-size: 11px;">${label}</div>`}
 				${overflow}
 			</div>
 		`;
+	}
+
+	private truncateType(type: string): string {
+		if (type.length > 20) {
+			return type.substring(0, 17) + '...';
+		}
+		return type;
+	}
+
+	private truncateParams(parameters: any[]): string {
+		if (parameters.length === 0) return '';
+		if (parameters.length > 2) return '...';
+		return parameters.map(p => p.name).join(', ');
 	}
 
 	private getVisibilityColor(visibility: 'public' | 'private' | 'protected'): string {
