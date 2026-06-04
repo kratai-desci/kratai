@@ -4,7 +4,7 @@ import { Position } from './layoutCalculator';
 export class ClassBoxRenderer {
 	constructor(private boxWidth: number) {}
 
-	render(classInfo: ClassInfo, pos?: Position): string {
+	render(classInfo: ClassInfo, relationshipMap?: Map<string, Array<{target: string, type: string}>>): string {
 		const className = classInfo.name;
 		const isModule = className.startsWith('[');
 		const borderColor = '#000000';
@@ -26,6 +26,7 @@ export class ClassBoxRenderer {
 				font-size: 12px;
 				pointer-events: auto;
 				box-sizing: border-box;
+				position: relative;
 			">
 				${this.renderHeader(classInfo, isModule, safeDisplayName)}
 				${this.renderProperties(classInfo, isModule)}
