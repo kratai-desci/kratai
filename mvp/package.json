@@ -12,6 +12,23 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "kratai-panel",
+          "title": "Kratai",
+          "icon": "$(graph)"
+        }
+      ]
+    },
+    "views": {
+      "kratai-panel": [
+        {
+          "id": "kratai-actions",
+          "name": "Actions"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "kratai.showFileSummary",
@@ -20,6 +37,16 @@
       {
         "command": "kratai.generateClassDiagram",
         "title": "Kratai: Generate Class Diagram"
+      },
+      {
+        "command": "kratai.openClassDiagram",
+        "title": "Generate Class Diagram",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "kratai.openGitChanges",
+        "title": "Show Git Changes",
+        "icon": "$(git-compare)"
       }
     ]
   },
