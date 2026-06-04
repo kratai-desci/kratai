@@ -213,18 +213,6 @@ export class ClassDiagramView {
             border-radius: 8px;
             font-size: 0.9em;
         }
-        .search-box {
-            margin: 0 20px;
-            flex: 1;
-            max-width: 400px;
-        }
-        .search-box input {
-            width: 100%;
-            padding: 10px;
-            border: 2px solid #667eea;
-            border-radius: 8px;
-            font-size: 0.9em;
-        }
         .diagram-container {
             position: relative;
             width: ${maxX}px;
@@ -309,9 +297,6 @@ export class ClassDiagramView {
             <h1>📊 Hierarchical Class Diagram</h1>
             <p>${workspaceName} • ${classCount} classes/modules • ${edgeCount} relationships</p>
         </div>
-        <div class="search-box">
-            <input type="text" id="search" placeholder="Search classes..." oninput="filterClasses(this.value)">
-        </div>
         <div class="stats">
             ${folderCount} folders
         </div>
@@ -342,7 +327,7 @@ export class ClassDiagramView {
     
     <div style="overflow: auto; height: calc(100vh - 100px); background: rgba(255,255,255,0.05);" id="diagram-scroll">
         <!-- Debug Info Panel -->
-        <div style="position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 8px; z-index: 10000; font-family: monospace; font-size: 11px; max-width: 300px;">
+        <div id="debug-panel" style="display: none; position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 8px; z-index: 10000; font-family: monospace; font-size: 11px; max-width: 300px;">
             <strong>🐛 Render Debug</strong><br/>
             Classes: ${classCount}<br/>
             Folders: ${folderCount}<br/>
@@ -391,10 +376,12 @@ export class ClassDiagramView {
         let debugMode = false;
         function toggleDebug() {
             debugMode = !debugMode;
+            const debugPanel = document.getElementById('debug-panel');
             const folders = document.querySelectorAll('.folder-box');
             const boxes = document.querySelectorAll('.uml-box');
             
             if (debugMode) {
+                debugPanel.style.display = 'block';
                 folders.forEach(f => {
                     f.style.border = '3px solid red';
                     f.style.background = 'rgba(255, 0, 0, 0.1)';
@@ -403,6 +390,7 @@ export class ClassDiagramView {
                     b.style.outline = '2px solid lime';
                 });
             } else {
+                debugPanel.style.display = 'none';
                 folders.forEach(f => {
                     f.style.border = '';
                     f.style.background = '';
@@ -425,20 +413,6 @@ export class ClassDiagramView {
                 console.log(\`Class \${idx + 1}: \${className} at (\${box.style.left}, \${box.style.top})\`);
             });
         });
-        
-        function filterClasses(searchTerm) {
-            const term = searchTerm.toLowerCase();
-            const boxes = document.querySelectorAll('.uml-box');
-            
-            boxes.forEach(box => {
-                const className = box.getAttribute('data-class');
-                if (!term || className.toLowerCase().includes(term)) {
-                    box.style.display = 'block';
-                } else {
-                    box.style.display = 'none';
-                }
-            });
-        }
     </script>
 </body>
 </html>`;
