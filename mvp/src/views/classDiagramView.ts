@@ -150,7 +150,7 @@ export class ClassDiagramView {
 <body>
     <div class="header">
         <div>
-            <h1>📊 Hierarchical Class Diagram (CSS Grid)</h1>
+            <h1>📊 Class Diagram</h1>
             <p>${workspaceName} • ${classCount} classes • ${folderCount} folders • ${edgeCount} relationships</p>
         </div>
         <div class="header-controls">

@@ -47,15 +47,6 @@ export class SequenceDiagramView {
             color: #666;
             font-size: 0.95em;
         }
-        .stats {
-            display: inline-block;
-            background: #333;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 4px;
-            font-size: 0.85em;
-            margin-left: 10px;
-        }
         .content {
             position: relative;
             padding: 0;
@@ -125,12 +116,7 @@ export class SequenceDiagramView {
     <div class="header">
         <div>
             <h1>🔄 Sequence Diagram</h1>
-            <p>
-                ${className}.${methodName}()
-                <span class="stats">${sequenceData.actors.size} actors</span>
-                <span class="stats">${sequenceData.calls.length} calls</span>
-                <span class="stats">max depth: ${sequenceData.maxDepth}</span>
-            </p>
+            <p>${className}.${methodName}() • ${sequenceData.actors.size} actors • ${sequenceData.calls.length} calls • max depth: ${sequenceData.maxDepth}</p>
         </div>
     </div>
     
