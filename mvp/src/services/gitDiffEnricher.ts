@@ -1,6 +1,9 @@
 import { DiagramData, ClassInfo, PropertyInfo, MethodInfo } from '../types/diagram';
 import { GitDiffService, GitDiffInfo } from './gitDiffService';
+import { CodeParserService } from './codeParserService';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 
 export class GitDiffEnricher {
 	/**
@@ -24,6 +27,44 @@ export class GitDiffEnricher {
 		console.log(`📋 Modified files in git diff:`, Array.from(diffInfo.modifiedFiles));
 		console.log(`📋 Added files in git diff:`, Array.from(diffInfo.addedFiles));
 		console.log(`📋 Deleted files in git diff:`, Array.from(diffInfo.deletedFiles));
+
+		// Parse deleted files and add them to diagram data
+		if (diffInfo.deletedFiles.size > 0) {
+			console.log(`🔍 Parsing ${diffInfo.deletedFiles.size} deleted files...`);
+			for (const deletedFilePath of diffInfo.deletedFiles) {
+				// Only process TypeScript/JavaScript files
+				if (deletedFilePath.endsWith('.ts') || deletedFilePath.endsWith('.tsx') || 
+					deletedFilePath.endsWith('.js') || deletedFilePath.endsWith('.jsx')) {
+					
+					const fileContent = await GitDiffService.getDeletedFileContent(workspacePath, deletedFilePath, baseCommit);
+					if (fileContent) {
+						// Create a temporary file to parse
+						const tempFilePath = path.join(os.tmpdir(), `kratai_deleted_${Date.now()}_${path.basename(deletedFilePath)}`);
+						fs.writeFileSync(tempFilePath, fileContent);
+						
+						try {
+							// Parse the deleted file
+							const deletedClasses = CodeParserService.parseFile(tempFilePath);
+							
+							// Mark all classes from this file as deleted
+							for (const classInfo of deletedClasses) {
+								classInfo.filePath = deletedFilePath; // Use original path
+								classInfo.changeStatus = 'deleted';
+								classInfo.properties.forEach(prop => prop.changeStatus = 'deleted');
+								classInfo.methods.forEach(method => method.changeStatus = 'deleted');
+								
+								// Add to diagram data
+								diagramData.classes.push(classInfo);
+								console.log(`  ❌ Added deleted class: ${classInfo.name} from "${deletedFilePath}"`);
+							}
+						} finally {
+							// Clean up temp file
+							try { fs.unlinkSync(tempFilePath); } catch (e) { /* ignore */ }
+						}
+					}
+				}
+			}
+		}
 		
 		let addedCount = 0;
 		let deletedCount = 0;
@@ -35,8 +76,6 @@ export class GitDiffEnricher {
 			const relativeFilePath = classInfo.filePath;
 			const normalizedPath = relativeFilePath.replace(/\\/g, '/'); // Normalize to forward slashes
 			
-			console.log(`  🔎 Checking: ${classInfo.name} at "${normalizedPath}"`);
-			
 			// Determine class-level change status
 			if (diffInfo.addedFiles.has(normalizedPath)) {
 				classInfo.changeStatus = 'added';
@@ -44,14 +83,14 @@ export class GitDiffEnricher {
 				// Mark all members as added
 				classInfo.properties.forEach(prop => prop.changeStatus = 'added');
 				classInfo.methods.forEach(method => method.changeStatus = 'added');
-				console.log(`  ✅ ${classInfo.name} → ADDED`);
+				console.log(`  ✅ ${classInfo.name} at "${normalizedPath}" → ADDED`);
 			} else if (diffInfo.deletedFiles.has(normalizedPath)) {
 				classInfo.changeStatus = 'deleted';
 				deletedCount++;
 				// Mark all members as deleted
 				classInfo.properties.forEach(prop => prop.changeStatus = 'deleted');
 				classInfo.methods.forEach(method => method.changeStatus = 'deleted');
-				console.log(`  ❌ ${classInfo.name} → DELETED`);
+				console.log(`  ❌ ${classInfo.name} at "${normalizedPath}" → DELETED (still exists in workspace)`);
 			} else if (diffInfo.modifiedFiles.has(normalizedPath)) {
 				// File is modified - need to check member-level changes
 				console.log(`  🔍 Found in modified files, checking members...`);
@@ -82,7 +121,9 @@ export class GitDiffEnricher {
 			}
 		}
 
-		console.log(`✨ Git diff enrichment complete: ${addedCount} added, ${deletedCount} deleted, ${modifiedCount} modified, ${unchangedCount} unchanged`);
+		// Count deleted classes that were added from git history
+		const deletedFromGit = diagramData.classes.filter(c => c.changeStatus === 'deleted').length;
+		console.log(`✨ Git diff enrichment complete: ${addedCount} added, ${deletedFromGit} deleted (${deletedFromGit - deletedCount} from git history), ${modifiedCount} modified, ${unchangedCount} unchanged`);
 
 		return diagramData;
 	}

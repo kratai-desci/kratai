@@ -165,7 +165,7 @@ export class CodeParserService {
 		return files;
 	}
 
-	private static parseFile(filePath: string): ClassInfo[] {
+	public static parseFile(filePath: string): ClassInfo[] {
 		const classes: ClassInfo[] = [];
 		const sourceCode = fs.readFileSync(filePath, 'utf-8');
 		const sourceFile = ts.createSourceFile(

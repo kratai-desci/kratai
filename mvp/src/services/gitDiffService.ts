@@ -80,6 +80,7 @@ export class GitDiffService {
 						deletedLines: new Set(),
 						modifiedLines: new Set()
 					});
+					console.log(`    ➕ Marked as ADDED: "${filePath}"`);
 				} else if (status === 'D') {
 					deletedFiles.add(filePath);
 					fileChanges.set(filePath, {
@@ -89,6 +90,7 @@ export class GitDiffService {
 						deletedLines: new Set(),
 						modifiedLines: new Set()
 					});
+					console.log(`    ➖ Marked as DELETED: "${filePath}"`);
 				} else if (status === 'M' || status.startsWith('R')) {
 					modifiedFiles.add(filePath);
 					// Get detailed line-level diff for modified files
@@ -198,6 +200,19 @@ export class GitDiffService {
 			return stdout.trim().length > 0;
 		} catch (error) {
 			return false;
+		}
+	}
+
+	/**
+	 * Get the content of a deleted file from the previous commit
+	 */
+	static async getDeletedFileContent(workspacePath: string, filePath: string, baseCommit: string = 'HEAD~1'): Promise<string | null> {
+		try {
+			const { stdout } = await execAsync(`git show ${baseCommit}:"${filePath}"`, { cwd: workspacePath });
+			return stdout;
+		} catch (error) {
+			console.error(`Failed to get deleted file content for ${filePath}:`, error);
+			return null;
 		}
 	}
 }

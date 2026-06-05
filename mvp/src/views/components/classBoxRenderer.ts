@@ -169,8 +169,8 @@ export class ClassBoxRenderer {
 
 	private getChangeStatusBgColor(status: 'added' | 'deleted' | 'modified' | 'unchanged'): string {
 		switch (status) {
-			case 'added': return '#d4edda'; // Light green
-			case 'deleted': return '#f8d7da'; // Light red
+			case 'added': return '#a8e6a1'; // Bright green
+			case 'deleted': return '#ffb3ba'; // Bright red
 			case 'modified': return 'white'; // Keep white, members will show changes
 			case 'unchanged': 
 			default: return 'white';
@@ -180,9 +180,9 @@ export class ClassBoxRenderer {
 	private getMemberChangeStatusBgColor(status?: 'added' | 'deleted' | 'modified' | 'unchanged'): string {
 		if (!status || status === 'unchanged') return 'transparent';
 		switch (status) {
-			case 'added': return '#d4edda'; // Light green
-			case 'deleted': return '#f8d7da'; // Light red
-			case 'modified': return '#fff3cd'; // Light yellow
+			case 'added': return '#a8e6a1'; // Bright green
+			case 'deleted': return '#ffb3ba'; // Bright red
+			case 'modified': return '#ffe066'; // Bright yellow
 			default: return 'transparent';
 		}
 	}
