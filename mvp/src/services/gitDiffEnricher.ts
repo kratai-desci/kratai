@@ -93,7 +93,7 @@ export class GitDiffEnricher {
 				console.log(`  ❌ ${classInfo.name} at "${normalizedPath}" → DELETED (still exists in workspace)`);
 			} else if (diffInfo.modifiedFiles.has(normalizedPath)) {
 				// File is modified - need to check member-level changes
-				console.log(`  🔍 Found in modified files, checking members...`);
+				console.log(`  🔍 Found "${normalizedPath}" in modified files, checking members...`);
 				const fileChange = diffInfo.fileChanges.get(normalizedPath);
 				if (fileChange) {
 					const hasModifiedMembers = this.enrichMembersWithChanges(
@@ -118,6 +118,10 @@ export class GitDiffEnricher {
 				unchangedCount++;
 				classInfo.properties.forEach(prop => prop.changeStatus = 'unchanged');
 				classInfo.methods.forEach(method => method.changeStatus = 'unchanged');
+				// Only log if it's potentially an issue (new classes not detected)
+				if (!classInfo.name.startsWith('[') && classInfo.methods.length > 0) {
+					console.log(`  ⚪ ${classInfo.name} at "${normalizedPath}" → UNCHANGED (not in any git diff set)`);
+				}
 			}
 		}
 

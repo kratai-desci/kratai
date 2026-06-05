@@ -94,6 +94,11 @@ export class ClassBoxRenderer {
 		const overflow = classInfo.properties.length > 5 ? 
 			`<div style="color: #666; font-style: italic; padding: 3px 8px; font-size: 11px;">+${classInfo.properties.length - 5} more</div>` : '';
 
+		// Use class-level background color if class is deleted/added
+		const sectionBgColor = (classInfo.changeStatus === 'deleted' || classInfo.changeStatus === 'added') 
+			? this.getChangeStatusBgColor(classInfo.changeStatus) 
+			: 'white';
+
 		return `
 			<div style="
 				padding: 8px 0;
@@ -101,7 +106,7 @@ export class ClassBoxRenderer {
 				min-height: 30px;
 				max-height: 90px;
 				overflow: hidden;
-				background: white;
+				background: ${sectionBgColor};
 			">
 				${items || `<div style="color: #999; font-style: italic; padding: 3px 8px; font-size: 11px;">${label}</div>`}
 				${overflow}
@@ -131,12 +136,18 @@ export class ClassBoxRenderer {
 		const overflow = classInfo.methods.length > 5 ? 
 			`<div style="color: #666; font-style: italic; padding: 3px 8px; font-size: 11px;">+${classInfo.methods.length - 5} more</div>` : '';
 
+		// Use class-level background color if class is deleted/added
+		const sectionBgColor = (classInfo.changeStatus === 'deleted' || classInfo.changeStatus === 'added') 
+			? this.getChangeStatusBgColor(classInfo.changeStatus) 
+			: 'white';
+
 		return `
 			<div style="
 				padding: 8px 0;
 				min-height: 30px;
 				max-height: 90px;
 				overflow: hidden;
+				background: ${sectionBgColor};
 			">
 				${items || `<div style="color: #999; font-style: italic; padding: 3px 8px; font-size: 11px;">${label}</div>`}
 				${overflow}

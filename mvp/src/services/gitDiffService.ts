@@ -98,6 +98,28 @@ export class GitDiffService {
 				}
 			}
 
+			// Also check for untracked files (new files not yet added to git)
+			const { stdout: untrackedOutput } = await execAsync('git ls-files --others --exclude-standard', { cwd: workspacePath });
+			const untrackedLines = untrackedOutput.trim().split('\n').filter(line => line);
+			console.log(`📊 Git found ${untrackedLines.length} untracked (new) files`);
+			
+			for (const filePath of untrackedLines) {
+				// Only add TypeScript/JavaScript files
+				if (filePath.endsWith('.ts') || filePath.endsWith('.tsx') || 
+					filePath.endsWith('.js') || filePath.endsWith('.jsx')) {
+					console.log(`  ➕ Untracked: ${filePath}`);
+					addedFiles.add(filePath);
+					fileChanges.set(filePath, {
+						filePath,
+						status: 'added',
+						addedLines: new Set(),
+						deletedLines: new Set(),
+						modifiedLines: new Set()
+					});
+					console.log(`    ➕ Marked as ADDED (untracked): "${filePath}"`);
+				}
+			}
+
 			console.log(`✅ Git diff summary: ${addedFiles.size} added, ${deletedFiles.size} deleted, ${modifiedFiles.size} modified`);
 
 			return {
