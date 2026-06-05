@@ -17,16 +17,21 @@ export class SequenceDiagramView {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sequence Diagram - ${className}.${methodName}()</title>
     <style>
-        body {
+        html, body {
             margin: 0;
             padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        body {
             font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
             background: #f5f5f5;
-            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         .header {
-            position: sticky;
-            top: 0;
+            flex-shrink: 0;
             background: white;
             padding: 20px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -35,6 +40,24 @@ export class SequenceDiagramView {
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+        .header-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .header-controls button {
+            padding: 8px 16px;
+            border: 2px solid #333;
+            background: white;
+            color: #333;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+        .header-controls button:hover {
+            background: #f0f0f0;
         }
         .header h1 {
             margin: 0;
@@ -48,14 +71,17 @@ export class SequenceDiagramView {
             font-size: 0.95em;
         }
         .content {
+            flex: 1;
             position: relative;
             padding: 0;
             overflow: auto;
             background: #f5f5f5;
+            min-height: 0;
         }
         .sequence-diagram {
             width: 100%;
             min-height: 400px;
+            transform-origin: top left;
         }
         .sequence-diagram svg {
             width: 100%;
@@ -117,6 +143,11 @@ export class SequenceDiagramView {
         <div>
             <h1>🔄 Sequence Diagram</h1>
             <p>${className}.${methodName}() • ${sequenceData.actors.size} actors • ${sequenceData.calls.length} calls • max depth: ${sequenceData.maxDepth}</p>
+        </div>
+        <div class="header-controls">
+            <button onclick="zoomIn()">🔍 Zoom In</button>
+            <button onclick="zoomOut()">🔍 Zoom Out</button>
+            <button onclick="resetZoom()">↺ Reset</button>
         </div>
     </div>
     
@@ -272,11 +303,35 @@ export class SequenceDiagramView {
 		});
 		
 		return `
-			<div class="sequence-diagram">
+			<div class="sequence-diagram" id="sequenceDiagram">
 				<svg width="${diagramWidth}" height="${totalHeight}" viewBox="0 0 ${diagramWidth} ${totalHeight}" preserveAspectRatio="xMidYMid meet">
 					${svgContent}
 				</svg>
 			</div>
+			<script>
+				let currentZoom = 1;
+				
+				function zoomIn() {
+					currentZoom = Math.min(currentZoom + 0.2, 3);
+					applyZoom();
+				}
+				
+				function zoomOut() {
+					currentZoom = Math.max(currentZoom - 0.2, 0.3);
+					applyZoom();
+				}
+				
+				function resetZoom() {
+					currentZoom = 1;
+					applyZoom();
+				}
+				
+				function applyZoom() {
+					const diagram = document.getElementById('sequenceDiagram');
+					diagram.style.transform = 'scale(' + currentZoom + ')';
+					diagram.style.transformOrigin = 'top left';
+				}
+			</script>
 		`;
 	}
 	
