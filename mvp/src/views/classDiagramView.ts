@@ -148,10 +148,7 @@ export class ClassDiagramView {
     <div class="header">
         <div>
             <h1>📊 Hierarchical Class Diagram (CSS Grid)</h1>
-            <p>${workspaceName} • ${classCount} classes • ${folderCount} folders</p>
-        </div>
-        <div class="stats" id="stats">
-            <span id="relation-status">🔗 ${edgeCount} relationships</span>
+            <p>${workspaceName} • ${classCount} classes • ${folderCount} folders • ${edgeCount} relationships</p>
         </div>
     </div>
     
@@ -159,7 +156,6 @@ export class ClassDiagramView {
         <button onclick="zoomIn()">🔍 Zoom In</button>
         <button onclick="zoomOut()">🔍 Zoom Out</button>
         <button onclick="resetZoom()">↺ Reset</button>
-        <button onclick="drawRelationships()">🔗 Redraw Lines</button>
     </div>
     
     <div class="diagram-container" id="diagram">
@@ -350,18 +346,6 @@ export class ClassDiagramView {
             });
             
             console.log(\`✅ Drew \${drawnCount} lines, skipped \${skippedCount}\`);
-            
-            // Update stats display
-            const statusEl = document.getElementById('relation-status');
-            if (statusEl) {
-                if (drawnCount > 0) {
-                    statusEl.textContent = \`✅ \${drawnCount} relationship lines drawn\`;
-                    statusEl.style.color = '#27ae60';
-                } else {
-                    statusEl.textContent = \`⚠️ No lines drawn (\${skippedCount} relationships)\`;
-                    statusEl.style.color = '#e74c3c';
-                }
-            }
         }
         
         // Redraw lines on window resize or container scroll
