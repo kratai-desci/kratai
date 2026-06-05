@@ -5,6 +5,7 @@ import { CodeParserService } from '../services/codeParserService';
 import { DiagramGeneratorService } from '../services/diagramGeneratorService';
 import { ClassDiagramView } from '../views/classDiagramView';
 import { ConfigService } from '../services/configService';
+import { GitDiffEnricher } from '../services/gitDiffEnricher';
 
 export async function generateClassDiagram(context: vscode.ExtensionContext): Promise<void> {
 	// Check if workspace is opened
@@ -70,6 +71,14 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 					classInfo.filePath = classInfo.filePath.substring(workspacePath.length + 1);
 				}
 			});
+
+			// Enrich with git diff information if enabled
+			if (config.gitDiff?.enabled !== false) {
+				progress.report({ message: 'Analyzing git changes...' });
+				const baseCommit = config.gitDiff?.baseCommit || 'HEAD~1';
+				await GitDiffEnricher.enrichWithGitDiff(diagramData, workspacePath, baseCommit);
+				console.log('🔍 Git diff analysis completed');
+			}
 
 			// Deduplicate classes (config with overlapping folder paths causes duplicates)
 			const originalCount = diagramData.classes.length;

@@ -9,6 +9,7 @@ export interface ClassInfo {
 	isAbstract?: boolean;
 	isModule?: boolean;
 	classType?: 'class' | 'interface' | 'abstract' | 'module' | 'enum';
+	changeStatus?: 'added' | 'deleted' | 'modified' | 'unchanged';
 }
 
 export interface PropertyInfo {
@@ -17,6 +18,8 @@ export interface PropertyInfo {
 	visibility: 'public' | 'private' | 'protected';
 	isStatic?: boolean;
 	isReadonly?: boolean;
+	changeStatus?: 'added' | 'deleted' | 'modified' | 'unchanged';
+	lineNumber?: number;
 }
 
 export interface MethodInfo {
@@ -26,6 +29,8 @@ export interface MethodInfo {
 	visibility: 'public' | 'private' | 'protected';
 	isStatic?: boolean;
 	isAsync?: boolean;
+	changeStatus?: 'added' | 'deleted' | 'modified' | 'unchanged';
+	lineNumber?: number;
 }
 
 export interface ParameterInfo {

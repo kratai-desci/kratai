@@ -309,15 +309,23 @@ export class CodeParserService {
 		const visibility = this.getVisibility(node);
 		const isStatic = node.modifiers?.some(m => m.kind === ts.SyntaxKind.StaticKeyword) || false;
 		const isReadonly = node.modifiers?.some(m => m.kind === ts.SyntaxKind.ReadonlyKeyword) || false;
+		
+		// Get line number for git diff
+		const sourceFile = node.getSourceFile();
+		const lineNumber = sourceFile ? sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1 : undefined;
 
-		return { name, type, visibility, isStatic, isReadonly };
+		return { name, type, visibility, isStatic, isReadonly, lineNumber };
 	}
 
 	private static extractPropertySignature(node: ts.PropertySignature): PropertyInfo {
 		const name = node.name.getText();
 		const type = node.type?.getText() || 'any';
+		
+		// Get line number for git diff
+		const sourceFile = node.getSourceFile();
+		const lineNumber = sourceFile ? sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1 : undefined;
 
-		return { name, type, visibility: 'public' };
+		return { name, type, visibility: 'public', lineNumber };
 	}
 
 	private static extractMethod(node: ts.MethodDeclaration): MethodInfo {
@@ -331,8 +339,12 @@ export class CodeParserService {
 		const visibility = this.getVisibility(node);
 		const isStatic = node.modifiers?.some(m => m.kind === ts.SyntaxKind.StaticKeyword) || false;
 		const isAsync = node.modifiers?.some(m => m.kind === ts.SyntaxKind.AsyncKeyword) || false;
+		
+		// Get line number for git diff
+		const sourceFile = node.getSourceFile();
+		const lineNumber = sourceFile ? sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1 : undefined;
 
-		return { name, parameters, returnType, visibility, isStatic, isAsync };
+		return { name, parameters, returnType, visibility, isStatic, isAsync, lineNumber };
 	}
 
 	private static extractMethodSignature(node: ts.MethodSignature): MethodInfo {
@@ -343,8 +355,12 @@ export class CodeParserService {
 			optional: !!p.questionToken
 		}));
 		const returnType = node.type?.getText() || 'void';
+		
+		// Get line number for git diff
+		const sourceFile = node.getSourceFile();
+		const lineNumber = sourceFile ? sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1 : undefined;
 
-		return { name, parameters, returnType, visibility: 'public' };
+		return { name, parameters, returnType, visibility: 'public', lineNumber };
 	}
 
 	private static extractConstructor(node: ts.ConstructorDeclaration): MethodInfo {
@@ -353,12 +369,17 @@ export class CodeParserService {
 			type: p.type?.getText() || 'any',
 			optional: !!p.questionToken
 		}));
+		
+		// Get line number for git diff
+		const sourceFile = node.getSourceFile();
+		const lineNumber = sourceFile ? sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1 : undefined;
 
 		return {
 			name: 'constructor',
 			parameters,
 			returnType: 'void',
-			visibility: 'public'
+			visibility: 'public',
+			lineNumber
 		};
 	}
 

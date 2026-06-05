@@ -11,7 +11,11 @@ export class ConfigService {
 			selectedFolders: [],  // Empty = all folders except node_modules/dist
 			selectedExtensions: ['.ts', '.tsx'],
 			respectGitignore: true,
-			followSymlinks: false
+			followSymlinks: false,
+			gitDiff: {
+				enabled: true,
+				baseCommit: 'HEAD~1'
+			}
 		};
 	}
 

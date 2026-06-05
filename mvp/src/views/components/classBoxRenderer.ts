@@ -14,11 +14,14 @@ export class ClassBoxRenderer {
 		// Escape HTML to prevent malformed attributes
 		const safeClassName = this.escapeHtml(className);
 		const safeDisplayName = this.escapeHtml(displayName);
+		
+		// Get background color based on change status
+		const bgColor = this.getChangeStatusBgColor(classInfo.changeStatus || 'unchanged');
 
 		return `
-			<div class="uml-box" data-class="${safeClassName}" style="
+			<div class="uml-box ${classInfo.changeStatus ? `change-${classInfo.changeStatus}` : ''}" data-class="${safeClassName}" style="
 				width: ${this.boxWidth}px;
-				background: white;
+				background: ${bgColor};
 				border: 2px ${borderStyle} ${borderColor};
 				border-radius: 0;
 				box-shadow: 2px 2px 4px rgba(0,0,0,0.15);
@@ -76,9 +79,10 @@ export class ClassBoxRenderer {
 			const safeName = this.escapeHtml(prop.name);
 			const safeType = this.escapeHtml(prop.type);
 			const safeTruncatedType = this.escapeHtml(this.truncateType(prop.type));
+			const changeBgColor = this.getMemberChangeStatusBgColor(prop.changeStatus);
 			
 			return `
-			<div style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px;" title="${safeName}: ${safeType}">
+			<div style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; background: ${changeBgColor};" title="${safeName}: ${safeType}">
 				<span style="color: ${this.getVisibilityColor(prop.visibility)};">
 					${this.getVisibilitySymbol(prop.visibility)}
 				</span>
@@ -111,9 +115,10 @@ export class ClassBoxRenderer {
 			const safeName = this.escapeHtml(method.name);
 			const safeParams = this.escapeHtml(this.truncateParams(method.parameters));
 			const paramNames = method.parameters.map(p => this.escapeHtml(p.name)).join(', ');
+			const changeBgColor = this.getMemberChangeStatusBgColor(method.changeStatus);
 			
 			return `
-			<div style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px;" 
+			<div style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; background: ${changeBgColor};" 
 				 title="${safeName}(${paramNames})">
 				<span style="color: ${this.getVisibilityColor(method.visibility)};">
 					${this.getVisibilitySymbol(method.visibility)}
@@ -160,5 +165,25 @@ export class ClassBoxRenderer {
 	private getVisibilitySymbol(visibility: 'public' | 'private' | 'protected'): string {
 		return visibility === 'private' ? '-' : 
 			   visibility === 'protected' ? '#' : '+';
+	}
+
+	private getChangeStatusBgColor(status: 'added' | 'deleted' | 'modified' | 'unchanged'): string {
+		switch (status) {
+			case 'added': return '#d4edda'; // Light green
+			case 'deleted': return '#f8d7da'; // Light red
+			case 'modified': return 'white'; // Keep white, members will show changes
+			case 'unchanged': 
+			default: return 'white';
+		}
+	}
+
+	private getMemberChangeStatusBgColor(status?: 'added' | 'deleted' | 'modified' | 'unchanged'): string {
+		if (!status || status === 'unchanged') return 'transparent';
+		switch (status) {
+			case 'added': return '#d4edda'; // Light green
+			case 'deleted': return '#f8d7da'; // Light red
+			case 'modified': return '#fff3cd'; // Light yellow
+			default: return 'transparent';
+		}
 	}
 }

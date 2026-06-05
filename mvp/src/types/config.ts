@@ -9,6 +9,10 @@ export interface KrataiConfig {
 	relationshipTypeFilters?: {     // Dynamic filters for relationship types
 		[type: string]: boolean;    // e.g., { "extends": true, "implements": false }
 	};
+	gitDiff?: {
+		enabled?: boolean;          // Show git diff visualization
+		baseCommit?: string;        // Compare against this commit (default: 'HEAD~1')
+	};
 }
 
 export interface FolderNode {
