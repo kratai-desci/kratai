@@ -75,7 +75,7 @@ export class ClassBoxRenderer {
 
 	private renderProperties(classInfo: ClassInfo, isModule: boolean): string {
 		const label = isModule ? 'No exports' : 'No properties';
-		const items = classInfo.properties.slice(0, 5).map(prop => {
+		const items = classInfo.properties.map(prop => {
 			const safeName = this.escapeHtml(prop.name);
 			const safeType = this.escapeHtml(prop.type);
 			const safeTruncatedType = this.escapeHtml(this.truncateType(prop.type));
@@ -91,9 +91,6 @@ export class ClassBoxRenderer {
 		`;
 		}).join('');
 
-		const overflow = classInfo.properties.length > 5 ? 
-			`<div style="color: #666; font-style: italic; padding: 3px 8px; font-size: 11px;">+${classInfo.properties.length - 5} more</div>` : '';
-
 		// Use class-level background color if class is deleted/added
 		const sectionBgColor = (classInfo.changeStatus === 'deleted' || classInfo.changeStatus === 'added') 
 			? this.getChangeStatusBgColor(classInfo.changeStatus) 
@@ -104,19 +101,16 @@ export class ClassBoxRenderer {
 				padding: 8px 0;
 				border-bottom: 1px solid #000;
 				min-height: 30px;
-				max-height: 90px;
-				overflow: hidden;
 				background: ${sectionBgColor};
 			">
 				${items || `<div style="color: #999; font-style: italic; padding: 3px 8px; font-size: 11px;">${label}</div>`}
-				${overflow}
 			</div>
 		`;
 	}
 
 	private renderMethods(classInfo: ClassInfo, isModule: boolean): string {
 		const label = isModule ? 'No functions' : 'No methods';
-		const items = classInfo.methods.slice(0, 5).map(method => {
+		const items = classInfo.methods.map(method => {
 			const safeName = this.escapeHtml(method.name);
 			const safeParams = this.escapeHtml(this.truncateParams(method.parameters));
 			const paramNames = method.parameters.map(p => this.escapeHtml(p.name)).join(', ');
@@ -137,9 +131,6 @@ export class ClassBoxRenderer {
 		`;
 		}).join('');
 
-		const overflow = classInfo.methods.length > 5 ? 
-			`<div style="color: #666; font-style: italic; padding: 3px 8px; font-size: 11px;">+${classInfo.methods.length - 5} more</div>` : '';
-
 		// Use class-level background color if class is deleted/added
 		const sectionBgColor = (classInfo.changeStatus === 'deleted' || classInfo.changeStatus === 'added') 
 			? this.getChangeStatusBgColor(classInfo.changeStatus) 
@@ -149,12 +140,9 @@ export class ClassBoxRenderer {
 			<div style="
 				padding: 8px 0;
 				min-height: 30px;
-				max-height: 90px;
-				overflow: hidden;
 				background: ${sectionBgColor};
 			">
 				${items || `<div style="color: #999; font-style: italic; padding: 3px 8px; font-size: 11px;">${label}</div>`}
-				${overflow}
 			</div>
 		`;
 	}
