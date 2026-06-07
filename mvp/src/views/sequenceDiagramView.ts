@@ -178,9 +178,9 @@ export class SequenceDiagramView {
 		// Helper function to get background color based on change status
 		const getChangeColor = (changeStatus?: 'added' | 'deleted' | 'modified' | 'unchanged'): string => {
 			switch (changeStatus) {
-				case 'added': return '#c8e6c9'; // Light green
-				case 'deleted': return '#ffcdd2'; // Light red
-				case 'modified': return '#fff9c4'; // Light yellow
+				case 'added': return '#a8e6a1'; // Bright green (same as class diagram)
+				case 'deleted': return '#ffb3ba'; // Bright red (same as class diagram)
+				case 'modified': return '#ffe066'; // Bright yellow (same as class diagram)
 				default: return 'white'; // Unchanged or no status
 			}
 		};
