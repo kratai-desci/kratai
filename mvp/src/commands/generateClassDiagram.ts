@@ -168,7 +168,7 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 								title: `Tracing ${message.className}.${message.methodName}()...`,
 								cancellable: false
 							}, async () => {
-								const sequenceData = MethodTracerService.traceMethod(
+								const sequenceData = await MethodTracerService.traceMethod(
 									message.className,
 									message.methodName,
 									message.filePath,

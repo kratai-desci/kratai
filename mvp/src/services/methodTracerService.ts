@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as ts from 'typescript';
 import * as path from 'path';
 import { DiagramData, ClassInfo, MethodInfo } from '../types/diagram';
+import { GitDiffService } from './gitDiffService';
 
 export interface MethodCall {
 	fromClass: string;
@@ -25,14 +26,14 @@ export class MethodTracerService {
 	/**
 	 * Trace all method calls starting from a specific method
 	 */
-	static traceMethod(
+	static async traceMethod(
 		className: string,
 		methodName: string,
 		filePath: string,
 		workspacePath: string,
 		diagramData: DiagramData,
 		maxDepth: number = 10
-	): SequenceData {
+	): Promise<SequenceData> {
 		console.log(`🔍 Tracing method: ${className}.${methodName}() from ${filePath}`);
 		
 		const actors = new Set<string>();
@@ -59,6 +60,18 @@ export class MethodTracerService {
 			return { actors, calls, maxDepth: 0 };
 		}
 		
+		// Get git diff information to track which lines are added/deleted
+		const gitDiff = await GitDiffService.getDiff(workspacePath, 'HEAD~1');
+		const normalizedFilePath = filePath.replace(/\\/g, '/');
+		const fileChange = gitDiff?.fileChanges.get(normalizedFilePath);
+		const addedLines = fileChange?.addedLines || new Set<number>();
+		const deletedLines = fileChange?.deletedLines || new Set<number>();
+		
+		console.log(`📋 Git diff for ${normalizedFilePath}:`);
+		console.log(`   Available files in git diff:`, gitDiff ? Array.from(gitDiff.fileChanges.keys()) : 'none');
+		console.log(`   ${addedLines.size} added lines:`, Array.from(addedLines).slice(0, 10));
+		console.log(`   ${deletedLines.size} deleted lines:`, Array.from(deletedLines).slice(0, 10));
+		
 		// Start tracing from this method
 		this.traceMethodRecursive(
 			classInfo,
@@ -70,7 +83,9 @@ export class MethodTracerService {
 			visited,
 			0,
 			maxDepth,
-			className  // Starting actor is just the class name
+			className,  // Starting actor is just the class name
+			addedLines,
+			deletedLines
 		);
 		
 		console.log(`✅ Traced ${calls.length} method calls with ${actors.size} actors`);
@@ -96,7 +111,9 @@ export class MethodTracerService {
 		visited: Set<string>,
 		depth: number,
 		maxDepth: number,
-		currentActorName: string // The actor name for this recursion level
+		currentActorName: string, // The actor name for this recursion level
+		addedLines: Set<number>,
+		deletedLines: Set<number>
 	): void {
 		// Check depth limit
 		if (depth >= maxDepth) {
@@ -172,7 +189,9 @@ export class MethodTracerService {
 								visited,
 								depth + 1,
 								maxDepth,
-								instanceName  // Pass instance name to recursive call
+								instanceName,  // Pass instance name to recursive call
+								addedLines,
+								deletedLines
 							);
 						}
 					}
@@ -225,6 +244,25 @@ export class MethodTracerService {
 				
 				actors.add(instanceName);
 				
+				// Determine changeStatus based on the CALL SITE, not the method definition
+				let callChangeStatus: 'added' | 'deleted' | 'modified' | 'unchanged' = 'unchanged';
+				if (call.lineNumber) {
+					console.log(`      🔎 Checking call at line ${call.lineNumber}: added=${addedLines.has(call.lineNumber)}, deleted=${deletedLines.has(call.lineNumber)}`);
+					if (addedLines.has(call.lineNumber)) {
+						callChangeStatus = 'added';
+						console.log(`      ✅ Call at line ${call.lineNumber} is ADDED`);
+					} else if (deletedLines.has(call.lineNumber)) {
+						callChangeStatus = 'deleted';
+						console.log(`      ❌ Call at line ${call.lineNumber} is DELETED`);
+					} else {
+						// Call is unchanged, but check if the method definition itself changed
+						callChangeStatus = targetMethod?.changeStatus || 'unchanged';
+					}
+				} else {
+					// No line number, fall back to method definition status
+					callChangeStatus = targetMethod?.changeStatus || 'unchanged';
+				}
+				
 				calls.push({
 					fromClass: currentActorName,  // Use the current actor name (handles instances)
 					fromMethod: method.name,
@@ -233,10 +271,10 @@ export class MethodTracerService {
 					toInstance: isStatic ? undefined : (actualObjectName || undefined),
 					isStatic: isStatic,
 					depth: depth,
-					changeStatus: targetMethod?.changeStatus || 'unchanged'
+					changeStatus: callChangeStatus
 				});
 				
-				console.log(`    → ${currentActorName}.${method.name}() calls ${instanceName}.${call.methodName}()`);
+				console.log(`    → ${currentActorName}.${method.name}() calls ${instanceName}.${call.methodName}() [${callChangeStatus}]`);
 				
 				// Recursively trace this method
 				if (targetMethod) {
@@ -250,7 +288,9 @@ export class MethodTracerService {
 						visited,
 						depth + 1,
 						maxDepth,
-						instanceName  // Pass the instance name as the current actor
+						instanceName,  // Pass the instance name as the current actor
+						addedLines,
+						deletedLines
 					);
 				}
 			}
@@ -299,11 +339,14 @@ export class MethodTracerService {
 		methodName: string;
 		objectName: string | null;
 		previousCall?: { objectName: string | null; methodName: string };
+		lineNumber?: number;
 	}> {
+		const sourceFile = methodNode.getSourceFile();
 		const calls: Array<{ 
 			methodName: string; 
 			objectName: string | null;
 			previousCall?: { objectName: string | null; methodName: string };
+			lineNumber?: number;
 		}> = [];
 		
 		const visit = (node: ts.Node) => {
@@ -312,6 +355,9 @@ export class MethodTracerService {
 				let methodName: string | null = null;
 				let objectName: string | null = null;
 				let previousCall: { objectName: string | null; methodName: string } | undefined;
+				
+				// Get the line number of this call
+				const lineNumber = sourceFile ? sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1 : undefined;
 				
 				// Check if it's a property access (obj.method())
 				if (ts.isPropertyAccessExpression(node.expression)) {
@@ -345,7 +391,10 @@ export class MethodTracerService {
 				}
 				
 				if (methodName) {
-					calls.push({ methodName, objectName, previousCall });
+					calls.push({ methodName, objectName, previousCall, lineNumber });
+					if (lineNumber) {
+						console.log(`      📞 Found call to ${methodName}() at line ${lineNumber}`);
+					}
 				}
 			}
 			
