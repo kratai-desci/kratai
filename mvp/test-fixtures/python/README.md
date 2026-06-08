@@ -1,16 +1,51 @@
-# Python Support (Planned)
+# Python Test Fixtures
 
-Python language support is planned for a future release.
+Example Python projects for testing Kratai's code visualization features (when Python support is added).
 
-## Roadmap
+## Available Examples
 
-To add Python support, Kratai will need:
-- Python AST parser integration
-- Class extraction for Python classes
-- Method and property detection
-- Type hints parsing
-- Relationship detection (inheritance, composition)
+```
+python/
+├── 01-basic-classes/          ✅ Classes, inheritance, protocols
+├── 02-flask-components/       ✅ Flask routes, services, models
+├── 03-backend-service/        🚧 Placeholder
+├── 04-dependency-injection/   🚧 Placeholder
+├── 05-design-patterns/        ✅ Singleton, Observer, Strategy
+├── 06-django-app/             🚧 Placeholder
+└── 07-fastapi-backend/        ✅ FastAPI routes, Pydantic models
+```
 
-## Contribute
+## Implemented Examples
 
-If you're interested in contributing Python support, please open a discussion or issue on GitHub.
+### 01 - Basic Classes
+- Abstract base classes
+- Class inheritance (Dog, Cat extend Animal)
+- Protocols (interfaces)
+- Properties and type hints
+
+### 02 - Flask Components
+- Flask controller with routes
+- Service layer with business logic
+- Data models (User)
+- MVC pattern
+
+### 05 - Design Patterns
+- **Singleton**: ConfigManager with single instance
+- **Observer**: EventEmitter with Logger and EmailNotifier
+- **Strategy**: Payment strategies (CreditCard, PayPal, Crypto)
+
+### 07 - FastAPI Backend
+- Pydantic models with validation
+- RESTful API routes
+- Service layer
+- Dependency injection with Depends()
+
+## Python Support Status
+
+🚧 **Python language support is planned for a future release.**
+
+Currently only TypeScript is supported. These fixtures are ready for when Python parsing is implemented.
+
+## Contributing
+
+To add more examples or complete the placeholder projects, submit a PR with working Python code demonstrating specific patterns or frameworks.
