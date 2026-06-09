@@ -23,11 +23,13 @@ export class FolderStructureBuilder {
 			const className = node.data.classInfo.name;
 			
 			// Match any file under src/, extracting the folder path
-			const match = filePath.match(/src\/(.+)\/[^\/]+\.tsx?$/);
+			// Supports .ts, .tsx, .js, .jsx files
+			const matchWithFolder = filePath.match(/src\/(.+)\/[^\/]+\.(tsx?|jsx?)$/);
+			const matchDirectInSrc = filePath.match(/src\/[^\/]+\.(tsx?|jsx?)$/);
 			
-			if (match) {
+			if (matchWithFolder) {
 				// File has a folder path like src/commands/file.ts or src/l1_ui/components/file.tsx
-				const pathParts = match[1].split('/');
+				const pathParts = matchWithFolder[1].split('/');
 				
 				let current = root;
 				let currentPath = 'src';
@@ -46,9 +48,12 @@ export class FolderStructureBuilder {
 				});
 				
 				current.classes.push(node);
+			} else if (matchDirectInSrc) {
+				// File is directly in src/ (like src/Animal.js) - add to root without warning
+				root.classes.push(node);
 			} else {
-				// File is directly in src/ (no subfolder) OR doesn't match pattern
-				console.warn(`⚠️ ${className}: Path "${filePath}" didn't match /src\\/(.+)\\/[^\\/]+\\.tsx?$/ - adding to root`);
+				// File doesn't match any expected pattern
+				console.warn(`⚠️ ${className}: Path "${filePath}" didn't match expected pattern - adding to root`);
 				unmatchedFiles.push(`${className} @ ${filePath}`);
 				root.classes.push(node);
 			}
