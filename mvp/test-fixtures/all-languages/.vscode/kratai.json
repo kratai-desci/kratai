@@ -1,0 +1,29 @@
+{
+  "selectedFolders": [
+    "src"
+  ],
+  "selectedExtensions": [
+    ".ts",
+    ".tsx",
+    ".js",
+    ".jsx",
+    ".py",
+    ".php"
+  ],
+  "respectGitignore": true,
+  "followSymlinks": false,
+  "gitDiff": {
+    "enabled": true,
+    "baseCommit": "HEAD~1"
+  },
+  "classTypeFilters": {
+    "class": true,
+    "interface": true,
+    "module": true
+  },
+  "relationshipTypeFilters": {
+    "extends": true,
+    "implements": true,
+    "uses": true
+  }
+}

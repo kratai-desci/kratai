@@ -3,21 +3,28 @@
     "01-laravel-backend/src"
   ],
   "selectedExtensions": [
-    ".php"
+    ".php",
+    "on",
+    "on",
+    "on",
+    "on",
+    "on",
+    "on"
   ],
   "respectGitignore": true,
   "followSymlinks": false,
-  "gitDiff": {
-    "enabled": true,
-    "baseCommit": "HEAD~1"
-  },
   "classTypeFilters": {
-    "class": true,
-    "interface": true
+    "class": true
   },
   "relationshipTypeFilters": {
     "extends": true,
     "implements": true,
+    "composition": true,
     "uses": true
-  }
+  },
+  "gitDiff": {
+    "enabled": true,
+    "baseCommit": "HEAD~1"
+  },
+  "lastUpdated": "2026-06-09T23:01:59.972Z"
 }
