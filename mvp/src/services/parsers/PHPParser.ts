@@ -176,7 +176,9 @@ export class PHPParser implements IParserStrategy {
 		if (node.properties && Array.isArray(node.properties)) {
 			for (const prop of node.properties) {
 				const propName = prop.name?.name || prop.name || 'unknown';
-				const type = node.type ? this.getTypeName(node.type) : 'mixed';
+				// Type can be on the property statement node or the property itself
+				const type = node.type ? this.getTypeName(node.type) : 
+				            (prop.type ? this.getTypeName(prop.type) : 'mixed');
 				const visibility = node.visibility || 'public';
 
 				properties.push({
