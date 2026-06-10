@@ -3,7 +3,7 @@ import * as ts from 'typescript';
 import * as path from 'path';
 import { DiagramData, ClassInfo, MethodInfo } from '../types/diagram';
 import { GitDiffService } from './gitDiffService';
-import { extractMethodCallsPython } from './methodCallExtractors';
+import { extractMethodCallsPython, extractMethodCallsPHP } from './methodCallExtractors';
 
 export interface MethodCall {
 	fromClass: string;
@@ -202,8 +202,9 @@ export class MethodTracerService {
 			return;
 		}
 		
-		// Check if this is a Python file and use appropriate extractor
+		// Check file type and use appropriate extractor
 		const isPythonFile = fullPath.endsWith('.py');
+		const isPHPFile = fullPath.endsWith('.php');
 		let methodCalls: Array<{
 			methodName: string;
 			objectName: string | null;
@@ -214,6 +215,10 @@ export class MethodTracerService {
 		if (isPythonFile) {
 			// Extract method calls using Python extractor
 			methodCalls = extractMethodCallsPython(sourceCode, classInfo.name, method.name);
+			console.log(`  📞 Found ${methodCalls.length} calls in ${classInfo.name}.${method.name}()`);
+		} else if (isPHPFile) {
+			// Extract method calls using PHP extractor
+			methodCalls = extractMethodCallsPHP(sourceCode, classInfo.name, method.name);
 			console.log(`  📞 Found ${methodCalls.length} calls in ${classInfo.name}.${method.name}()`);
 		} else {
 			// Extract method calls using TypeScript extractor
