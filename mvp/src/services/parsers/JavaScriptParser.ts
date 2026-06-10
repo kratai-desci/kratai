@@ -59,13 +59,32 @@ export class JavaScriptParser implements IParserStrategy {
 	extractRelationships(classes: ClassInfo[], allClassNames: Set<string>): ClassRelationship[] {
 		const relationships: ClassRelationship[] = [];
 
+		// Build map of className -> all ClassInfo with that name
+		const classMap = new Map<string, ClassInfo[]>();
+		classes.forEach(cls => {
+			if (!classMap.has(cls.name)) {
+				classMap.set(cls.name, []);
+			}
+			classMap.get(cls.name)!.push(cls);
+		});
+
 		for (const classInfo of classes) {
+			const fromId = `${classInfo.filePath}__${classInfo.name}`;
+
 			if (classInfo.extends) {
-				relationships.push({ from: classInfo.name, to: classInfo.extends, type: 'extends' });
+				const targets = classMap.get(classInfo.extends) || [];
+				targets.forEach(target => {
+					const toId = `${target.filePath}__${target.name}`;
+					relationships.push({ from: fromId, to: toId, type: 'extends' });
+				});
 			}
 			if (classInfo.implements) {
 				for (const iface of classInfo.implements) {
-					relationships.push({ from: classInfo.name, to: iface, type: 'implements' });
+					const targets = classMap.get(iface) || [];
+					targets.forEach(target => {
+						const toId = `${target.filePath}__${target.name}`;
+						relationships.push({ from: fromId, to: toId, type: 'implements' });
+					});
 				}
 			}
 
@@ -79,13 +98,17 @@ export class JavaScriptParser implements IParserStrategy {
 			}
 
 			dependencies.forEach(dep => {
-				const hasStronger = relationships.some(
-					r => r.from === classInfo.name && r.to === dep &&
-						(r.type === 'extends' || r.type === 'implements')
-				);
-				if (!hasStronger) {
-					relationships.push({ from: classInfo.name, to: dep, type: 'uses' });
-				}
+				const targets = classMap.get(dep) || [];
+				targets.forEach(target => {
+					const toId = `${target.filePath}__${target.name}`;
+					const hasStronger = relationships.some(
+						r => r.from === fromId && r.to === toId &&
+							(r.type === 'extends' || r.type === 'implements')
+					);
+					if (!hasStronger) {
+						relationships.push({ from: fromId, to: toId, type: 'uses' });
+					}
+				});
 			});
 		}
 

@@ -14,12 +14,14 @@ export class ClassBoxRenderer {
 		// Escape HTML to prevent malformed attributes
 		const safeClassName = this.escapeHtml(className);
 		const safeDisplayName = this.escapeHtml(displayName);
+		// Unique ID used to match edges: filePath__className
+		const uniqueId = this.escapeHtml(`${classInfo.filePath}__${classInfo.name}`);
 		
 		// Get background color based on change status
 		const bgColor = this.getChangeStatusBgColor(classInfo.changeStatus || 'unchanged');
 
 		return `
-			<div class="uml-box ${classInfo.changeStatus ? `change-${classInfo.changeStatus}` : ''}" data-class="${safeClassName}" style="
+			<div class="uml-box ${classInfo.changeStatus ? `change-${classInfo.changeStatus}` : ''}" data-class="${uniqueId}" style="
 				width: ${this.boxWidth}px;
 				background: ${bgColor};
 				border: 2px ${borderStyle} ${borderColor};

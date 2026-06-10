@@ -21,8 +21,12 @@ export class DiagramGeneratorService {
 			const row = Math.floor(index / nodesPerRow);
 			const col = index % nodesPerRow;
 
+			// Use unique ID: filePath:className to handle same class names across languages
+			// Replace : with __ for React Flow compatibility
+			const uniqueId = `${classInfo.filePath}__${classInfo.name}`;
+
 			nodes.push({
-				id: classInfo.name,
+				id: uniqueId,
 				type: 'customClass',
 				position: {
 					x: col * horizontalSpacing,

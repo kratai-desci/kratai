@@ -257,13 +257,24 @@ export class PHPParser implements IParserStrategy {
 	extractRelationships(classes: ClassInfo[], allClassNames: Set<string>): ClassRelationship[] {
 		const relationships: ClassRelationship[] = [];
 
+		// Build map of className -> all ClassInfo with that name
+		const classMap = new Map<string, ClassInfo[]>();
+		classes.forEach(cls => {
+			if (!classMap.has(cls.name)) {
+				classMap.set(cls.name, []);
+			}
+			classMap.get(cls.name)!.push(cls);
+		});
+
 		for (const classInfo of classes) {
+			const fromId = `${classInfo.filePath}__${classInfo.name}`;
+
 			// Inheritance (extends)
 			if (classInfo.extends && allClassNames.has(classInfo.extends)) {
-				relationships.push({
-					from: classInfo.name,
-					to: classInfo.extends,
-					type: 'extends',
+				const targets = classMap.get(classInfo.extends) || [];
+				targets.forEach(target => {
+					const toId = `${target.filePath}__${target.name}`;
+					relationships.push({ from: fromId, to: toId, type: 'extends' });
 				});
 			}
 
@@ -271,10 +282,10 @@ export class PHPParser implements IParserStrategy {
 			if (classInfo.implements) {
 				for (const interfaceName of classInfo.implements) {
 					if (allClassNames.has(interfaceName)) {
-						relationships.push({
-							from: classInfo.name,
-							to: interfaceName,
-							type: 'implements',
+						const targets = classMap.get(interfaceName) || [];
+						targets.forEach(target => {
+						const toId = `${target.filePath}__${target.name}`;
+							relationships.push({ from: fromId, to: toId, type: 'implements' });
 						});
 					}
 				}
@@ -314,18 +325,18 @@ export class PHPParser implements IParserStrategy {
 
 			// Add 'uses' relationships
 			dependencies.forEach(dep => {
-				// Don't add 'uses' if there's already an 'extends' or 'implements' relationship
-				const hasStrongerRelationship = relationships.some(
-					r => r.from === classInfo.name && r.to === dep && (r.type === 'extends' || r.type === 'implements')
-				);
+				const targets = classMap.get(dep) || [];
+				targets.forEach(target => {
+					const toId = `${target.filePath}__${target.name}`;
+					// Don't add 'uses' if there's already an 'extends' or 'implements' relationship
+					const hasStrongerRelationship = relationships.some(
+						r => r.from === fromId && r.to === toId && (r.type === 'extends' || r.type === 'implements')
+					);
 
-				if (!hasStrongerRelationship) {
-					relationships.push({
-						from: classInfo.name,
-						to: dep,
-						type: 'uses',
-					});
-				}
+					if (!hasStrongerRelationship) {
+						relationships.push({ from: fromId, to: toId, type: 'uses' });
+					}
+				});
 			});
 		}
 

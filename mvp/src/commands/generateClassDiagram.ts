@@ -119,9 +119,9 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 			}
 
 			// Remove relationships referencing filtered-out classes
-			const classNames = new Set(diagramData.classes.map(c => c.name));
+			const validClassIds = new Set(diagramData.classes.map(c => `${c.filePath}__${c.name}`));
 			diagramData.relationships = diagramData.relationships.filter(rel => 
-				classNames.has(rel.from) && classNames.has(rel.to)
+				validClassIds.has(rel.from) && validClassIds.has(rel.to)
 			);
 
 			console.log(`🔍 Cleaned relationships: ${diagramData.relationships.length} relationships after removing orphans`);
