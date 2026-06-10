@@ -7,4 +7,4 @@ Tests Laravel framework features:
 - Repositories
 - Request validation
 
-Run Kratai to see Laravel application structure (when PHP support is added).
+Run Kratai to see Laravel application structure .

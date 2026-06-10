@@ -6,4 +6,4 @@ Tests FastAPI features:
 - Service layer
 - Dependency injection
 
-Run Kratai to see FastAPI application structure (when Python support is added).
+Run Kratai to see FastAPI application structure .

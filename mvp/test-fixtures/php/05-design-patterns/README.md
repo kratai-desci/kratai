@@ -6,4 +6,4 @@ Tests common design patterns in PHP:
 - Strategy pattern
 - Factory pattern
 
-Run Kratai to see pattern implementations (when PHP support is added).
+Run Kratai to see pattern implementations .

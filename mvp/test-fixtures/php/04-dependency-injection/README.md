@@ -6,4 +6,4 @@ Tests dependency injection patterns in PHP:
 - Interface-based design
 - Laravel service providers
 
-Run Kratai to see dependency relationships (when PHP support is added).
+Run Kratai to see dependency relationships .

@@ -6,4 +6,4 @@ Tests Symfony framework features:
 - Services
 - Dependency injection
 
-Run Kratai to see Symfony application structure (when PHP support is added).
+Run Kratai to see Symfony application structure .

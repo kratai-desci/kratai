@@ -6,4 +6,4 @@ Tests Django framework features:
 - Forms
 - Admin interface
 
-Run Kratai to see Django application structure (when Python support is added).
+Run Kratai to see Django application structure .

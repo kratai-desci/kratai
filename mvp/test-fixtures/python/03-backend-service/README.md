@@ -6,4 +6,4 @@ Tests Python backend service architecture:
 - Data models
 - Business logic separation
 
-Run Kratai to see layered architecture (when Python support is added).
+Run Kratai to see layered architecture .

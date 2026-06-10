@@ -6,4 +6,4 @@ Tests common design patterns in Python:
 - Strategy pattern
 - Factory pattern
 
-Run Kratai to see pattern implementations (when Python support is added).
+Run Kratai to see pattern implementations .

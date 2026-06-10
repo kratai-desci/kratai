@@ -6,4 +6,4 @@ Tests Flask web framework features:
 - Services and repositories
 - Data models
 
-Run Kratai to see Flask application structure (when Python support is added).
+Run Kratai to see Flask application structure .

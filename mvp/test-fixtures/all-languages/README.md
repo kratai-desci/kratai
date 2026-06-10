@@ -37,7 +37,16 @@ Simulates a real-world scenario where:
 - **Backend API**: Python (FastAPI) or PHP (Laravel)
 - **Legacy code**: Mix of all languages
 
-Run Kratai to see **all 12 classes in one diagram**! 🎨
+Run Kratai to see **all 13 classes in one diagram**! 🎨
+
+## Results
+
+When you run Kratai on this folder:
+- **13 classes found**: 4 TypeScript (includes IProduct interface), 3 JavaScript, 3 Python, 3 PHP
+- **8 relationships detected**: Each language's architecture tracked independently
+- **Unique IDs prevent deduplication**: `src/models/Product.ts__Product` ≠ `src/models/Product.py__Product`
+
+This validates Kratai's ability to handle polyglot codebases where the same class names appear across multiple languages.
 
 ## How to Use
 

@@ -7,4 +7,4 @@ Tests RESTful API features in PHP:
 - Middleware
 - Authentication
 
-Run Kratai to see API architecture (when PHP support is added).
+Run Kratai to see API architecture .

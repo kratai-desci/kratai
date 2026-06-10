@@ -7,4 +7,4 @@ Tests basic Python class features:
 - Type hints
 - Protocols (interfaces)
 
-Run Kratai to see inheritance relationships and class structure (when Python support is added).
+Run Kratai to see inheritance relationships and class structure.

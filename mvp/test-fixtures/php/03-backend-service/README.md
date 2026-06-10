@@ -6,4 +6,4 @@ Tests PHP backend service architecture:
 - Data models
 - Business logic separation
 
-Run Kratai to see layered architecture (when PHP support is added).
+Run Kratai to see layered architecture .
