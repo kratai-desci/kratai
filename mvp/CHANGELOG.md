@@ -2,6 +2,15 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.0.2] - 2026-06-11
+
+### Fixed
+- README images now display correctly on VS Code Marketplace using absolute GitHub URLs
+- Demo GIF and screenshots now visible on extension marketplace page
+
+### Changed
+- Updated extension icon to white version for better visibility on marketplace dark theme
+
 ## [1.0.1] - 2026-06-10
 
 ### Added
