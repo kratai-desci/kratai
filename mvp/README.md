@@ -2,7 +2,7 @@
 
 Understand your codebase at a glance across **TypeScript, JavaScript, Python, and PHP**. Kratai generates interactive **class diagrams** and **sequence diagrams** directly inside VS Code, with **git diff highlighting** so you can instantly see what changed between commits.
 
-![Kratai in Action](https://raw.githubusercontent.com/Rabbit-CollectiveScience/kratai-core/main/mvp/demo/demo.gif)
+![Kratai in Action](https://raw.githubusercontent.com/Rabbit-CollectiveScience/kratai/main/mvp/demo/demo.gif)
 
 ---
 
@@ -34,22 +34,22 @@ Click any method in the diagram to open its sequence diagram and see the complet
 ### Class Diagram with Git Diff Highlighting
 See your entire codebase structure with color-coded changes from your last commit:
 
-![Class Diagram Example](https://raw.githubusercontent.com/Rabbit-CollectiveScience/kratai-core/main/mvp/demo/demo_ss_1.png)
+![Class Diagram Example](https://raw.githubusercontent.com/Rabbit-CollectiveScience/kratai/main/mvp/demo/demo_ss_1.png)
 
 ### Git Change Detection
 **Green** highlights show new methods, **yellow** shows modifications, and **red** shows deletions:
 
-![Git Diff Highlighting](https://raw.githubusercontent.com/Rabbit-CollectiveScience/kratai-core/main/mvp/demo/demo_ss_2.png)
+![Git Diff Highlighting](https://raw.githubusercontent.com/Rabbit-CollectiveScience/kratai/main/mvp/demo/demo_ss_2.png)
 
 ### Sequence Diagrams
 Click any method to trace its execution path. Entry/exit arrows show method invocation and return:
 
-![Sequence Diagram Example](https://raw.githubusercontent.com/Rabbit-CollectiveScience/kratai-core/main/mvp/demo/demo_ss_3.png)
+![Sequence Diagram Example](https://raw.githubusercontent.com/Rabbit-CollectiveScience/kratai/main/mvp/demo/demo_ss_3.png)
 
 ### Easy Configuration
 Control exactly what gets visualized with the built-in settings panel:
 
-![Configuration Panel](https://raw.githubusercontent.com/Rabbit-CollectiveScience/kratai-core/main/mvp/demo/demo_ss_4.png)
+![Configuration Panel](https://raw.githubusercontent.com/Rabbit-CollectiveScience/kratai/main/mvp/demo/demo_ss_4.png)
 
 ---
 
