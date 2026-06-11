@@ -2,17 +2,17 @@
   "name": "kratai",
   "displayName": "Kratai - Code Visualizer",
   "description": "Visualize your TypeScript, JavaScript, Python, and PHP codebase as interactive class diagrams and sequence diagrams, with git diff highlighting to see exactly what changed.",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "publisher": "kratai-core",
   "icon": "icon_white.png",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Rabbit-CollectiveScience/kratai"
+    "url": "https://github.com/kratai-desci/kratai"
   },
   "homepage": "https://kratai.com",
   "bugs": {
-    "url": "https://github.com/Rabbit-CollectiveScience/kratai/issues"
+    "url": "https://github.com/kratai-desci/kratai/issues"
   },
   "keywords": [
     "class diagram",

@@ -35,7 +35,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('kratai.openCommunity', () => {
 			TelemetryService.trackOpenCommunity();
-			vscode.env.openExternal(vscode.Uri.parse('https://github.com/Rabbit-CollectiveScience/kratai-core/discussions'));
+			vscode.env.openExternal(vscode.Uri.parse('https://github.com/kratai-desci/kratai/discussions'));
 		})
 	);
 

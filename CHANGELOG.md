@@ -2,6 +2,12 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.0.4] - 2026-06-11
+
+### Changed
+- Updated GitHub organization from Rabbit-CollectiveScience to kratai-desci
+- Updated all repository URLs, image URLs, and community links
+
 ## [1.0.3] - 2026-06-11
 
 ### Changed
