@@ -38,7 +38,7 @@ export class TypeScriptParser implements IParserStrategy {
 		return classes;
 	}
 
-	extractRelationships(classes: ClassInfo[], allClassNames: Set<string>): ClassRelationship[] {
+	extractRelationships(classes: ClassInfo[], allClassNames: Set<string>, workspacePath: string): ClassRelationship[] {
 		const relationships: ClassRelationship[] = [];
 
 		// Build map of className -> all ClassInfo with that name
@@ -52,6 +52,20 @@ export class TypeScriptParser implements IParserStrategy {
 
 		for (const classInfo of classes) {
 			const fromId = `${classInfo.filePath}__${classInfo.name}`;
+
+			// Extract module-level instantiations (for Next.js routes, etc.)
+			if (classInfo.isModule || classInfo.classType === 'module') {
+				const moduleLevelDeps = this.extractModuleLevelInstantiations(classInfo.filePath, allClassNames, workspacePath);
+				console.log(`🐰 [${classInfo.name}] Found module-level instantiations:`, Array.from(moduleLevelDeps));
+				moduleLevelDeps.forEach(dep => {
+					const targets = classMap.get(dep) || [];
+					console.log(`🐰 Creating relationship from ${classInfo.name} to ${dep} (${targets.length} targets)`);
+					targets.forEach(target => {
+						const toId = `${target.filePath}__${target.name}`;
+						relationships.push({ from: fromId, to: toId, type: 'uses' });
+					});
+				});
+			}
 
 			if (classInfo.extends) {
 				const targets = classMap.get(classInfo.extends) || [];
@@ -106,6 +120,45 @@ export class TypeScriptParser implements IParserStrategy {
 		}
 
 		return relationships;
+	}
+
+	private extractModuleLevelInstantiations(filePath: string, allClassNames: Set<string>, workspacePath: string): Set<string> {
+		const instantiatedClasses = new Set<string>();
+
+		try {
+			// Construct absolute path (filePath is workspace-relative)
+			const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(workspacePath, filePath);
+			const sourceCode = fs.readFileSync(absolutePath, 'utf-8');
+			const sourceFile = ts.createSourceFile(absolutePath, sourceCode, ts.ScriptTarget.Latest, true);
+
+			const visitNode = (node: ts.Node) => {
+				// Look for 'new ClassName()' expressions
+				if (ts.isNewExpression(node) && ts.isIdentifier(node.expression)) {
+					const className = node.expression.getText();
+					console.log(`🐰 Found 'new ${className}()' in ${path.basename(filePath)}`);
+					if (allClassNames.has(className)) {
+						console.log(`🐰   ✅ ${className} is a known class, adding relationship`);
+						instantiatedClasses.add(className);
+					} else {
+						console.log(`🐰   ❌ ${className} not in allClassNames`);
+					}
+				}
+				// Recursively visit all children to find nested new expressions
+				ts.forEachChild(node, visitNode);
+			};
+
+			// Scan all module-level statements (variable declarations, function bodies, etc.)
+			sourceFile.forEachChild(node => {
+				// Skip class declarations - we already handle those separately
+				if (!ts.isClassDeclaration(node)) {
+					visitNode(node);
+				}
+			});
+		} catch (error) {
+			console.log(`🐰 Error parsing ${path.basename(filePath)}:`, error);
+		}
+
+		return instantiatedClasses;
 	}
 
 	private extractTypeNames(typeString: string): string[] {

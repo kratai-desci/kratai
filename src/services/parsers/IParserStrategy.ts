@@ -8,5 +8,5 @@ export interface IParserStrategy {
 	parseFile(filePath: string): ClassInfo[];
 
 	/** Extract relationships (extends, implements, uses) from a list of parsed classes */
-	extractRelationships(classes: ClassInfo[], allClassNames: Set<string>): ClassRelationship[];
+	extractRelationships(classes: ClassInfo[], allClassNames: Set<string>, workspacePath: string): ClassRelationship[];
 }

@@ -51,7 +51,7 @@ export class CodeParserService {
 		for (const [ext, extClasses] of parserClassMap) {
 			const parser = parserFactory.getParser(`file${ext}`);
 			if (parser) {
-				const rels = parser.extractRelationships(extClasses, allClassNames);
+				const rels = parser.extractRelationships(extClasses, allClassNames, workspacePath);
 				relationships.push(...rels);
 			} else {
 				// Fallback: basic extends/implements from classInfo fields

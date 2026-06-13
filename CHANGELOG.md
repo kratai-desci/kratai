@@ -2,6 +2,21 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.2.0] - 2026-06-13
+
+### Added
+- **Module-level instantiation detection** - Now detects `const x = new ClassName()` in route.ts and other module-level files
+- Relationships now properly show connections from Next.js App Router routes to controllers
+
+### Fixed
+- **CRITICAL**: Fixed file path resolution in module-level instantiation scanner - was using workspace-relative paths instead of absolute paths
+- Next.js route handlers (route.ts) now correctly show "uses" relationships to controllers
+- Module files without classes now properly detect their dependencies
+
+### Technical
+- Enhanced TypeScript parser to scan module-level code for class instantiations
+- Updated parser interface to accept workspacePath for proper file resolution
+
 ## [1.1.0] - 2026-06-12
 
 ### Fixed

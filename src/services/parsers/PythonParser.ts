@@ -270,7 +270,7 @@ export class PythonParser implements IParserStrategy {
 		return functions;
 	}
 
-	extractRelationships(classes: ClassInfo[], allClassNames: Set<string>): ClassRelationship[] {
+	extractRelationships(classes: ClassInfo[], allClassNames: Set<string>, workspacePath: string): ClassRelationship[] {
 		const relationships: ClassRelationship[] = [];
 
 		// Build map of className -> all ClassInfo with that name
