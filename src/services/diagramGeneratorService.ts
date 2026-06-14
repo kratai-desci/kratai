@@ -84,6 +84,13 @@ export class DiagramGeneratorService {
 					animated: true,
 					style: { stroke: '#95a5a6', strokeWidth: 1 }
 				};
+			case 'calls':
+				return {
+					type: 'smoothstep',
+					label: 'HTTP',
+					animated: true,
+					style: { stroke: '#9b59b6', strokeWidth: 2, strokeDasharray: '8,4' }
+				};
 			default:
 				return {
 					type: 'default',

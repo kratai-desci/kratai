@@ -44,7 +44,7 @@ export interface ParameterInfo {
 export interface ClassRelationship {
 	from: string;
 	to: string;
-	type: 'extends' | 'implements' | 'uses' | 'composition';
+	type: 'extends' | 'implements' | 'uses' | 'composition' | 'calls';
 }
 
 export interface DiagramData {

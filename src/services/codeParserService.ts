@@ -4,6 +4,7 @@ import { ClassInfo, DiagramData, ClassRelationship } from '../types/diagram';
 import { KrataiConfig } from '../types/config';
 import { ConfigService } from './configService';
 import { ParserFactory } from './parsers/ParserFactory';
+import { HttpCallDetector } from './httpCallDetector';
 
 const parserFactory = new ParserFactory();
 
@@ -66,6 +67,21 @@ export class CodeParserService {
 					}
 				}
 			}
+		}
+
+		// Detect HTTP API calls (fetch, axios, etc.) if enabled
+		if (config.detectHttpCalls !== false) {
+			const httpDetector = new HttpCallDetector();
+			const routeMap = httpDetector.buildRouteMap(classes);
+			console.log(`🌐 Built route map with ${routeMap.size} API routes`);
+			
+			const httpRelationships = httpDetector.detectHttpCallRelationships(
+				classes,
+				routeMap,
+				workspacePath
+			);
+			console.log(`🌐 Detected ${httpRelationships.length} HTTP call relationships`);
+			relationships.push(...httpRelationships);
 		}
 
 		return { classes, relationships };

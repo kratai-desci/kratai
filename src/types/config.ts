@@ -7,12 +7,13 @@ export interface KrataiConfig {
 		[type: string]: boolean;    // e.g., { "class": true, "interface": false, "module": true }
 	};
 	relationshipTypeFilters?: {     // Dynamic filters for relationship types
-		[type: string]: boolean;    // e.g., { "extends": true, "implements": false }
+		[type: string]: boolean;    // e.g., { "extends": true, "implements": false, "calls": true }
 	};
 	gitDiff?: {
 		enabled?: boolean;          // Show git diff visualization
 		baseCommit?: string;        // Compare against this commit (default: 'HEAD~1')
 	};
+	detectHttpCalls?: boolean;      // Detect HTTP API calls (fetch, axios, etc.) - Default: true
 }
 
 export interface FolderNode {

@@ -2,6 +2,21 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.3.0] - 2026-06-14
+
+### Added
+- **HTTP Call Detection** - Automatically detects API calls from UI to routes (fetch, axios, useSWR)
+- Shows "calls" relationships from pages/components to API route handlers
+- Supports Next.js App Router pattern matching (including dynamic routes like /api/users/[id])
+- New purple dotted line style for HTTP call relationships
+- Configurable via `detectHttpCalls` setting (enabled by default)
+
+### Technical
+- New `HttpCallDetector` service for semantic HTTP call analysis
+- Separates concerns: parsers handle syntax, HttpCallDetector handles API call semantics
+- Pattern matching for fetch(), axios.get/post(), useSWR(), useQuery()
+- Smart route matching: /api/users/123 matches /api/users/[id]
+
 ## [1.2.1] - 2026-06-13
 
 ### Added

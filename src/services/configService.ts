@@ -15,7 +15,8 @@ export class ConfigService {
 			gitDiff: {
 				enabled: true,
 				baseCommit: 'HEAD~1'
-			}
+			},
+			detectHttpCalls: true  // Detect fetch/axios/useSWR calls to API routes
 		};
 	}
 
