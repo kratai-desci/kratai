@@ -149,52 +149,56 @@ export class ClassDiagramView {
         
         /* Focus/Highlight Styles */
         .uml-box.dimmed {
-            opacity: 0.2;
-            filter: grayscale(80%);
+            opacity: 0.25;
+            filter: grayscale(60%);
             transition: opacity 0.3s ease, filter 0.3s ease;
         }
         .uml-box.focused {
             opacity: 1 !important;
             filter: none !important;
-            box-shadow: 0 0 20px rgba(66, 133, 244, 0.8), 0 0 40px rgba(66, 133, 244, 0.4) !important;
-            border-color: #4285f4 !important;
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.9) !important;
+            border-color: #000000 !important;
             border-width: 3px !important;
             z-index: 100 !important;
-            transform: scale(1.02);
             transition: all 0.3s ease;
         }
         .uml-box.related {
             opacity: 1 !important;
             filter: none !important;
-            box-shadow: 0 0 15px rgba(255, 152, 0, 0.6) !important;
-            border-color: #ff9800 !important;
+            box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.7) !important;
+            border-color: #000000 !important;
             border-width: 2px !important;
             z-index: 50 !important;
             transition: all 0.3s ease;
         }
         .relationship-line.dimmed {
-            opacity: 0.1;
+            opacity: 0.15;
             transition: opacity 0.3s ease;
         }
         .relationship-line.highlighted {
             opacity: 1 !important;
-            stroke-width: 3 !important;
-            filter: drop-shadow(0 0 3px currentColor);
+            stroke: #000000 !important;
+            stroke-width: 2 !important;
             transition: all 0.3s ease;
         }
         .focus-badge {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background: rgba(66, 133, 244, 0.95);
-            color: white;
+            background: rgba(30, 30, 30, 0.95);
+            border: 1px solid #666666;
+            color: #FFFFFF;
             padding: 12px 20px;
             border-radius: 6px;
             font-size: 13px;
             font-weight: 500;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             z-index: 2000;
             animation: slideIn 0.3s ease;
+        }
+        .focus-badge strong {
+            color: #FFFFFF;
+            font-weight: 600;
         }
         @keyframes slideIn {
             from {
@@ -407,7 +411,7 @@ export class ClassDiagramView {
                 line.setAttribute('stroke-width', '2.5');
                 line.setAttribute('stroke-opacity', '0.7');
                 
-                // Add arrow marker
+                // Add arrow marker (normal)
                 const markerId = 'arrow-' + type;
                 if (!document.getElementById(markerId)) {
                     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
@@ -429,7 +433,30 @@ export class ClassDiagramView {
                     svg.appendChild(defs);
                 }
                 
+                // Add black arrow marker for highlighted state
+                const highlightMarkerId = 'arrow-highlight';
+                if (!document.getElementById(highlightMarkerId)) {
+                    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+                    marker.setAttribute('id', highlightMarkerId);
+                    marker.setAttribute('markerWidth', '10');
+                    marker.setAttribute('markerHeight', '10');
+                    marker.setAttribute('refX', '9');
+                    marker.setAttribute('refY', '3');
+                    marker.setAttribute('orient', 'auto');
+                    marker.setAttribute('markerUnits', 'strokeWidth');
+                    
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('d', 'M0,0 L0,6 L9,3 z');
+                    path.setAttribute('fill', '#000000');  // Black arrow for highlight
+                    
+                    marker.appendChild(path);
+                    defs.appendChild(marker);
+                    svg.appendChild(defs);
+                }
+                
                 line.setAttribute('marker-end', 'url(#' + markerId + ')');
+                line.setAttribute('data-original-marker', markerId);  // Store for reset
                 
                 svg.appendChild(line);
                 drawnCount++;
@@ -515,6 +542,8 @@ export class ClassDiagramView {
                 if (line) {
                     line.classList.remove('dimmed');
                     line.classList.add('highlighted');
+                    // Switch to black arrow marker
+                    line.setAttribute('marker-end', 'url(#arrow-highlight)');
                 }
             });
             
@@ -562,6 +591,11 @@ export class ClassDiagramView {
             });
             allLines.forEach(line => {
                 line.classList.remove('dimmed', 'highlighted');
+                // Restore original arrow marker
+                const originalMarker = line.getAttribute('data-original-marker');
+                if (originalMarker) {
+                    line.setAttribute('marker-end', \`url(#\${originalMarker})\`);
+                }
             });
             
             hideFocusBadge();
