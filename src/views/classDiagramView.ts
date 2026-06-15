@@ -147,6 +147,43 @@ export class ClassDiagramView {
             background: #e0e0e0 !important;
         }
         
+        /* Open File Button */
+        .open-file-btn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 24px;
+            height: 24px;
+            background: transparent;
+            border: none;
+            color: #999999;
+            font-size: 18px;
+            font-weight: bold;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            opacity: 0;
+            transform: scale(0.9);
+            transition: all 0.2s ease;
+            z-index: 200;
+            pointer-events: none;
+        }
+        .uml-box:hover .open-file-btn {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+        .open-file-btn:hover {
+            color: #000000;
+            transform: scale(1.2);
+        }
+        .open-file-btn:active {
+            transform: scale(0.95);
+        }
+        
         /* Focus/Highlight Styles */
         .uml-box.dimmed {
             opacity: 0.25;
@@ -472,8 +509,8 @@ export class ClassDiagramView {
             const allBoxes = document.querySelectorAll('.uml-box');
             allBoxes.forEach(box => {
                 box.addEventListener('click', function(e) {
-                    // Don't trigger on method clicks
-                    if (e.target.closest('.method-item')) {
+                    // Don't trigger on method clicks or button clicks
+                    if (e.target.closest('.method-item') || e.target.closest('.open-file-btn')) {
                         return;
                     }
                     
@@ -485,6 +522,23 @@ export class ClassDiagramView {
                         clearFocus();
                     } else {
                         focusOnClass(classId);
+                    }
+                });
+            });
+            
+            // Setup open file button handlers
+            const openButtons = document.querySelectorAll('.open-file-btn');
+            openButtons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation(); // Prevent focus trigger
+                    const box = btn.closest('.uml-box');
+                    const filePath = box?.getAttribute('data-file-path');
+                    if (filePath) {
+                        console.log('🚀 Opening file:', filePath);
+                        vscode.postMessage({
+                            command: 'openFile',
+                            filePath: filePath
+                        });
                     }
                 });
             });

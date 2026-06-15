@@ -21,7 +21,7 @@ export class ClassBoxRenderer {
 		const bgColor = this.getChangeStatusBgColor(classInfo.changeStatus || 'unchanged');
 
 		return `
-			<div class="uml-box ${classInfo.changeStatus ? `change-${classInfo.changeStatus}` : ''}" data-class="${uniqueId}" style="
+			<div class="uml-box ${classInfo.changeStatus ? `change-${classInfo.changeStatus}` : ''}" data-class="${uniqueId}" data-file-path="${this.escapeHtml(classInfo.filePath)}" style="
 				width: ${this.boxWidth}px;
 				background: ${bgColor};
 				border: 2px ${borderStyle} ${borderColor};
@@ -33,6 +33,7 @@ export class ClassBoxRenderer {
 				box-sizing: border-box;
 				position: relative;
 			">
+				<button class="open-file-btn" title="Open in Editor">⋮</button>
 				${this.renderHeader(classInfo, isModule, safeDisplayName)}
 				${this.renderProperties(classInfo, isModule)}
 				${this.renderMethods(classInfo, isModule)}

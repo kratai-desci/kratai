@@ -162,8 +162,14 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 					switch (message.command) {
 						case 'openSettings':
 							vscode.commands.executeCommand('kratai.showConfigPanel');
-							break;
-						case 'openMethodSequence':
+							break;					case 'openFile':
+						// Open file in editor beside the diagram
+						const fileUri = vscode.Uri.file(path.join(workspacePath, message.filePath));
+						await vscode.window.showTextDocument(fileUri, {
+							viewColumn: vscode.ViewColumn.Beside,
+							preserveFocus: false
+						});
+						break;						case 'openMethodSequence':
 						// Trace method calls
 						vscode.window.withProgress({
 							location: vscode.ProgressLocation.Notification,
