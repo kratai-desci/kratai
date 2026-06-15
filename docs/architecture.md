@@ -4,6 +4,11 @@
 
 Clean, scalable architecture separating concerns into distinct layers for maintainability and extensibility. Uses the **Strategy Pattern** for multi-language code parsing to enable easy addition of new programming languages.
 
+**Interactive Features:**
+- **Click-to-Highlight** — Click any class to highlight it and its dependencies with monochromatic focus
+- **Hover-to-Open** — Three-dot button (⋮) appears on hover to open files in editor
+- **Focus Mode** — Press ESC to clear highlights and return to full view
+
 ## Structure
 
 ```
@@ -86,6 +91,46 @@ src/
 4. **Single Responsibility** - Path normalization happens in ONE place (`CodeParserService.parseWorkspace`)
 5. **Testability** - Each module can be unit tested independently
 6. **Scalability** - Add new languages by creating a parser class (minimal impact to existing code)
+
+---
+
+## 🖱️ UI/UX Interaction Patterns
+
+### Click-to-Highlight (Focus Mode)
+**Purpose:** Help users explore class relationships by dimming unrelated elements
+
+**Implementation:**
+- Single click on class → Highlights class (black 3px outline) + related classes (grey 2px outline)
+- Related relationships → Black lines (2px, from default grey 2.5px)
+- Unrelated elements → Dimmed to 25% opacity + 60% grayscale
+- Click same class again → Toggles off
+- Press ESC → Clears focus mode
+
+**Visual Design:**
+- Monochromatic theme (black/grey/white) maintains professional appearance
+- No color distractions - blends with existing diagram style
+- Smooth 0.3s transitions for all state changes
+- Badge appears: "💡 Press ESC to clear focus"
+
+### Hover-to-Open Files
+**Purpose:** Quick access to source code from diagram
+
+**Implementation:**
+- Three-dot button (⋮) positioned at top-right corner of each class box
+- Hidden by default, fades in on hover (0.2s transition)
+- Click button → Opens file in `ViewColumn.Beside` (same as sequence diagrams)
+- Prevents focus mode trigger with `e.stopPropagation()`
+
+**Visual Design:**
+- Transparent background, grey icon (#999) → Black on hover
+- Font size 18px, scales 1.2x on hover for feedback
+- Press effect (scale 0.95x) on click
+- Tooltip: "Open in Editor"
+
+### Configuration Simplification
+**Previous Behavior:** Smart detection scanned for common folders (`src`, `lib`, `app`, etc.) and pre-selected them
+**New Behavior:** Root folder selected by default
+**Rationale:** Simple, predictable, user-controlled from the start
 
 ---
 

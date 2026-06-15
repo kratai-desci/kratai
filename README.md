@@ -9,7 +9,9 @@ Understand your codebase at a glance across **TypeScript, JavaScript, Python, an
 ## ✨ Key Features
 
 - 🗺️ **Interactive Class Diagrams** — Visualize your entire codebase with folder-based organization
-- 🔄 **Sequence Diagrams** — Click any method to trace its execution flow across classes
+- �️ **Click-to-Highlight** — Click any class to highlight it and its dependencies (press ESC to clear)
+- 📂 **Hover-to-Open** — Three-dot button appears on hover to instantly open files in editor
+- �🔄 **Sequence Diagrams** — Click any method to trace its execution flow across classes
 - 📊 **Git Diff Highlighting** — See what changed at a glance (green = added, yellow = modified, red = deleted)
 - 🌍 **Multi-Language Support** — Works with TypeScript, JavaScript, Python, and PHP in the same project
 - 🎯 **Smart Relationships** — Auto-detects inheritance, interfaces, and dependencies
@@ -22,10 +24,14 @@ Understand your codebase at a glance across **TypeScript, JavaScript, Python, an
 1. **Install** the extension from VS Code Marketplace
 2. **Open** a project with `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, or `.php` files
 3. **Click** the Kratai icon in the Activity Bar (left sidebar)
-4. **Configure** which folders to scan (first-time setup)
+4. **Configure** which folders to scan (root folder selected by default on first run)
 5. **Generate** your class diagram and start exploring!
 
-Click any method in the diagram to open its sequence diagram and see the complete call chain.
+**Interactive Tips:**
+- **Click a class** to highlight its dependencies (black outline = focused, grey = related)
+- **Hover over a class** and click the ⋮ button to open its source file
+- **Click any method** to see its sequence diagram and trace the complete call chain
+- **Press ESC** to clear highlights and return to full view
 
 ---
 
@@ -70,11 +76,13 @@ Works great with polyglot codebases! Visualize a TypeScript frontend and Python 
 
 Kratai stores settings in `.vscode/kratai.json` in your workspace:
 
-- **Folders to scan** — Specify which source directories to include
+- **Folders to scan** — Root folder selected by default; customize to include only specific directories
 - **File extensions** — Select languages: `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, `.php`
 - **Class type filters** — Show/hide interfaces, modules, classes
 - **Relationship type filters** — Show/hide inheritance, usage, implementation
 - **Git diff base commit** — Defaults to `HEAD~1`, customize for other comparisons
+
+**First-Time Setup:** On your first diagram generation, Kratai opens the configuration panel with the root folder pre-selected. You can adjust settings and click "Save & Generate Diagram" to proceed.
 
 ---
 
@@ -94,21 +102,13 @@ Kratai stores settings in `.vscode/kratai.json` in your workspace:
 
 ## 📝 Release Notes
 
-### 1.0.1 (Latest)
-- ✨ **Enhanced JavaScript parser** — JSDoc type annotations now parsed for accurate relationship detection
-- 🐍 **Improved Python parser** — Complex type hints like `Optional[Product]`, `List[str]`, `Dict[str, int]` fully supported
-- 🎯 **Better sequence diagrams** — Entry/exit arrows clearly show method invocation and return points
-- 🐛 **Bug fixes** — JavaScript classes now show relationship arrows based on JSDoc types
+### Latest: v1.3.0
+- 🔗 **HTTP Call Detection** — Auto-detects API calls (fetch, axios, useSWR) to route handlers
+- 🖱️ **Click-to-Highlight** — Focus on class dependencies with monochromatic highlighting
+- 📂 **Hover-to-Open** — Three-dot (⋮) button to instantly open source files
+- ⚡ **Simplified Configuration** — Root folder selected by default
 
-### 1.0.0
-- 🚀 **Multi-language support** — TypeScript, JavaScript, Python, and PHP
-- 📊 Interactive class diagram with folder-based layout
-- 🏗️ **Strategy Pattern architecture** — Add new languages with ~10 lines of code
-- 🔄 Sequence diagram generation by clicking any method
-- 🎨 Git diff highlighting — added, modified, and deleted detection
-- 🔑 **Unique ID system** — Handles same class names across languages
-- ⚙️ Configurable folder and class type filters
-- ✅ 23+ test fixtures validating parser capabilities
+See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ---
 
