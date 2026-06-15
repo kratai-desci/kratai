@@ -21,57 +21,8 @@ export class ConfigService {
 	}
 
 	static generateSmartDefaults(workspacePath: string): KrataiConfig {
-		// Common folder patterns for different project types
-		const commonSourceFolders = [
-			// JavaScript/TypeScript
-			'src',
-			'lib',
-			'app',
-			'packages',
-			'server',
-			'client',
-			'api',
-			'services',
-			'components',
-			'modules',
-			'core',
-			// PHP
-			'app',
-			'src',
-			'includes',
-			'classes',
-			// Python
-			'src',
-			'app',
-			'lib',
-			// Ruby
-			'app',
-			'lib',
-			// Java
-			'src/main/java',
-			'src',
-			// C#
-			'src',
-			// Go
-			'cmd',
-			'pkg',
-			'internal'
-		];
-
-		// Remove duplicates
-		const uniqueFolders = Array.from(new Set(commonSourceFolders));
-		const detectedFolders: string[] = [];
-
-		// Check which common folders exist
-		for (const folderName of uniqueFolders) {
-			const folderPath = path.join(workspacePath, folderName);
-			if (fs.existsSync(folderPath) && fs.statSync(folderPath).isDirectory()) {
-				detectedFolders.push(folderName);
-			}
-		}
-
-		// If no common folders found, default to empty (scan all)
-		const selectedFolders = detectedFolders.length > 0 ? detectedFolders : [];
+		// Default to selecting the root folder only (simple and predictable)
+		const selectedFolders = [''];
 
 		// Detect file types in the project
 		const extensions = this.detectFileExtensions(workspacePath);
