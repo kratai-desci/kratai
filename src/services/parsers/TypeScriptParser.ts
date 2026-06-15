@@ -131,6 +131,13 @@ export class TypeScriptParser implements IParserStrategy {
 			const sourceCode = fs.readFileSync(absolutePath, 'utf-8');
 			const sourceFile = ts.createSourceFile(absolutePath, sourceCode, ts.ScriptTarget.Latest, true);
 
+			// First pass: Extract imported names and their source files
+			const importedClasses = this.extractImports(sourceFile, absolutePath, allClassNames, workspacePath);
+			console.log(`🔗 [${path.basename(filePath)}] Found imports:`, Array.from(importedClasses));
+			
+			// Add imported classes to dependencies
+			importedClasses.forEach(className => instantiatedClasses.add(className));
+
 			const visitNode = (node: ts.Node) => {
 				// Look for 'new ClassName()' expressions
 				if (ts.isNewExpression(node) && ts.isIdentifier(node.expression)) {
@@ -159,6 +166,51 @@ export class TypeScriptParser implements IParserStrategy {
 		}
 
 		return instantiatedClasses;
+	}
+
+	/**
+	 * Extract imported class names from a source file
+	 */
+	private extractImports(sourceFile: ts.SourceFile, currentFilePath: string, allClassNames: Set<string>, workspacePath: string): Set<string> {
+		const importedClasses = new Set<string>();
+
+		sourceFile.forEachChild(node => {
+			// Handle: import { Database, User } from './lib/db'
+			if (ts.isImportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+				const importPath = node.moduleSpecifier.text;
+				
+				// Skip node_modules imports (react, next, etc.)
+				if (!importPath.startsWith('.') && !importPath.startsWith('@/')) {
+					return;
+				}
+
+				// Get imported names
+				if (node.importClause) {
+					// Named imports: import { Database, User } from './db'
+					if (node.importClause.namedBindings && ts.isNamedImports(node.importClause.namedBindings)) {
+						node.importClause.namedBindings.elements.forEach(element => {
+							const importedName = element.name.getText();
+							// Check if this is a known class
+							if (allClassNames.has(importedName)) {
+								console.log(`  🔗 Imported class: ${importedName} from ${importPath}`);
+								importedClasses.add(importedName);
+							}
+						});
+					}
+
+					// Default import: import Database from './db'
+					if (node.importClause.name) {
+						const importedName = node.importClause.name.getText();
+						if (allClassNames.has(importedName)) {
+							console.log(`  🔗 Imported class (default): ${importedName} from ${importPath}`);
+							importedClasses.add(importedName);
+						}
+					}
+				}
+			}
+		});
+
+		return importedClasses;
 	}
 
 	private extractTypeNames(typeString: string): string[] {
