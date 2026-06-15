@@ -146,6 +146,66 @@ export class ClassDiagramView {
         .method-item:hover {
             background: #e0e0e0 !important;
         }
+        
+        /* Focus/Highlight Styles */
+        .uml-box.dimmed {
+            opacity: 0.2;
+            filter: grayscale(80%);
+            transition: opacity 0.3s ease, filter 0.3s ease;
+        }
+        .uml-box.focused {
+            opacity: 1 !important;
+            filter: none !important;
+            box-shadow: 0 0 20px rgba(66, 133, 244, 0.8), 0 0 40px rgba(66, 133, 244, 0.4) !important;
+            border-color: #4285f4 !important;
+            border-width: 3px !important;
+            z-index: 100 !important;
+            transform: scale(1.02);
+            transition: all 0.3s ease;
+        }
+        .uml-box.related {
+            opacity: 1 !important;
+            filter: none !important;
+            box-shadow: 0 0 15px rgba(255, 152, 0, 0.6) !important;
+            border-color: #ff9800 !important;
+            border-width: 2px !important;
+            z-index: 50 !important;
+            transition: all 0.3s ease;
+        }
+        .relationship-line.dimmed {
+            opacity: 0.1;
+            transition: opacity 0.3s ease;
+        }
+        .relationship-line.highlighted {
+            opacity: 1 !important;
+            stroke-width: 3 !important;
+            filter: drop-shadow(0 0 3px currentColor);
+            transition: all 0.3s ease;
+        }
+        .focus-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(66, 133, 244, 0.95);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 2000;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateY(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
 
     </style>
 </head>
@@ -303,7 +363,7 @@ export class ClassDiagramView {
                 }
             }
             
-            EDGES.forEach(edge => {
+            EDGES.forEach((edge, edgeIndex) => {
                 const sourceBox = document.querySelector('[data-class="' + CSS.escape(edge.source) + '"]');
                 const targetBox = document.querySelector('[data-class="' + CSS.escape(edge.target) + '"]');
                 
@@ -335,6 +395,10 @@ export class ClassDiagramView {
                 
                 // Create line element
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.classList.add('relationship-line');
+                line.setAttribute('data-edge-id', \`edge-\${edgeIndex}\`);
+                line.setAttribute('data-source', edge.source);
+                line.setAttribute('data-target', edge.target);
                 line.setAttribute('x1', startPoint.x);
                 line.setAttribute('y1', startPoint.y);
                 line.setAttribute('x2', endPoint.x);
@@ -373,6 +437,157 @@ export class ClassDiagramView {
             
             console.log(\`✅ Drew \${drawnCount} lines, skipped \${skippedCount}\`);
         }
+        
+        // ===== FOCUS/HIGHLIGHT SYSTEM =====
+        let focusedClassId = null;
+        
+        function setupClassClickHandlers() {
+            const allBoxes = document.querySelectorAll('.uml-box');
+            allBoxes.forEach(box => {
+                box.addEventListener('click', function(e) {
+                    // Don't trigger on method clicks
+                    if (e.target.closest('.method-item')) {
+                        return;
+                    }
+                    
+                    const classId = box.getAttribute('data-class');
+                    if (!classId) return;
+                    
+                    // Toggle: if clicking the same class, clear focus
+                    if (focusedClassId === classId) {
+                        clearFocus();
+                    } else {
+                        focusOnClass(classId);
+                    }
+                });
+            });
+            
+            // ESC to clear focus
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && focusedClassId) {
+                    clearFocus();
+                }
+            });
+        }
+        
+        function focusOnClass(classId) {
+            console.log('🎯 Focusing on:', classId);
+            focusedClassId = classId;
+            
+            // Find all related class IDs
+            const relatedIds = findRelatedClasses(classId);
+            console.log('🔗 Related classes:', relatedIds);
+            
+            // Get all boxes and lines
+            const allBoxes = document.querySelectorAll('.uml-box');
+            const allLines = document.querySelectorAll('.relationship-line');
+            
+            // Dim everything first
+            allBoxes.forEach(box => {
+                box.classList.add('dimmed');
+                box.classList.remove('focused', 'related');
+            });
+            allLines.forEach(line => {
+                line.classList.add('dimmed');
+                line.classList.remove('highlighted');
+            });
+            
+            // Highlight the focused class
+            const focusedBox = document.querySelector(\`.uml-box[data-class="\${classId}"]\`);
+            if (focusedBox) {
+                focusedBox.classList.remove('dimmed');
+                focusedBox.classList.add('focused');
+            }
+            
+            // Highlight related classes
+            relatedIds.forEach(relId => {
+                const relBox = document.querySelector(\`.uml-box[data-class="\${relId}"]\`);
+                if (relBox) {
+                    relBox.classList.remove('dimmed');
+                    relBox.classList.add('related');
+                }
+            });
+            
+            // Highlight related relationships
+            const relatedEdgeIds = findRelatedEdges(classId, relatedIds);
+            relatedEdgeIds.forEach(edgeId => {
+                const line = document.querySelector(\`[data-edge-id="\${edgeId}"]\`);
+                if (line) {
+                    line.classList.remove('dimmed');
+                    line.classList.add('highlighted');
+                }
+            });
+            
+            // Show badge
+            showFocusBadge();
+        }
+        
+        function findRelatedClasses(classId) {
+            const related = new Set();
+            
+            // Find all edges connected to this class
+            EDGES.forEach(edge => {
+                if (edge.source === classId) {
+                    related.add(edge.target);
+                } else if (edge.target === classId) {
+                    related.add(edge.source);
+                }
+            });
+            
+            return Array.from(related);
+        }
+        
+        function findRelatedEdges(focusedId, relatedIds) {
+            const allIds = new Set([focusedId, ...relatedIds]);
+            const edgeIds = [];
+            
+            EDGES.forEach((edge, index) => {
+                if (allIds.has(edge.source) && allIds.has(edge.target)) {
+                    edgeIds.push(\`edge-\${index}\`);
+                }
+            });
+            
+            return edgeIds;
+        }
+        
+        function clearFocus() {
+            console.log('✨ Clearing focus');
+            focusedClassId = null;
+            
+            const allBoxes = document.querySelectorAll('.uml-box');
+            const allLines = document.querySelectorAll('.relationship-line');
+            
+            allBoxes.forEach(box => {
+                box.classList.remove('dimmed', 'focused', 'related');
+            });
+            allLines.forEach(line => {
+                line.classList.remove('dimmed', 'highlighted');
+            });
+            
+            hideFocusBadge();
+        }
+        
+        function showFocusBadge() {
+            let badge = document.querySelector('.focus-badge');
+            if (!badge) {
+                badge = document.createElement('div');
+                badge.className = 'focus-badge';
+                badge.innerHTML = '💡 Press <strong>ESC</strong> to clear focus';
+                document.body.appendChild(badge);
+            }
+        }
+        
+        function hideFocusBadge() {
+            const badge = document.querySelector('.focus-badge');
+            if (badge) {
+                badge.remove();
+            }
+        }
+        
+        // Initialize click handlers after load
+        window.addEventListener('load', function() {
+            setupClassClickHandlers();
+        });
         
         // Redraw lines on window resize or container scroll
         window.addEventListener('resize', function() {
