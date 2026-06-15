@@ -2,6 +2,26 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.4.0] - 2026-06-15
+
+### Added
+- **Click-to-Highlight** — Click any class to highlight it and its dependencies with monochromatic focus
+- **Hover-to-Open Files** — Three-dot (⋮) button appears on hover to instantly open source files in editor
+- **Monochromatic Focus Mode** — Clean black/grey highlighting maintains professional diagram aesthetics
+- **Keyboard Shortcut** — Press ESC to clear focus and return to full diagram view
+- **Simplified Configuration** — Root folder now selected by default for predictable, user-friendly setup
+
+### Changed
+- Configuration panel now shows "Root folder selected by default" instead of auto-detecting common folders
+- Focus highlighting uses monochromatic scheme (black/grey) instead of colors
+- Relationship lines turn bold black when highlighted (from grey)
+
+### Technical
+- Click handlers prevent focus trigger when clicking open-file button or method items
+- Focus state managed via CSS classes: `.focused`, `.related`, `.dimmed`
+- Smooth 0.3s transitions for all focus state changes
+- Badge notification for ESC shortcut hint
+
 ## [1.3.0] - 2026-06-14
 
 ### Added

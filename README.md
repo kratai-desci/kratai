@@ -102,11 +102,11 @@ Kratai stores settings in `.vscode/kratai.json` in your workspace:
 
 ## 📝 Release Notes
 
-### Latest: v1.3.0
-- 🔗 **HTTP Call Detection** — Auto-detects API calls (fetch, axios, useSWR) to route handlers
+### Latest: v1.4.0
 - 🖱️ **Click-to-Highlight** — Focus on class dependencies with monochromatic highlighting
 - 📂 **Hover-to-Open** — Three-dot (⋮) button to instantly open source files
 - ⚡ **Simplified Configuration** — Root folder selected by default
+- ⌨️ **ESC Shortcut** — Clear focus and return to full view
 
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
