@@ -42,7 +42,8 @@ function getRelTypeLabel(type: string): string {
 		'extends': '🔵 Extends (Inheritance)',
 		'implements': '🟣 Implements (Interface)',
 		'composition': '🔴 Composition',
-		'uses': '⚪ Uses (Dependency)'
+		'uses': '⚪ Uses (Dependency)',
+		'calls': '🟪 HTTP API Calls'
 	};
 	return labels[type] || `🔗 ${type.charAt(0).toUpperCase() + type.slice(1)}`;
 }
@@ -74,7 +75,7 @@ export async function showConfigPanel(context: vscode.ExtensionContext): Promise
 
 	// Detect available types in the codebase
 	const availableTypes = await detectAvailableTypes(workspacePath);
-	const availableRelTypes = ['extends', 'implements', 'composition', 'uses'];
+	const availableRelTypes = ['extends', 'implements', 'composition', 'uses', 'calls'];
 
 	// Create webview panel
 	const panel = vscode.window.createWebviewPanel(
