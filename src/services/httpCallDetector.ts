@@ -24,6 +24,7 @@ export class HttpCallDetector {
 				// app/api/users/[id]/route.ts → /api/users/[id]
 				const urlPattern = this.filePathToUrlPattern(classInfo.filePath);
 				routeMap.set(urlPattern, classInfo);
+				console.log(`  📍 Route: ${urlPattern} → ${classInfo.filePath}`);
 			}
 			
 			// TODO: Add support for other frameworks:
@@ -32,20 +33,34 @@ export class HttpCallDetector {
 			// - NestJS: @Get('/users')
 		}
 		
+		console.log(`🌐 Built route map with ${routeMap.size} API routes`);
 		return routeMap;
 	}
 	
 	/**
 	 * Convert Next.js file path to URL pattern
+	 * src/app/api/users/[id]/route.ts → /api/users/[id]
 	 * app/api/users/[id]/ban/route.ts → /api/users/[id]/ban
 	 */
 	private filePathToUrlPattern(filePath: string): string {
-		// Remove leading 'app' and trailing '/route.ts'
-		let pattern = filePath.replace(/^app\//, '/').replace(/\/route\.tsx?$/, '');
+		// Find the /app/ segment
+		const appIndex = filePath.indexOf('/app/');
+		if (appIndex === -1) {
+			console.log(`⚠️  No /app/ found in path: ${filePath}`);
+			return filePath;
+		}
+
+		// Get everything after '/app' and add leading '/'
+		// src/app/api/users/route.ts → /api/users/route.ts
+		let pattern = filePath.substring(appIndex + 4); // +4 to skip '/app'
+		
+		// Remove trailing '/route.ts' or '/route.tsx'
+		pattern = pattern.replace(/\/route\.tsx?$/, '');
 		
 		// Normalize path separators
 		pattern = pattern.replace(/\\/g, '/');
 		
+		console.log(`  🔄 Converted: ${filePath} → ${pattern}`);
 		return pattern;
 	}
 	
@@ -59,15 +74,22 @@ export class HttpCallDetector {
 	): ClassRelationship[] {
 		const relationships: ClassRelationship[] = [];
 		
+		console.log(`🌐 Scanning ${classes.length} classes for HTTP calls...`);
+		
 		for (const classInfo of classes) {
 			// Only scan UI files (pages, components, etc.)
 			// Skip API route files themselves
 			if (this.isUiFile(classInfo.filePath)) {
+				console.log(`  📄 Scanning UI file: ${classInfo.filePath}`);
 				const calledRoutes = this.detectHttpCallsInFile(
 					classInfo.filePath,
 					routeMap,
 					workspacePath
 				);
+				
+				if (calledRoutes.length > 0) {
+					console.log(`    ✅ Found ${calledRoutes.length} HTTP calls`);
+				}
 				
 				// Create relationships from UI to API routes
 				calledRoutes.forEach(targetClass => {
@@ -80,6 +102,8 @@ export class HttpCallDetector {
 						type: 'calls' // New relationship type for HTTP calls
 					});
 				});
+			} else {
+				console.log(`  ⏭️  Skipping API route file: ${classInfo.filePath}`);
 			}
 		}
 		
@@ -127,11 +151,25 @@ export class HttpCallDetector {
 			const visitNode = (node: ts.Node) => {
 				// Detect function calls
 				if (ts.isCallExpression(node)) {
+					const funcName = node.expression.getText();
 					const url = this.extractUrlFromCallExpression(node);
-					if (url) {
-						const matchedRoute = this.matchUrlToRoute(url, routeMap);
-						if (matchedRoute && !calledRoutes.includes(matchedRoute)) {
-							calledRoutes.push(matchedRoute);
+					
+					// Debug logging for all call expressions
+					if (funcName === 'fetch' || funcName.startsWith('axios') || funcName === 'useSWR') {
+						console.log(`      🔍 Found ${funcName}() call`);
+						if (url) {
+							console.log(`        URL: ${url}`);
+							const matchedRoute = this.matchUrlToRoute(url, routeMap);
+							if (matchedRoute) {
+								console.log(`        ✅ Matched route: ${matchedRoute.filePath}`);
+								if (!calledRoutes.includes(matchedRoute)) {
+									calledRoutes.push(matchedRoute);
+								}
+							} else {
+								console.log(`        ❌ No matching route found`);
+							}
+						} else {
+							console.log(`        ⚠️  Could not extract URL`);
 						}
 					}
 				}
