@@ -188,6 +188,9 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 				diagramData.relationships.length
 			);
 
+			// Track sequence diagram panel for reuse
+			let sequencePanel: vscode.WebviewPanel | undefined;
+
 			// Handle messages from the webview
 			panel.webview.onDidReceiveMessage(
 				async message => {
@@ -217,17 +220,30 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 								10 // max depth
 							);
 							
-							// Open sequence diagram beside the class diagram
-							const sequencePanel = vscode.window.createWebviewPanel(
-								'krataiSequenceDiagram',
-								`${message.className}.${message.methodName}()`,
-								vscode.ViewColumn.Beside,
-								{
-									enableScripts: true,
-									retainContextWhenHidden: true,
-									localResourceRoots: [vscode.Uri.joinPath(context.extensionUri)]
-								}
-							);
+							// Reuse existing sequence panel if available, or create new one
+							if (!sequencePanel) {
+								// Create new sequence diagram panel
+								sequencePanel = vscode.window.createWebviewPanel(
+									'krataiSequenceDiagram',
+									`${message.className}.${message.methodName}()`,
+									vscode.ViewColumn.Beside,
+									{
+										enableScripts: true,
+										retainContextWhenHidden: true,
+										localResourceRoots: [vscode.Uri.joinPath(context.extensionUri)]
+									}
+								);
+								
+								// Clear reference when panel is disposed
+								sequencePanel.onDidDispose(() => {
+									sequencePanel = undefined;
+								});
+							} else {
+								// Reuse existing panel - update title and reveal
+								sequencePanel.title = `${message.className}.${message.methodName}()`;
+								sequencePanel.reveal(vscode.ViewColumn.Beside, false);
+							}
+							
 							const seqIconUri = sequencePanel.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'icon.png'));
 							
 							// Generate and show sequence diagram
