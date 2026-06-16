@@ -143,8 +143,19 @@ export class ClassDiagramView {
             position: relative;
             z-index: 1;
         }
-        .method-item:hover {
-            background: #e0e0e0 !important;
+        
+        /* Method styling */
+        .method-item {
+            transition: background 0.15s ease;
+        }
+        .method-item.clickable {
+            background: rgba(100, 150, 200, 0.1) !important;
+        }
+        .method-item.clickable:hover {
+            background: rgba(100, 150, 200, 0.25) !important;
+        }
+        .method-item:not(.clickable) {
+            opacity: 0.85;
         }
         
         /* Open File Button */

@@ -33,6 +33,7 @@ export interface MethodInfo {
 	changeStatus?: 'added' | 'deleted' | 'modified' | 'unchanged';
 	lineNumber?: number;
 	endLineNumber?: number;
+	hasInternalCalls?: boolean; // Pre-computed: true if method calls other methods
 }
 
 export interface ParameterInfo {

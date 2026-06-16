@@ -2,6 +2,7 @@ import { FolderNode, FolderStructureBuilder } from './folderStructure';
 import { FolderSize } from './layoutCalculator';
 
 export class FolderBoxRenderer {
+	
 	renderAll(folder: FolderNode, depth = 0): string {
 		const folderIcon = this.getFolderIcon(folder.name);
 		const totalCount = FolderStructureBuilder.countClasses(folder);
@@ -77,7 +78,7 @@ export class FolderBoxRenderer {
 					padding: 20px;
 				">
 					${folder.classes.map(node => {
-						const classRenderer = new (require('./classBoxRenderer').ClassBoxRenderer)(260);
+					const classRenderer = new (require('./classBoxRenderer').ClassBoxRenderer)(260);
 						return classRenderer.render(node.data.classInfo);
 					}).join('\n')}
 				</div>

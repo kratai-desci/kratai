@@ -121,11 +121,21 @@ export class ClassBoxRenderer {
 			const safeClassName = this.escapeHtml(classInfo.name);
 			const safeFilePath = this.escapeHtml(classInfo.filePath);
 			
+			// Use pre-computed hasInternalCalls flag
+			const hasMethodCalls = method.hasInternalCalls === true;
+			const clickableClass = hasMethodCalls ? 'clickable' : '';
+			const clickableStyle = hasMethodCalls 
+				? 'background: rgba(100, 150, 200, 0.1); cursor: pointer;' 
+				: 'cursor: default;';
+			const clickHandler = hasMethodCalls 
+				? `onclick="openMethodSequence('${safeClassName}', '${safeName}', '${safeFilePath}')"`
+				: '';
+			
 			return `
-			<div class="method-item" 
-				 style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; background: ${changeBgColor}; cursor: pointer;" 
+			<div class="method-item ${clickableClass}" 
+				 style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; ${changeBgColor !== 'transparent' ? `background: ${changeBgColor};` : clickableStyle}" 
 				 title="${safeName}(${paramNames})"
-				 onclick="openMethodSequence('${safeClassName}', '${safeName}', '${safeFilePath}')">
+				 ${clickHandler}>
 				<span style="color: ${this.getVisibilityColor(method.visibility)};">
 					${this.getVisibilitySymbol(method.visibility)}
 				</span>
@@ -192,4 +202,5 @@ export class ClassBoxRenderer {
 			default: return 'transparent';
 		}
 	}
+
 }
