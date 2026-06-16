@@ -190,6 +190,9 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 
 			// Track sequence diagram panel for reuse
 			let sequencePanel: vscode.WebviewPanel | undefined;
+			
+			// Track which column we opened files in (always use Column Two beside diagram)
+			const fileEditorColumn = vscode.ViewColumn.Two;
 
 			// Handle messages from the webview
 			panel.webview.onDidReceiveMessage(
@@ -198,10 +201,10 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 						case 'openSettings':
 							vscode.commands.executeCommand('kratai.showConfigPanel');
 							break;					case 'openFile':
-						// Open file in editor beside the diagram
+						// Open file in editor - always use Column Two to avoid spawning multiple columns
 						const fileUri = vscode.Uri.file(path.join(workspacePath, message.filePath));
 						await vscode.window.showTextDocument(fileUri, {
-							viewColumn: vscode.ViewColumn.Beside,
+							viewColumn: fileEditorColumn,
 							preserveFocus: false
 						});
 						break;						case 'openMethodSequence':
