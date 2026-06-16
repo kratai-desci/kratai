@@ -102,11 +102,11 @@ Kratai stores settings in `.vscode/kratai.json` in your workspace:
 
 ## 📝 Release Notes
 
-### Latest: v1.4.0
-- 🖱️ **Click-to-Highlight** — Focus on class dependencies with monochromatic highlighting
-- 📂 **Hover-to-Open** — Three-dot (⋮) button to instantly open source files
-- ⚡ **Simplified Configuration** — Root folder selected by default
-- ⌨️ **ESC Shortcut** — Clear focus and return to full view
+### Latest: v1.5.0
+- 🔗 **Import Detection** — Routes show dependencies on imported classes (Database, auth)
+- 🎯 **Smart Clickable Methods** — Only methods with calls are clickable (light blue background)
+- 🐛 **Fixed HTTP Calls** — API endpoints now correctly match route handlers
+- 📊 **Sequence Panel Reuse** — Updates same panel instead of creating multiple columns
 
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 

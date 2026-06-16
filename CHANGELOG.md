@@ -2,6 +2,33 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.5.0] - 2026-06-16
+
+### Added
+- **Import Detection** — Routes now show dependencies on imported lib files (Database, auth modules)
+- **Smart Clickable Methods** — Only methods with internal calls are clickable (light blue background)
+- Pre-computed method call analysis prevents false positives and empty sequence diagrams
+- Sequence diagram panel reuse — clicking multiple methods updates same panel instead of creating new columns
+
+### Fixed
+- **CRITICAL**: HTTP call URL pattern matching — routes now correctly match API endpoints
+- Fixed file path resolution in `filePathToUrlPattern()` for Next.js App Router
+- Sequence diagram now reuses existing panel instead of spawning multiple columns
+- False positive clickable methods (methods with no internal calls no longer appear clickable)
+
+### Changed
+- Method analysis runs during diagram generation with progress indicator
+- Clickable methods have light blue background with darker hover effect
+- Non-clickable methods slightly dimmed (85% opacity)
+- Console logging shows method analysis statistics
+
+### Technical
+- Added `hasInternalCalls` flag to `MethodInfo` interface
+- TypeScript parser now detects import statements (named and default imports)
+- Import-based relationships created for lib dependencies
+- Sequence panel reference tracked and reused via `onDidDispose` handler
+- Shallow method tracing (depth=3) during pre-computation for performance
+
 ## [1.4.0] - 2026-06-15
 
 ### Added
