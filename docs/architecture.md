@@ -6,13 +6,13 @@ Clean, scalable architecture separating concerns into distinct layers for mainta
 
 **Interactive Features:**
 - **Click-to-Highlight** — Click any class to highlight it and its dependencies with monochromatic focus
+- **Click-to-Jump** — Click any method or property to open file and highlight the code
 - **Hover-to-Open** — Three-dot button (⋮) appears on hover to open files in editor
 - **Focus Mode** — Press ESC to clear highlights and return to full view
-- **Method Tracing** — Click "Trace Method" button on any method to generate sequence diagram
 
 **Core Features:**
 - **Class Diagram Generation** — Visual architecture overview with relationships (inheritance, composition, usage)
-- **Sequence Diagram Generation** — Trace method calls to visualize execution flow (supports TypeScript, JavaScript, Python, PHP)
+- **Click-to-Jump Navigation** — Direct navigation from diagram to source code with highlighting
 - **Git Diff Integration** — Highlight changed classes and methods based on git diff
 - **HTTP API Call Detection** — Automatically detect and visualize HTTP calls to API routes (Next.js App Router support)
 - **Multi-Language Support** — TypeScript, JavaScript, Python, PHP (extensible via Strategy Pattern)
@@ -181,30 +181,62 @@ src/
 - Press effect (scale 0.95x) on click
 - Tooltip: "Open in Editor"
 
-### Method Tracing (Sequence Diagrams)
-**Purpose:** Visualize method call flow and execution paths
+### Click-to-Jump Navigation
+**Purpose:** Direct navigation from diagram elements to source code
 
 **Implementation:**
-- "Trace Method" button appears on each method in class diagram
-- Click → `methodTracerService.traceMethod()` analyzes method body
+- Click any method → Opens file in Column Two, highlights entire method body
+- Click any property → Opens file in Column Two, highlights entire property declaration
+- Uses line numbers from parser (`lineNumber`, `endLineNumber`)
+- Consistent column layout: diagram left, code right
+- `openMember` message handler in `generateClassDiagram.ts`
+- Uses `vscode.Selection` to highlight full code range
+- Centers highlighted code in viewport with `revealRange(InCenter)`
+
+**Visual Design:**
+- Light blue hover effect (20% opacity)
+- 2px slide animation on hover for feedback
+- Cursor changes to pointer
+- Tooltip: "(click to open)"
+
+**Why This Approach:**
+- **Instant** - No analysis required, direct file opening
+- **Precise** - Lands exactly on the definition
+- **Visual** - Blue highlight makes it impossible to miss
+- **Consistent** - Always uses Column Two (never spawns 3rd column)
+
+### Method Tracing (Sequence Diagrams) - **Preserved for Future Use**
+**Status:** Core logic preserved but not actively integrated into UI
+
+**Purpose:** Visualize method call flow and execution paths
+
+**Preserved Components:**
+- `methodTracerService.ts` - Core tracing logic (TypeScript/JavaScript AST analysis)
+- `methodCallExtractors.ts` - Python/PHP method call extraction
+- `sequenceDiagramView.ts` - Sequence diagram rendering
+- `openMethodSequence` message handler (in `generateClassDiagram.ts`)
+- `openMethodSequence()` JavaScript function (in `classDiagramView.ts`)
+
+**Implementation Details:**
+- `methodTracerService.traceMethod()` analyzes method body
 - Recursively follows calls to other methods/classes (max depth: 10)
 - For TypeScript/JavaScript: Uses TypeScript compiler API to parse AST
 - For Python/PHP: Uses `methodCallExtractors` with regex patterns
 - Generates `SequenceData` with actors (classes) and calls (method invocations)
-- `sequenceDiagramView.ts` renders Mermaid-style sequence diagram
-
-**Visual Design:**
-- Horizontal swimlanes for each class/actor
-- Vertical lifelines with method calls
-- Static calls shown as `Class.method()`, instance calls as `instance.method()`
-- Git diff status highlighted (added/modified/deleted methods)
-- Opens in new panel with "Back to Class Diagram" button
+- Tracks git diff status (added/modified/deleted methods)
 
 **Supported Call Patterns:**
 - Instance method calls: `user.save()`, `repo.findById(id)`
 - Static method calls: `UserModel.create()`, `Database.connect()`
 - Chained calls: `user.getProfile().getName()`
 - Constructor calls: `new User()`, `new Product()`
+- Object instantiation: `const book: Book = {...}`, `const books: Book[] = [...]`
+
+**Why Preserved:**
+- Valuable for understanding complex call chains
+- Useful for debugging execution flow
+- May be reintegrated as a separate command or panel feature
+- All core logic is working and tested
 
 ### HTTP API Call Detection
 **Purpose:** Automatically detect frontend-to-backend API calls and visualize them
@@ -646,11 +678,15 @@ User clicks "Generate Class Diagram" in sidebar
         → diagramGeneratorService.ts (generates React Flow nodes/edges)
         → classDiagramView.ts (generates HTML with interactive features)
       → displays webview with interactive diagram
+      → User clicks method/property → openMember handler → opens file with highlighting
 ```
+ (Preserved for Future Use)
+```
+[Currently not integrated in UI, but logic preserved]
 
-### Example Flow: Sequence Diagram Generation
-```
-User clicks "Trace Method" button on a method in class diagram
+Potential flow when re-enabled:
+User triggers sequence diagram command
+  → generateClassDiagram.ts (or dedicated commandlass diagram
   → generateClassDiagram.ts (handles trace request)
     → methodTracerService.ts (traces method calls recursively)
       → For TypeScript/JavaScript: uses TypeScript compiler API
@@ -663,13 +699,15 @@ User clicks "Trace Method" button on a method in class diagram
 
 ## Benefits
 
-- **Maintainable**: Easy to locate and modify code, single-responsibility modules
-- **Scalable**: Add features and languages without touching existing code
-- **Multi-Language**: Strategy Pattern enables parsing any programming language with ~10 lines of integration code
-- **Feature-Rich**: Class diagrams, sequence diagrams, git diff highlighting, HTTP call detection
-- **Interactive**: Click-to-highlight, hover-to-open, method tracing, focus mode
+- **Maintainable**: Easy to locate aclick-to-jump navigation, git diff highlighting, HTTP call detection
+- **Interactive**: Click-to-highlight, click-to-jump, hover-to-open, focus mode
+- **Direct Navigation**: Instant code jumping with precise highlighting (no analysis overhead)
 - **Integrated**: Sidebar actions, VS Code theming, respects telemetry settings
 - **Testable**: Mock services/parsers/views in command tests, parsers are independently testable
+- **Readable**: Clear structure, predictable file locations, consistent interfaces
+- **Git-Aware**: Automatic change highlighting for all supported languages (if parsers include line numbers)
+- **Extensible**: Plugin-ready architecture for adding parsers, detectors, and views
+- **Future-Proof**: Sequence diagram logic preserved for potential reintegrationtly testable
 - **Readable**: Clear structure, predictable file locations, consistent interfaces
 - **Git-Aware**: Automatic change highlighting for all supported languages (if parsers include line numbers)
 - **Extensible**: Plugin-ready architecture for adding parsers, detectors, and views

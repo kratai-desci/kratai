@@ -148,14 +148,13 @@ export class ClassDiagramView {
         .method-item {
             transition: background 0.15s ease;
         }
-        .method-item.clickable {
-            background: rgba(100, 150, 200, 0.1) !important;
+        /* Member click-to-jump styles */
+        .member-item.clickable {
+            transition: all 0.15s ease;
         }
-        .method-item.clickable:hover {
-            background: rgba(100, 150, 200, 0.25) !important;
-        }
-        .method-item:not(.clickable) {
-            opacity: 0.85;
+        .member-item.clickable:hover {
+            background: rgba(100, 150, 200, 0.2) !important;
+            transform: translateX(2px);
         }
         
         /* Open File Button */
@@ -301,6 +300,17 @@ export class ClassDiagramView {
         function openSettings() {
             vscode.postMessage({
                 command: 'openSettings'
+            });
+        }
+        
+        function openMember(filePath, lineNumber, endLineNumber, memberName) {
+            console.log('Opening ' + memberName + ' at ' + filePath + ':' + lineNumber + '-' + endLineNumber);
+            vscode.postMessage({
+                command: 'openMember',
+                filePath: filePath,
+                lineNumber: lineNumber,
+                endLineNumber: endLineNumber,
+                memberName: memberName
             });
         }
         

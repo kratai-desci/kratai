@@ -126,38 +126,6 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 
 			console.log(`🔍 Cleaned relationships: ${diagramData.relationships.length} relationships after removing orphans`);
 
-			// Pre-compute method call traces for clickable detection
-			progress.report({ message: 'Analyzing method calls...' });
-			let methodsAnalyzed = 0;
-			let methodsWithCalls = 0;
-			
-			for (const classInfo of diagramData.classes) {
-				for (const method of classInfo.methods) {
-					try {
-						const sequenceData = await MethodTracerService.traceMethod(
-							classInfo.name,
-							method.name,
-							classInfo.filePath,
-							workspacePath,
-							diagramData,
-							3 // Shallow depth for performance - just need to know if calls exist
-						);
-						
-						method.hasInternalCalls = sequenceData.calls.length > 0;
-						methodsAnalyzed++;
-						
-						if (method.hasInternalCalls) {
-							methodsWithCalls++;
-						}
-					} catch (error) {
-						// If tracing fails, default to false (not clickable)
-						method.hasInternalCalls = false;
-					}
-				}
-			}
-			
-			console.log(`🔍 Method analysis: ${methodsAnalyzed} methods analyzed, ${methodsWithCalls} have internal calls`);
-
 			if (diagramData.classes.length === 0) {
 				vscode.window.showWarningMessage('No classes match the selected filters!');
 				return;
@@ -200,7 +168,26 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 					switch (message.command) {
 						case 'openSettings':
 							vscode.commands.executeCommand('kratai.showConfigPanel');
-							break;					case 'openFile':
+							break;
+						
+						case 'openMember':
+						// Open file and highlight the entire method/property
+						const memberFileUri = vscode.Uri.file(path.join(workspacePath, message.filePath));
+						const startLine = (message.lineNumber || 1) - 1; // Convert to 0-based
+						const endLine = (message.endLineNumber || message.lineNumber || 1) - 1; // Convert to 0-based
+						
+						// Open the file and select/highlight the entire range - always use Column Two
+						const editor = await vscode.window.showTextDocument(memberFileUri, {
+							viewColumn: fileEditorColumn,
+							preserveFocus: false
+						});
+						
+						// Select the entire method/property (highlight it)
+						editor.selection = new vscode.Selection(startLine, 0, endLine, 9999);
+						// Reveal the selection in the center of the viewport
+						editor.revealRange(new vscode.Range(startLine, 0, endLine, 0), vscode.TextEditorRevealType.InCenter);
+						break;
+						case 'openFile':
 						// Open file in editor - always use Column Two to avoid spawning multiple columns
 						const fileUri = vscode.Uri.file(path.join(workspacePath, message.filePath));
 						await vscode.window.showTextDocument(fileUri, {

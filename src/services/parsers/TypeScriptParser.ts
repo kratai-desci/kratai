@@ -391,7 +391,9 @@ export class TypeScriptParser implements IParserStrategy {
 						})),
 						returnType: node.type?.getText() || 'void',
 						visibility: 'public',
-						isStatic: true
+						isStatic: true,
+						lineNumber: sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1,
+						endLineNumber: sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1
 					});
 				}
 			}
@@ -415,7 +417,9 @@ export class TypeScriptParser implements IParserStrategy {
 									})),
 									returnType: funcNode.type?.getText() || (name.match(/^[A-Z]/) ? 'JSX.Element' : 'any'),
 									visibility: 'public',
-									isStatic: true
+									isStatic: true,
+									lineNumber: sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1,
+									endLineNumber: sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1
 								});
 							}
 						} else if (isExported) {
@@ -424,7 +428,9 @@ export class TypeScriptParser implements IParserStrategy {
 								type: declaration.type?.getText() || 'inferred',
 								visibility: 'public',
 								isStatic: true,
-								isReadonly: isConst
+								isReadonly: isConst,
+								lineNumber: sourceFile.getLineAndCharacterOfPosition(declaration.getStart()).line + 1,
+								endLineNumber: sourceFile.getLineAndCharacterOfPosition(declaration.getEnd()).line + 1
 							});
 						}
 					}

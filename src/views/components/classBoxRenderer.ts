@@ -83,9 +83,15 @@ export class ClassBoxRenderer {
 			const safeType = this.escapeHtml(prop.type);
 			const safeTruncatedType = this.escapeHtml(this.truncateType(prop.type));
 			const changeBgColor = this.getMemberChangeStatusBgColor(prop.changeStatus);
+			const safeFilePath = this.escapeHtml(classInfo.filePath);
+			const lineNumber = prop.lineNumber || 1;
+			const endLineNumber = prop.endLineNumber || lineNumber;
 			
 			return `
-			<div style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; background: ${changeBgColor};" title="${safeName}: ${safeType}">
+			<div class="member-item clickable" 
+				 style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; background: ${changeBgColor}; cursor: pointer;" 
+				 title="${safeName}: ${safeType} (click to open)"
+				 onclick="openMember('${safeFilePath}', ${lineNumber}, ${endLineNumber}, '${safeName}')">
 				<span style="color: ${this.getVisibilityColor(prop.visibility)};">
 					${this.getVisibilitySymbol(prop.visibility)}
 				</span>
@@ -118,24 +124,15 @@ export class ClassBoxRenderer {
 			const safeParams = this.escapeHtml(this.truncateParams(method.parameters));
 			const paramNames = method.parameters.map(p => this.escapeHtml(p.name)).join(', ');
 			const changeBgColor = this.getMemberChangeStatusBgColor(method.changeStatus);
-			const safeClassName = this.escapeHtml(classInfo.name);
 			const safeFilePath = this.escapeHtml(classInfo.filePath);
-			
-			// Use pre-computed hasInternalCalls flag
-			const hasMethodCalls = method.hasInternalCalls === true;
-			const clickableClass = hasMethodCalls ? 'clickable' : '';
-			const clickableStyle = hasMethodCalls 
-				? 'background: rgba(100, 150, 200, 0.1); cursor: pointer;' 
-				: 'cursor: default;';
-			const clickHandler = hasMethodCalls 
-				? `onclick="openMethodSequence('${safeClassName}', '${safeName}', '${safeFilePath}')"`
-				: '';
+			const lineNumber = method.lineNumber || 1;
+			const endLineNumber = method.endLineNumber || lineNumber;
 			
 			return `
-			<div class="method-item ${clickableClass}" 
-				 style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; ${changeBgColor !== 'transparent' ? `background: ${changeBgColor};` : clickableStyle}" 
-				 title="${safeName}(${paramNames})"
-				 ${clickHandler}>
+			<div class="member-item clickable" 
+				 style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; ${changeBgColor !== 'transparent' ? `background: ${changeBgColor};` : 'background: rgba(100, 150, 200, 0.05);'} cursor: pointer;" 
+				 title="${safeName}(${paramNames}) (click to open)"
+				 onclick="openMember('${safeFilePath}', ${lineNumber}, ${endLineNumber}, '${safeName}')">
 				<span style="color: ${this.getVisibilityColor(method.visibility)};">
 					${this.getVisibilitySymbol(method.visibility)}
 				</span>

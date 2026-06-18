@@ -240,8 +240,11 @@ export class MethodTracerService {
 			);
 			
 			if (targetClass) {
+				// Check if this is a pseudo-method (create, new)
+				const isPseudoMethod = call.methodName === 'create' || call.methodName === 'new';
+				
 				// Find the target method to get its changeStatus and check if it's static
-				const targetMethod = targetClass.methods.find(m => m.name === call.methodName);
+				const targetMethod = isPseudoMethod ? null : targetClass.methods.find(m => m.name === call.methodName);
 				const isStatic = targetMethod?.isStatic || false;
 				
 				// Determine the actual object name (handle chained calls)
@@ -253,7 +256,10 @@ export class MethodTracerService {
 				
 				// Determine the instance name for actors
 				let instanceName: string;
-				if (isStatic) {
+				if (isPseudoMethod) {
+					// For create/new, the target is the class itself
+					instanceName = targetClass.name;
+				} else if (isStatic) {
 					// Static call - use class name
 					instanceName = targetClass.name;
 				} else {
@@ -292,15 +298,15 @@ export class MethodTracerService {
 					toClass: targetClass.name,
 					toMethod: call.methodName,
 					toInstance: isStatic ? undefined : (actualObjectName || undefined),
-					isStatic: isStatic,
+					isStatic: isPseudoMethod ? true : isStatic,  // Treat pseudo-methods as static
 					depth: depth,
 					changeStatus: callChangeStatus
 				});
 				
 				console.log(`    → ${currentActorName}.${method.name}() calls ${instanceName}.${call.methodName}() [${callChangeStatus}]`);
 				
-				// Recursively trace this method
-				if (targetMethod) {
+				// Recursively trace this method (skip pseudo-methods)
+				if (targetMethod && !isPseudoMethod) {
 					this.traceMethodRecursive(
 						targetClass,
 						targetMethod,
@@ -373,6 +379,47 @@ export class MethodTracerService {
 		}> = [];
 		
 		const visit = (node: ts.Node) => {
+			// Look for variable declarations with type annotations (const newBook: Book = {...})
+			if (ts.isVariableStatement(node)) {
+				for (const declaration of node.declarationList.declarations) {
+					if (declaration.type && ts.isTypeReferenceNode(declaration.type)) {
+						const typeName = declaration.type.typeName;
+						if (ts.isIdentifier(typeName)) {
+							const className = typeName.text;
+							const lineNumber = sourceFile ? sourceFile.getLineAndCharacterOfPosition(declaration.getStart()).line + 1 : undefined;
+							
+							// Add as a "create" operation
+							calls.push({ 
+								methodName: 'create', 
+								objectName: className, 
+								lineNumber 
+							});
+							
+							if (lineNumber) {
+								console.log(`      🏗️  Found instantiation of ${className} at line ${lineNumber}`);
+							}
+						}
+					}
+				}
+			}
+			
+			// Look for new expressions (new Book(...))
+			if (ts.isNewExpression(node) && ts.isIdentifier(node.expression)) {
+				const className = node.expression.text;
+				const lineNumber = sourceFile ? sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1 : undefined;
+				
+				// Add as a "new" operation
+				calls.push({ 
+					methodName: 'new', 
+					objectName: className, 
+					lineNumber 
+				});
+				
+				if (lineNumber) {
+					console.log(`      🆕 Found new ${className}() at line ${lineNumber}`);
+				}
+			}
+			
 			// Look for CallExpression (method calls)
 			if (ts.isCallExpression(node)) {
 				let methodName: string | null = null;
@@ -441,6 +488,16 @@ export class MethodTracerService {
 		diagramData: DiagramData,
 		previousCall?: { objectName: string | null; methodName: string }
 	): ClassInfo | null {
+		// Handle pseudo-methods for object instantiation (create, new)
+		if ((methodName === 'create' || methodName === 'new') && objectName) {
+			// objectName is the class name being instantiated
+			const targetClass = diagramData.classes.find(c => c.name === objectName);
+			if (targetClass) {
+				console.log(`    🏗️  Resolved ${methodName} for ${objectName}`);
+				return targetClass;
+			}
+		}
+		
 		// Handle chained calls - resolve based on the return type of previous call
 		if (previousCall && previousCall.objectName) {
 			const previousClass = diagramData.classes.find(c => c.name === previousCall.objectName);
