@@ -102,7 +102,13 @@ Kratai stores settings in `.vscode/kratai.json` in your workspace:
 
 ## 📝 Release Notes
 
-### Latest: v1.5.0
+### Latest: v1.6.0
+- 🖱️ **Click-to-Jump Navigation** — Click methods/properties to instantly open and highlight code
+- ⚡ **Major Performance Boost** — Removed method analysis overhead (5-30s faster generation)
+- 🐛 **Fixed Event Propagation** — Methods no longer trigger class focus mode when clicked
+- 🎯 **Precise Highlighting** — Blue selection spans entire method/property for easy spotting
+
+### Previous: v1.5.0
 - 🔗 **Import Detection** — Routes show dependencies on imported classes (Database, auth)
 - 🎯 **Smart Clickable Methods** — Only methods with calls are clickable (light blue background)
 - 🐛 **Fixed HTTP Calls** — API endpoints now correctly match route handlers

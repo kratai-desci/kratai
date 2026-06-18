@@ -2,6 +2,38 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.6.0] - 2026-06-18
+
+### Added
+- **Click-to-Jump Navigation** — Click any method or property to instantly open file and highlight the code
+- Direct navigation from diagram to source with precise line-level highlighting
+- Blue selection highlight spans entire method/property definition for easy spotting
+- Automatic viewport centering when jumping to code
+
+### Changed
+- **MAJOR UX IMPROVEMENT**: Replaced sequence diagram integration with instant click-to-jump
+- Removed method call pre-computation (massive performance boost on large codebases)
+- All methods and properties now clickable with consistent Column Two layout
+- Diagram generation now 5-30 seconds faster (no method analysis overhead)
+
+### Fixed
+- **Event propagation race condition** — Clicking methods no longer triggers class focus mode
+- Methods now properly ignore parent class click handlers
+- Fixed line number detection for exported functions in module files (route.ts, etc.)
+- Array type annotations now detected: `const books: Book[] = [...]`
+
+### Technical
+- Added `event.stopPropagation()` to prevent click bubbling from methods to class boxes
+- Enhanced TypeScript parser to include line numbers for module-level exports
+- Sequence diagram logic preserved (methodTracerService, sequenceDiagramView) for future use
+- Simplified CSS: removed sequence-specific styles, kept member click-to-jump styles
+- Updated architecture.md with "Click-to-Jump Navigation" section
+
+### Performance
+- Eliminated expensive method call analysis during diagram generation
+- No more "Analyzing method calls..." progress step
+- Instant member navigation using pre-computed line numbers from parsing phase
+
 ## [1.5.0] - 2026-06-16
 
 ### Added
