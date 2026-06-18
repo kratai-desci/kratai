@@ -7,19 +7,22 @@ import * as os from 'os';
 
 export class GitDiffEnricher {
 	/**
-	 * Enrich diagram data with git diff information
+	 * Enrich diagram data with git diff information (uncommitted changes only)
+	 * @param diagramData - The diagram data to enrich
+	 * @param workspacePath - The workspace path
+	 * @param baseCommit - Deprecated, no longer used (kept for backwards compatibility)
 	 */
 	static async enrichWithGitDiff(
 		diagramData: DiagramData,
 		workspacePath: string,
 		baseCommit: string = 'HEAD~1'
 	): Promise<DiagramData> {
-		console.log('🔍 Starting git diff enrichment...');
-		const diffInfo = await GitDiffService.getDiff(workspacePath, baseCommit);
+		console.log('🔍 Starting git diff enrichment (uncommitted changes only)...');
+		const diffInfo = await GitDiffService.getDiff(workspacePath);
 		
 		if (!diffInfo) {
-			// No git diff available, mark everything as unchanged
-			console.log('⚠️ No git diff info available, marking all as unchanged');
+			// No uncommitted changes - mark everything as unchanged
+			console.log('✨ No uncommitted changes, marking all as unchanged');
 			return this.markAllUnchanged(diagramData);
 		}
 

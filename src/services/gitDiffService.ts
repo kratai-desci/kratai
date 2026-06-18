@@ -34,8 +34,8 @@ export class GitDiffService {
 	}
 
 	/**
-	 * Get git diff between HEAD and a base commit (default: previous commit)
-	 * If there are uncommitted changes, show those instead
+	 * Get git diff for uncommitted changes only (working directory vs HEAD)
+	 * Returns null if there are no uncommitted changes
 	 */
 	static async getDiff(workspacePath: string, baseCommit: string = 'HEAD~1'): Promise<GitDiffInfo | null> {
 		try {
@@ -53,29 +53,20 @@ export class GitDiffService {
 				return null;
 			}
 
-			// First check if there are uncommitted changes
-			const hasUncommitted = await this.hasUncommittedChanges(gitRoot);
-			console.log(`🔍 Uncommitted changes: ${hasUncommitted}`);
+// Only show uncommitted changes (working directory vs HEAD)
+		const hasUncommitted = await this.hasUncommittedChanges(gitRoot);
+		console.log(`🔍 Uncommitted changes: ${hasUncommitted}`);
 
-			let statusOutput: string;
-			let diffCommand: string;
+		if (!hasUncommitted) {
+			// No uncommitted changes - don't show any highlighting
+			console.log('✨ No uncommitted changes detected - skipping git diff highlighting');
+			return null;
+		}
 
-			if (hasUncommitted) {
-				// Show working directory changes (uncommitted)
-				console.log('📝 Showing uncommitted changes (working directory)');
-				const { stdout } = await execAsync('git diff --name-status HEAD', { cwd: gitRoot });
-				statusOutput = stdout;
-				diffCommand = 'git diff HEAD';
-			} else {
-				// Show last commit changes
-				console.log(`📝 Showing committed changes (${baseCommit} → HEAD)`);
-				const { stdout } = await execAsync(
-					`git diff --name-status ${baseCommit} HEAD`,
-					{ cwd: gitRoot }
-				);
-				statusOutput = stdout;
-				diffCommand = `git diff ${baseCommit} HEAD`;
-			}
+		// Show working directory changes (uncommitted)
+		console.log('📝 Showing uncommitted changes (working directory vs HEAD)');
+		const { stdout: statusOutput } = await execAsync('git diff --name-status HEAD', { cwd: gitRoot });
+		const diffCommand = 'git diff HEAD';
 
 			const addedFiles = new Set<string>();
 			const deletedFiles = new Set<string>();

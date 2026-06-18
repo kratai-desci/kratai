@@ -61,8 +61,8 @@ export class MethodTracerService {
 			return { actors, calls, maxDepth: 0 };
 		}
 		
-		// Get git diff information to track which lines are added/deleted
-		const gitDiff = await GitDiffService.getDiff(workspacePath, 'HEAD~1');
+		// Get git diff information to track which lines are added/deleted (uncommitted changes only)
+		const gitDiff = await GitDiffService.getDiff(workspacePath);
 		const normalizedFilePath = filePath.replace(/\\/g, '/');
 		const fileChange = gitDiff?.fileChanges.get(normalizedFilePath);
 		const addedLines = fileChange?.addedLines || new Set<number>();

@@ -12,6 +12,7 @@ All notable changes to the Kratai extension will be documented in this file.
 
 ### Changed
 - **MAJOR UX IMPROVEMENT**: Replaced sequence diagram integration with instant click-to-jump
+- **Git diff now only shows uncommitted changes** (not committed changes from previous commits)
 - Removed method call pre-computation (massive performance boost on large codebases)
 - All methods and properties now clickable with consistent Column Two layout
 - Diagram generation now 5-30 seconds faster (no method analysis overhead)

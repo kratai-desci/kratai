@@ -1,6 +1,6 @@
 # Kratai — Code Visualizer
 
-Understand your codebase at a glance across **TypeScript, JavaScript, Python, and PHP**. Kratai generates interactive **class diagrams** and **sequence diagrams** directly inside VS Code, with **git diff highlighting** so you can instantly see what changed between commits.
+Understand your codebase at a glance across **TypeScript, JavaScript, Python, and PHP**. Kratai generates interactive **class diagrams** directly inside VS Code, with **git diff highlighting** to show your uncommitted changes.
 
 ![Kratai in Action](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo.gif)
 
@@ -12,7 +12,7 @@ Understand your codebase at a glance across **TypeScript, JavaScript, Python, an
 - �️ **Click-to-Highlight** — Click any class to highlight it and its dependencies (press ESC to clear)
 - 📂 **Hover-to-Open** — Three-dot button appears on hover to instantly open files in editor
 - �🔄 **Sequence Diagrams** — Click any method to trace its execution flow across classes
-- 📊 **Git Diff Highlighting** — See what changed at a glance (green = added, yellow = modified, red = deleted)
+- 📊 **Git Diff Highlighting** — See uncommitted changes at a glance (green = added, red = deleted)
 - 🌍 **Multi-Language Support** — Works with TypeScript, JavaScript, Python, and PHP in the same project
 - 🎯 **Smart Relationships** — Auto-detects inheritance, interfaces, and dependencies
 - ⚙️ **Fully Configurable** — Choose which folders, files, and relationships to display
@@ -37,20 +37,17 @@ Understand your codebase at a glance across **TypeScript, JavaScript, Python, an
 
 ## 📸 Visual Tour
 
-### Class Diagram with Git Diff Highlighting
-See your entire codebase structure with color-coded changes from your last commit:
+### Class Diagram with Uncommitted Changes
+See your entire codebase structure with color-coded uncommitted changes:
 
 ![Class Diagram Example](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_1.png)
 
-### Git Change Detection
-**Green** highlights show new methods, **yellow** shows modifications, and **red** shows deletions:
+### Click-to-Jump Navigation
+Click any method or property to instantly open the file with precise highlighting:
 
-![Git Diff Highlighting](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_2.png)
+![Click-to-Jump](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_2.png)
 
-### Sequence Diagrams
-Click any method to trace its execution path. Entry/exit arrows show method invocation and return:
-
-![Sequence Diagram Example](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_3.png)
+**Note:** Green/red git diff highlighting only appears when you have uncommitted changes.
 
 ### Easy Configuration
 Control exactly what gets visualized with the built-in settings panel:
