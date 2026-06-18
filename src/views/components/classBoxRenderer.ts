@@ -91,7 +91,7 @@ export class ClassBoxRenderer {
 			<div class="member-item clickable" 
 				 style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; background: ${changeBgColor}; cursor: pointer;" 
 				 title="${safeName}: ${safeType} (click to open)"
-				 onclick="openMember('${safeFilePath}', ${lineNumber}, ${endLineNumber}, '${safeName}')">
+				 onclick="openMember(event, '${safeFilePath}', ${lineNumber}, ${endLineNumber}, '${safeName}')">
 				<span style="color: ${this.getVisibilityColor(prop.visibility)};">
 					${this.getVisibilitySymbol(prop.visibility)}
 				</span>
@@ -132,7 +132,7 @@ export class ClassBoxRenderer {
 			<div class="member-item clickable" 
 				 style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; ${changeBgColor !== 'transparent' ? `background: ${changeBgColor};` : 'background: rgba(100, 150, 200, 0.05);'} cursor: pointer;" 
 				 title="${safeName}(${paramNames}) (click to open)"
-				 onclick="openMember('${safeFilePath}', ${lineNumber}, ${endLineNumber}, '${safeName}')">
+				 onclick="openMember(event, '${safeFilePath}', ${lineNumber}, ${endLineNumber}, '${safeName}')">
 				<span style="color: ${this.getVisibilityColor(method.visibility)};">
 					${this.getVisibilitySymbol(method.visibility)}
 				</span>

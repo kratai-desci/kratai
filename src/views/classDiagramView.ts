@@ -303,7 +303,10 @@ export class ClassDiagramView {
             });
         }
         
-        function openMember(filePath, lineNumber, endLineNumber, memberName) {
+        function openMember(event, filePath, lineNumber, endLineNumber, memberName) {
+            // Stop event propagation to prevent triggering class focus mode
+            event.stopPropagation();
+            
             console.log('Opening ' + memberName + ' at ' + filePath + ':' + lineNumber + '-' + endLineNumber);
             vscode.postMessage({
                 command: 'openMember',
