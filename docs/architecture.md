@@ -8,6 +8,17 @@ Clean, scalable architecture separating concerns into distinct layers for mainta
 - **Click-to-Highlight** — Click any class to highlight it and its dependencies with monochromatic focus
 - **Hover-to-Open** — Three-dot button (⋮) appears on hover to open files in editor
 - **Focus Mode** — Press ESC to clear highlights and return to full view
+- **Method Tracing** — Click "Trace Method" button on any method to generate sequence diagram
+
+**Core Features:**
+- **Class Diagram Generation** — Visual architecture overview with relationships (inheritance, composition, usage)
+- **Sequence Diagram Generation** — Trace method calls to visualize execution flow (supports TypeScript, JavaScript, Python, PHP)
+- **Git Diff Integration** — Highlight changed classes and methods based on git diff
+- **HTTP API Call Detection** — Automatically detect and visualize HTTP calls to API routes (Next.js App Router support)
+- **Multi-Language Support** — TypeScript, JavaScript, Python, PHP (extensible via Strategy Pattern)
+- **Sidebar Integration** — Quick access actions via VS Code sidebar (Activity Bar)
+- **Configuration Management** — `.vscode/kratai.json` for project-specific settings
+- **Telemetry** — Optional usage tracking (respects VS Code telemetry settings)
 
 ## Structure
 
@@ -15,15 +26,22 @@ Clean, scalable architecture separating concerns into distinct layers for mainta
 src/
 ├── extension.ts                     # Entry point - registers commands
 ├── commands/                        # Command handlers
-│   ├── generateClassDiagram.ts     # Main diagram generation
+│   ├── generateClassDiagram.ts     # Main diagram generation (+ generateClassDiagramDirect)
 │   ├── showConfigPanel.ts          # Configuration UI
-│   └── ...
+│   ├── showGitChanges.ts           # Git changes viewer
+│   └── index.ts                    # Command exports
 ├── services/                        # Business logic
 │   ├── codeParserService.ts        # Orchestrates parsing (path normalization)
 │   ├── gitDiffService.ts           # Git operations
 │   ├── gitDiffEnricher.ts          # Enriches diagram with git changes
 │   ├── diagramGeneratorService.ts  # Generates diagram data
 │   ├── configService.ts            # Configuration management
+│   ├── methodTracerService.ts      # Traces method calls for sequence diagrams
+│   ├── httpCallDetector.ts         # Detects HTTP API calls (Next.js support)
+│   ├── methodCallExtractors.ts     # Language-specific method call extraction
+│   ├── telemetryService.ts         # Feature usage tracking (respects VS Code settings)
+│   ├── gitService.ts               # Git repository operations
+│   ├── workspaceScanner.ts         # Workspace file scanning
 │   └── parsers/                    # Language-specific parsers (Strategy Pattern)
 │       ├── IParserStrategy.ts      # Parser interface
 │       ├── ParserFactory.ts        # Parser registry
@@ -33,26 +51,45 @@ src/
 │       └── PHPParser.ts            # PHP parser
 ├── views/                           # UI HTML generators
 │   ├── classDiagramView.ts         # Main diagram webview
-│   ├── configPanelView.ts          # Configuration webview
+│   ├── sequenceDiagramView.ts      # Sequence diagram webview (method tracing)
+│   ├── gitChangesView.ts           # Git changes webview
+│   ├── krataiTreeProvider.ts       # Sidebar tree view provider
 │   └── components/                 # View helpers
-│       └── folderStructure.ts      # Folder hierarchy builder
+│       ├── folderStructure.ts      # Folder hierarchy builder
+│       ├── classBoxRenderer.ts     # Class box rendering
+│       ├── folderBoxRenderer.ts    # Folder box rendering
+│       ├── layoutCalculator.ts     # Diagram layout calculations
+│       └── relationshipRenderer.ts # Relationship line rendering
 └── types/                           # TypeScript interfaces
     ├── diagram.ts                  # ClassInfo, DiagramData, etc.
-    └── config.ts                   # KrataiConfig
+    ├── config.ts                   # KrataiConfig
+    └── index.ts                    # Type exports
 ```
 
 ## Layers
 
 ### 1. Extension Layer (`extension.ts`)
 - **Responsibility**: Command registration and lifecycle management
-- **Dependencies**: Commands
-- **Role**: Entry point, activates extension, registers VS Code commands
+- **Dependencies**: Commands, Views (KrataiTreeProvider), Services (TelemetryService)
+- **Role**: Entry point, activates extension, registers VS Code commands and sidebar
+- **Key Functions**:
+  - Initialize telemetry service
+  - Register sidebar tree view (`kratai-actions`)
+  - Register all commands (diagram generation, config, git changes, sidebar actions)
+  - Manage extension lifecycle (activation, deactivation)
 
 ### 2. Commands Layer (`commands/`)
 - **Responsibility**: Handle command execution, orchestrate services, manage webviews
 - **Dependencies**: Services, Views, Types
 - **Role**: Coordinate between VS Code API, services, and views
-- **Example**: `generateClassDiagram.ts` - orchestrates parsing, git diff, filtering, and diagram generation
+- **Key Commands**:
+  - `generateClassDiagram.ts` - Contains both `generateClassDiagram()` (checks for config first) and `generateClassDiagramDirect()` (direct generation without config check)
+  - `showConfigPanel.ts` - Configuration UI for selecting folders/extensions/settings
+  - `showGitChanges.ts` - Git changes viewer with file-level diff display
+- **Sidebar Commands** (registered in `extension.ts`):
+  - `kratai.openClassDiagram` → triggers `generateClassDiagram`
+  - `kratai.openGitChanges` → triggers `showGitChanges`  
+  - `kratai.openCommunity` → opens GitHub Discussions
 
 ### 3. Services Layer (`services/`)
 - **Responsibility**: Business logic and external integrations
@@ -63,6 +100,13 @@ src/
   - `gitDiffService.ts` - All git operations (runs from git root)
   - `gitDiffEnricher.ts` - Matches git changes to classes/members
   - `configService.ts` - Configuration loading and validation
+  - `diagramGeneratorService.ts` - Generates React Flow nodes and edges
+  - `methodTracerService.ts` - Traces method calls for sequence diagrams (supports TypeScript, JavaScript, Python, PHP)
+  - `httpCallDetector.ts` - Detects HTTP API calls and matches to route handlers (Next.js App Router support)
+  - `methodCallExtractors.ts` - Language-specific method call extraction (Python, PHP)
+  - `telemetryService.ts` - Feature usage tracking (respects VS Code telemetry settings)
+  - `gitService.ts` - Git repository operations
+  - `workspaceScanner.ts` - Workspace file scanning
 
 ### 4. Parsers Layer (`services/parsers/`)
 - **Responsibility**: Language-specific code parsing (Strategy Pattern)
@@ -75,7 +119,17 @@ src/
 - **Responsibility**: Generate webview HTML with embedded JavaScript
 - **Dependencies**: Types
 - **Role**: Pure presentation logic, no business rules
-- **Example**: `classDiagramView.ts` - generates React Flow diagram HTML
+- **Key Views**:
+  - `classDiagramView.ts` - Generates React Flow class diagram HTML with interactive features
+  - `sequenceDiagramView.ts` - Generates sequence diagram HTML for method call tracing
+  - `gitChangesView.ts` - Generates git changes comparison HTML
+  - `krataiTreeProvider.ts` - Provides sidebar tree view with action items
+- **View Components** (`views/components/`):
+  - `folderStructure.ts` - Builds folder hierarchy from file paths
+  - `classBoxRenderer.ts` - Renders class boxes with properties/methods
+  - `folderBoxRenderer.ts` - Renders folder boxes for grouping
+  - `layoutCalculator.ts` - Calculates node positions and layout
+  - `relationshipRenderer.ts` - Renders relationship lines between classes
 
 ### 6. Types Layer (`types/`)
 - **Responsibility**: Shared interfaces and types
@@ -127,10 +181,89 @@ src/
 - Press effect (scale 0.95x) on click
 - Tooltip: "Open in Editor"
 
+### Method Tracing (Sequence Diagrams)
+**Purpose:** Visualize method call flow and execution paths
+
+**Implementation:**
+- "Trace Method" button appears on each method in class diagram
+- Click → `methodTracerService.traceMethod()` analyzes method body
+- Recursively follows calls to other methods/classes (max depth: 10)
+- For TypeScript/JavaScript: Uses TypeScript compiler API to parse AST
+- For Python/PHP: Uses `methodCallExtractors` with regex patterns
+- Generates `SequenceData` with actors (classes) and calls (method invocations)
+- `sequenceDiagramView.ts` renders Mermaid-style sequence diagram
+
+**Visual Design:**
+- Horizontal swimlanes for each class/actor
+- Vertical lifelines with method calls
+- Static calls shown as `Class.method()`, instance calls as `instance.method()`
+- Git diff status highlighted (added/modified/deleted methods)
+- Opens in new panel with "Back to Class Diagram" button
+
+**Supported Call Patterns:**
+- Instance method calls: `user.save()`, `repo.findById(id)`
+- Static method calls: `UserModel.create()`, `Database.connect()`
+- Chained calls: `user.getProfile().getName()`
+- Constructor calls: `new User()`, `new Product()`
+
+### HTTP API Call Detection
+**Purpose:** Automatically detect frontend-to-backend API calls and visualize them
+
+**Implementation:**
+- `httpCallDetector.ts` scans component files for HTTP calls
+- Builds route map from API route handlers (e.g., Next.js App Router `app/api/**/route.ts`)
+- Detects call patterns: `fetch()`, `axios`, `useSWR`, Next.js `useRouter()`
+- Matches URL patterns to route files: `/api/users/[id]` → `app/api/users/[id]/route.ts`
+- Creates relationships with type `'httpCall'` between UI components and API routes
+- Enabled by default via config: `detectHttpCalls: true`
+
+**Supported Frameworks:**
+- ✅ Next.js App Router (`app/api/**/route.ts`)
+- 🚧 Next.js Pages Router (planned)
+- 🚧 Express.js (planned)
+- 🚧 NestJS (planned)
+
+**Visual Design:**
+- HTTP call relationships shown as dashed lines
+- Different color/style from code relationships (composition/inheritance)
+- Tooltip shows HTTP method (GET, POST, etc.) and URL pattern
+
 ### Configuration Simplification
 **Previous Behavior:** Smart detection scanned for common folders (`src`, `lib`, `app`, etc.) and pre-selected them
 **New Behavior:** Root folder selected by default
 **Rationale:** Simple, predictable, user-controlled from the start
+
+### Sidebar Integration (Activity Bar)
+**Purpose:** Provide quick access to Kratai features directly from VS Code sidebar
+
+**Implementation:**
+- `KrataiTreeProvider` implements VS Code's `TreeDataProvider` interface
+- Registers custom view container `kratai-actions` in Activity Bar
+- Four action items always visible:
+  - **Generate Class Diagram** → `kratai.openClassDiagram` → Opens class diagram (checks for config first)
+  - **Show Git Changes** → `kratai.openGitChanges` → Opens git changes viewer
+  - **Settings** → `kratai.showConfigPanel` → Opens configuration panel
+  - **Community & Feedback** → `kratai.openCommunity` → Opens GitHub Discussions
+
+**Visual Design:**
+- Icons from VS Code's built-in theme icons (graph, git-compare, settings-gear, comment-discussion)
+- Single-level tree (no nesting)
+- Commands trigger immediately on click
+
+### Telemetry & Privacy
+**Purpose:** Understand feature usage and improve user experience
+
+**Implementation:**
+- `TelemetryService` wraps `@vscode/extension-telemetry`
+- Automatically respects VS Code's `telemetry.telemetryLevel` setting (on/off/error)
+- Connection string loaded from `config.json` (not in source control)
+- Tracks: feature usage (diagram generation, method tracing), error events, configuration changes
+
+**Privacy:**
+- No user code or file contents sent
+- Only aggregate statistics (class count, folder count, relationship count)
+- Can be disabled via VS Code settings
+- Silent failure if connection string missing (no errors shown to user)
 
 ---
 
@@ -237,8 +370,8 @@ Edit `src/views/components/folderStructure.ts`:
 
 ```typescript
 // Update regex to include new extension
-const matchWithFolder = filePath.match(/src\/(.+)\/[^\/]+\.(tsx?|jsx?|py)$/);
-const matchDirectInSrc = filePath.match(/src\/[^\/]+\.(tsx?|jsx?|py)$/);
+const matchPath = filePath.match(/^(.+)\/[^\/]+\.(tsx?|jsx?|py|php|rb)$/);
+//                                                              ↑ add new extension
 ```
 
 **That's it!** ~10-15 lines of code to add a new language. 🎉
@@ -487,26 +620,45 @@ Each language pack would:
 1. Create service in `services/` (if needed)
 2. Create view in `views/` (if needed)
 3. Create command handler in `commands/`
-4. Register in `extension.ts`
+4. Export in `commands/index.ts`
+5. Register in `extension.ts`
+6. Add to `KrataiTreeProvider` (if sidebar action needed)
 
 ### New Language Support
 1. Create parser in `services/parsers/{Language}Parser.ts`
 2. Register in `ParserFactory.ts` (1 line)
-3. Add extension to default config (1 line)
-4. Update folder pattern regex (2 lines)
+3. Add extension to default config in `configService.ts` (1 line)
+4. Update folder pattern regex in `folderStructure.ts` (update regex to include new extension)
+5. Add method call extraction support in `methodCallExtractors.ts` (if sequence diagrams needed)
 
 ### Example Flow: Class Diagram Generation
 ```
-User triggers "Generate Class Diagram"
+User clicks "Generate Class Diagram" in sidebar
   → extension.ts (routes to command)
-    → generateClassDiagram.ts (orchestrates)
-      → codeParserService.ts (finds files, normalizes paths)
-        → parserFactory.getParser(file)
-          → TypeScriptParser.parseFile() OR JavaScriptParser.parseFile()
-      → gitDiffEnricher.ts (enriches with git changes)
-      → diagramGeneratorService.ts (generates React Flow nodes/edges)
-      → classDiagramView.ts (generates HTML)
-    → displays webview with interactive diagram
+    → generateClassDiagram.ts (checks for config)
+      → If no config: opens showConfigPanel
+      → If config exists: calls generateClassDiagramDirect()
+        → codeParserService.ts (finds files, normalizes paths)
+          → parserFactory.getParser(file)
+            → TypeScriptParser.parseFile() OR JavaScriptParser.parseFile() OR PythonParser.parseFile() OR PHPParser.parseFile()
+        → gitDiffEnricher.ts (enriches with git changes if enabled)
+        → httpCallDetector.ts (detects HTTP API calls if enabled)
+        → diagramGeneratorService.ts (generates React Flow nodes/edges)
+        → classDiagramView.ts (generates HTML with interactive features)
+      → displays webview with interactive diagram
+```
+
+### Example Flow: Sequence Diagram Generation
+```
+User clicks "Trace Method" button on a method in class diagram
+  → generateClassDiagram.ts (handles trace request)
+    → methodTracerService.ts (traces method calls recursively)
+      → For TypeScript/JavaScript: uses TypeScript compiler API
+      → For Python: uses methodCallExtractors.extractMethodCallsPython()
+      → For PHP: uses methodCallExtractors.extractMethodCallsPHP()
+      → Builds call chain with actors and relationships
+    → sequenceDiagramView.ts (generates sequence diagram HTML)
+  → displays webview with Mermaid-style sequence diagram
 ```
 
 ## Benefits
@@ -514,9 +666,13 @@ User triggers "Generate Class Diagram"
 - **Maintainable**: Easy to locate and modify code, single-responsibility modules
 - **Scalable**: Add features and languages without touching existing code
 - **Multi-Language**: Strategy Pattern enables parsing any programming language with ~10 lines of integration code
+- **Feature-Rich**: Class diagrams, sequence diagrams, git diff highlighting, HTTP call detection
+- **Interactive**: Click-to-highlight, hover-to-open, method tracing, focus mode
+- **Integrated**: Sidebar actions, VS Code theming, respects telemetry settings
 - **Testable**: Mock services/parsers/views in command tests, parsers are independently testable
 - **Readable**: Clear structure, predictable file locations, consistent interfaces
-- **Git Integration**: Automatic change highlighting for all supported languages (if parsers include line numbers)
+- **Git-Aware**: Automatic change highlighting for all supported languages (if parsers include line numbers)
+- **Extensible**: Plugin-ready architecture for adding parsers, detectors, and views
 
 ---
 
