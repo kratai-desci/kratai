@@ -2,6 +2,12 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.6.1] - 2026-06-19
+
+### Documentation
+- Updated architecture.md to clarify git diff shows uncommitted changes only
+- Verified all documentation accurate for publication
+
 ## [1.6.0] - 2026-06-18
 
 ### Added
@@ -34,6 +40,7 @@ All notable changes to the Kratai extension will be documented in this file.
 - Eliminated expensive method call analysis during diagram generation
 - No more "Analyzing method calls..." progress step
 - Instant member navigation using pre-computed line numbers from parsing phase
+- Git diff now only compares uncommitted changes (faster, more relevant)
 
 ## [1.5.0] - 2026-06-16
 

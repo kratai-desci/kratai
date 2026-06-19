@@ -13,7 +13,7 @@ Clean, scalable architecture separating concerns into distinct layers for mainta
 **Core Features:**
 - **Class Diagram Generation** — Visual architecture overview with relationships (inheritance, composition, usage)
 - **Click-to-Jump Navigation** — Direct navigation from diagram to source code with highlighting
-- **Git Diff Integration** — Highlight changed classes and methods based on git diff
+- **Git Diff Integration** — Highlight changed classes and methods (uncommitted changes only)
 - **HTTP API Call Detection** — Automatically detect and visualize HTTP calls to API routes (Next.js App Router support)
 - **Multi-Language Support** — TypeScript, JavaScript, Python, PHP (extensible via Strategy Pattern)
 - **Sidebar Integration** — Quick access actions via VS Code sidebar (Activity Bar)
@@ -97,7 +97,7 @@ src/
 - **Role**: Code parsing, git operations, configuration, diagram data generation
 - **Key Services**:
   - `codeParserService.ts` - Orchestrates parsing across languages, **normalizes paths once**
-  - `gitDiffService.ts` - All git operations (runs from git root)
+  - `gitDiffService.ts` - Git operations for uncommitted changes only (runs from git root)
   - `gitDiffEnricher.ts` - Matches git changes to classes/members
   - `configService.ts` - Configuration loading and validation
   - `diagramGeneratorService.ts` - Generates React Flow nodes and edges
