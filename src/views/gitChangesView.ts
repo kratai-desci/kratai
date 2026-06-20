@@ -1,4 +1,4 @@
-import { GitComparisonResult } from '../types/git';
+import { GitComparisonResult } from '../services/git';
 
 export class GitChangesView {
 	

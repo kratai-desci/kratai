@@ -1,7 +1,7 @@
 import { execSync } from 'child_process';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { FileChange, GitComparisonResult } from '../../types/git';
+import { FileChange, GitComparisonResult } from './contracts';
 
 const execAsync = promisify(exec);
 
