@@ -3,7 +3,7 @@ import * as path from 'path';
 import { ClassInfo, DiagramData, ClassRelationship } from '../../types/domain';
 import { KrataiConfig } from '../../types/config';
 import { ConfigService } from '../config/configService';
-import { ParserFactory } from './parsers/ParserFactory';
+import { ParserFactory } from './languages/ParserFactory';
 import { HttpCallDetector } from './httpCallDetector';
 
 const parserFactory = new ParserFactory();
