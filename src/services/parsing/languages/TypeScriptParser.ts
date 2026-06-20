@@ -19,16 +19,49 @@ export class TypeScriptParser implements IParserStrategy {
 					classes.push(this.extractClassInfo(node, filePath));
 				} else if (ts.isInterfaceDeclaration(node)) {
 					classes.push(this.extractInterfaceInfo(node, filePath));
+				} else if (ts.isFunctionDeclaration(node) && node.name) {
+					// Extract standalone functions as modules
+					classes.push(this.extractFunctionAsModule(node, sourceFile, filePath));
 				}
 				ts.forEachChild(node, visit);
 			};
 
+			// First pass: collect classes, interfaces, and functions
 			visit(sourceFile);
 
+			// Second pass: collect exported arrow functions and variables
+			sourceFile.forEachChild(node => {
+				if (ts.isVariableStatement(node)) {
+					for (const declaration of node.declarationList.declarations) {
+						if (ts.isIdentifier(declaration.name)) {
+							if (declaration.initializer &&
+								(ts.isArrowFunction(declaration.initializer) || ts.isFunctionExpression(declaration.initializer))) {
+								classes.push(this.extractArrowFunctionAsModule(declaration, node, sourceFile, filePath));
+							}
+						}
+					}
+				}
+			});
+
+			// Fallback: if no classes/functions found, create a module info
 			if (classes.length === 0) {
 				const moduleInfo = this.extractModuleInfo(sourceFile, filePath);
 				if (moduleInfo) {
 					classes.push(moduleInfo);
+				} else {
+					// If still nothing found, but file has imports/exports, create a minimal module
+					const hasImportsOrExports = this.hasImportsOrExports(sourceFile);
+					if (hasImportsOrExports) {
+						const fileName = path.basename(filePath, path.extname(filePath));
+						classes.push({
+							name: fileName,
+							filePath,
+							properties: [],
+							methods: [],
+							isModule: true,
+							classType: 'module'
+						});
+					}
 				}
 			}
 		} catch {
@@ -36,6 +69,16 @@ export class TypeScriptParser implements IParserStrategy {
 		}
 
 		return classes;
+	}
+
+	private hasImportsOrExports(sourceFile: ts.SourceFile): boolean {
+		let found = false;
+		sourceFile.forEachChild(node => {
+			if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node) || ts.isExportAssignment(node)) {
+				found = true;
+			}
+		});
+		return found;
 	}
 
 	extractRelationships(classes: ClassInfo[], allClassNames: Set<string>, workspacePath: string): ClassRelationship[] {
@@ -51,73 +94,282 @@ export class TypeScriptParser implements IParserStrategy {
 		});
 
 		for (const classInfo of classes) {
-			const fromId = `${classInfo.filePath}__${classInfo.name}`;
+			const fromName = classInfo.name;
 
-			// Extract module-level instantiations (for Next.js routes, etc.)
-			if (classInfo.isModule || classInfo.classType === 'module') {
-				const moduleLevelDeps = this.extractModuleLevelInstantiations(classInfo.filePath, allClassNames, workspacePath);
-				console.log(`🐰 [${classInfo.name}] Found module-level instantiations:`, Array.from(moduleLevelDeps));
-				moduleLevelDeps.forEach(dep => {
-					const targets = classMap.get(dep) || [];
-					console.log(`🐰 Creating relationship from ${classInfo.name} to ${dep} (${targets.length} targets)`);
-					targets.forEach(target => {
-						const toId = `${target.filePath}__${target.name}`;
-						relationships.push({ from: fromId, to: toId, type: 'uses' });
-					});
-				});
-			}
-
+			// 1. EXTENDS relationships
 			if (classInfo.extends) {
-				const targets = classMap.get(classInfo.extends) || [];
-				targets.forEach(target => {
-					const toId = `${target.filePath}__${target.name}`;
-					relationships.push({ from: fromId, to: toId, type: 'extends' });
-				});
+				relationships.push({ from: fromName, to: classInfo.extends, type: 'extends' });
 			}
 
+			// 2. IMPLEMENTS relationships
 			if (classInfo.implements) {
 				for (const iface of classInfo.implements) {
-					const targets = classMap.get(iface) || [];
-					targets.forEach(target => {
-						const toId = `${target.filePath}__${target.name}`;
-						relationships.push({ from: fromId, to: toId, type: 'implements' });
-					});
+					relationships.push({ from: fromName, to: iface, type: 'implements' });
 				}
 			}
 
-			const dependencies = new Set<string>();
-
+			// 3. COMPOSITION relationships (property types)
 			for (const prop of classInfo.properties) {
 				this.extractTypeNames(prop.type).forEach(t => {
-					if (allClassNames.has(t) && t !== classInfo.name) { dependencies.add(t); }
+					if (allClassNames.has(t) && t !== classInfo.name) {
+						relationships.push({ from: fromName, to: t, type: 'composition' });
+					}
 				});
 			}
 
+			// 4. RETURNS relationships (method return types)
+			for (const method of classInfo.methods) {
+				this.extractTypeNames(method.returnType).forEach(t => {
+					if (allClassNames.has(t) && t !== classInfo.name) {
+						relationships.push({ from: fromName, to: t, type: 'returns' });
+					}
+				});
+			}
+
+			// 5. PARAMETER relationships (method parameter types)
 			for (const method of classInfo.methods) {
 				for (const param of method.parameters) {
 					this.extractTypeNames(param.type).forEach(t => {
-						if (allClassNames.has(t) && t !== classInfo.name) { dependencies.add(t); }
+						if (allClassNames.has(t) && t !== classInfo.name) {
+							relationships.push({ from: fromName, to: t, type: 'parameter' });
+						}
 					});
 				}
-				this.extractTypeNames(method.returnType).forEach(t => {
-					if (allClassNames.has(t) && t !== classInfo.name) { dependencies.add(t); }
+			}
+
+			// 6-10. Extract additional relationships from source file
+			try {
+				const absolutePath = path.isAbsolute(classInfo.filePath) 
+					? classInfo.filePath 
+					: path.join(workspacePath, classInfo.filePath);
+				const sourceCode = fs.readFileSync(absolutePath, 'utf-8');
+				const sourceFile = ts.createSourceFile(absolutePath, sourceCode, ts.ScriptTarget.Latest, true);
+
+				// Extract: super calls, static calls, creates, imports, re-exports, async-calls, callbacks, generics
+				const advancedRelationships = this.extractAdvancedRelationships(
+					sourceFile, 
+					classInfo, 
+					allClassNames, 
+					classMap
+				);
+				relationships.push(...advancedRelationships);
+
+			} catch (error) {
+				// Skip if file can't be read
+			}
+		}
+
+		return relationships;
+	}
+
+	/**
+	 * Extract advanced relationships: super calls, static calls, creates, imports, re-exports, async-calls, callbacks, generics
+	 */
+	private extractAdvancedRelationships(
+		sourceFile: ts.SourceFile,
+		classInfo: ClassInfo,
+		allClassNames: Set<string>,
+		classMap: Map<string, ClassInfo[]>
+	): ClassRelationship[] {
+		const relationships: ClassRelationship[] = [];
+		const fromName = classInfo.name;
+
+		const visitNode = (node: ts.Node) => {
+			// 1. CALLS-SUPER: super.method() or super() calls
+			if (ts.isCallExpression(node)) {
+				if (ts.isPropertyAccessExpression(node.expression) && 
+					node.expression.expression.kind === ts.SyntaxKind.SuperKeyword) {
+					// super.method() call
+					if (classInfo.extends) {
+						relationships.push({ from: fromName, to: classInfo.extends, type: 'calls-super' });
+					}
+				} else if (node.expression.kind === ts.SyntaxKind.SuperKeyword) {
+					// super() constructor call
+					if (classInfo.extends) {
+						relationships.push({ from: fromName, to: classInfo.extends, type: 'calls-super' });
+					}
+				}
+
+				// 2. CALLS-STATIC: ClassName.staticMethod() calls
+				if (ts.isPropertyAccessExpression(node.expression) && 
+					ts.isIdentifier(node.expression.expression)) {
+					const className = node.expression.expression.getText();
+					if (allClassNames.has(className)) {
+						relationships.push({ from: fromName, to: className, type: 'calls-static' });
+					}
+				}
+
+				// 3. CALLS: Regular function calls (function-to-function)
+				if (ts.isIdentifier(node.expression)) {
+					const funcName = node.expression.getText();
+					if (allClassNames.has(funcName) && funcName !== classInfo.name) {
+						const targets = classMap.get(funcName) || [];
+						if (targets.some(t => t.isModule)) {  // Only for function modules
+							relationships.push({ from: fromName, to: funcName, type: 'calls' });
+						}
+					}
+				}
+			}
+
+			// 4. CREATES: new ClassName() expressions (factory patterns)
+			if (ts.isNewExpression(node) && ts.isIdentifier(node.expression)) {
+				const className = node.expression.getText();
+				if (allClassNames.has(className)) {
+					relationships.push({ from: fromName, to: className, type: 'creates' });
+				}
+			}
+
+			// 5. ASYNC-CALLS: await expressions
+			if (ts.isAwaitExpression(node) && ts.isCallExpression(node.expression)) {
+				const callExpr = node.expression;
+				if (ts.isIdentifier(callExpr.expression)) {
+					const funcName = callExpr.expression.getText();
+					if (allClassNames.has(funcName)) {
+						const targets = classMap.get(funcName) || [];
+						if (targets.some(t => t.isModule)) {
+							relationships.push({ from: fromName, to: funcName, type: 'async-calls' });
+						}
+					}
+				}
+			}
+
+			// 6. CALLBACK: Higher-order function parameters
+			if (ts.isCallExpression(node)) {
+				node.arguments.forEach(arg => {
+					if (ts.isArrowFunction(arg) || ts.isFunctionExpression(arg)) {
+						// This call passes a callback
+						if (ts.isIdentifier(node.expression)) {
+							const funcName = node.expression.getText();
+							if (allClassNames.has(funcName)) {
+								const targets = classMap.get(funcName) || [];
+								if (targets.some(t => t.isModule)) {
+									relationships.push({ from: fromName, to: funcName, type: 'callback' });
+								}
+							}
+						}
+					}
 				});
 			}
 
-			dependencies.forEach(dep => {
-				const targets = classMap.get(dep) || [];
-				targets.forEach(target => {
-					const toId = `${target.filePath}__${target.name}`;
-					const hasStronger = relationships.some(
-						r => r.from === fromId && r.to === toId &&
-							(r.type === 'extends' || r.type === 'implements')
-					);
-					if (!hasStronger) {
-						relationships.push({ from: fromId, to: toId, type: 'uses' });
+			ts.forEachChild(node, visitNode);
+		};
+
+		// 7. IMPORTS: import statements (detect all imports, not just those in allClassNames)
+		sourceFile.forEachChild(node => {
+			if (ts.isImportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+				const importPath = node.moduleSpecifier.text;
+				if (importPath.startsWith('.') || importPath.startsWith('@/')) {
+					if (node.importClause) {
+						// Named imports
+						if (node.importClause.namedBindings && ts.isNamedImports(node.importClause.namedBindings)) {
+							node.importClause.namedBindings.elements.forEach(element => {
+								const importedName = element.name.getText();
+								// Detect import relationship regardless of allClassNames
+								relationships.push({ from: fromName, to: importedName, type: 'imports' });
+							});
+						}
+						// Default import
+						if (node.importClause.name) {
+							const importedName = node.importClause.name.getText();
+							// Detect import relationship regardless of allClassNames
+							relationships.push({ from: fromName, to: importedName, type: 'imports' });
+						}
+					}
+				}
+			}
+
+			// 8. RE-EXPORTS: export { X } from './module'
+			if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+				const exportPath = node.moduleSpecifier.text;
+				if (exportPath.startsWith('.') || exportPath.startsWith('@/')) {
+					if (node.exportClause && ts.isNamedExports(node.exportClause)) {
+						node.exportClause.elements.forEach(element => {
+							const exportedName = element.name.getText();
+							// Detect re-export relationship regardless of allClassNames
+							relationships.push({ from: fromName, to: exportedName, type: 're-exports' });
+						});
+					}
+				}
+			}
+		});
+
+		// 9. GENERIC: Generic type parameters and references
+		const extractGenerics = (node: ts.Node) => {
+			// Detect generic type parameters with constraints
+			if (ts.isClassDeclaration(node) && node.typeParameters) {
+				node.typeParameters.forEach(typeParam => {
+					if (typeParam.constraint) {
+						const constraintText = typeParam.constraint.getText();
+						this.extractTypeNames(constraintText).forEach(t => {
+							if (allClassNames.has(t)) {
+								relationships.push({ from: fromName, to: t, type: 'generic' });
+							}
+						});
 					}
 				});
-			});
-		}
+			}
+			
+			// Detect function generic parameters
+			if ((ts.isFunctionDeclaration(node) || ts.isArrowFunction(node)) && node.typeParameters) {
+				node.typeParameters.forEach(typeParam => {
+					if (typeParam.constraint) {
+						const constraintText = typeParam.constraint.getText();
+						this.extractTypeNames(constraintText).forEach(t => {
+							if (allClassNames.has(t)) {
+								relationships.push({ from: fromName, to: t, type: 'generic' });
+							}
+						});
+					}
+				});
+			}
+			
+			// Detect method generic parameters
+			if (ts.isMethodDeclaration(node) && node.typeParameters) {
+				node.typeParameters.forEach(typeParam => {
+					if (typeParam.constraint) {
+						const constraintText = typeParam.constraint.getText();
+						this.extractTypeNames(constraintText).forEach(t => {
+							if (allClassNames.has(t)) {
+								relationships.push({ from: fromName, to: t, type: 'generic' });
+							}
+						});
+					}
+				});
+			}
+			
+			// Detect generic type references in parameter types (e.g., users: User[], Repository<User>)
+			if (ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node) || ts.isArrowFunction(node)) {
+				node.parameters.forEach(param => {
+					if (param.type) {
+						const typeText = param.type.getText();
+						// Extract types from generic usage like User[], Repository<User>, etc.
+						this.extractTypeNames(typeText).forEach(t => {
+							if (allClassNames.has(t) && t !== fromName) {
+								relationships.push({ from: fromName, to: t, type: 'generic' });
+							}
+						});
+					}
+				});
+				
+				// Check return type for generic references
+				if (node.type) {
+					const returnTypeText = node.type.getText();
+					this.extractTypeNames(returnTypeText).forEach(t => {
+						if (allClassNames.has(t) && t !== fromName) {
+							relationships.push({ from: fromName, to: t, type: 'generic' });
+						}
+					});
+				}
+			}
+			
+			ts.forEachChild(node, extractGenerics);
+		};
+
+		// Visit the source file to extract all relationships
+		sourceFile.forEachChild(node => {
+			visitNode(node);
+			extractGenerics(node);
+		});
 
 		return relationships;
 	}
@@ -253,6 +505,28 @@ export class TypeScriptParser implements IParserStrategy {
 				methods.push(this.extractMethod(member));
 			} else if (ts.isConstructorDeclaration(member)) {
 				methods.push(this.extractConstructor(member));
+				// Extract properties from constructor parameters (e.g., constructor(private repo: UserRepository))
+				member.parameters.forEach(param => {
+					const hasVisibilityModifier = param.modifiers?.some(m => 
+						m.kind === ts.SyntaxKind.PublicKeyword ||
+						m.kind === ts.SyntaxKind.PrivateKeyword ||
+						m.kind === ts.SyntaxKind.ProtectedKeyword ||
+						m.kind === ts.SyntaxKind.ReadonlyKeyword
+					);
+					if (hasVisibilityModifier && ts.isIdentifier(param.name)) {
+						const sourceFile = node.getSourceFile();
+						properties.push({
+							name: param.name.getText(),
+							type: param.type?.getText() || 'any',
+							visibility: param.modifiers?.some(m => m.kind === ts.SyntaxKind.PrivateKeyword) ? 'private' :
+										param.modifiers?.some(m => m.kind === ts.SyntaxKind.ProtectedKeyword) ? 'protected' : 'public',
+							isStatic: false,
+							isReadonly: param.modifiers?.some(m => m.kind === ts.SyntaxKind.ReadonlyKeyword) || false,
+							lineNumber: sourceFile?.getLineAndCharacterOfPosition(param.getStart()).line + 1,
+							endLineNumber: sourceFile?.getLineAndCharacterOfPosition(param.getEnd()).line + 1,
+						});
+					}
+				});
 			}
 		}
 
@@ -446,5 +720,72 @@ export class TypeScriptParser implements IParserStrategy {
 		if (node.modifiers?.some(m => m.kind === ts.SyntaxKind.PrivateKeyword)) { return 'private'; }
 		if (node.modifiers?.some(m => m.kind === ts.SyntaxKind.ProtectedKeyword)) { return 'protected'; }
 		return 'public';
+	}
+
+	/**
+	 * Extract a standalone function declaration as a module
+	 */
+	private extractFunctionAsModule(node: ts.FunctionDeclaration, sourceFile: ts.SourceFile, filePath: string): ClassInfo {
+		const name = node.name!.getText();
+		const methods: MethodInfo[] = [{
+			name,
+			parameters: node.parameters.map(p => ({
+				name: p.name.getText(),
+				type: p.type?.getText() || 'any',
+				optional: !!p.questionToken
+			})),
+			returnType: node.type?.getText() || 'void',
+			visibility: 'public',
+			isStatic: false,
+			isAsync: !!node.modifiers?.some(m => m.kind === ts.SyntaxKind.AsyncKeyword),
+			lineNumber: sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1,
+			endLineNumber: sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1
+		}];
+
+		return {
+			name,
+			filePath,
+			properties: [],
+			methods,
+			isModule: true,
+			classType: 'module'
+		};
+	}
+
+	/**
+	 * Extract an arrow function or function expression as a module
+	 */
+	private extractArrowFunctionAsModule(
+		declaration: ts.VariableDeclaration,
+		statement: ts.VariableStatement,
+		sourceFile: ts.SourceFile,
+		filePath: string
+	): ClassInfo {
+		const name = (declaration.name as ts.Identifier).getText();
+		const funcNode = declaration.initializer as ts.ArrowFunction | ts.FunctionExpression;
+		
+		const methods: MethodInfo[] = [{
+			name,
+			parameters: funcNode.parameters.map(p => ({
+				name: p.name.getText(),
+				type: p.type?.getText() || 'any',
+				optional: !!p.questionToken
+			})),
+			returnType: funcNode.type?.getText() || 'any',
+			visibility: 'public',
+			isStatic: false,
+			isAsync: !!funcNode.modifiers?.some(m => m.kind === ts.SyntaxKind.AsyncKeyword),
+			lineNumber: sourceFile.getLineAndCharacterOfPosition(statement.getStart()).line + 1,
+			endLineNumber: sourceFile.getLineAndCharacterOfPosition(statement.getEnd()).line + 1
+		}];
+
+		return {
+			name,
+			filePath,
+			properties: [],
+			methods,
+			isModule: true,
+			classType: 'module'
+		};
 	}
 }

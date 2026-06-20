@@ -5,8 +5,10 @@ import { ClassInfo } from '../../../../types/domain/ClassInfo';
 import { ClassRelationship } from '../../../../types/domain/ClassRelationship';
 
 suite('TypeScript Parser Test Suite', () => {
-	const fixturesPath = path.join(__dirname, 'fixtures');
-	const workspacePath = path.join(__dirname, 'fixtures');
+	// Point to source fixtures, not compiled ones
+	// From out/test/unit/languages/typescript/ -> go up 5 levels to workspace root, then to src/
+	const fixturesPath = path.join(__dirname, '../../../../../src/test/unit/languages/typescript/fixtures');
+	const workspacePath = path.join(__dirname, '../../../../../src/test/unit/languages/typescript/fixtures');
 	let parser: TypeScriptParser;
 
 	setup(() => {
