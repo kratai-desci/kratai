@@ -1,4 +1,4 @@
-import { ClassInfo, ClassRelationship } from '../../types/diagram';
+import { ClassInfo, ClassRelationship } from '../../../types/diagram';
 
 export interface IParserStrategy {
 	/** File extensions this parser handles (e.g. ['.ts', '.tsx']) */

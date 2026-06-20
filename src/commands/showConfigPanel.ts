@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { WorkspaceScanner } from '../services/workspaceScanner';
-import { ConfigService } from '../services/configService';
-import { CodeParserService } from '../services/codeParserService';
+import { WorkspaceScanner } from '../services/parsing/workspaceScanner';
+import { ConfigService } from '../services/config/configService';
+import { CodeParserService } from '../services/parsing/codeParserService';
 import { KrataiConfig } from '../types/config';
 
 async function detectAvailableTypes(workspacePath: string): Promise<string[]> {

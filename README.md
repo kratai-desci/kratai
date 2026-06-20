@@ -99,7 +99,12 @@ Kratai stores settings in `.vscode/kratai.json` in your workspace:
 
 ## 📝 Release Notes
 
-### Latest: v1.6.1
+### Latest: v1.6.2
+- 🐛 **CRITICAL FIX** — Python virtual environment scanning freeze (Django/Flask projects)
+- ⚡ **Major Performance** — Excluded venv, __pycache__, site-packages from scanning
+- 🚀 **Instant Loading** — Configuration panel now loads immediately on Python projects
+
+### v1.6.1
 - 📚 **Documentation** — Updated architecture docs to clarify git diff behavior
 - ✅ **Verified** — All documentation accurate and ready for production
 

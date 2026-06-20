@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import { showGitChanges, generateClassDiagram, generateClassDiagramDirect, showConfigPanel } from './commands';
 import { KrataiTreeProvider } from './views/krataiTreeProvider';
-import { TelemetryService } from './services/telemetryService';
+import { TelemetryService } from './services/telemetry/telemetryService';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed

@@ -1,10 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { ClassInfo, DiagramData, ClassRelationship } from '../types/diagram';
-import { KrataiConfig } from '../types/config';
-import { ConfigService } from './configService';
+import { ClassInfo, DiagramData, ClassRelationship } from '../../types/diagram';
+import { KrataiConfig } from '../../types/config';
+import { ConfigService } from '../config/configService';
 import { ParserFactory } from './parsers/ParserFactory';
-import { HttpCallDetector } from './httpCallDetector';
+import { HttpCallDetector } from '../diagram/httpCallDetector';
 
 const parserFactory = new ParserFactory();
 

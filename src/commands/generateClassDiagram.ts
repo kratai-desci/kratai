@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { CodeParserService } from '../services/codeParserService';
-import { DiagramGeneratorService } from '../services/diagramGeneratorService';
+import { CodeParserService } from '../services/parsing/codeParserService';
+import { DiagramGeneratorService } from '../services/diagram/diagramGeneratorService';
 import { ClassDiagramView } from '../views/classDiagramView';
-import { ConfigService } from '../services/configService';
-import { GitDiffEnricher } from '../services/gitDiffEnricher';
-import { MethodTracerService } from '../services/methodTracerService';
+import { ConfigService } from '../services/config/configService';
+import { GitDiffEnricher } from '../services/git/gitDiffEnricher';
+import { MethodTracerService } from '../services/tracing/methodTracerService';
 import { SequenceDiagramView } from '../views/sequenceDiagramView';
-import { TelemetryService } from '../services/telemetryService';
+import { TelemetryService } from '../services/telemetry/telemetryService';
 
 export async function generateClassDiagram(context: vscode.ExtensionContext): Promise<void> {
 	// Check if workspace is opened

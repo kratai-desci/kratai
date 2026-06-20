@@ -2,7 +2,7 @@
   "name": "kratai",
   "displayName": "Kratai - Code Visualizer",
   "description": "Visualize your TypeScript, JavaScript, Python, and PHP codebase with interactive class diagrams. Click-to-jump navigation and git diff highlighting show exactly what changed.",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "publisher": "kratai-core",
   "icon": "icon_white.png",
   "license": "MIT",

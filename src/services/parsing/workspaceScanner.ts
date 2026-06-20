@@ -1,9 +1,17 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { FolderNode, ExtensionInfo } from '../types/config';
+import { FolderNode, ExtensionInfo } from '../../types/config';
 
 export class WorkspaceScanner {
-	private static readonly DEFAULT_EXCLUSIONS = ['node_modules', 'dist', 'build', 'out', '.git', '.vscode'];
+	private static readonly DEFAULT_EXCLUSIONS = [
+		'node_modules', 'dist', 'build', 'out', '.git', '.vscode',
+		// Python exclusions
+		'venv', '.venv', 'env', '__pycache__', 'site-packages', '.tox', '.pytest_cache',
+		// PHP exclusions
+		'vendor',
+		// General
+		'.idea', '.DS_Store', 'coverage', '.next', '.nuxt'
+	];
 
 	static scanFolders(workspacePath: string, selectedFolders: string[] = []): FolderNode {
 		const rootNode: FolderNode = {

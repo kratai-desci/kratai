@@ -1,4 +1,4 @@
-import { DiagramData, ReactFlowNode, ReactFlowEdge, ClassInfo } from '../types/diagram';
+import { DiagramData, ReactFlowNode, ReactFlowEdge, ClassInfo } from '../../types/diagram';
 
 export class DiagramGeneratorService {
 	

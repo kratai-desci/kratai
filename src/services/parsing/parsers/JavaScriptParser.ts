@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { ClassInfo, PropertyInfo, MethodInfo, ClassRelationship } from '../../types/diagram';
+import { ClassInfo, PropertyInfo, MethodInfo, ClassRelationship } from '../../../types/diagram';
 import { IParserStrategy } from './IParserStrategy';
 
 // Uses the TypeScript compiler API with allowJs — no extra deps needed

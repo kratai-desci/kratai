@@ -1,7 +1,7 @@
 import * as ts from 'typescript';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ClassInfo, PropertyInfo, MethodInfo, ClassRelationship } from '../../types/diagram';
+import { ClassInfo, PropertyInfo, MethodInfo, ClassRelationship } from '../../../types/diagram';
 import { IParserStrategy } from './IParserStrategy';
 
 export class TypeScriptParser implements IParserStrategy {

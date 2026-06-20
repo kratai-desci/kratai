@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { FileChange, GitComparisonResult } from '../types';
+import { FileChange, GitComparisonResult } from '../../types';
 
 export class GitService {
 	

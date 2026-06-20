@@ -2,6 +2,18 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.6.2] - 2026-06-19
+
+### Fixed
+- **CRITICAL**: Python virtual environment scanning freeze - Added exclusions for `venv`, `.venv`, `env`, `__pycache__`, `site-packages`, `.tox`, `.pytest_cache`
+- Configuration panel now loads instantly on Python/Django projects
+- PHP `vendor` folder now excluded by default
+- General exclusions added: `.idea`, `.DS_Store`, `coverage`, `.next`, `.nuxt`
+
+### Performance
+- Django projects now scan only source code (not virtual environments or standard library)
+- Massive performance improvement for Python projects with large virtual environments
+
 ## [1.6.1] - 2026-06-19
 
 ### Documentation

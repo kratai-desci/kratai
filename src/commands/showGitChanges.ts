@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { GitService } from '../services/gitService';
+import { GitService } from '../services/git/gitService';
 import { GitChangesView } from '../views/gitChangesView';
-import { TelemetryService } from '../services/telemetryService';
+import { TelemetryService } from '../services/telemetry/telemetryService';
 
 export async function showGitChanges(context: vscode.ExtensionContext): Promise<void> {
 	// Check if workspace is opened

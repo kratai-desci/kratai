@@ -1,4 +1,4 @@
-import { SequenceData } from '../services/methodTracerService';
+import { SequenceData } from '../services/tracing/methodTracerService';
 
 export class SequenceDiagramView {
 	

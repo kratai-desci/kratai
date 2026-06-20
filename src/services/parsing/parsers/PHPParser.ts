@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { IParserStrategy } from './IParserStrategy';
-import { ClassInfo, PropertyInfo, MethodInfo, ClassRelationship } from '../../types/diagram';
+import { ClassInfo, PropertyInfo, MethodInfo, ClassRelationship } from '../../../types/diagram';
 
 // Import php-parser
 const phpParser = require('php-parser');

@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as ts from 'typescript';
 import * as path from 'path';
-import { DiagramData, ClassInfo, MethodInfo } from '../types/diagram';
-import { GitDiffService } from './gitDiffService';
-import { extractMethodCallsPython, extractMethodCallsPHP } from './methodCallExtractors';
+import { DiagramData, ClassInfo, MethodInfo } from '../../types/diagram';
+import { GitDiffService } from '../git/gitDiffService';
+import { extractMethodCallsPython, extractMethodCallsPHP } from '../parsing/methodCallExtractors';
 
 export interface MethodCall {
 	fromClass: string;

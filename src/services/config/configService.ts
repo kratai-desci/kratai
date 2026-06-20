@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { KrataiConfig } from '../types/config';
+import { KrataiConfig } from '../../types/config';
 
 export class ConfigService {
 	private static readonly CONFIG_FILE = '.vscode/kratai.json';
