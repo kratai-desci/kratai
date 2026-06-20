@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { FolderNode, ExtensionInfo } from '../../types/view';
+import { ConfigFolderNode, ExtensionInfo } from '../../types/view';
 
 export class WorkspaceScanner {
 	private static readonly DEFAULT_EXCLUSIONS = [
@@ -13,8 +13,8 @@ export class WorkspaceScanner {
 		'.idea', '.DS_Store', 'coverage', '.next', '.nuxt'
 	];
 
-	static scanFolders(workspacePath: string, selectedFolders: string[] = []): FolderNode {
-		const rootNode: FolderNode = {
+	static scanFolders(workspacePath: string, selectedFolders: string[] = []): ConfigFolderNode {
+		const rootNode: ConfigFolderNode = {
 			path: '',
 			name: path.basename(workspacePath),
 			selected: selectedFolders.length === 0, // Select all if none selected
@@ -28,7 +28,7 @@ export class WorkspaceScanner {
 	private static buildFolderTree(
 		workspacePath: string,
 		relativePath: string,
-		node: FolderNode,
+		node: ConfigFolderNode,
 		selectedFolders: string[]
 	): void {
 		const fullPath = path.join(workspacePath, relativePath);
@@ -50,7 +50,7 @@ export class WorkspaceScanner {
 			const childRelativePath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
 			const isSelected = selectedFolders.length === 0 || selectedFolders.includes(childRelativePath);
 
-			const childNode: FolderNode = {
+		const childNode: ConfigFolderNode = {
 				path: childRelativePath,
 				name: entry.name,
 				selected: isSelected,

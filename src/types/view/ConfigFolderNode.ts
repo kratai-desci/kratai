@@ -1,7 +1,7 @@
-export interface FolderNode {
+export interface ConfigFolderNode {
 	path: string;           // Relative path
 	name: string;           // Folder name
 	selected: boolean;
-	children: FolderNode[];
+	children: ConfigFolderNode[];
 	fileCount?: number;     // Number of parseable files
 }

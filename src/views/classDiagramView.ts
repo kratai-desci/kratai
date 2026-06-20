@@ -1,5 +1,5 @@
 import { ReactFlowNode, ReactFlowEdge } from '../types/view';
-import { FolderStructureBuilder } from './components/folderStructure';
+import { FolderStructureBuilder } from '../services/diagram/folderStructure';
 import { FolderBoxRenderer } from './components/folderBoxRenderer';
 
 export class ClassDiagramView {

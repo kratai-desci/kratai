@@ -4,7 +4,7 @@ import { ClassInfo, DiagramData, ClassRelationship } from '../../types/domain';
 import { KrataiConfig } from '../../types/config';
 import { ConfigService } from '../config/configService';
 import { ParserFactory } from './parsers/ParserFactory';
-import { HttpCallDetector } from '../diagram/httpCallDetector';
+import { HttpCallDetector } from './httpCallDetector';
 
 const parserFactory = new ParserFactory();
 
@@ -75,10 +75,9 @@ export class CodeParserService {
 			const routeMap = httpDetector.buildRouteMap(classes);
 			console.log(`🌐 Built route map with ${routeMap.size} API routes`);
 			
-			const httpRelationships = httpDetector.detectHttpCallRelationships(
+			const httpRelationships = httpDetector.createHttpRelationships(
 				classes,
-				routeMap,
-				workspacePath
+				routeMap
 			);
 			console.log(`🌐 Detected ${httpRelationships.length} HTTP call relationships`);
 			relationships.push(...httpRelationships);

@@ -1,9 +1,9 @@
-import { FolderNode, FolderStructureBuilder } from './folderStructure';
-import { FolderSize } from './layoutCalculator';
+import { DiagramFolderNode, FolderStructureBuilder } from '../../services/diagram/folderStructure';
+import { FolderSize } from '../../services/diagram/layoutCalculator';
 
 export class FolderBoxRenderer {
 	
-	renderAll(folder: FolderNode, depth = 0): string {
+	renderAll(folder: DiagramFolderNode, depth = 0): string {
 		const folderIcon = this.getFolderIcon(folder.name);
 		const totalCount = FolderStructureBuilder.countClasses(folder);
 		
@@ -24,12 +24,12 @@ export class FolderBoxRenderer {
 	}
 
 	private renderFolder(
-		folder: FolderNode,
+		folder: DiagramFolderNode,
 		icon: string,
 		totalCount: number,
 		depth: number
 	): string {
-		const childFolders = Array.from(folder.children.values()).sort((a, b) => a.name.localeCompare(b.name));
+		const childFolders = Array.from(folder.children.values()).sort((a: DiagramFolderNode, b: DiagramFolderNode) => a.name.localeCompare(b.name));
 		
 		// Pre-render child folders to avoid template string issues
 		const childFoldersHTML = childFolders.length > 0

@@ -1,5 +1,5 @@
 import { ClassInfo } from '../../types/domain';
-import { Position } from './layoutCalculator';
+import { Position } from '../../services/diagram/layoutCalculator';
 
 export class ClassBoxRenderer {
 	constructor(private boxWidth: number) {}
