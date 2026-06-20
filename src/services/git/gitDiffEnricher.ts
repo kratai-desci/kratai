@@ -1,5 +1,5 @@
 import { DiagramData, ClassInfo, PropertyInfo, MethodInfo } from '../../types/domain';
-import { GitDiffService, GitDiffInfo } from './gitDiffService';
+import { GitOperations, GitDiffInfo } from './gitOperations';
 import { CodeParserService } from '../parsing/codeParserService';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -18,7 +18,7 @@ export class GitDiffEnricher {
 		baseCommit: string = 'HEAD~1'
 	): Promise<DiagramData> {
 		console.log('🔍 Starting git diff enrichment (uncommitted changes only)...');
-		const diffInfo = await GitDiffService.getDiff(workspacePath);
+		const diffInfo = await GitOperations.getDiff(workspacePath);
 		
 		if (!diffInfo) {
 			// No uncommitted changes - mark everything as unchanged
@@ -27,7 +27,7 @@ export class GitDiffEnricher {
 		}
 
 		// Get the git root directory to convert absolute paths to git-relative paths
-		const gitRoot = await GitDiffService.getGitRoot(workspacePath);
+		const gitRoot = await GitOperations.getGitRoot(workspacePath);
 		if (!gitRoot) {
 			console.log('⚠️ Could not determine git root, marking all as unchanged');
 			return this.markAllUnchanged(diagramData);
@@ -48,7 +48,7 @@ export class GitDiffEnricher {
 				if (deletedFilePath.endsWith('.ts') || deletedFilePath.endsWith('.tsx') || 
 					deletedFilePath.endsWith('.js') || deletedFilePath.endsWith('.jsx')) {
 					
-					const fileContent = await GitDiffService.getDeletedFileContent(workspacePath, deletedFilePath, baseCommit);
+					const fileContent = await GitOperations.getDeletedFileContent(workspacePath, deletedFilePath, baseCommit);
 					if (fileContent) {
 						// Create a temporary file to parse
 						const tempFilePath = path.join(os.tmpdir(), `kratai_deleted_${Date.now()}_${path.basename(deletedFilePath)}`);
@@ -117,12 +117,7 @@ export class GitDiffEnricher {
 				const fileChange = diffInfo.fileChanges.get(gitRelativePath);
 				
 				// Get the old version from git to detect deleted members
-				const oldFileContent = await GitDiffService.getFileContentFromHistory(workspacePath, gitRelativePath, baseCommit);
-				let oldClasses: ClassInfo[] = [];
-				
-				if (oldFileContent) {
-					// Parse the old version
-					const tempFilePath = path.join(os.tmpdir(), `kratai_old_${Date.now()}_${path.basename(gitRelativePath)}`);
+			const oldFileContent = await GitOperations.getFileContentFromHistory(workspacePath, gitRelativePath, baseCommit);
 					fs.writeFileSync(tempFilePath, oldFileContent);
 					
 					try {

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { GitService } from '../services/git/gitService';
+import { GitOperations } from '../services/git/gitOperations';
 import { GitChangesView } from '../views/gitChangesView';
 import { TelemetryService } from '../services/telemetry/telemetryService';
 
@@ -22,7 +22,7 @@ export async function showGitChanges(context: vscode.ExtensionContext): Promise<
 		}, async (progress) => {
 			progress.report({ message: 'Fetching from remote...' });
 			
-			const result = await GitService.analyzeChanges(workspacePath, workspaceName);
+			const result = await GitOperations.analyzeChanges(workspacePath, workspaceName);
 			
 			if (!result) {
 				vscode.window.showErrorMessage('Could not analyze git changes!');
