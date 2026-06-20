@@ -117,7 +117,12 @@ export class GitDiffEnricher {
 				const fileChange = diffInfo.fileChanges.get(gitRelativePath);
 				
 				// Get the old version from git to detect deleted members
-			const oldFileContent = await GitOperations.getFileContentFromHistory(workspacePath, gitRelativePath, baseCommit);
+				const oldFileContent = await GitOperations.getFileContentFromHistory(workspacePath, gitRelativePath, baseCommit);
+				let oldClasses: ClassInfo[] = [];
+				
+				if (oldFileContent) {
+					// Parse the old version
+					const tempFilePath = path.join(os.tmpdir(), `kratai_old_${Date.now()}_${path.basename(gitRelativePath)}`);
 					fs.writeFileSync(tempFilePath, oldFileContent);
 					
 					try {
