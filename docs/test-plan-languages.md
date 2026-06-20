@@ -54,29 +54,16 @@ class UserService extends BaseService {
     return super.save(data);
   }
 }
-``Type relationships (property, return, parameter types)  
-✅ Super calls (parent class methods)  
-✅ Static method calls  
-✅ Re-exports (module graph)  
-✅ Factory patterns  
-✅ Async/await chains  
-✅ Higher-order functions + callbacks  
-✅ Generics  
-✅ Abstract classes
-
-**Test fixtures:**
 ```
-src/test/unit/languages/typescript/
-├── class-based.ts          (Classes, inheritance, interfaces)
-├── functional.ts           (Functions, calls, composition)
-├── type-relationships.ts   (Property/return/parameter types)
-├── parent-calls.ts         (super.method() calls)
-├── static-calls.ts         (Static method calls)
-├── re-exports.ts           (Re-export patterns)
-├── factory-pattern.ts      (Factory → Product)
-├── async-chains.ts         (Async/await call chains)
-├── higher-order.ts         (Callbacks, generics)
-└── imports.ts              (M
+**Must detect:** Super calls, method overrides, parent-child relationships
+
+### 6. Static Method Calls
+```typescript
+class ValidationUtils {
+  static validate(data) { ... }
+}
+const result = ValidationUtils.validate(data);  // Static call
+```
 **Must detect:** Static method calls across classes
 
 ### 7. Re-exports (Module Graph)
@@ -120,13 +107,39 @@ users.map(user => user.name);  // Callback function
 ✅ Functions (arrow, named, exported)  
 ✅ Imports (named, default, namespace)  
 ✅ Function calls between modules  
-✅ React hooks (functional pattern)  
-✅ Async/await chains
+✅ Type relationships (property, return, parameter types)  
+✅ Super calls (parent class methods)  
+✅ Static method calls  
+✅ Re-exports (module graph)  
+✅ Factory patterns  
+✅ Async/await chains  
+✅ Higher-order functions + callbacks  
+✅ Generics  
+✅ Abstract classes
 
 **Test fixtures:**
 ```
 src/test/unit/languages/typescript/
-├─Type hints (→ type relationships)  
+├── class-based.ts          (Classes, inheritance, interfaces)
+├── functional.ts           (Functions, calls, composition)
+├── type-relationships.ts   (Property/return/parameter types)
+├── parent-calls.ts         (super.method() calls)
+├── static-calls.ts         (Static method calls)
+├── re-exports.ts           (Re-export patterns)
+├── factory-pattern.ts      (Factory → Product)
+├── async-chains.ts         (Async/await call chains)
+├── higher-order.ts         (Callbacks, generics)
+└── imports.ts              (Module dependencies)
+```
+
+---
+
+### Python
+✅ Classes + methods  
+✅ Functions (def, lambda)  
+✅ Imports (from/import)  
+✅ Decorators (@staticmethod, @property)  
+✅ Type hints (→ type relationships)  
 ✅ Super calls (parent class methods)  
 ✅ @staticmethod + @classmethod calls  
 ✅ Factory patterns  
@@ -143,7 +156,16 @@ src/test/unit/languages/python/
 ├── static_methods.py       (@staticmethod calls)
 ├── decorators.py           (@router.get, @property)
 ├── async_chains.py         (async def, await)
-└── imports.py              (from/import patterns
+└── imports.py              (from/import patterns)
+```
+
+---
+
+### PHP
+✅ Classes + methods + traits  
+✅ Functions (global, namespaced)  
+✅ Namespaces + use statements  
+✅ Closures (anonymous functions)  
 ✅ Type declarations (→ type relationships)  
 ✅ Parent calls (parent::method())  
 ✅ Static method calls (Class::method())  
@@ -160,39 +182,7 @@ src/test/unit/languages/php/
 ├── parent-calls.php        (parent::method())
 ├── static-calls.php        (Static methods)
 ├── traits.php              (Trait usage, conflicts)
-├── factory-pattern.php     (Factory → Product
-src/test/unit/languages/python/
-├── class_based.py          (UserService class)
-├── functional.py           (create_user function)
-├── decorators.py           (@router.get patterns)
-└── imports.py              (from validators import)
-```
-
----
-
-### PHP
-✅ Classes + methods + traits  
-✅ Functions (global, namespaced)  
-✅ Namespaces + use statements  
-✅ Closures (anonymous functions)  
-✅ Class | Class | `composition` | `private repo: UserRepository` (property) |
-| Method | Class | `returns` | `getUser(): User` (return type) |
-| Method | Class | `parameter` | `create(data: UserDTO)` (param type) |
-| Method | Method (parent) | `calls-super` | `super.validate(data)` |
-| Class | Class (static) | `calls-static` | `ValidationUtils.validate()` |
-| Function | Function | `calls` | `createUser()` calls `validateUser()` |
-| Function | Class | `creates` | `new User(data)` (factory) |
-| Function | Class | `returns` | Factory returns type |
-| Module | Module | `imports` | `import { User } from './models'` |
-| Module | Module | `re-exports` | `export { User } from './models'` |
-| Function | Function | `async-calls` | `await fetchUser()` |
-| Function | Function | `callback` | `users.map(fn)` (higher-order) |
-| Class | Class | `generic` | `Repository<User>`
-```
-src/test/unit/languages/php/
-├── class-based.php         (UserService class)
-├── functional.php          (create_user function)
-├── traits.php              (Trait usage)
+├── factory-pattern.php     (Factory → Product)
 └── namespaces.php          (use statements)
 ```
 
@@ -213,17 +203,71 @@ For each language parser:
 ## Key Relationships to Extract
 
 | From | To | Type | Example |
-|------|-----|------|---------|
+|------|-----|------|---------|  
 | Class | Class | `extends` | `UserService extends BaseService` |
 | Class | Interface | `implements` | `UserService implements IService` |
+| Class | Class | `composition` | `private repo: UserRepository` (property) |
+| Method | Class | `returns` | `getUser(): User` (return type) |
+| Method | Class | `parameter` | `create(data: UserDTO)` (param type) |
+| Method | Method (parent) | `calls-super` | `super.validate(data)` |
+| Class | Class (static) | `calls-static` | `ValidationUtils.validate()` |
 | Function | Function | `calls` | `createUser()` calls `validateUser()` |
-| Module | Module | `imports` | `userService.ts` imports `validator.ts` |
-| Class | Class | `uses` | Constructor injection |
+| Function | Class | `creates` | `new User(data)` (factory) |
+| Function | Class | `returns` | Factory returns type |
+| Module | Module | `imports` | `import { User } from './models'` |
+| Module | Module | `re-exports` | `export { User } from './models'` |
+| Function | Function | `async-calls` | `await fetchUser()` |
+| Function | Function | `callback` | `users.map(fn)` (higher-order) |
+| Class | Class | `generic` | `Repository<User>` |
 
 ---
 
 ## Test Structure
 
+```
+src/test/unit/languages/
+├── typescript/
+│   ├── parser.test.ts
+│   └── fixtures/
+│       ├── class-based.ts
+│       ├── functional.ts
+│       ├── type-relationships.ts
+│       ├── parent-calls.ts
+│       ├── static-calls.ts
+│       ├── re-exports.ts
+│       ├── factory-pattern.ts
+│       ├── async-chains.ts
+│       ├── higher-order.ts
+│       └── imports.ts
+├── python/
+│   ├── parser.test.ts
+│   └── fixtures/
+│       ├── class_based.py
+│       ├── functional.py
+│       ├── type_hints.py
+│       ├── parent_calls.py
+│       ├── static_methods.py
+│       ├── decorators.py
+│       ├── async_chains.py
+│       └── imports.py
+└── php/
+    ├── parser.test.ts
+    └── fixtures/
+        ├── class-based.php
+        ├── functional.php
+        ├── type-declarations.php
+        ├── parent-calls.php
+        ├── static-calls.php
+        ├── traits.php
+        ├── factory-pattern.php
+        └── namespaces.php
+```
+
+---
+
+## Test Execution
+
+**Phase 1:** OOP patterns
 - Classes, inheritance, interfaces
 - Abstract classes
 - Super calls (parent methods)
@@ -252,35 +296,7 @@ For each language parser:
 - Re-exports
 - Transitive dependencies
 
-**Target:** 100% coverage of all code patterns and relationship
-│       ├── class-based.ts
-│       ├── functional.ts
-│       ├── mixed.ts
-│       └── imports.ts
-├── python/
-│   ├── parser.test.ts
-│   └── fixtures/
-│       ├── class_based.py
-│       ├── functional.py
-│       └── decorators.py
-└── php/
-    ├── parser.test.ts
-    └── fixtures/
-        ├── class-based.php
-        ├── functional.php
-        └── namespaces.php
-```
-
----
-
-## Test Execution
-
-**Phase 1:** OOP patterns (classes, inheritance)  
-**Phase 2:** Functional patterns (functions, calls)  
-**Phase 3:** Imports (dependency graph)  
-**Phase 4:** Mixed patterns (modern code)
-
-**Target:** 100% coverage of all programming paradigms
+**Target:** 100% coverage of all code patterns and relationships
 
 ---
 
