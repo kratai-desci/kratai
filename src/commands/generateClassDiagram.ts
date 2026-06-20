@@ -6,8 +6,6 @@ import { DiagramGeneratorService } from '../services/diagram/diagramGeneratorSer
 import { ClassDiagramView } from '../views/classDiagramView';
 import { ConfigService } from '../services/config/configService';
 import { GitDiffEnricher } from '../services/git/gitDiffEnricher';
-import { MethodTracerService } from '../services/tracing/methodTracerService';
-import { SequenceDiagramView } from '../views/sequenceDiagramView';
 import { TelemetryService } from '../services/telemetry/telemetryService';
 
 export async function generateClassDiagram(context: vscode.ExtensionContext): Promise<void> {
@@ -156,9 +154,6 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 				diagramData.relationships.length
 			);
 
-			// Track sequence diagram panel for reuse
-			let sequencePanel: vscode.WebviewPanel | undefined;
-			
 			// Track which column we opened files in (always use Column Two beside diagram)
 			const fileEditorColumn = vscode.ViewColumn.Two;
 
@@ -193,62 +188,6 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 						await vscode.window.showTextDocument(fileUri, {
 							viewColumn: fileEditorColumn,
 							preserveFocus: false
-						});
-						break;						case 'openMethodSequence':
-						// Trace method calls
-						vscode.window.withProgress({
-							location: vscode.ProgressLocation.Notification,
-							title: `Tracing ${message.className}.${message.methodName}()...`,
-							cancellable: false
-						}, async () => {
-							const sequenceData = await MethodTracerService.traceMethod(
-								message.className,
-								message.methodName,
-								message.filePath,
-								workspacePath,
-								diagramData,
-								10 // max depth
-							);
-							
-							// Reuse existing sequence panel if available, or create new one
-							if (!sequencePanel) {
-								// Create new sequence diagram panel
-								sequencePanel = vscode.window.createWebviewPanel(
-									'krataiSequenceDiagram',
-									`${message.className}.${message.methodName}()`,
-									vscode.ViewColumn.Beside,
-									{
-										enableScripts: true,
-										retainContextWhenHidden: true,
-										localResourceRoots: [vscode.Uri.joinPath(context.extensionUri)]
-									}
-								);
-								
-								// Clear reference when panel is disposed
-								sequencePanel.onDidDispose(() => {
-									sequencePanel = undefined;
-								});
-							} else {
-								// Reuse existing panel - update title and reveal
-								sequencePanel.title = `${message.className}.${message.methodName}()`;
-								sequencePanel.reveal(vscode.ViewColumn.Beside, false);
-							}
-							
-							const seqIconUri = sequencePanel.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'icon.png'));
-							
-							// Generate and show sequence diagram
-							sequencePanel.webview.html = SequenceDiagramView.generate(
-								message.className,
-								message.methodName,
-								message.filePath,
-								sequenceData,
-								seqIconUri.toString()
-							);
-							TelemetryService.trackOpenSequenceDiagram(
-								sequenceData.actors.size,
-								sequenceData.calls.length,
-								sequenceData.maxDepth
-							);
 						});
 						break;
 					}

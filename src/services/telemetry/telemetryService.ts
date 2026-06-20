@@ -51,14 +51,6 @@ export class TelemetryService {
 		});
 	}
 
-	static trackOpenSequenceDiagram(actorCount: number, callCount: number, maxDepth: number): void {
-		reporter?.sendTelemetryEvent('openSequenceDiagram', {}, {
-			actorCount,
-			callCount,
-			maxDepth
-		});
-	}
-
 	static trackShowGitChanges(changedFiles: number): void {
 		reporter?.sendTelemetryEvent('showGitChanges', {}, {
 			changedFiles

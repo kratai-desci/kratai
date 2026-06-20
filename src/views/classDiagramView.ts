@@ -317,15 +317,6 @@ export class ClassDiagramView {
             });
         }
         
-        function openMethodSequence(className, methodName, filePath) {
-            vscode.postMessage({
-                command: 'openMethodSequence',
-                className: className,
-                methodName: methodName,
-                filePath: filePath
-            });
-        }
-        
         function zoomIn() {
             currentZoom = Math.min(currentZoom + 0.2, 3);
             applyZoom();
