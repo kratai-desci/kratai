@@ -41,10 +41,15 @@ User Action → Component → Props → Child Component → Render
 **Must detect:**
 - Components (function/class)
 - Component composition (A renders B)
-- Props flow
+- Props flow (parent → child data)
 - Hook usage (useState, useEffect, useContext)
+- Context API (Provider → Consumer)
+- Custom hooks (functional composition)
 
-**Test case:** `Button` → `Form` → `UserProfile`
+**Test case:** 
+- `Button` → `Form` → `UserProfile` (composition)
+- `AuthContext.Provider` → `useAuth()` (context)
+- `useUser(id)` → `fetchUser()` (custom hook)
 
 ---
 
@@ -54,12 +59,17 @@ Browser → API Route → Handler → Service → DTO → JSON Response
 Browser → Page → Component → getServerSideProps → Render
 ```
 **Must detect:**
-- API routes (`app/api/**/route.ts`)
-- Page routes (`app/**/page.tsx`)
+- File-based routing (`app/api/users/route.ts` = `/api/users`)
+- Dynamic routes (`[id]/route.ts` = `/:id`)
+- API routes (POST, GET handlers)
+- Page routes (`page.tsx`)
 - Server components vs client components
-- Server-side data fetching
+- Server-side data fetching (getServerSideProps, fetch in component)
+- Route handlers (middleware pattern)
 
-**Test case:** `/api/users` → `UserService` → `UserDTO` → JSON
+**Test case:** 
+- `/api/users/[id]` → `UserService` → `UserDTO` (API route)
+- `/users/page.tsx` → `getServerSideProps` → render (SSR)
 
 ---
 
@@ -90,68 +100,102 @@ HTTP → Route → Component → Service → Model → Template
 **Test case:** `/users` → `UserComponent` → `UserService` → `User` → Template
 
 ---
-
-### Backend Frameworks
-
-#### 5. Express (Node.js)
-```
-GET /users → Router → Controller → Service → Model → JSON
+Middleware → Router → Controller → Service → Model → JSON
 ```
 **Must detect:**
-- Route definitions (`app.get('/users')`)
-- Middleware chain
+- Route definitions (`app.get('/users')`, `router.post()`)
+- Middleware chain (`app.use()`, route middleware)
 - Controller methods
 - Service calls
+- Request/response handling (`req.body`, `res.json()`)
+- Error middleware
 
-**Test case:** `GET /users/:id` → `UserController.show` → `UserService` → `User`
-
----
-
-#### 6. NestJS (Node.js)
+**Test case:** 
+- `GET /users/:id` → `authMiddleware` → `UserController.show` → `UserService` → `User`
+- Middleware chain: `auth → validate → controll
+- Middleware chain
+- Controller Guard → Controller → Service → DTO → Response
 ```
+**Must detect:**
+- Controllers (@Controller, @Get, @Post)
+- Route decorators with paths
+- Guards (@UseGuards) - auth/permission checks
+- Interceptors (@UseInterceptors) - request/response transformation
+- Services (@Injectable)
+- DTOs (class with decorators)
+- Dependency injection (constructor parameters)
+- Exception filters (@Catch)
+
+**Test case:** 
+- `/users` → `@UseGuards(AuthGuard)` → `UserController` → `UserService` → `UserDto`
+- DI: `UserController` → `UserService` (injected)
 GET /users → @Controller → @Get → Service → DTO → Response
 ```
 **Must detect:**
 - Controllers (@Controller, @Get, @Post)
-- Services (@Injectable)
-- DTOs (class with decorators)
-- Dependency injection
-
-**Test case:** `/users` → `UserController` → `UserService` → `UserDto`
-
----
-
-#### 7. Django (Python)
-```
-GET /users → urls.py → View → Service → Model → Serializer → JSON
+- Services (@InjectableMiddleware → View → Service → Model → Serializer → JSON
 ```
 **Must detect:**
 - URL patterns (`path('users/', views.UserListView)`)
-- Views (function/class-based)
+- Views (function-based, class-based)
+- Middleware (authentication, CORS)
 - Models (Django ORM)
-- Serializers (DRF)
+- Model relationships (ForeignKey, ManyToMany)
+- Serializers (DRF) - data transformation
+- Request/response (`request.POST`, `JsonResponse`)
+- Permissions (DRF decorators)
+
+**Test case:** 
+- `/api/users/` → `UserListView` → `User.objects.all()` → `UserSerializer`
+- Model relationship: `UserDependency → Handler → Service → Pydantic → JSON
+```
+**Must detect:**
+- Route decorators (`@router.get("/users")`, `@app.post()`)
+- Path operation functions
+- Pydantic models (request/response validation)
+- Dependency injection (`Depends()`)
+- Path/query parameters (type hints)
+- Request/response models
+- Authentication dependencies (`Depends(get_current_user)`)
+
+**Test case:** 
+- `/users/{id}` → `@router.get` → `Depends(auth)` → `get_user()` → `UserService` → `UserResponse`
+- Dependency chain: `get_current_user` → `verify_token
 
 **Test case:** `/api/users/` → `UserListView` → `User` → `UserSerializer`
 
 ---
-
-#### 8. FastAPI (Python)
-```
-GET /users → @router.get → Handler → Service → Pydantic Model → JSON
+Middleware → Controller → Service → Model → View/JSON
 ```
 **Must detect:**
-- Route decorators (`@router.get("/users")`)
-- Path operation functions
-- Pydantic models (request/response)
-- Dependency injection
+- Route definitions (`Route::get('/users')`, `Route::post()`)
+- Route groups with middleware
+- Controllers (methods)
+- Eloquent models
+- Model relationships (`hasMany`, `belongsTo`, `morphMany`)
+- Service layer
+- Blade views (if used)
+- View data flow (`view('users.index', ['users' => $users])`)
+- Resource controllers (convention)
+- Request validation (FormRequest)
 
-**Test case:** `/users/{id}` → `get_user()` → `UserService` → `UserResponse`
-
----
-
-#### 9. Laravel (PHP)
+**Test case:** 
+- `/users` → `Route::get` → `auth middlewareRepository → Entity → Twig
 ```
-GET /users → Route → Controller → Service → Model → View/JSON
+**Must detect:**
+- Route annotations (`#[Route('/users')]`)
+- Controllers (methods)
+- Services (DI container, `services.yaml`)
+- Doctrine entities
+- Doctrine relationships (OneToMany, ManyToOne)
+- Repositories (data access)
+- Twig templates
+- Request/response (`Request $request`, `new JsonResponse()`)
+- Security (voters, authenticators)
+
+**Test case:** 
+- `/users/{id}` → `#[Route]` → `UserController::show` → `UserRepository` → `User` → `user.html.twig`
+- DI: `UserController` → `UserRepository` (injected)
 ```
 **Must detect:**
 - Route definitions (`Route::get('/users')`)
@@ -160,37 +204,83 @@ GET /users → Route → Controller → Service → Model → View/JSON
 - Service layer
 - Blade views (if used)
 
-**Test case:** `/users` → `UserController@index` → `User` → `users.index`
-
----
-
-#### 10. Symfony (PHP)
+**Route | Middleware | `protected-by` | `/admin` → `AuthMiddleware` |
+| Controller | Guard/Middleware | `uses-guard` | `@UseGuards(AuthGuard)` |
+| Controller | Service | `calls` | `UserController` → `UserService` |
+| Service | Model/Entity | `uses` | `UserService` → `User` |
+| Model | Model | `has-many` | `User::posts()` → `Post` (ORM) |
+| Model | Model | `belongs-to` | `Post::user()` → `User` (ORM) |
+| Controller | View/Template | `renders` | `UserController` → `users/index` |
+| Controller | DTO | `returns` | `UserController` → `UserDTO` |
+| Service | DTO | `transforms` | `UserService` → `UserSerializer` |
+| Component | Component | `renders` | `App` → `UserProfile` |
+| Component | Context | `provides` | `AuthProvider` → `AuthContext` |
+| Component | Context | `consumes` | `useContext(AuthContext)` |
+| Component | Hook | `uses-hook` | `UserProfile` → `useUser()` |
+| Handler | Dependency | `depends-on` | `get_user(auth: Depends())` |
+| Route | Handler | `file-routing` | `/app/api/users/route.ts` → handler |
+| Controller | Request | `validates` | `FormRequest` validation |
+| Controller | Repository | `uses-repository` | `UserController` → `UserRepository
 ```
 GET /users → Route → Controller → Service → Entity → Twig → Response
 ```
 **Must detect:**
 - Route annotations (`#[Route('/users')]`)
-- Controllers (methods)
-- Services (DI container)
-- Doctrine entities
-- Twig templates
-
-**Test case:** `/users/{id}` → `UserController::show` → `UserRepository` → `User`
-
----
-
-## Critical Relationships to Extract
-
-| From | To | Type | Example |
-|------|-----|------|---------|
-| Route | Controller | `routes-to` | `/users` → `UserController` |
-| Controller | Service | `calls` | `UserController` → `UserService` |
-| Service | Model | `uses` | `UserService` → `User` |
-| Controller | View | `renders` | `UserController` → `users/index` |
-| Component | Component | `renders` | `App` → `UserProfile` |
-| Service | DTO | `returns` | `UserService` → `UserDTO` |
-
----
+- Contro├── context-usage.tsx            (Provider → Consumer)
+│       └── custom-hooks.tsx             (useUser hook)
+│
+├── nextjs/
+│   ├── nextjs.test.ts
+│   └── fixtures/
+│       ├── file-routing.ts              (app/api/[id]/route.ts)
+│       ├── api-route.ts                 (GET /api/users handler)
+│       └── page-ssr.tsx                 (getServerSideProps)
+│
+├── express/
+│   ├── express.test.ts
+│   └── fixtures/
+│       ├── middleware-chain.ts          (auth → validate → controller)
+│       └── route-controller.ts          (route → controller → service)
+│
+├── nestjs/
+│   ├── nestjs.test.ts
+│   └── fixtures/
+│       ├── guard-usage.ts               (@UseGuards, @UseInterceptors)
+│       ├── dependency-injection.ts      (constructor DI)
+│       └── dto-validation.ts            (class-validator)
+│
+├── django/
+│   ├── django.test.ts
+│   └── fixtures/
+│       ├── url-view-mapping.py          (path → view)
+│       ├── model-relationships.py       (ForeignKey, ManyToMany)
+│       ├── serializer-transform.py      (Model → Serializer)
+│       └── class-based-view.py          (ListView,, file-based routing)  
+✅ **Map request pipeline** (middleware, guards, interceptors)  
+✅ **Map request flow** (route → controller → service → data → view)  
+✅ **Extract framework patterns** (DI, decorators, ORM relationships, context)  
+✅ **Generate relationships** (who calls whom, data flow)  
+✅ **Detect conventions** (resource controllers, file routing, validation)  
+✅ **Ignore noise** (migrations, config, tests, build file
+│       ├── route-decorator.py           (@router.get with dependencies)
+│       ├── dependency-injection.py      (Depends() chains)
+│       └── pydantic-models.py           (Request/response validation)
+│
+├── laravel/
+│   ├── laravel.test.ts
+│   └── fixtures/
+│       ├── route-middleware.php         (Route::middleware())
+│       ├── eloquent-relationships.php   (hasMany, belongsTo)
+│       ├── resource-controller.php      (RESTful conventions)
+│       └── view-data.php                (view() with data)
+│
+└── symfony/
+    ├── symfony.test.ts
+    └── fixtures/
+        ├── route-annotation.php         (#[Route] decorator)
+        ├── service-injection.php        (DI container)
+        ├── doctrine-entity.php          (ORM relationships)
+        └── repository-pattern.php       (EntityRepository
 
 ## Test Structure
 
