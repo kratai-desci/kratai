@@ -4,10 +4,3 @@ export interface FileChange {
 	additions?: number;
 	deletions?: number;
 }
-
-export interface GitComparisonResult {
-	workspaceName: string;
-	currentBranch: string;
-	compareTarget: string;
-	changes: FileChange[];
-}

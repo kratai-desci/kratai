@@ -1,4 +1,4 @@
-import { ReactFlowEdge } from '../../types/diagram';
+import { ReactFlowEdge } from '../../types/view';
 import { Position } from './layoutCalculator';
 
 export class RelationshipRenderer {

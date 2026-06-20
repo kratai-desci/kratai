@@ -1,4 +1,4 @@
-import { ReactFlowNode } from '../../types/diagram';
+import { ReactFlowNode } from '../../types/view';
 
 export interface FolderNode {
 	name: string;

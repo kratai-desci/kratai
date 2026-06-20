@@ -1,7 +1,7 @@
 import * as ts from 'typescript';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ClassInfo, ClassRelationship } from '../../types/diagram';
+import { ClassInfo, ClassRelationship } from '../../types/domain';
 
 /**
  * Detects HTTP API calls in source code and matches them to route handlers

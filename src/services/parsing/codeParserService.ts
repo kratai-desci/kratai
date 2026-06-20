@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { ClassInfo, DiagramData, ClassRelationship } from '../../types/diagram';
+import { ClassInfo, DiagramData, ClassRelationship } from '../../types/domain';
 import { KrataiConfig } from '../../types/config';
 import { ConfigService } from '../config/configService';
 import { ParserFactory } from './parsers/ParserFactory';

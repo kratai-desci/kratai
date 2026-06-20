@@ -1,4 +1,4 @@
-import { ReactFlowNode, ReactFlowEdge } from '../types/diagram';
+import { ReactFlowNode, ReactFlowEdge } from '../types/view';
 import { FolderStructureBuilder } from './components/folderStructure';
 import { FolderBoxRenderer } from './components/folderBoxRenderer';
 

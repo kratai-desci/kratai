@@ -1,4 +1,4 @@
-import { DiagramData, ClassInfo, PropertyInfo, MethodInfo } from '../../types/diagram';
+import { DiagramData, ClassInfo, PropertyInfo, MethodInfo } from '../../types/domain';
 import { GitDiffService, GitDiffInfo } from './gitDiffService';
 import { CodeParserService } from '../parsing/codeParserService';
 import * as path from 'path';

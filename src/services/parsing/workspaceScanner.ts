@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { FolderNode, ExtensionInfo } from '../../types/config';
+import { FolderNode, ExtensionInfo } from '../../types/view';
 
 export class WorkspaceScanner {
 	private static readonly DEFAULT_EXCLUSIONS = [

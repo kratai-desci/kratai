@@ -1,4 +1,4 @@
-import { ClassInfo } from '../../types/diagram';
+import { ClassInfo } from '../../types/domain';
 import { Position } from './layoutCalculator';
 
 export class ClassBoxRenderer {

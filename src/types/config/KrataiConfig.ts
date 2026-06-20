@@ -15,17 +15,3 @@ export interface KrataiConfig {
 	};
 	detectHttpCalls?: boolean;      // Detect HTTP API calls (fetch, axios, etc.) - Default: true
 }
-
-export interface FolderNode {
-	path: string;           // Relative path
-	name: string;           // Folder name
-	selected: boolean;
-	children: FolderNode[];
-	fileCount?: number;     // Number of parseable files
-}
-
-export interface ExtensionInfo {
-	extension: string;      // e.g., ".ts"
-	count: number;          // Number of files
-	selected: boolean;
-}
