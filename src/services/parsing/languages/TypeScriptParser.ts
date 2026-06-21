@@ -2,9 +2,9 @@ import * as ts from 'typescript';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ClassInfo, PropertyInfo, MethodInfo, ClassRelationship } from '../../../types/domain';
-import { IParserStrategy } from './IParserStrategy';
+import { AbstractParserStrategy } from './AbstractParserStrategy';
 
-export class TypeScriptParser implements IParserStrategy {
+export class TypeScriptParser extends AbstractParserStrategy {
 	supportedExtensions = ['.ts', '.tsx'];
 
 	parseFile(filePath: string): ClassInfo[] {
@@ -94,51 +94,57 @@ export class TypeScriptParser implements IParserStrategy {
 		});
 
 		for (const classInfo of classes) {
-			const fromName = classInfo.name;
+		const fromId = this.createClassId(classInfo);
 
-			// 1. EXTENDS relationships
-			if (classInfo.extends) {
-				relationships.push({ from: fromName, to: classInfo.extends, type: 'extends' });
+		// 1. EXTENDS relationships
+		if (classInfo.extends) {
+			relationships.push(...this.createRelationshipsToTargets(
+				classInfo, classInfo.extends, classMap, 'extends'
+			));
+		}
+		// 2. IMPLEMENTS relationships
+		if (classInfo.implements) {
+			for (const iface of classInfo.implements) {
+				relationships.push(...this.createRelationshipsToTargets(
+					classInfo, iface, classMap, 'implements'
+				));
 			}
-
-			// 2. IMPLEMENTS relationships
-			if (classInfo.implements) {
-				for (const iface of classInfo.implements) {
-					relationships.push({ from: fromName, to: iface, type: 'implements' });
+		}
+		// 3. COMPOSITION relationships (property types)
+		for (const prop of classInfo.properties) {
+			this.extractTypeNames(prop.type).forEach(t => {
+				if (allClassNames.has(t) && t !== classInfo.name) {
+					relationships.push(...this.createRelationshipsToTargets(
+						classInfo, t, classMap, 'composition'
+					));
 				}
-			}
-
-			// 3. COMPOSITION relationships (property types)
-			for (const prop of classInfo.properties) {
-				this.extractTypeNames(prop.type).forEach(t => {
+			});
+		}
+		// 4. RETURNS relationships (method return types)
+		for (const method of classInfo.methods) {
+			this.extractTypeNames(method.returnType).forEach(t => {
+				if (allClassNames.has(t) && t !== classInfo.name) {
+					relationships.push(...this.createRelationshipsToTargets(
+						classInfo, t, classMap, 'returns'
+					));
+				}
+			});
+		}
+		// 5. PARAMETER relationships (method parameter types)
+		for (const method of classInfo.methods) {
+			for (const param of method.parameters) {
+				this.extractTypeNames(param.type).forEach(t => {
 					if (allClassNames.has(t) && t !== classInfo.name) {
-						relationships.push({ from: fromName, to: t, type: 'composition' });
+						relationships.push(...this.createRelationshipsToTargets(
+							classInfo, t, classMap, 'parameter'
+						));
 					}
 				});
 			}
+		}
 
-			// 4. RETURNS relationships (method return types)
-			for (const method of classInfo.methods) {
-				this.extractTypeNames(method.returnType).forEach(t => {
-					if (allClassNames.has(t) && t !== classInfo.name) {
-						relationships.push({ from: fromName, to: t, type: 'returns' });
-					}
-				});
-			}
-
-			// 5. PARAMETER relationships (method parameter types)
-			for (const method of classInfo.methods) {
-				for (const param of method.parameters) {
-					this.extractTypeNames(param.type).forEach(t => {
-						if (allClassNames.has(t) && t !== classInfo.name) {
-							relationships.push({ from: fromName, to: t, type: 'parameter' });
-						}
-					});
-				}
-			}
-
-			// 6-10. Extract additional relationships from source file
-			try {
+		// 6-10. Extract additional relationships from source file
+		try {
 				const absolutePath = path.isAbsolute(classInfo.filePath) 
 					? classInfo.filePath 
 					: path.join(workspacePath, classInfo.filePath);
@@ -172,7 +178,7 @@ export class TypeScriptParser implements IParserStrategy {
 		classMap: Map<string, ClassInfo[]>
 	): ClassRelationship[] {
 		const relationships: ClassRelationship[] = [];
-		const fromName = classInfo.name;
+		const fromId = this.createClassId(classInfo);
 
 		const visitNode = (node: ts.Node) => {
 			// 1. CALLS-SUPER: super.method() or super() calls
@@ -181,12 +187,16 @@ export class TypeScriptParser implements IParserStrategy {
 					node.expression.expression.kind === ts.SyntaxKind.SuperKeyword) {
 					// super.method() call
 					if (classInfo.extends) {
-						relationships.push({ from: fromName, to: classInfo.extends, type: 'calls-super' });
+						relationships.push(...this.createRelationshipsToTargets(
+							classInfo, classInfo.extends, classMap, 'calls-super'
+						));
 					}
 				} else if (node.expression.kind === ts.SyntaxKind.SuperKeyword) {
 					// super() constructor call
 					if (classInfo.extends) {
-						relationships.push({ from: fromName, to: classInfo.extends, type: 'calls-super' });
+						relationships.push(...this.createRelationshipsToTargets(
+							classInfo, classInfo.extends, classMap, 'calls-super'
+						));
 					}
 				}
 
@@ -195,7 +205,9 @@ export class TypeScriptParser implements IParserStrategy {
 					ts.isIdentifier(node.expression.expression)) {
 					const className = node.expression.expression.getText();
 					if (allClassNames.has(className)) {
-						relationships.push({ from: fromName, to: className, type: 'calls-static' });
+						relationships.push(...this.createRelationshipsToTargets(
+							classInfo, className, classMap, 'calls-static'
+						));
 					}
 				}
 
@@ -203,10 +215,10 @@ export class TypeScriptParser implements IParserStrategy {
 				if (ts.isIdentifier(node.expression)) {
 					const funcName = node.expression.getText();
 					if (allClassNames.has(funcName) && funcName !== classInfo.name) {
-						const targets = classMap.get(funcName) || [];
-						if (targets.some(t => t.isModule)) {  // Only for function modules
-							relationships.push({ from: fromName, to: funcName, type: 'calls' });
-						}
+						relationships.push(...this.createRelationshipsToTargets(
+							classInfo, funcName, classMap, 'calls',
+							(target) => target.isModule === true
+						));
 					}
 				}
 			}
@@ -215,7 +227,9 @@ export class TypeScriptParser implements IParserStrategy {
 			if (ts.isNewExpression(node) && ts.isIdentifier(node.expression)) {
 				const className = node.expression.getText();
 				if (allClassNames.has(className)) {
-					relationships.push({ from: fromName, to: className, type: 'creates' });
+					relationships.push(...this.createRelationshipsToTargets(
+						classInfo, className, classMap, 'creates'
+					));
 				}
 			}
 
@@ -225,10 +239,10 @@ export class TypeScriptParser implements IParserStrategy {
 				if (ts.isIdentifier(callExpr.expression)) {
 					const funcName = callExpr.expression.getText();
 					if (allClassNames.has(funcName)) {
-						const targets = classMap.get(funcName) || [];
-						if (targets.some(t => t.isModule)) {
-							relationships.push({ from: fromName, to: funcName, type: 'async-calls' });
-						}
+						relationships.push(...this.createRelationshipsToTargets(
+							classInfo, funcName, classMap, 'async-calls',
+							(target) => target.isModule === true
+						));
 					}
 				}
 			}
@@ -241,10 +255,10 @@ export class TypeScriptParser implements IParserStrategy {
 						if (ts.isIdentifier(node.expression)) {
 							const funcName = node.expression.getText();
 							if (allClassNames.has(funcName)) {
-								const targets = classMap.get(funcName) || [];
-								if (targets.some(t => t.isModule)) {
-									relationships.push({ from: fromName, to: funcName, type: 'callback' });
-								}
+								relationships.push(...this.createRelationshipsToTargets(
+									classInfo, funcName, classMap, 'callback',
+									(target) => target.isModule === true
+								));
 							}
 						}
 					}
@@ -264,15 +278,29 @@ export class TypeScriptParser implements IParserStrategy {
 						if (node.importClause.namedBindings && ts.isNamedImports(node.importClause.namedBindings)) {
 							node.importClause.namedBindings.elements.forEach(element => {
 								const importedName = element.name.getText();
-								// Detect import relationship regardless of allClassNames
-								relationships.push({ from: fromName, to: importedName, type: 'imports' });
+								const rels = this.createRelationshipsToTargets(
+									classInfo, importedName, classMap, 'imports'
+								);
+								if (rels.length > 0) {
+									relationships.push(...rels);
+								} else {
+									// Target not in classMap (from unparsed file) - use placeholder
+									relationships.push({ from: fromId, to: `__unknown__${importedName}`, type: 'imports' });
+								}
 							});
 						}
 						// Default import
 						if (node.importClause.name) {
 							const importedName = node.importClause.name.getText();
-							// Detect import relationship regardless of allClassNames
-							relationships.push({ from: fromName, to: importedName, type: 'imports' });
+							const rels = this.createRelationshipsToTargets(
+								classInfo, importedName, classMap, 'imports'
+							);
+							if (rels.length > 0) {
+								relationships.push(...rels);
+							} else {
+								// Target not in classMap (from unparsed file) - use placeholder
+								relationships.push({ from: fromId, to: `__unknown__${importedName}`, type: 'imports' });
+							}
 						}
 					}
 				}
@@ -285,8 +313,15 @@ export class TypeScriptParser implements IParserStrategy {
 					if (node.exportClause && ts.isNamedExports(node.exportClause)) {
 						node.exportClause.elements.forEach(element => {
 							const exportedName = element.name.getText();
-							// Detect re-export relationship regardless of allClassNames
-							relationships.push({ from: fromName, to: exportedName, type: 're-exports' });
+							const rels = this.createRelationshipsToTargets(
+								classInfo, exportedName, classMap, 're-exports'
+							);
+							if (rels.length > 0) {
+								relationships.push(...rels);
+							} else {
+								// Target not in classMap (from unparsed file) - use placeholder
+								relationships.push({ from: fromId, to: `__unknown__${exportedName}`, type: 're-exports' });
+							}
 						});
 					}
 				}
@@ -302,7 +337,9 @@ export class TypeScriptParser implements IParserStrategy {
 						const constraintText = typeParam.constraint.getText();
 						this.extractTypeNames(constraintText).forEach(t => {
 							if (allClassNames.has(t)) {
-								relationships.push({ from: fromName, to: t, type: 'generic' });
+								relationships.push(...this.createRelationshipsToTargets(
+									classInfo, t, classMap, 'generic'
+								));
 							}
 						});
 					}
@@ -316,7 +353,9 @@ export class TypeScriptParser implements IParserStrategy {
 						const constraintText = typeParam.constraint.getText();
 						this.extractTypeNames(constraintText).forEach(t => {
 							if (allClassNames.has(t)) {
-								relationships.push({ from: fromName, to: t, type: 'generic' });
+								relationships.push(...this.createRelationshipsToTargets(
+									classInfo, t, classMap, 'generic'
+								));
 							}
 						});
 					}
@@ -330,7 +369,9 @@ export class TypeScriptParser implements IParserStrategy {
 						const constraintText = typeParam.constraint.getText();
 						this.extractTypeNames(constraintText).forEach(t => {
 							if (allClassNames.has(t)) {
-								relationships.push({ from: fromName, to: t, type: 'generic' });
+								relationships.push(...this.createRelationshipsToTargets(
+									classInfo, t, classMap, 'generic'
+								));
 							}
 						});
 					}
@@ -344,8 +385,10 @@ export class TypeScriptParser implements IParserStrategy {
 						const typeText = param.type.getText();
 						// Extract types from generic usage like User[], Repository<User>, etc.
 						this.extractTypeNames(typeText).forEach(t => {
-							if (allClassNames.has(t) && t !== fromName) {
-								relationships.push({ from: fromName, to: t, type: 'generic' });
+							if (allClassNames.has(t) && t !== classInfo.name) {
+								relationships.push(...this.createRelationshipsToTargets(
+									classInfo, t, classMap, 'generic'
+								));
 							}
 						});
 					}
@@ -355,8 +398,10 @@ export class TypeScriptParser implements IParserStrategy {
 				if (node.type) {
 					const returnTypeText = node.type.getText();
 					this.extractTypeNames(returnTypeText).forEach(t => {
-						if (allClassNames.has(t) && t !== fromName) {
-							relationships.push({ from: fromName, to: t, type: 'generic' });
+						if (allClassNames.has(t) && t !== classInfo.name) {
+							relationships.push(...this.createRelationshipsToTargets(
+								classInfo, t, classMap, 'generic'
+							));
 						}
 					});
 				}

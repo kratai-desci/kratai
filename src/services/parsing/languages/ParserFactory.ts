@@ -1,12 +1,12 @@
 import * as path from 'path';
-import { IParserStrategy } from './IParserStrategy';
+import { AbstractParserStrategy } from './AbstractParserStrategy';
 import { TypeScriptParser } from './TypeScriptParser';
 import { JavaScriptParser } from './JavaScriptParser';
 import { PythonParser } from './PythonParser';
 import { PHPParser } from './PHPParser';
 
 export class ParserFactory {
-	private parsers: Map<string, IParserStrategy> = new Map();
+	private parsers: Map<string, AbstractParserStrategy> = new Map();
 
 	constructor() {
 		this.register(new TypeScriptParser());
@@ -15,13 +15,13 @@ export class ParserFactory {
 		this.register(new PHPParser());
 	}
 
-	private register(parser: IParserStrategy): void {
+	private register(parser: AbstractParserStrategy): void {
 		for (const ext of parser.supportedExtensions) {
 			this.parsers.set(ext, parser);
 		}
 	}
 
-	getParser(filePath: string): IParserStrategy | undefined {
+	getParser(filePath: string): AbstractParserStrategy | undefined {
 		const ext = path.extname(filePath).toLowerCase();
 		return this.parsers.get(ext);
 	}

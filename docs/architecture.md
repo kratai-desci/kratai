@@ -43,7 +43,7 @@ src/
 │   ├── gitService.ts               # Git repository operations
 │   ├── workspaceScanner.ts         # Workspace file scanning
 │   └── parsers/                    # Language-specific parsers (Strategy Pattern)
-│       ├── IParserStrategy.ts      # Parser interface
+│       ├── AbstractParserStrategy.ts  # Abstract base class with shared utilities
 │       ├── ParserFactory.ts        # Parser registry
 │       ├── TypeScriptParser.ts     # TypeScript/TSX parser
 │       ├── JavaScriptParser.ts     # JavaScript/JSX parser
@@ -112,7 +112,7 @@ src/
 - **Responsibility**: Language-specific code parsing (Strategy Pattern)
 - **Dependencies**: Types
 - **Role**: Extract classes, methods, properties, relationships from source code
-- **Interface**: `IParserStrategy` defines contract for all parsers
+- **Abstract Base Class**: `AbstractParserStrategy` defines contract and provides shared utilities for all parsers
 - **Factory**: `ParserFactory` maps file extensions to parsers
 
 ### 5. Views Layer (`views/`)
@@ -141,7 +141,7 @@ src/
 
 1. **Separation of Concerns** - Each layer has a single, well-defined purpose
 2. **Dependency Direction** - Dependencies flow downward (Commands → Services → Parsers → Types)
-3. **Strategy Pattern** - Language parsers are interchangeable implementations of `IParserStrategy`
+3. **Strategy Pattern** - Language parsers are interchangeable implementations extending `AbstractParserStrategy`
 4. **Single Responsibility** - Path normalization happens in ONE place (`CodeParserService.parseWorkspace`)
 5. **Testability** - Each module can be unit tested independently
 6. **Scalability** - Add new languages by creating a parser class (minimal impact to existing code)
@@ -306,7 +306,7 @@ src/
 Kratai uses the **Strategy Pattern** for language parsers, allowing new languages to be added with minimal changes to the core codebase.
 
 ```
-IParserStrategy (interface)
+AbstractParserStrategy (abstract base class)
     ↓
 TypeScriptParser  →  ParserFactory  ← Registers all parsers
 JavaScriptParser  →       ↑
@@ -320,10 +320,10 @@ PHPParser         →       ↑         (✅ Implemented)
 Create `src/services/parsers/{Language}Parser.ts`:
 
 ```typescript
-import { IParserStrategy } from './IParserStrategy';
+import { AbstractParserStrategy } from './AbstractParserStrategy';
 import { ClassInfo, ClassRelationship } from '../../types/diagram';
 
-export class PythonParser implements IParserStrategy {
+export class PythonParser extends AbstractParserStrategy {
     supportedExtensions = ['.py'];
     
     parseFile(filePath: string): ClassInfo[] {
@@ -640,7 +640,7 @@ kratai-ruby-support      (language pack)
 ```
 
 Each language pack would:
-1. Implement `IParserStrategy`
+1. Extend `AbstractParserStrategy`
 2. Register with `ParserFactory` via extension API
 3. Be installed/uninstalled independently
 

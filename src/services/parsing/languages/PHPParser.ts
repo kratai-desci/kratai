@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { IParserStrategy } from './IParserStrategy';
+import { AbstractParserStrategy } from './AbstractParserStrategy';
 import { ClassInfo, PropertyInfo, MethodInfo, ClassRelationship } from '../../../types/domain';
 
 // Import php-parser
@@ -10,11 +10,12 @@ const phpParser = require('php-parser');
  * PHP parser for extracting classes, interfaces, traits, and relationships
  * Supports: Classes, interfaces, traits, inheritance, type hints (PHP 7.4+, 8.0+)
  */
-export class PHPParser implements IParserStrategy {
+export class PHPParser extends AbstractParserStrategy {
 	supportedExtensions = ['.php'];
 	private parser: any;
 
 	constructor() {
+		super();
 		this.parser = new phpParser({
 			parser: {
 				extractDoc: true,

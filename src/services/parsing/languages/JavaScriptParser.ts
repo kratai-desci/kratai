@@ -1,12 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { ClassInfo, PropertyInfo, MethodInfo, ClassRelationship } from '../../../types/domain';
-import { IParserStrategy } from './IParserStrategy';
+import { AbstractParserStrategy } from './AbstractParserStrategy';
 
 // Uses the TypeScript compiler API with allowJs — no extra deps needed
 import * as ts from 'typescript';
 
-export class JavaScriptParser implements IParserStrategy {
+export class JavaScriptParser extends AbstractParserStrategy {
 	supportedExtensions = ['.js', '.jsx'];
 
 	parseFile(filePath: string): ClassInfo[] {

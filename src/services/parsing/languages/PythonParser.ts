@@ -1,13 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { IParserStrategy } from './IParserStrategy';
+import { AbstractParserStrategy } from './AbstractParserStrategy';
 import { ClassInfo, PropertyInfo, MethodInfo, ClassRelationship } from '../../../types/domain';
 
 /**
  * Python parser for extracting classes, methods, and relationships
  * Supports: Classes, inheritance, methods, properties (type hints and self.x)
  */
-export class PythonParser implements IParserStrategy {
+export class PythonParser extends AbstractParserStrategy {
 	supportedExtensions = ['.py'];
 
 	parseFile(filePath: string): ClassInfo[] {
