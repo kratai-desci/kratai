@@ -182,19 +182,27 @@ src/test/unit/languages/python/        ✅ COMPLETE (51 tests - RIGOROUS)
 ✅ Static method calls (Class::method())  
 ✅ Trait usage + conflicts  
 ✅ Factory patterns  
-✅ Array functions (array_map, etc.)
+✅ Array functions (array_map, etc.)  
+✅ Higher-order functions (callable)  
+✅ Re-export patterns (aliasing)
 
 **Test fixtures:**
 ```
-src/test/unit/languages/php/
-├── class-based.php         (Classes, inheritance)
-├── functional.php          (Functions, composition)
-├── type-declarations.php   (Type hints)
-├── parent-calls.php        (parent::method())
-├── static-calls.php        (Static methods)
-├── traits.php              (Trait usage, conflicts)
-├── factory-pattern.php     (Factory → Product)
-└── namespaces.php          (use statements)
+src/test/unit/languages/php/        ✅ COMPLETE (TBD tests - RIGOROUS)
+├── parser.test.ts
+└── fixtures/ (12 files)
+    ├── class-based.php         (Classes, inheritance)
+    ├── functional.php          (Functions, composition)
+    ├── type-declarations.php   (Type hints)
+    ├── parent-calls.php        (parent::method())
+    ├── static-calls.php        (Static methods)
+    ├── traits.php              (Trait usage, conflicts)
+    ├── factory-pattern.php     (Factory → Product)
+    ├── namespaces.php          (use statements)
+    ├── higher-order.php        ✅ NEW
+    ├── re-exports.php          ✅ NEW
+    ├── empty.php               (Edge case)
+    └── comments-only.php       (Edge case)
 ```
 
 ---
