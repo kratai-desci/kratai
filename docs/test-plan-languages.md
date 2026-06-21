@@ -200,6 +200,38 @@ For each language parser:
 
 ---
 
+## Relationship ID Format
+
+**CRITICAL:** All relationships must use the full `filePath__className` format:
+
+```typescript
+// ✅ CORRECT:
+{ from: '/path/to/file.ts__UserService', to: '/path/to/file.ts__BaseService', type: 'extends' }
+
+// ❌ WRONG:
+{ from: 'UserService', to: 'BaseService', type: 'extends' }
+```
+
+**Why?** Multiple files can have the same class name (e.g., `User` in `models/User.ts` and `dtos/User.ts`). Using just the class name causes ambiguity and orphaned relationships in production.
+
+**Test assertions must verify the full format:**
+```typescript
+// ✅ CORRECT test:
+const rel = relationships.find(r => 
+  r.from === `${fixturePath}__UserService` && 
+  r.to === `${fixturePath}__BaseService`
+);
+
+// ❌ WRONG test (will pass but doesn't catch production bugs):
+const rel = relationships.find(r => 
+  r.from === 'UserService' && r.to === 'BaseService'
+);
+```
+
+**All language parsers (TypeScript, Python, PHP) must follow this format.**
+
+---
+
 ## Key Relationships to Extract
 
 | From | To | Type | Example |

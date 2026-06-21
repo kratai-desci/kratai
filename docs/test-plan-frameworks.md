@@ -223,6 +223,24 @@ GET /users → Route → Controller → Service → Repository → Entity → Tw
 
 ---
 
+## Relationship ID Format
+
+**CRITICAL:** All relationships must use the full `filePath__className` format:
+
+```typescript
+// ✅ CORRECT:
+{ from: '/path/to/UserController.ts__UserController', to: '/path/to/UserService.ts__UserService', type: 'calls' }
+
+// ❌ WRONG:
+{ from: 'UserController', to: 'UserService', type: 'calls' }
+```
+
+**Why?** Multiple files can have the same class/function name. Using just the name causes ambiguity and orphaned relationships in production.
+
+**Framework enrichers must also follow this format when generating relationships.**
+
+---
+
 ## Critical Relationships to Extract
 
 | From | To | Type | Example |
