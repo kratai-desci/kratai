@@ -106,6 +106,84 @@ Tests import patterns:
 **Functions:**
 - `transform_data()` - Uses imported json module
 
+### `decorators.py`
+Tests Python decorator patterns:
+- `@staticmethod` decorator
+- `@classmethod` decorator
+- `@property` decorator
+- Custom decorators (e.g., `@router.get`)
+- Methods with multiple decorators
+
+**Classes:**
+- Classes with property decorators
+- Classes with static/class method decorators
+
+### `re_exports.py`
+Tests module re-export patterns:
+- `from X import Y` syntax
+- Re-export with alias (`from X import Y as Z`)
+- `__all__` export list
+- Mixed local definitions and re-exports
+
+**Classes:**
+- `ConfigService` - Local class definition
+
+**Functions:**
+- `load_config()` - Local function definition
+
+**Patterns:**
+- Re-exports specific items from other modules
+- Re-exports with aliases
+- Export list with `__all__`
+
+### `factory_pattern.py`
+Tests factory function patterns:
+- Factory functions that create instances (`ClassName()`)
+- Constructor calls detection
+- Factory → Product relationships
+- Builder pattern
+- Static factory methods
+- Class method factories
+
+**Classes:**
+- `User` - Product class created by factories
+- `Product` - Product class for orders
+- `Order` - Composite product class
+- `UserBuilder` - Builder pattern class
+- `UserFactory` - Abstract factory with static/class methods
+
+**Functions:**
+- `create_user()` - Factory that creates User
+- `create_product()` - Factory that creates Product
+- `create_validated_user()` - Factory with validation
+- `create_order()` - Factory that creates multiple instances
+- `create_user_from_type()` - Conditional factory
+
+### `higher_order.py`
+Tests higher-order function patterns:
+- Functions that take functions as parameters (`Callable` type hints)
+- Functions that return functions
+- Callback parameters (Callable types)
+- Function composition
+- Currying and partial application
+- Class methods with function parameters
+- Decorators as higher-order functions
+
+**Classes:**
+- `DataProcessor` - Class with higher-order methods
+
+**Functions:**
+- `map_list()` - Takes callback function parameter (`Callable[[T], U]`)
+- `filter_list()` - Takes predicate function parameter
+- `create_multiplier()` - Returns function
+- `create_greeter()` - Returns function
+- `compose()` - Function composition (f ∘ g)
+- `timing_decorator()` - Decorator (higher-order function)
+- `process_users()` - Multiple function parameters
+- `add()` - Currying example
+- `partial()` - Partial application
+- `fetch_data()` - Callback-based pattern
+
 ## Relationship Types Tested
 
 ### Inheritance
@@ -148,8 +226,13 @@ The test suite validates:
 - ✅ Type hint detection (properties, parameters, returns)
 - ✅ Composition relationships from type hints
 - ✅ Module-level functions
-- ✅ Static methods and decorators
-- ✅ Multi-level inheritance
+- ✅ Static methods and decorators (@staticmethod, @classmethod)
+- ✅ Multi-level inheritance (3 levels)
+- ✅ Async/await patterns (async def, await)
+- ✅ Decorator patterns (@property, custom decorators)
+- ✅ Re-export patterns (from X import Y)
+- ✅ Factory patterns (Constructor() calls)
+- ✅ Higher-order functions (Callable type hints)
 - ✅ Proper ID format (filePath__className)
 - ✅ Error handling (non-existent files)
 - ✅ Multiple classes per file

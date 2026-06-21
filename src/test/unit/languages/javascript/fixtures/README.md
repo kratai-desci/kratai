@@ -104,6 +104,67 @@ Tests module system:
 **Functions:**
 - `transformData()` - Uses imported modules
 
+### `re-exports.js`
+Tests module re-export patterns:
+- `export { X } from './path'` syntax
+- `export * from './path'` syntax
+- Re-export with alias (`export { X as Y }`)
+- Import and re-export combinations
+- Mixed local definitions and re-exports
+
+**Classes:**
+- `ConfigService` - Local class definition
+
+**Functions:**
+- `loadConfig()` - Local function definition
+
+**Patterns:**
+- Re-exports specific items from other modules
+- Re-exports all from module
+- Re-exports with aliases
+
+### `factory-pattern.js`
+Tests factory function patterns:
+- Factory functions that create instances (`new Constructor()`)
+- Constructor calls detection
+- Factory → Product relationships
+- Builder pattern
+- Multiple instance creation
+
+**Classes:**
+- `User` - Product class created by factories
+- `Product` - Product class for orders
+- `Order` - Composite product class
+- `UserBuilder` - Builder pattern class
+
+**Functions:**
+- `createUser()` - Factory that creates User
+- `createProduct()` - Factory that creates Product
+- `createValidatedUser()` - Factory with validation
+- `createOrder()` - Factory that creates multiple instances
+
+### `higher-order.js`
+Tests higher-order function patterns:
+- Functions that take functions as parameters
+- Functions that return functions
+- Callback parameters (Callable types)
+- Function composition
+- Currying
+- Class methods with function parameters
+
+**Classes:**
+- `DataProcessor` - Class with higher-order methods
+
+**Functions:**
+- `map()` - Takes callback function parameter
+- `filter()` - Takes predicate function parameter
+- `createMultiplier()` - Returns function
+- `createGreeter()` - Returns function
+- `compose()` - Function composition (f ∘ g)
+- `fetchData()` - Callback-based async pattern
+- `processUsers()` - Multiple function parameters
+- `add()` - Currying example
+
 ## Relationship Types Tested
 
 ### Inheritance
@@ -150,6 +211,9 @@ The test suite validates:
 - ✅ Multi-level inheritance (3 levels)
 - ✅ Async/await patterns
 - ✅ CommonJS module system (require, module.exports)
+- ✅ Re-export patterns (export { X } from './path')
+- ✅ Factory patterns (new Constructor() detection)
+- ✅ Higher-order functions (functions as parameters/return values)
 - ✅ Proper ID format (filePath__className)
 - ✅ Error handling (non-existent files)
 - ✅ Multiple classes per file

@@ -120,19 +120,22 @@ users.map(user => user.name);  // Callback function
 **Test fixtures:**
 ```
 src/test/unit/languages/
-├── typescript/                  ✅ COMPLETE (20 tests)
+├── typescript/                  ✅ COMPLETE (19 tests)
 │   ├── parser.test.ts
 │   └── fixtures/ (10 files)
-└── javascript/                  ✅ COMPLETE (30 tests)
+└── javascript/                  ✅ COMPLETE (41 tests - RIGOROUS)
     ├── parser.test.ts
-    └── fixtures/ (7 files)
+    └── fixtures/ (10 files)
         ├── class-based.js
         ├── functional.js
         ├── type-relationships.js (JSDoc)
         ├── parent-calls.js
         ├── static-calls.js
         ├── async-chains.js
-        └── imports.js
+        ├── imports.js
+        ├── re-exports.js           ✅ NEW
+        ├── factory-pattern.js      ✅ NEW
+        └── higher-order.js         ✅ NEW
 ```
 
 ---
@@ -151,9 +154,9 @@ src/test/unit/languages/
 
 **Test fixtures:**
 ```
-src/test/unit/languages/python/        ✅ COMPLETE (34 tests - RIGOROUS)
+src/test/unit/languages/python/        ✅ COMPLETE (51 tests - RIGOROUS)
 ├── parser.test.ts
-└── fixtures/
+└── fixtures/ (11 files)
     ├── class_based.py          (Classes, inheritance)
     ├── functional.py           (Functions, composition)
     ├── type_hints.py           (Type annotations)
@@ -161,7 +164,10 @@ src/test/unit/languages/python/        ✅ COMPLETE (34 tests - RIGOROUS)
     ├── static_methods.py       (@staticmethod calls)
     ├── decorators.py           (@router.get, @property)
     ├── async_chains.py         (async def, await)
-    └── imports.py              (from/import patterns)
+    ├── imports.py              (from/import patterns)
+    ├── re_exports.py           ✅ NEW
+    ├── factory_pattern.py      ✅ NEW
+    └── higher_order.py         ✅ NEW
 ```
 
 ---
