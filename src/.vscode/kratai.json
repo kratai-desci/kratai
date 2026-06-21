@@ -1,0 +1,49 @@
+{
+  "selectedFolders": [
+    "commands",
+    "services",
+    "services/config",
+    "services/diagram",
+    "services/enrichment",
+    "services/enrichment/frameworks",
+    "services/git",
+    "services/parsing",
+    "services/parsing/frameworks",
+    "services/parsing/languages",
+    "services/telemetry",
+    "types",
+    "types/config",
+    "types/domain",
+    "types/view",
+    "views",
+    "views/components"
+  ],
+  "selectedExtensions": [
+    ".ts",
+    ".php",
+    ".py",
+    ".js",
+    ".md",
+    "on",
+    "on",
+    "on",
+    "on",
+    "on",
+    "on"
+  ],
+  "respectGitignore": true,
+  "followSymlinks": false,
+  "classTypeFilters": {},
+  "relationshipTypeFilters": {
+    "extends": true,
+    "implements": true,
+    "composition": true,
+    "uses": true,
+    "calls": true
+  },
+  "gitDiff": {
+    "enabled": true,
+    "baseCommit": "HEAD~1"
+  },
+  "lastUpdated": "2026-06-21T22:01:48.217Z"
+}

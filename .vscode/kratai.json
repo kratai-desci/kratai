@@ -4,6 +4,8 @@
     "src/services",
     "src/services/config",
     "src/services/diagram",
+    "src/services/enrichment",
+    "src/services/enrichment/frameworks",
     "src/services/git",
     "src/services/parsing",
     "src/services/parsing/frameworks",
@@ -48,5 +50,5 @@
     "enabled": true,
     "baseCommit": "HEAD~1"
   },
-  "lastUpdated": "2026-06-21T13:13:33.108Z"
+  "lastUpdated": "2026-06-21T21:58:41.167Z"
 }

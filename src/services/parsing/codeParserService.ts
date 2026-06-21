@@ -5,6 +5,7 @@ import { KrataiConfig } from '../../types/config';
 import { ConfigService } from '../config/configService';
 import { ParserFactory } from './languages/ParserFactory';
 import { HttpCallDetector } from './httpCallDetector';
+import { EnricherRegistry } from '../enrichment/EnricherRegistry';
 
 const parserFactory = new ParserFactory();
 
@@ -124,6 +125,33 @@ export class CodeParserService {
 				}
 			} catch (error) {
 				console.warn('⚠️  Legacy HTTP detector failed:', error);
+			}
+		}
+
+		// === THIRD PASS: Framework Enrichers ===
+		// Run after language parsers and HTTP parser to add framework-specific knowledge
+		if (config.frameworkEnrichment !== false) {
+			try {
+				console.log('🎨 Running framework enrichers (third pass)...');
+				const enricherRegistry = new EnricherRegistry();
+				
+				const enrichedContext = await enricherRegistry.enrichAll({
+					workspacePath,
+					classes,
+					relationships
+				});
+				
+				// Update with enriched results (enricher returns copies, safe to mutate)
+				classes.length = 0;
+				classes.push(...enrichedContext.classes);
+				relationships.length = 0;
+				relationships.push(...enrichedContext.relationships);
+				
+				console.log(`🎨 Framework enrichment complete: ${classes.length} classes, ${relationships.length} relationships`);
+			} catch (error) {
+				console.error('⚠️  Framework enrichment failed:', error);
+				console.error('Stack trace:', error instanceof Error ? error.stack : error);
+				// Don't fail diagram generation if enrichment fails - just skip it
 			}
 		}
 

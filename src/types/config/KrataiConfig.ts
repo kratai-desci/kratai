@@ -14,4 +14,5 @@ export interface KrataiConfig {
 		baseCommit?: string;        // Compare against this commit (default: 'HEAD~1')
 	};
 	detectHttpCalls?: boolean;      // Detect HTTP API calls (fetch, axios, etc.) - Default: true
+	frameworkEnrichment?: boolean;  // Add framework-specific knowledge (Next.js, Laravel, etc.) - Default: true
 }
