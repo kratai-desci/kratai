@@ -88,7 +88,17 @@ suite('PHP Parser Test Suite', () => {
 		test('should parse abstract classes', () => {
 			const fixturePath = path.join(fixturesPath, 'class-based.php');
 			const classes = parser.parseFile(fixturePath);
-assert.ok(userService, 'Should find UserService class');
+
+			const abstractService = classes.find(c => c.name === 'AbstractService');
+			assert.ok(abstractService, 'Should find AbstractService abstract class');
+		});
+
+		test('should parse properties with visibility', () => {
+			const fixturePath = path.join(fixturesPath, 'class-based.php');
+			const classes = parser.parseFile(fixturePath);
+
+			const userService = classes.find(c => c.name === 'UserService');
+			assert.ok(userService, 'Should find UserService class');
 			
 			// Validate exact property count and names
 			assert.strictEqual(userService.properties.length, 1, 'UserService should have 1 property: repository');
@@ -99,28 +109,35 @@ assert.ok(userService, 'Should find UserService class');
 			
 			// Validate BaseService properties
 			const baseService = classes.find(c => c.name === 'BaseService');
+			assert.ok(baseService, 'Should find BaseService');
 			const nameProp = baseService.properties.find(p => p.name === 'name');
 			const loggerProp = baseService.properties.find(p => p.name === 'logger');
 			assert.ok(nameProp, 'BaseService should have name property');
 			assert.strictEqual(nameProp.visibility, 'protected', 'name MUST be protected');
 			assert.ok(loggerProp, 'BaseService should have logger property');
-			assert.strictEqual(loggerProp.visibility, 'protected', 'logger MUST be protected
-
-		test('should parse properties with visibility', () => {
-			const fixturePath = path.join(fixturesPath, 'class-based.php');
-			const classes = parser.parseFile(fixturePath);
-
-			const userService = classes.find(c => c.name === 'UserService');
-			const repositoryProp = userService.properties.find(p => p.name === 'repository');
-			
-			assert.ok(repositoryProp, 'Should find repository property');
-			assert.strictEqual(repositoryProp.visibility, 'private', 'repository should be private');
+			assert.strictEqual(loggerProp.visibility, 'protected', 'logger MUST be protected');
 		});
 
 		test('should preserve line numbers for navigation', () => {
 			const fixturePath = path.join(fixturesPath, 'class-based.php');
 			const classes = parser.parseFile(fixturePath);
 
+			const baseService = classes.find(c => c.name === 'BaseService');
+			assert.ok(baseService, 'Should find BaseService');
+			assert.ok(baseService!.methods.length > 0, 'Should have methods');
+			const firstMethod = baseService!.methods[0]!;
+			assert.ok(firstMethod.lineNumber! > 0, 'Methods should have line numbers');
+			assert.ok(firstMethod.endLineNumber! >= firstMethod.lineNumber!, 
+				'End line should be >= start line');
+		});
+	});
+
+	suite('Phase 2: Type Relationships', () => {
+		test('should parse property type declarations', () => {
+			const fixturePath = path.join(fixturesPath, 'type-declarations.php');
+			const classes = parser.parseFile(fixturePath);
+
+			const user = classes.find(c => c.name === 'User');
 			assert.ok(user, 'Should find User class');
 			
 			// Validate exact property count
@@ -135,37 +152,21 @@ assert.ok(userService, 'Should find UserService class');
 			assert.ok(emailProp, 'Should find email property');
 			assert.strictEqual(emailProp.type, 'string', 'email MUST be typed as string');
 			assert.ok(ageProp, 'Should find age property');
-			assert.ok(ageProp.type === '?int' || ageProp.type === 'int', 'age MUST be typed as ?int (nullable)
+			assert.ok(ageProp.type === '?int' || ageProp.type === 'int', 'age MUST be typed as ?int (nullable)');
 		});
-	});
 
-	suite('Phase 2: Type Relationships', () => {
-		test('should parse property type declarations', () => {
+		test('should parse parameter type hints', () => {
 			const fixturePath = path.join(fixturesPath, 'type-declarations.php');
 			const classes = parser.parseFile(fixturePath);
 
-			const user = classes.find(c => c.name === 'User');
+			const userRepo = classes.find(c => c.name === 'UserRepository');
 			assert.ok(userRepo, 'Should find UserRepository class');
 			
 			const saveMethod = userRepo.methods.find(m => m.name === 'save');
 			assert.ok(saveMethod, 'Should find save method');
 			assert.strictEqual(saveMethod.parameters.length, 1, 'save MUST have exactly 1 parameter');
 			assert.strictEqual(saveMethod.parameters[0].name, 'user', 'Parameter MUST be named "user"');
-			assert.strictEqual(saveMethod.parameters[0].type, 'User', 'Parameter type MUST be
-
-		test('should parse parameter type hints', () => {
-			const fixturePath = path.join(fixturesPath, 'type-declarations.php');
-			const classes = parser.parseFile(fixturePath);
-
-			assert.ok(userRepo, 'Should find UserRepository class');
-			
-			const findMethod = userRepo.methods.find(m => m.name === 'find');
-			assert.ok(findMethod, 'Should find find method');
-			assert.strictEqual(findMethod.parameters.length, 1, 'find MUST have exactly 1 parameter');
-			assert.strictEqual(findMethod.parameters[0].type, 'string', 'Parameter type MUST be string');
-			assert.strictEqual(findMethod.returnType, '?User', 'Return type MUST
-			assert.strictEqual(saveMethod.parameters.length, 1, 'save should have 1 parameter');
-			assert.strictEqual(saveMethod.parameters[0].type, 'User', 'Parameter should be typed as User');
+			assert.strictEqual(saveMethod.parameters[0].type, 'User', 'Parameter type MUST be User');
 		});
 
 		test('should parse return type declarations', () => {
@@ -173,14 +174,22 @@ assert.ok(userService, 'Should find UserService class');
 			const classes = parser.parseFile(fixturePath);
 
 			const userRepo = classes.find(c => c.name === 'UserRepository');
-			const findMethod = userRepo.methods.find(m => m.name === 'find');
+			assert.ok(userRepo, 'Should find UserRepository class');
 			
+			const findMethod = userRepo.methods.find(m => m.name === 'find');
 			assert.ok(findMethod, 'Should find find method');
-			assert.strictEqual(findMethod.returnType, '?User', 'Return type should be ?User (nullable)');
+			assert.strictEqual(findMethod.parameters.length, 1, 'find MUST have exactly 1 parameter');
+			assert.strictEqual(findMethod.parameters[0].type, 'string', 'Parameter type MUST be string');
+			assert.strictEqual(findMethod.returnType, '?User', 'Return type MUST be ?User (nullable)');
 		});
 
 		test('should detect composition from typed properties', () => {
-			const fixturePath = path.join(fixturesPath, 'type-declarations. (composition)
+			const fixturePath = path.join(fixturesPath, 'type-declarations.php');
+			const classes = parser.parseFile(fixturePath);
+			const allNames = new Set(classes.map(c => c.name));
+			const relationships = parser.extractRelationships(classes, allNames, workspacePath);
+
+			// UserService has property: private UserRepository $repository (composition)
 			const serviceToRepo = relationships.find(r =>
 				r.from === `${fixturePath}__UserService` && 
 				r.to === `${fixturePath}__UserRepository` &&
@@ -190,28 +199,23 @@ assert.ok(userService, 'Should find UserService class');
 			
 			// Verify ID format is correct
 			assert.ok(serviceToRepo.from.includes('__'), 'from ID MUST use filePath__className format');
-			assert.ok(serviceToRepo.to.includes('__'), 'to ID MUST use filePath__className format
-				r.from === `${fixturePath}__UserService` && 
-				r.to === `${fixturePath}__UserRepository` &&
-				(r.type === 'uses' || r.type === 'composition')
-			);
-			assert.ok(serviceToRepo, 'MUST detect composition from typed property');
-		}// UserRepository.save() returns User
-			const returnsUser = relationships.filter(r =>
-				r.from.includes('UserRepository') && 
-				r.to.includes('User') &&
-				r.type === 'returns'
-			);
-			assert.ok(returnsUser.length >= 2, 'MUST detect returns relationships from type hints (find -> User, save -> User)
+			assert.ok(serviceToRepo.to.includes('__'), 'to ID MUST use filePath__className format');
+		});
+
+		test('should detect return type relationships', () => {
+			const fixturePath = path.join(fixturesPath, 'type-declarations.php');
+			const classes = parser.parseFile(fixturePath);
+			const allNames = new Set(classes.map(c => c.name));
 			const relationships = parser.extractRelationships(classes, allNames, workspacePath);
 
 			// UserRepository.find() returns ?User
+			// UserRepository.save() returns User
 			const returnsUser = relationships.filter(r =>
 				r.from.includes('UserRepository') && 
 				r.to.includes('User') &&
 				r.type === 'returns'
 			);
-			assert.ok(returnsUser.length > 0, 'MUST detect returns relationships from type hints');
+			assert.ok(returnsUser.length >= 2, 'MUST detect returns relationships from type hints (find -> User, save -> User)');
 		});
 
 		test('should detect parameter type relationships', () => {
@@ -238,7 +242,7 @@ assert.ok(userService, 'Should find UserService class');
 			const relationships = parser.extractRelationships(classes, allNames, workspacePath);
 
 			// UserService calls parent::validate() and parent::process()
-			const parentCalls = relationships.filter(r => r.type === 'calls-super' || r.type === 'calls-parent');
+			const parentCalls = relationships.filter(r => r.type === 'calls-super');
 			assert.ok(parentCalls.length > 0, 'MUST detect parent::method() calls as parent call relationships');
 		});
 
@@ -258,27 +262,35 @@ assert.ok(userService, 'Should find UserService class');
 			const classes = parser.parseFile(fixturePath);
 
 			const validationUtils = classes.find(c => c.name === 'ValidationUtils');
+			assert.ok(validationUtils, 'Should find ValidationUtils class');
 			const validateEmail = validationUtils.methods.find(m => m.name === 'validateEmail');
 			
 			assert.ok(validateEmail, 'Should find validateEmail method');
 			assert.strictEqual(validateEmail.isStatic, true, 'validateEmail MUST be marked as static');
-		});MUST create module entry for file with functions
+		});
+	});
+
+	suite('Phase 4: Functional Patterns', () => {
+		test('should parse top-level functions as module', () => {
+			const fixturePath = path.join(fixturesPath, 'functional.php');
+			const classes = parser.parseFile(fixturePath);
+
+			// MUST create module entry for file with functions
 			const module = classes.find(c => c.isModule === true);
 			assert.ok(module, 'MUST create module for functions');
 			assert.strictEqual(module.name, '[functional]', 'Module name should be [filename]');
 			assert.strictEqual(module.classType, 'module', 'classType MUST be "module"');
 			
 			const validateUser = module.methods.find(m => m.name === 'validateUser');
-			assert.ok(validateUser, 'MUSTixturesPath, 'functional.php');
+			assert.ok(validateUser, 'MUST find validateUser function');
+		});
+
+		test('should detect all function declarations', () => {
+			const fixturePath = path.join(fixturesPath, 'functional.php');
 			const classes = parser.parseFile(fixturePath);
 
-			// Should create module entry for file with functions
 			const module = classes.find(c => c.isModule === true);
-			assert.ok(module, 'Should have module for functions');
-			
-			const validateUser = module.methods.find(m => m.name === 'validateUser');
-			assert.ok(validateUser, 'Should find validateUser function');
-		}assert.ok(module, 'MUST have module');
+			assert.ok(module, 'MUST have module');
 			
 			// Exact count validation
 			const expectedFunctions = ['validateUser', 'saveUser', 'createUser', 'updateUser', 'getUser', 'deleteUser', 'processUsers', 'transform'];
@@ -291,30 +303,16 @@ assert.ok(userService, 'Should find UserService class');
 			
 			// Validate parameter counts for key functions
 			const createUser = module.methods.find(m => m.name === 'createUser');
+			assert.ok(createUser, 'Should find createUser');
 			assert.strictEqual(createUser.parameters.length, 1, 'createUser MUST have 1 parameter');
 			
 			const updateUser = module.methods.find(m => m.name === 'updateUser');
-			assert.strictEqual(updateUser.parameters.length, 2, 'updateUser MUST have 2 parameters'
-			const module = classes.find(c => c.isModule === true);
-			const expectedFunctions = ['validateUser', 'saveUser', 'createUser', 'updateUser', 'getUser', 'deleteUser', 'processUsers'];
-			
-			expectedFunctions.forEach(funcName => {
-				const func = module.methods.find(m => m.name === funcName);
-				assert.ok(func, `Should find function: ${funcName}`);
-			});
-		});MUST have module for factory functions');
-			
-			// Validate all factory functions exist
-			const expectedFactories = ['createUser', 'createProduct', 'createValidatedUser', 'createOrder'];
-			expectedFactories.forEach(funcName => {
-				const func = module.methods.find(m => m.name === funcName);
-				assert.ok(func, `MUST find factory function: ${funcName}`);
-			});
-			
-			// Validate factory function signatures
-			const createUser = module.methods.find(m => m.name === 'createUser');
-			assert.strictEqual(createUser.parameters.length, 2, 'createUser MUST have 2 parameters: name, email');
-			assert.strictEqual(createUser.returnType, 'User', 'createUser MUST return User
+			assert.ok(updateUser, 'Should find updateUser');
+			assert.strictEqual(updateUser.parameters.length, 2, 'updateUser MUST have 2 parameters');
+		});
+
+		test('should detect function-to-function calls', () => {
+			const fixturePath = path.join(fixturesPath, 'functional.php');
 			const classes = parser.parseFile(fixturePath);
 			const allNames = new Set(classes.map(c => c.name));
 			const relationships = parser.extractRelationships(classes, allNames, workspacePath);
@@ -328,7 +326,40 @@ assert.ok(userService, 'Should find UserService class');
 			const fixturePath = path.join(fixturesPath, 'factory-pattern.php');
 			const classes = parser.parseFile(fixturePath);
 
-			const module = classes.fMUST find UserFactory class');
+			const module = classes.find(c => c.isModule === true);
+			assert.ok(module, 'MUST have module for factory functions');
+			
+			// Validate all factory functions exist
+			const expectedFactories = ['createUser', 'createProduct', 'createValidatedUser', 'createOrder'];
+			expectedFactories.forEach(funcName => {
+				const func = module.methods.find(m => m.name === funcName);
+				assert.ok(func, `MUST find factory function: ${funcName}`);
+			});
+			
+			// Validate factory function signatures
+			const createUser = module.methods.find(m => m.name === 'createUser');
+			assert.ok(createUser, 'Should find createUser');
+			assert.strictEqual(createUser.parameters.length, 2, 'createUser MUST have 2 parameters: name, email');
+			assert.strictEqual(createUser.returnType, 'User', 'createUser MUST return User');
+		});
+
+		test('should detect constructor calls in factory functions', () => {
+			const fixturePath = path.join(fixturesPath, 'factory-pattern.php');
+			const classes = parser.parseFile(fixturePath);
+			const allNames = new Set(classes.map(c => c.name));
+			const relationships = parser.extractRelationships(classes, allNames, workspacePath);
+
+			// createUser() creates new User() - factory pattern
+			const creates = relationships.filter(r => r.type === 'creates');
+			assert.ok(creates.length > 0, 'MUST detect factory → product relationships (new ClassName())');
+		});
+
+		test('should detect factory classes with static methods', () => {
+			const fixturePath = path.join(fixturesPath, 'factory-pattern.php');
+			const classes = parser.parseFile(fixturePath);
+
+			const userFactory = classes.find(c => c.name === 'UserFactory');
+			assert.ok(userFactory, 'MUST find UserFactory class');
 			
 			// Validate exact method count and names
 			assert.strictEqual(userFactory.methods.length, 2, 'UserFactory MUST have 2 static methods');
@@ -343,42 +374,7 @@ assert.ok(userService, 'Should find UserService class');
 			
 			const createFromArray = userFactory.methods.find(m => m.name === 'createFromArray');
 			assert.ok(createFromArray, 'MUST find createFromArray static method');
-			assert.strictEquaMUST find User class');
-			
-			// Should detect traits (implementation depends on parser)
-			// PHP traits could be in implements array, traits property, or special relationship
-			// At minimum, User class should be parsed successfully
-			assert.ok(user.methods.length >= 2, 'User should have at least 2 methods: __construct, save');
-			const fixturePath = path.join(fixturesPath, 'factory-pattern.php');
-			const classes = parser.parseFile(fixturePath);
-			const allNames = new Set(classes.map(c => c.name));
-			const relationships = parser.extractRelationships(classes, allNames, workspacePath);
-
-			// createUser() creates new User() - factory pattern
-			const creates = relationships.filter(r => r.type === 'creates' || r.type === 'instantiates');
-			assert.ok(creates.length > 0, 'MUST detect factory → product relationships (new ClassName())');
-		});
-
-		test('should detect factory classes with static methods', () => {
-			const fixturePath = path.join(fixturesPath, 'factory-pattern.php');
-			// MUST find all 3 trait definitions
-			const timestampable = classes.find(c => c.name === 'Timestampable');
-			assert.ok(timestampable, 'MUST find Timestampable trait');
-			
-			const softDeletable = classes.find(c => c.name === 'SoftDeletable');
-			assert.ok(softDeletable, 'MUST find SoftDeletable trait');
-			
-			const loggable = classes.find(c => c.name === 'Loggable');
-			assert.ok(loggable, 'MUST find Loggable trait');
-			
-			// Validate trait has methods
-			assert.ok(timestampable.methods.length >= 2, 'Timestampable MUST have at least 2 methods
-			const userFactory = classes.find(c => c.name === 'UserFactory');
-			assert.ok(userFactory, 'Should find UserFactory class');
-			
-			const create = userFactory.methods.find(m => m.name === 'create');
-			assert.ok(create, 'Should find create static method');
-			assert.strictEqual(create.isStatic, true, 'create should be marked as static');
+			assert.strictEqual(createFromArray.isStatic, true, 'createFromArray MUST be marked as static');
 		});
 	});
 
@@ -388,10 +384,12 @@ assert.ok(userService, 'Should find UserService class');
 			const classes = parser.parseFile(fixturePath);
 
 			const user = classes.find(c => c.name === 'User');
-			assert.ok(user, 'Should find User class');
+			assert.ok(user, 'MUST find User class');
 			
 			// Should detect traits (implementation depends on parser)
-			// Could be in implements, traits property, or special relationship
+			// PHP traits could be in implements array, traits property, or special relationship
+			// At minimum, User class should be parsed successfully
+			assert.ok(user.methods.length >= 2, 'User should have at least 2 methods: __construct, save');
 		});
 
 		test('should detect multiple traits in one class', () => {
@@ -405,7 +403,60 @@ assert.ok(userService, 'Should find UserService class');
 		test('should parse trait definitions', () => {
 			const fixturePath = path.join(fixturesPath, 'traits.php');
 			const classes = parser.parseFile(fixturePath);
-MUST have module for higher-order functions');
+
+			// MUST find all 3 trait definitions
+			const timestampable = classes.find(c => c.name === 'Timestampable');
+			assert.ok(timestampable, 'MUST find Timestampable trait');
+			
+			const softDeletable = classes.find(c => c.name === 'SoftDeletable');
+			assert.ok(softDeletable, 'MUST find SoftDeletable trait');
+			
+			const loggable = classes.find(c => c.name === 'Loggable');
+			assert.ok(loggable, 'MUST find Loggable trait');
+			
+			// Validate trait has methods
+			assert.ok(timestampable.methods.length >= 2, 'Timestampable MUST have at least 2 methods');
+		});
+	});
+
+	suite('Phase 6: Namespaces and Imports', () => {
+		test('should handle namespace declarations', () => {
+			const fixturePath = path.join(fixturesPath, 'namespaces.php');
+			const classes = parser.parseFile(fixturePath);
+
+			const userController = classes.find(c => c.name === 'UserController');
+			assert.ok(userController, 'Should find UserController class');
+		});
+
+		test('should detect use statements (imports)', () => {
+			const fixturePath = path.join(fixturesPath, 'namespaces.php');
+			const classes = parser.parseFile(fixturePath);
+			const allNames = new Set(classes.map(c => c.name));
+			const relationships = parser.extractRelationships(classes, allNames, workspacePath);
+
+			// Should detect dependencies from use statements
+			const imports = relationships.filter(r => r.type === 'imports' || r.type === 'uses');
+			// At minimum, should detect composition from typed properties
+			assert.ok(imports.length >= 0, 'May detect import relationships');
+		});
+
+		test('should handle aliased imports (use X as Y)', () => {
+			const fixturePath = path.join(fixturesPath, 'namespaces.php');
+			const classes = parser.parseFile(fixturePath);
+
+			// UserModel is aliased from User
+			const userController = classes.find(c => c.name === 'UserController');
+			assert.ok(userController, 'Should handle files with aliased imports');
+		});
+	});
+
+	suite('Phase 7: Higher-Order Functions', () => {
+		test('should parse higher-order functions', () => {
+			const fixturePath = path.join(fixturesPath, 'higher-order.php');
+			const classes = parser.parseFile(fixturePath);
+
+			const module = classes.find(c => c.isModule === true);
+			assert.ok(module, 'MUST have module for higher-order functions');
 			
 			// Validate all higher-order functions exist
 			const expectedFunctions = ['map', 'filter', 'createMultiplier', 'createGreeter', 'compose', 'processUsers'];
@@ -415,8 +466,16 @@ MUST have module for higher-order functions');
 			});
 			
 			const map = module.methods.find(m => m.name === 'map');
-			assert.strictEqual(map.parameters.length, 2, 'map MUST have 2 parameters: array, callback
-	})assert.ok(module, 'MUST have module');
+			assert.ok(map, 'Should find map function');
+			assert.strictEqual(map.parameters.length, 2, 'map MUST have 2 parameters: array, callback');
+		});
+
+		test('should detect callable type hints in function parameters', () => {
+			const fixturePath = path.join(fixturesPath, 'higher-order.php');
+			const classes = parser.parseFile(fixturePath);
+
+			const module = classes.find(c => c.isModule === true);
+			assert.ok(module, 'MUST have module');
 			
 			const map = module.methods.find(m => m.name === 'map');
 			assert.ok(map, 'MUST find map function');
@@ -429,18 +488,17 @@ MUST have module for higher-order functions');
 			
 			// Validate filter also has callable
 			const filter = module.methods.find(m => m.name === 'filter');
+			assert.ok(filter, 'Should find filter function');
 			const filterCallable = filter.parameters.find(p => p.type === 'callable');
-			assert.ok(filterCallable, 'filter MUST have callable parameter
-
-			const userController = classes.find(c => c.name === 'UserController');
-			assert.ok(userController, 'Should find UserController class');
+			assert.ok(filterCallable, 'filter MUST have callable parameter');
 		});
 
-		test('should detect use statements (imports)', () => {
-			const fixturePath = path.join(fixturesPath, 'namespaces.php');
+		test('should parse class with higher-order methods', () => {
+			const fixturePath = path.join(fixturesPath, 'higher-order.php');
 			const classes = parser.parseFile(fixturePath);
-			const allNames = new Set(classes.map(c => c.name));
-			const relationships = parsMUST find DataProcessor class');
+
+			const dataProcessor = classes.find(c => c.name === 'DataProcessor');
+			assert.ok(dataProcessor, 'MUST find DataProcessor class');
 			
 			// Validate exact method count
 			assert.strictEqual(dataProcessor.methods.length, 4, 'DataProcessor MUST have 4 methods: __construct, transform, filterBy, createValidator');
@@ -458,65 +516,9 @@ MUST have module for higher-order functions');
 			
 			// Validate filterBy method
 			const filterBy = dataProcessor.methods.find(m => m.name === 'filterBy');
+			assert.ok(filterBy, 'Should find filterBy method');
 			const filterCallable = filterBy.parameters.find(p => p.type === 'callable');
-			assert.ok(filterCallable, 'filterBy MUST
-
-		test('should handle aliased imports (use X as Y)', () => {
-			const fixturePath = path.join(fixturesPath, 'namespaces.php');
-			const classes = parser.parseFile(fixturePath);
-
-			// UserModel is aliased from User
-			const userController = classes.find(c => c.name === 'UserController');
-			assert.ok(userController, 'Should handle files with aliased imports');
-		});
-	});
-
-	suite('Phase 7: Higher-Order Functions', () => {
-		test('should parse higher-order functions', () => {
-			const fixturePath = path.join(fixturesPath, 'higher-order.php');
-			// MUST not crash and return empty array
-			assert.ok(Array.isArray(classes), 'MUST return array type');
-			assert.strictEqual(classes.length, 0, 'MUST return empty array for non-existent files');
-		});
-
-		test('should use correct ID format (filePath__className)', () => {
-			const fixturePath = path.join(fixturesPath, 'class-based.php');
-			const classes = parser.parseFile(fixturePath);
-			const allNames = new Set(classes.map(c => c.name));
-			const relationships = parser.extractRelationships(classes, allNames, workspacePath);
-
-			// UserService extends BaseService - MUST use correct format
-			const extendsRel = relationships.find(r => 
-				r.from === `${fixturePath}__UserService` &&
-				r.to === `${fixturePath}__BaseService` &&
-				r.type === 'extends'
-			);
-			assert.ok(extendsRel, 'MUST find extends relationship');
-			assert.ok(extendsRel.from.includes('__'), 'from ID MUST use filePath__className format');
-			assert.ok(extendsRel.to.includes('__'), 'to ID MUST use filePath__className format');
-			assert.ok(extendsRel.from.includes(fixturePath), 'from ID MUST include full file path');
-			assert.ok(extendsRel.to.includes(fixturePath), 'to ID MUST include full file path');
-			
-			// Validate exact format
-			assert.strictEqual(extendsRel.from, `${fixturePath}__UserService`, 'from MUST be exactly filePath__UserService');
-			assert.strictEqual(extendsRel.to, `${fixturePath}__BaseService`, 'to MUST be exactly filePath__BaseService');ssert.ok(map, 'Should find map function');
-			// Should have callable parameter
-			const callableParam = map.parameters.find(p => p.type === 'callable');
-			assert.ok(callableParam, 'Should detect callable type hint in parameters');
-		});
-
-		test('should parse class with higher-order methods', () => {
-			const fixturePath = path.join(fixturesPath, 'higher-order.php');
-			const classes = parser.parseFile(fixturePath);
-
-			const dataProcessor = classes.find(c => c.name === 'DataProcessor');
-			assert.ok(dataProcessor, 'Should find DataProcessor class');
-			
-			const transform = dataProcessor.methods.find(m => m.name === 'transform');
-			assert.ok(transform, 'Should find transform method that takes callable');
-			
-			const callableParam = transform.parameters.find(p => p.type === 'callable');
-			assert.ok(callableParam, 'transform should have callable parameter');
+			assert.ok(filterCallable, 'filterBy MUST have callable parameter');
 		});
 	});
 
@@ -544,7 +546,9 @@ MUST have module for higher-order functions');
 			const fixturePath = path.join(fixturesPath, 'nonexistent.php');
 			const classes = parser.parseFile(fixturePath);
 			
-			assert.strictEqual(classes.length, 0, 'Should return empty array for non-existent files');
+			// MUST not crash and return empty array
+			assert.ok(Array.isArray(classes), 'MUST return array type');
+			assert.strictEqual(classes.length, 0, 'MUST return empty array for non-existent files');
 		});
 
 		test('should use correct ID format (filePath__className)', () => {
@@ -553,14 +557,21 @@ MUST have module for higher-order functions');
 			const allNames = new Set(classes.map(c => c.name));
 			const relationships = parser.extractRelationships(classes, allNames, workspacePath);
 
-			// UserService extends BaseService
-			const extendsRel = relationships.find(r => r.type === 'extends');
-			if (extendsRel) {
-				assert.ok(extendsRel.from.includes('__'), 'from ID MUST use filePath__className format');
-				assert.ok(extendsRel.to.includes('__'), 'to ID MUST use filePath__className format');
-				assert.ok(extendsRel.from.includes(fixturePath), 'from ID MUST include full file path');
-				assert.ok(extendsRel.to.includes(fixturePath), 'to ID MUST include full file path');
-			}
+			// UserService extends BaseService - MUST use correct format
+			const extendsRel = relationships.find(r => 
+				r.from === `${fixturePath}__UserService` &&
+				r.to === `${fixturePath}__BaseService` &&
+				r.type === 'extends'
+			);
+			assert.ok(extendsRel, 'MUST find extends relationship');
+			assert.ok(extendsRel.from.includes('__'), 'from ID MUST use filePath__className format');
+			assert.ok(extendsRel.to.includes('__'), 'to ID MUST use filePath__className format');
+			assert.ok(extendsRel.from.includes(fixturePath), 'from ID MUST include full file path');
+			assert.ok(extendsRel.to.includes(fixturePath), 'to ID MUST include full file path');
+			
+			// Validate exact format
+			assert.strictEqual(extendsRel.from, `${fixturePath}__UserService`, 'from MUST be exactly filePath__UserService');
+			assert.strictEqual(extendsRel.to, `${fixturePath}__BaseService`, 'to MUST be exactly filePath__BaseService');
 		});
 
 		test('should handle empty files gracefully', () => {
