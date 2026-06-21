@@ -16,6 +16,8 @@
 		// "noUnusedParameters": true,  /* Report errors on unused parameters. */
 	},
 	"exclude": [
-		"test-fixtures/**/*"
+		"test-fixtures/**/*",
+		"src/test/unit/enrichment/**/fixtures/**/*.tsx",
+		"src/test/unit/enrichment/**/fixtures/**/*.ts"
 	]
 }

@@ -11,7 +11,24 @@ export interface ClassInfo {
 	isInterface?: boolean;
 	isAbstract?: boolean;
 	isModule?: boolean;
-	classType?: 'class' | 'interface' | 'abstract' | 'module' | 'enum' | 'route';
+	classType?: 
+		// Basic types
+		| 'class' 
+		| 'interface' 
+		| 'abstract' 
+		| 'module' 
+		| 'enum' 
+		| 'function'
+		// HTTP types (HTTPParser)
+		| 'route'
+		// Framework types (Enrichers)
+		| 'middleware'    // Next.js/Laravel middleware
+		| 'layout'        // Next.js layout component
+		| 'page'          // Next.js page component
+		| 'server-action' // Next.js server action
+		| 'controller'    // Laravel/Django controller
+		| 'service'       // Service layer
+		| 'repository';   // Data access layer
 	changeStatus?: 'added' | 'deleted' | 'modified' | 'unchanged';
 	
 	// HTTP route metadata (for route nodes)
