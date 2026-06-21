@@ -22,5 +22,13 @@ export interface ClassRelationship {
 		| 'imports'
 		| 're-exports'
 		// Higher-order
-		| 'callback';
+		| 'callback'
+		// HTTP relationships
+		| 'http-call'    // Client calls HTTP endpoint
+		| 'routes-to';   // Route maps to handler
+	
+	// Optional metadata for additional context
+	metadata?: {
+		[key: string]: any;
+	};
 }

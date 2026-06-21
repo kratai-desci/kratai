@@ -69,18 +69,62 @@ export class CodeParserService {
 			}
 		}
 
-		// Detect HTTP API calls (fetch, axios, etc.) if enabled
+		// === SECOND PASS: HTTP Parser (Cross-Language Analysis) ===
+		// Run after language parsers to detect HTTP patterns across all files
 		if (config.detectHttpCalls !== false) {
-			const httpDetector = new HttpCallDetector();
-			const routeMap = httpDetector.buildRouteMap(classes);
-			console.log(`🌐 Built route map with ${routeMap.size} API routes`);
-			
-			const httpRelationships = httpDetector.createHttpRelationships(
-				classes,
-				routeMap
-			);
-			console.log(`🌐 Detected ${httpRelationships.length} HTTP call relationships`);
-			relationships.push(...httpRelationships);
+			try {
+				console.log('🌐 Running HTTP parser (second pass)...');
+				const httpParser = parserFactory.getHttpParser();
+				
+				// Parse all files again for HTTP patterns
+				for (const file of files) {
+					try {
+						const routes = httpParser.parseFile(file);
+						if (routes.length > 0) {
+							// Normalize paths for route nodes
+							routes.forEach(route => {
+								if (route.routeMeta?.definedIn && path.isAbsolute(route.routeMeta.definedIn)) {
+									route.routeMeta.definedIn = path.relative(workspacePath, route.routeMeta.definedIn).replace(/\\/g, '/');
+								}
+							});
+							classes.push(...routes);
+							console.log(`   Found ${routes.length} HTTP routes in ${path.relative(workspacePath, file)}`);
+						}
+					} catch (error) {
+						// Skip files that fail to parse for HTTP patterns
+						continue;
+					}
+				}
+				
+				// Extract HTTP relationships (calls + route-to-handler links)
+				const httpRelationships = httpParser.extractRelationships(classes, allClassNames, workspacePath);
+				relationships.push(...httpRelationships);
+				console.log(`🌐 HTTP parser: ${httpRelationships.length} relationships detected`);
+			} catch (error) {
+				console.warn('⚠️  HTTP parser failed, skipping HTTP analysis:', error);
+			}
+		}
+
+		// Legacy HTTP detector (keeping for backward compatibility)
+		// TODO: Remove after HTTPParser is fully tested
+		if (config.detectHttpCalls !== false) {
+			try {
+				const httpDetector = new HttpCallDetector();
+				const routeMap = httpDetector.buildRouteMap(classes);
+				
+				if (routeMap.size > 0) {
+					console.log(`🌐 Legacy detector: Built route map with ${routeMap.size} API routes`);
+					
+					const httpRelationships = httpDetector.createHttpRelationships(
+						classes,
+						routeMap
+					);
+					console.log(`🌐 Legacy detector: ${httpRelationships.length} HTTP call relationships`);
+					relationships.push(...httpRelationships);
+				}
+			} catch (error) {
+				console.warn('⚠️  Legacy HTTP detector failed:', error);
+			}
 		}
 
 		return { classes, relationships };

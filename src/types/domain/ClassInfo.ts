@@ -11,6 +11,13 @@ export interface ClassInfo {
 	isInterface?: boolean;
 	isAbstract?: boolean;
 	isModule?: boolean;
-	classType?: 'class' | 'interface' | 'abstract' | 'module' | 'enum';
+	classType?: 'class' | 'interface' | 'abstract' | 'module' | 'enum' | 'route';
 	changeStatus?: 'added' | 'deleted' | 'modified' | 'unchanged';
+	
+	// HTTP route metadata (for route nodes)
+	routeMeta?: {
+		path: string;        // '/api/users/:id'
+		method: string;      // 'GET', 'POST', '*' (any)
+		definedIn?: string;  // Source file path
+	};
 }
