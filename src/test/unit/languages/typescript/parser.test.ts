@@ -38,7 +38,7 @@ suite('TypeScript Parser Test Suite', () => {
 			assert.ok(extendsRel.length > 0, 'Should find extends relationships');
 			
 			const userServiceExtends = extendsRel.find(r => 
-				r.from === 'UserService' && r.to === 'BaseService'
+				r.from === `${fixturePath}__UserService` && r.to === `${fixturePath}__BaseService`
 			);
 			assert.ok(userServiceExtends, 'UserService should extend BaseService');
 		});
@@ -73,7 +73,7 @@ suite('TypeScript Parser Test Suite', () => {
 			assert.ok(compositionRel.length > 0, 'Should find composition relationships');
 			
 			const repoComposition = compositionRel.find(r =>
-				r.from === 'UserService' && r.to === 'UserRepository'
+				r.from === `${fixturePath}__UserService` && r.to === `${fixturePath}__UserRepository`
 			);
 			assert.ok(repoComposition, 'UserService should have UserRepository property');
 		});
