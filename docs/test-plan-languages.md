@@ -1,10 +1,94 @@
 # Language Parser Test Plan
 
-**Goal:** Parse all code patterns (OOP, functional, mixed) for comprehensive code visualization.
+**Goal:** Parse all code patterns (OOP, functional, mixed, HTTP) for comprehensive code visualization.
 
-**Principle:** The extension must be useful whether users write OOP or functional code.
+**Principle:** The extension must be useful whether users write OOP or functional code, and must visualize HTTP request flows.
 
 **Exclude:** Tests, build scripts, config files
+
+---
+
+## HTTP Patterns (Cross-Language - Second Pass)
+
+**Special Status:** HTTP parsing runs as a **second-pass parser** after language parsers complete.
+
+### Why HTTP is Different:
+- **Cross-language:** Works across TypeScript, Python, PHP
+- **Semantic patterns:** Detects routes + calls (not just syntax)
+- **Global context:** Requires full workspace to match calls to routes
+- **Virtual nodes:** Creates route endpoints as diagram nodes
+
+### 11. HTTP Route Definitions
+```typescript
+// TypeScript (NestJS, decorators)
+@Get('/api/users')
+async getUsers() { ... }
+
+// Python (FastAPI)
+@router.get('/api/users')
+async def get_users(): ...
+
+// PHP (Laravel)
+Route::get('/api/users', [UserController::class, 'index']);
+
+// Next.js (file-based routing)
+// app/api/users/route.ts
+export async function GET(request: Request) { ... }
+```
+**Must detect:** Route paths, HTTP methods, handler references
+
+### 12. HTTP Client Calls
+```typescript
+// TypeScript
+const users = await fetch('/api/users');
+const posts = await axios.get('/api/posts');
+
+// Python
+users = requests.get('/api/users')
+async with httpx.AsyncClient() as client:
+    users = await client.get('/api/users')
+
+// PHP
+$users = $guzzle->get('/api/users');
+$users = Http::get('/api/users');
+```
+**Must detect:** HTTP method, URL, calling context
+
+### 13. Route → Handler → Service Flow
+```typescript
+// Client Layer
+UserList.tsx: fetch('/api/users')
+    ↓ http-call
+// Route Layer (Virtual Node)
+GET /api/users
+    ↓ routes-to
+// Handler Layer
+UserController.getUsers()
+    ↓ calls
+// Service Layer
+UserService.getAll()
+```
+**Must detect:** Full request flow visualization
+
+### HTTP Test Fixtures
+```
+src/test/unit/http/            ⏳ TODO (TDD Implementation Pending)
+├── parser.test.ts
+└── fixtures/
+    ├── decorators.ts          (NestJS @Get, @Post)
+    ├── file-routing.ts        (Next.js app/api/*/route.ts)
+    ├── fetch-calls.ts         (fetch, axios)
+    ├── python-routes.py       (@router.get)
+    ├── python-calls.py        (requests.get, httpx)
+    ├── php-routes.php         (Route::get)
+    └── php-calls.php          (Guzzle, Http facade)
+```
+
+**Relationship Types:**
+- `http-call`: Client → Route endpoint
+- `routes-to`: Route endpoint → Handler
+
+**Note:** HTTP parser creates **route nodes** (virtual ClassInfo with `classType: 'route'`) that appear in diagrams alongside classes.
 
 ---
 
@@ -188,7 +272,7 @@ src/test/unit/languages/python/        ✅ COMPLETE (51 tests - RIGOROUS)
 
 **Test fixtures:**
 ```
-src/test/unit/languages/php/        ✅ COMPLETE (TBD tests - RIGOROUS)
+src/test/unit/languages/php/        ✅ COMPLETE (147 tests - RIGOROUS)
 ├── parser.test.ts
 └── fixtures/ (12 files)
     ├── class-based.php         (Classes, inheritance)
@@ -216,6 +300,14 @@ For each language parser:
 ✅ **Parse imports** (build dependency graph)  
 ✅ **Parse mixed** (modern code uses both)  
 ✅ **Generate relationships** (calls, imports, uses)
+
+For HTTP parser:
+
+⏳ **Parse route definitions** (decorators, file-based, annotations)  
+⏳ **Parse HTTP calls** (fetch, axios, requests, Guzzle)  
+⏳ **Match calls to routes** (build route registry)  
+⏳ **Create route nodes** (virtual ClassInfo for visualization)  
+⏳ **Generate HTTP relationships** (http-call, routes-to)
 
 ---
 
@@ -247,7 +339,7 @@ const rel = relationships.find(r =>
 );
 ```
 
-**All language parsers (TypeScript, Python, PHP) must follow this format.**
+**All parsers (TypeScript, Python, PHP, HTTP) must follow this format.**
 
 ---
 
@@ -270,48 +362,61 @@ const rel = relationships.find(r =>
 | Function | Function | `async-calls` | `await fetchUser()` |
 | Function | Function | `callback` | `users.map(fn)` (higher-order) |
 | Class | Class | `generic` | `Repository<User>` |
+| **Component** | **Route** | **`http-call`** | **`fetch('/api/users')`** |
+| **Route** | **Handler** | **`routes-to`** | **`GET /api/users → UserController`** |
 
 ---
 
 ## Test Structure
 
 ```
-src/test/unit/languages/
-├── typescript/
-│   ├── parser.test.ts
-│   └── fixtures/
-│       ├── class-based.ts
-│       ├── functional.ts
-│       ├── type-relationships.ts
-│       ├── parent-calls.ts
-│       ├── static-calls.ts
-│       ├── re-exports.ts
-│       ├── factory-pattern.ts
-│       ├── async-chains.ts
-│       ├── higher-order.ts
-│       └── imports.ts
-├── python/
-│   ├── parser.test.ts
-│   └── fixtures/
-│       ├── class_based.py
-│       ├── functional.py
-│       ├── type_hints.py
-│       ├── parent_calls.py
-│       ├── static_methods.py
-│       ├── decorators.py
-│       ├── async_chains.py
-│       └── imports.py
-└── php/
+src/test/unit/
+├── languages/
+│   ├── typescript/
+│   │   ├── parser.test.ts
+│   │   └── fixtures/
+│   │       ├── class-based.ts
+│   │       ├── functional.ts
+│   │       ├── type-relationships.ts
+│   │       ├── parent-calls.ts
+│   │       ├── static-calls.ts
+│   │       ├── re-exports.ts
+│   │       ├── factory-pattern.ts
+│   │       ├── async-chains.ts
+│   │       ├── higher-order.ts
+│   │       └── imports.ts
+│   ├── python/
+│   │   ├── parser.test.ts
+│   │   └── fixtures/
+│   │       ├── class_based.py
+│   │       ├── functional.py
+│   │       ├── type_hints.py
+│   │       ├── parent_calls.py
+│   │       ├── static_methods.py
+│   │       ├── decorators.py
+│   │       ├── async_chains.py
+│   │       └── imports.py
+│   └── php/
+│       ├── parser.test.ts
+│       └── fixtures/
+│           ├── class-based.php
+│           ├── functional.php
+│           ├── type-declarations.php
+│           ├── parent-calls.php
+│           ├── static-calls.php
+│           ├── traits.php
+│           ├── factory-pattern.php
+│           └── namespaces.php
+└── http/                          ⏳ TODO
     ├── parser.test.ts
     └── fixtures/
-        ├── class-based.php
-        ├── functional.php
-        ├── type-declarations.php
-        ├── parent-calls.php
-        ├── static-calls.php
-        ├── traits.php
-        ├── factory-pattern.php
-        └── namespaces.php
+        ├── decorators.ts
+        ├── file-routing.ts
+        ├── fetch-calls.ts
+        ├── python-routes.py
+        ├── python-calls.py
+        ├── php-routes.php
+        └── php-calls.php
 ```
 
 ---
@@ -347,6 +452,12 @@ src/test/unit/languages/
 - Re-exports
 - Transitive dependencies
 
+**Phase 6:** HTTP patterns (Second Pass)
+- Route definitions
+- HTTP client calls
+- Call-to-route matching
+- Route nodes creation
+
 **Target:** 100% coverage of all code patterns and relationships
 
 ---
@@ -357,5 +468,6 @@ src/test/unit/languages/
 - Functions call functions
 - Modules import modules
 - Composition > inheritance in modern code
+- HTTP requests connect frontend to backend
 
 The parser must capture relationships regardless of paradigm.
