@@ -27,16 +27,15 @@ export class HTTPParser extends AbstractParserStrategy {
 	parseFile(filePath: string): ClassInfo[] {
 		const routes: ClassInfo[] = [];
 
+		// First, check for file-based routing patterns (doesn't require reading file)
+		routes.push(...this.extractFileBasedRoutes(filePath));
+
+		// Then, parse file content for decorator routes (requires reading file)
 		try {
 			const sourceCode = fs.readFileSync(filePath, 'utf-8');
-			
-			// Extract routes from various patterns
 			routes.push(...this.extractDecoratorRoutes(sourceCode, filePath));
-			routes.push(...this.extractFileBasedRoutes(filePath));
-			
 		} catch (error) {
-			// Silently skip files that can't be read
-			return [];
+			// If file doesn't exist or can't be read, we still return file-based routes (if any)
 		}
 
 		return routes;
@@ -134,9 +133,13 @@ export class HTTPParser extends AbstractParserStrategy {
 	private extractFileBasedRoutes(filePath: string): ClassInfo[] {
 		const routes: ClassInfo[] = [];
 
-		// Next.js App Router: app/api/*/route.ts
-		if (filePath.includes('/app/api/') && filePath.endsWith('route.ts')) {
-			const routePath = this.filePathToRoutePath(filePath);
+		// Normalize path separators to forward slashes
+		const normalizedPath = filePath.replace(/\\/g, '/');
+
+		// Next.js App Router: app/api/*/route.ts or /app/api/*/route.ts
+		if ((normalizedPath.includes('/app/api/') || normalizedPath.includes('app/api/')) && 
+		    normalizedPath.endsWith('route.ts')) {
+			const routePath = this.filePathToRoutePath(normalizedPath);
 			
 			// For now, just create a generic route node
 			// Actual HTTP methods will be detected when we parse the file content

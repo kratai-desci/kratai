@@ -6,7 +6,7 @@ import { ClassInfo, ClassRelationship } from '../../../types/domain';
 suite('HTTPParser - Second Pass Cross-Language Analyzer', () => {
 	const parser = new HTTPParser();
 	const workspacePath = path.join(__dirname, '../../../..');
-	const fixturesPath = path.join(__dirname, 'fixtures');
+	const fixturesPath = path.join(__dirname, '../../../../src/test/unit/http/fixtures');
 
 	suite('Route Detection', () => {
 		
