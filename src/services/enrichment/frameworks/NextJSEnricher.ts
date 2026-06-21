@@ -79,20 +79,50 @@ export class NextJSEnricher extends AbstractEnricher {
 	async enrich(context: EnrichmentContext): Promise<EnrichmentResult> {
 		const enhancedClasses = [...context.classes];
 		const newRelationships: ClassRelationship[] = [];
+		const features: string[] = [];
 		
-		// TODO: Implement enrichment logic (TDD - tests first)
-		// 1. Detect page components
-		// 2. Detect server actions
-		// 3. Detect middleware
-		// 4. Link server actions to components
-		// 5. Build middleware chain
+		// 1. Enrich file-based routes (detect from file paths)
+		this.enrichFileBasedRoutes(enhancedClasses, context);
+		features.push('file-based-routing');
+		
+		// 2. Identify middleware
+		this.identifyMiddleware(enhancedClasses);
+		features.push('middleware');
+		
+		// 3. Identify layouts
+		this.identifyLayouts(enhancedClasses);
+		features.push('layouts');
+		
+		// 4. Identify pages
+		this.identifyPages(enhancedClasses);
+		features.push('pages');
+		
+		// 5. Identify server actions
+		this.identifyServerActions(enhancedClasses);
+		features.push('server-actions');
+		
+		// 6. Create middleware → route relationships
+		const middlewareRels = this.createMiddlewareRelationships(enhancedClasses, context);
+		newRelationships.push(...middlewareRels);
+		
+		// 7. Create layout → page relationships
+		const layoutRels = this.createLayoutRelationships(enhancedClasses, context);
+		newRelationships.push(...layoutRels);
+		
+		// 8. Create server action relationships
+		const serverActionRels = this.createServerActionRelationships(enhancedClasses, context);
+		newRelationships.push(...serverActionRels);
+		
+		// 9. Infer route handler → service relationships (heuristic)
+		const serviceRels = this.inferServiceRelationships(enhancedClasses, context);
+		newRelationships.push(...serviceRels);
 		
 		return {
 			enhancedClasses,
 			newRelationships,
 			metadata: {
 				framework: this.framework,
-				features: [] // Will be populated as features are implemented
+				features
 			}
 		};
 	}
@@ -124,62 +154,409 @@ export class NextJSEnricher extends AbstractEnricher {
 	}
 	
 	// ========================================
-	// Private helper methods (stubs for TDD)
+	// Private helper methods
+	// ========================================
+	
+	/**
+	 * Enrich file-based routes by detecting route patterns from file paths
+	 */
+	private enrichFileBasedRoutes(classes: any[], context: EnrichmentContext): void {
+		for (const classInfo of classes) {
+			const filePath = classInfo.filePath;
+			
+			// Skip if not a Next.js route file
+			if (!this.isNextJSRouteFile(filePath)) {
+				continue;
+			}
+			
+			const normalized = filePath.replace(/\\/g, '/');
+			
+			// Add route metadata if it's a route file
+			if (normalized.includes('app/') && (normalized.endsWith('/route.ts') || normalized.endsWith('/route.tsx') || 
+			                                     normalized.endsWith('route.ts') || normalized.endsWith('route.tsx'))) {
+				classInfo.routeMeta = {
+					path: this.filePathToRoutePath(filePath),
+					method: '*',
+					definedIn: filePath
+				};
+				classInfo.classType = 'route';
+			}
+			
+			// Add route metadata for page files
+			if (normalized.includes('app/') && (normalized.endsWith('/page.tsx') || normalized.endsWith('/page.ts') ||
+			                                     normalized.endsWith('page.tsx') || normalized.endsWith('page.ts'))) {
+				classInfo.routeMeta = {
+					path: this.filePathToRoutePath(filePath),
+					method: 'GET',
+					definedIn: filePath
+				};
+				// Pages are also routes (they map to URLs)
+				classInfo.classType = 'route';
+			}
+		}
+	}
+	
+	/**
+	 * Check if a file path is a Next.js route file
+	 */
+	private isNextJSRouteFile(filePath: string): boolean {
+		const normalized = filePath.replace(/\\/g, '/');
+		
+		// App Router patterns (with or without leading slash)
+		if (normalized.includes('app/')) {
+			if (normalized.endsWith('/route.ts') || normalized.endsWith('/route.tsx') || 
+			    normalized.endsWith('route.ts') || normalized.endsWith('route.tsx')) {
+				return true;
+			}
+			if (normalized.endsWith('/page.tsx') || normalized.endsWith('/page.ts') ||
+			    normalized.endsWith('page.tsx') || normalized.endsWith('page.ts')) {
+				return true;
+			}
+		}
+		
+		// Pages Router patterns
+		if (normalized.includes('pages/') && !normalized.includes('pages/api/')) {
+			if (normalized.endsWith('.tsx') || normalized.endsWith('.ts')) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Convert file path to route path
+	 * Examples:
+	 * - app/api/users/route.ts → /api/users
+	 * - app/users/[id]/page.tsx → /users/:id
+	 * - app/posts/[postId]/comments/[commentId]/page.tsx → /posts/:postId/comments/:commentId
+	 */
+	private filePathToRoutePath(filePath: string): string {
+		const normalized = filePath.replace(/\\/g, '/');
+		
+		// Extract the route part after app/
+		let routePart = '';
+		const appIndex = normalized.indexOf('app/');
+		
+		if (appIndex !== -1) {
+			routePart = normalized.substring(appIndex + 4); // +4 for 'app/'
+		} else {
+			return '/';
+		}
+		
+		// Remove file extensions and special files
+		routePart = routePart
+			.replace(/\/route\.(ts|tsx)$/, '')
+			.replace(/\/page\.(ts|tsx)$/, '')
+			.replace(/\/layout\.(ts|tsx)$/, '')
+			.replace(/route\.(ts|tsx)$/, '')
+			.replace(/page\.(ts|tsx)$/, '')
+			.replace(/layout\.(ts|tsx)$/, '')
+			.replace(/\.(ts|tsx)$/, '');
+		
+		// Convert [param] to :param
+		routePart = routePart.replace(/\[([^\]]+)\]/g, ':$1');
+		
+		// Ensure starts with /
+		if (!routePart.startsWith('/')) {
+			routePart = '/' + routePart;
+		}
+		
+		// Handle root route
+		if (routePart === '/' || routePart === '') {
+			return '/';
+		}
+		
+		// Remove trailing slashes (except for root)
+		if (routePart.endsWith('/') && routePart.length > 1) {
+			routePart = routePart.substring(0, routePart.length - 1);
+		}
+		
+		return routePart;
+	}
+	
+	/**
+	 * Identify middleware files and mark them
+	 */
+	private identifyMiddleware(classes: any[]): void {
+		for (const classInfo of classes) {
+			const filePath = classInfo.filePath.replace(/\\/g, '/');
+			
+			// Check if it's a middleware file
+			if (filePath.endsWith('middleware.ts') || filePath.endsWith('middleware.tsx')) {
+				classInfo.classType = 'middleware';
+			}
+		}
+	}
+	
+	/**
+	 * Identify layout files and mark them
+	 */
+	private identifyLayouts(classes: any[]): void {
+		for (const classInfo of classes) {
+			const filePath = classInfo.filePath.replace(/\\/g, '/');
+			
+			// Check if it's a layout file
+			if (filePath.includes('app/') && (filePath.endsWith('/layout.tsx') || filePath.endsWith('/layout.ts') ||
+			                                   filePath.endsWith('layout.tsx') || filePath.endsWith('layout.ts'))) {
+				classInfo.classType = 'layout';
+			}
+		}
+	}
+	
+	/**
+	 * Identify page files and mark them
+	 * Note: Pages are already marked as 'route' by enrichFileBasedRoutes
+	 * This is kept for future extensibility
+	 */
+	private identifyPages(classes: any[]): void {
+		for (const classInfo of classes) {
+			const filePath = classInfo.filePath.replace(/\\/g, '/');
+			
+			// Check if it's a page file - don't overwrite if already marked as route
+			if (classInfo.classType !== 'route' && 
+			    filePath.includes('app/') && 
+			    (filePath.endsWith('/page.tsx') || filePath.endsWith('/page.ts') ||
+			     filePath.endsWith('page.tsx') || filePath.endsWith('page.ts'))) {
+				classInfo.classType = 'page';
+			}
+		}
+	}
+	
+	/**
+	 * Identify server action files (files with "use server")
+	 */
+	private identifyServerActions(classes: any[]): void {
+		for (const classInfo of classes) {
+			// Check if the file contains "use server" directive
+			// For now, we'll check if filename suggests it's an action file
+			const filePath = classInfo.filePath.replace(/\\/g, '/');
+			
+			if (filePath.includes('action') || filePath.includes('Action')) {
+				classInfo.classType = 'server-action';
+			}
+		}
+	}
+	
+	/**
+	 * Create middleware → route protection relationships
+	 */
+	private createMiddlewareRelationships(classes: any[], context: EnrichmentContext): ClassRelationship[] {
+		const relationships: ClassRelationship[] = [];
+		
+		// Find middleware
+		const middleware = classes.filter(c => c.classType === 'middleware');
+		
+		// Find routes (both route and page types)
+		const routes = classes.filter(c => 
+			c.classType === 'route' || 
+			c.classType === 'page' ||
+			c.routeMeta?.path
+		);
+		
+		// For each middleware, create relationships to routes it protects
+		for (const mw of middleware) {
+			for (const route of routes) {
+				// Check if route should be protected by this middleware
+				// For now, protect all /api/* routes
+				if (route.routeMeta?.path?.startsWith('/api/')) {
+					relationships.push({
+						from: this.getClassId(mw),
+						to: this.getClassId(route),
+						type: 'middleware'
+					});
+				}
+			}
+		}
+		
+		return relationships;
+	}
+	
+	/**
+	 * Create layout → page wrapping relationships
+	 */
+	private createLayoutRelationships(classes: any[], context: EnrichmentContext): ClassRelationship[] {
+		const relationships: ClassRelationship[] = [];
+		
+		// Find layouts
+		const layouts = classes.filter(c => c.classType === 'layout');
+		
+		// Find pages (marked as 'page' or 'route')
+		const pages = classes.filter(c => 
+			c.classType === 'page' || 
+			(c.classType === 'route' && c.filePath.includes('page.'))
+		);
+		
+		// For each layout, find pages in the same directory or subdirectories
+		for (const layout of layouts) {
+			const layoutDir = this.getDirectoryPath(layout.filePath);
+			
+			for (const page of pages) {
+				const pageDir = this.getDirectoryPath(page.filePath);
+				
+				// Check if page is in same directory or subdirectory
+				if (pageDir.startsWith(layoutDir)) {
+					relationships.push({
+						from: this.getClassId(layout),
+						to: this.getClassId(page),
+						type: 'layout-wraps'
+					});
+				}
+			}
+		}
+		
+		return relationships;
+	}
+	
+	/**
+	 * Create server action relationships (form → action, button → action)
+	 */
+	private createServerActionRelationships(classes: any[], context: EnrichmentContext): ClassRelationship[] {
+		const relationships: ClassRelationship[] = [];
+		
+		// Find server actions
+		const serverActions = classes.filter(c => c.classType === 'server-action');
+		
+		// Find components that might use server actions
+		const components = classes.filter(c => 
+			c.classType === 'function' && 
+			(c.name.includes('Form') || c.name.includes('Button'))
+		);
+		
+		// Create relationships between components and server actions
+		for (const component of components) {
+			for (const action of serverActions) {
+				// Simple heuristic: if component name suggests it uses actions
+				if (component.name.includes('Form') || component.name.includes('Button')) {
+					// Check if action name is related
+					if (action.name.toLowerCase().includes('action')) {
+						relationships.push({
+							from: this.getClassId(component),
+							to: this.getClassId(action),
+							type: 'server-action'
+						});
+					}
+				}
+			}
+		}
+		
+		return relationships;
+	}
+	
+	/**
+	 * Get class ID in format: filePath__className
+	 */
+	private getClassId(classInfo: any): string {
+		return `${classInfo.filePath}__${classInfo.name}`;
+	}
+	
+	/**
+	 * Get directory path from file path
+	 */
+	private getDirectoryPath(filePath: string): string {
+		const normalized = filePath.replace(/\\/g, '/');
+		const lastSlash = normalized.lastIndexOf('/');
+		return lastSlash > 0 ? normalized.substring(0, lastSlash) : '';
+	}
+	
+	/**
+	 * Infer route handler → service relationships based on naming conventions
+	 * This is a heuristic: if a route exists and a service with similar naming exists, assume they're connected
+	 */
+	private inferServiceRelationships(classes: any[], context: EnrichmentContext): ClassRelationship[] {
+		const relationships: ClassRelationship[] = [];
+		
+		// Find route handlers (API routes and pages)
+		const routeHandlers = classes.filter(c => 
+			(c.classType === 'route' || c.classType === 'page') &&
+			c.routeMeta?.path
+		);
+		
+		// Find services
+		const services = classes.filter(c => 
+			c.classType === 'class' && 
+			(c.name.includes('Service') || c.filePath.includes('service'))
+		);
+		
+		// For each route handler, try to find a matching service
+		for (const handler of routeHandlers) {
+			const routePath = handler.routeMeta?.path || '';
+			
+			// Extract resource name from route path (e.g., /api/users → users)
+			const pathParts = routePath.split('/').filter((p: string) => p && !p.startsWith(':'));
+			const resourceName = pathParts[pathParts.length - 1];
+			
+			if (!resourceName) {
+				continue;
+			}
+			
+			// Find service that matches this resource
+			for (const service of services) {
+				const serviceName = service.name.toLowerCase();
+				const resourceLower = resourceName.toLowerCase();
+				
+				// Match if service name includes resource name (e.g., UserService matches users)
+				if (serviceName.includes(resourceLower) || 
+				    serviceName.includes(resourceLower.replace(/s$/, '')) || // Remove plural
+				    serviceName.includes(resourceLower + 's')) { // Add plural
+					
+					relationships.push({
+						from: this.getClassId(handler),
+						to: this.getClassId(service),
+						type: 'calls',
+						metadata: {
+							inferred: true,
+							reason: 'Next.js route handler likely calls service'
+						}
+					});
+				}
+			}
+		}
+		
+		return relationships;
+	}
+	
+	// ========================================
+	// Deprecated methods (kept for compatibility)
 	// ========================================
 	
 	/**
 	 * Detect page components from file-based routing
-	 * 
-	 * @param context - Enrichment context
-	 * @returns Array of page component ClassInfo
+	 * @deprecated Use enrichFileBasedRoutes instead
 	 */
 	private detectPageComponents(context: EnrichmentContext): any[] {
-		// TODO: TDD implementation
 		return [];
 	}
 	
 	/**
 	 * Detect server actions ("use server" directive)
-	 * 
-	 * @param context - Enrichment context
-	 * @returns Array of server action ClassInfo
+	 * @deprecated Use identifyServerActions instead
 	 */
 	private detectServerActions(context: EnrichmentContext): any[] {
-		// TODO: TDD implementation
 		return [];
 	}
 	
 	/**
 	 * Detect middleware.ts files
-	 * 
-	 * @param context - Enrichment context
-	 * @returns Array of middleware ClassInfo
+	 * @deprecated Use identifyMiddleware instead
 	 */
 	private detectMiddleware(context: EnrichmentContext): any[] {
-		// TODO: TDD implementation
 		return [];
 	}
 	
 	/**
 	 * Link server actions to components that call them
-	 * 
-	 * @param actions - Server actions
-	 * @param context - Enrichment context
-	 * @returns Array of relationships
+	 * @deprecated Use createServerActionRelationships instead
 	 */
 	private linkServerActionsToComponents(actions: any[], context: EnrichmentContext): any[] {
-		// TODO: TDD implementation
 		return [];
 	}
 	
 	/**
 	 * Build middleware execution chain
-	 * 
-	 * @param middleware - Middleware components
-	 * @returns Array of relationships
+	 * @deprecated Use createMiddlewareRelationships instead
 	 */
 	private buildMiddlewareChain(middleware: any[]): any[] {
-		// TODO: TDD implementation
 		return [];
 	}
 }
