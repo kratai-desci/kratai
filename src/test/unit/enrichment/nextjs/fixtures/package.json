@@ -1,0 +1,10 @@
+{
+  "name": "nextjs-test-fixture",
+  "version": "1.0.0",
+  "description": "Mock Next.js project for testing framework detection",
+  "dependencies": {
+    "next": "^14.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  }
+}

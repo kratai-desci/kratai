@@ -11,8 +11,9 @@ suite('NextJSEnricher - Framework Enrichment', () => {
 	
 	suite('Framework Detection', () => {
 		test('should detect Next.js from package.json with next dependency', () => {
+			// Use fixtures directory which has a mock package.json with next dependency
 			const context: EnrichmentContext = {
-				workspacePath,
+				workspacePath: fixturesPath,
 				classes: [],
 				relationships: []
 			};
