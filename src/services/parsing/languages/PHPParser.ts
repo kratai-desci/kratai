@@ -34,18 +34,51 @@ export class PHPParser extends AbstractParserStrategy {
 			const sourceCode = fs.readFileSync(filePath, 'utf-8');
 			const ast = this.parser.parseCode(sourceCode, filePath);
 
+			// Store AST for relationship extraction
+			(this as any)._currentAST = ast;
+
+			// First, collect all class/interface/trait methods so we can filter them out
+			const classMethods = new Set<string>();
+
 			// Walk through AST to find classes, interfaces, traits
 			this.walkAST(ast, (node: any) => {
 				if (node.kind === 'class') {
-					classes.push(this.extractClassInfo(node, filePath));
+					const classInfo = this.extractClassInfo(node, filePath);
+					// Track all method names in this class
+					classInfo.methods.forEach(m => classMethods.add(m.name));
+					// Store AST node with class for method call detection
+					(classInfo as any)._astNode = node;
+					classes.push(classInfo);
 				} else if (node.kind === 'interface') {
-					classes.push(this.extractInterfaceInfo(node, filePath));
+					const interfaceInfo = this.extractInterfaceInfo(node, filePath);
+					interfaceInfo.methods.forEach(m => classMethods.add(m.name));
+					classes.push(interfaceInfo);
 				} else if (node.kind === 'trait') {
-					classes.push(this.extractTraitInfo(node, filePath));
+					const traitInfo = this.extractTraitInfo(node, filePath);
+					traitInfo.methods.forEach(m => classMethods.add(m.name));
+					classes.push(traitInfo);
 				}
 			});
+
+			// Extract module-level functions (exclude methods already in classes)
+			const moduleFunctions = this.extractModuleFunctions(ast, classMethods);
+			if (moduleFunctions.length > 0) {
+				const moduleName = `[${path.basename(filePath, path.extname(filePath))}]`;
+				const moduleInfo: any = {
+					name: moduleName,
+					filePath,
+					properties: [],
+					methods: moduleFunctions,
+					isModule: true,
+					classType: 'module',
+				};
+				// Store AST for module-level function call detection
+				moduleInfo._astNode = ast;
+				classes.push(moduleInfo);
+			}
 		} catch (error) {
 			console.error(`Error parsing PHP file ${filePath}:`, error);
+			return []; // Return empty array on error
 		}
 
 		return classes;
@@ -199,7 +232,17 @@ export class PHPParser extends AbstractParserStrategy {
 	private extractMethod(node: any): MethodInfo {
 		const methodName = node.name?.name || node.name || 'unknown';
 		const parameters = this.extractParameters(node.arguments || []);
-		const returnType = node.type ? this.getTypeName(node.type) : 'void';
+		
+		// Handle nullable return type - check node.nullable first, then delegate to getTypeName
+		let returnType = 'void';
+		if (node.type) {
+			returnType = this.getTypeName(node.type);
+			// Check if method itself has nullable flag
+			if (node.nullable === true && !returnType.startsWith('?')) {
+				returnType = '?' + returnType;
+			}
+		}
+		
 		const visibility = node.visibility || 'public';
 
 		return {
@@ -233,6 +276,13 @@ export class PHPParser extends AbstractParserStrategy {
 			return typeNode;
 		}
 
+		// Handle nullable types FIRST
+		if (typeNode.nullable === true) {
+			const innerType = typeNode.type ? this.getTypeName(typeNode.type) : 
+			                  (typeNode.name ? this.getTypeName(typeNode.name) : 'mixed');
+			return '?' + innerType;
+		}
+
 		if (typeNode.name) {
 			if (typeof typeNode.name === 'string') {
 				return typeNode.name;
@@ -245,11 +295,6 @@ export class PHPParser extends AbstractParserStrategy {
 		// Handle union types (PHP 8.0+)
 		if (typeNode.kind === 'uniontype' && typeNode.types) {
 			return typeNode.types.map((t: any) => this.getTypeName(t)).join('|');
-		}
-
-		// Handle nullable types
-		if (typeNode.nullable) {
-			return '?' + this.getTypeName(typeNode.type);
 		}
 
 		return 'mixed';
@@ -305,21 +350,35 @@ export class PHPParser extends AbstractParserStrategy {
 				});
 			}
 
-			// Check method parameters and return types
+			// Check method parameters and return types - create specific relationships
 			for (const method of classInfo.methods) {
+				// Parameter relationships
 				for (const param of method.parameters) {
 					const types = this.extractTypeNames(param.type);
 					types.forEach(type => {
 						if (allClassNames.has(type) && type !== classInfo.name) {
 							dependencies.add(type);
+							// Create parameter relationship
+							const targets = classMap.get(type) || [];
+							targets.forEach(target => {
+								const toId = `${target.filePath}__${target.name}`;
+								relationships.push({ from: fromId, to: toId, type: 'parameter' });
+							});
 						}
 					});
 				}
 
+				// Returns relationships
 				const returnTypes = this.extractTypeNames(method.returnType);
 				returnTypes.forEach(type => {
 					if (allClassNames.has(type) && type !== classInfo.name) {
 						dependencies.add(type);
+						// Create returns relationship
+						const targets = classMap.get(type) || [];
+						targets.forEach(target => {
+							const toId = `${target.filePath}__${target.name}`;
+							relationships.push({ from: fromId, to: toId, type: 'returns' });
+						});
 					}
 				});
 			}
@@ -338,6 +397,95 @@ export class PHPParser extends AbstractParserStrategy {
 						relationships.push({ from: fromId, to: toId, type: 'uses' });
 					}
 				});
+			});
+		}
+
+		// Method call detection: parent::, Class::, new
+		for (const classInfo of classes) {
+			const astNode = (classInfo as any)._astNode;
+			if (!astNode) { continue; }
+
+			const fromId = `${classInfo.filePath}__${classInfo.name}`;
+
+			// Walk AST to find method calls
+			this.walkAST(astNode, (node: any) => {
+				// Helper to check if any part of a node refers to "parent"
+				const containsParentReference = (obj: any): boolean => {
+					if (!obj) { return false; }
+					if (typeof obj === 'string') { return obj === 'parent'; }
+					if (obj.name === 'parent' || obj.value === 'parent') { return true; }
+					if (obj.resolution === 'parent') { return true; }
+					// Recursively check nested objects
+					if (typeof obj === 'object') {
+						for (const key in obj) {
+							if (key !== 'loc' && key !== 'kind' && containsParentReference(obj[key])) {
+								return true;
+							}
+						}
+					}
+					return false;
+				};
+
+				// parent::method() calls - check call nodes and staticlookup
+				if ((node.kind === 'call' || node.kind === 'staticlookup') && classInfo.extends) {
+					if (containsParentReference(node.what) || containsParentReference(node)) {
+						const targets = classMap.get(classInfo.extends) || [];
+						targets.forEach(target => {
+							const toId = `${target.filePath}__${target.name}`;
+							if (!relationships.some(r => r.from === fromId && r.to === toId && r.type === 'calls-super')) {
+								relationships.push({ from: fromId, to: toId, type: 'calls-super' });
+							}
+						});
+					}
+				}
+				
+				// ClassName::method() - calls-static
+				if (node.kind === 'staticlookup' || node.kind === 'call') {
+					const whatName = node.what?.name || (typeof node.what === 'string' ? node.what : null);
+					
+					if (whatName && 
+					    whatName !== 'parent' &&
+					    whatName !== 'self' &&
+					    allClassNames.has(whatName)) {
+						const targets = classMap.get(whatName) || [];
+						targets.forEach(target => {
+							const toId = `${target.filePath}__${target.name}`;
+							// Avoid duplicates
+							if (!relationships.some(r => r.from === fromId && r.to === toId && r.type === 'calls-static')) {
+								relationships.push({ from: fromId, to: toId, type: 'calls-static' });
+							}
+						});
+					}
+				}
+
+				// new ClassName() - creates
+				if (node.kind === 'new' && node.what?.name) {
+					const className = node.what.name;
+					if (allClassNames.has(className)) {
+						const targets = classMap.get(className) || [];
+						targets.forEach(target => {
+							const toId = `${target.filePath}__${target.name}`;
+							// Avoid duplicates
+							if (!relationships.some(r => r.from === fromId && r.to === toId && r.type === 'creates')) {
+								relationships.push({ from: fromId, to: toId, type: 'creates' });
+							}
+						});
+					}
+				}
+
+				// Function calls within module (for functional.php)
+				if (classInfo.isModule && node.kind === 'call' && node.what?.name) {
+					const funcName = node.what.name;
+					// Check if it's a module function
+					const moduleFunc = classInfo.methods.find(m => m.name === funcName);
+					if (moduleFunc) {
+						// Function-to-function call within module
+						const toId = `${classInfo.filePath}__${classInfo.name}`;
+						if (!relationships.some(r => r.from === fromId && r.to === toId && r.type === 'calls')) {
+							relationships.push({ from: fromId, to: toId, type: 'calls' });
+						}
+					}
+				}
 			});
 		}
 
@@ -391,5 +539,43 @@ export class PHPParser extends AbstractParserStrategy {
 		];
 
 		return !builtInTypes.includes(typeName.toLowerCase()) && /^[A-Z]/.test(typeName);
+	}
+
+	/**
+	 * Extract module-level functions (not inside classes)
+	 */
+	private extractModuleFunctions(ast: any, classMethods: Set<string>): MethodInfo[] {
+		const functions: MethodInfo[] = [];
+		const seenFunctions = new Set<string>();
+
+		// Walk entire AST to find all function declarations (handles namespaced functions too)
+		this.walkAST(ast, (node: any) => {
+			// Only collect top-level functions (not methods inside classes)
+			if (node.kind === 'function' && node.name) {
+				const funcName = node.name.name || node.name || 'unknown';
+				
+				// Skip if this is a class method or already seen
+				if (classMethods.has(funcName) || seenFunctions.has(funcName)) {
+					return;
+				}
+				
+				seenFunctions.add(funcName);
+				const parameters = this.extractParameters(node.arguments || []);
+				const returnType = node.type ? this.getTypeName(node.type) : 'void';
+
+				functions.push({
+					name: funcName,
+					parameters,
+					returnType,
+					visibility: 'public',
+					isStatic: false,
+					isAsync: false,
+					lineNumber: node.loc?.start?.line || 0,
+					endLineNumber: node.loc?.end?.line || 0,
+				});
+			}
+		});
+
+		return functions;
 	}
 }

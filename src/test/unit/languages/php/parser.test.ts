@@ -4,8 +4,8 @@ import { PHPParser } from '../../../../services/parsing/languages/PHPParser';
 
 suite('PHP Parser Test Suite', () => {
 	const parser = new PHPParser();
-	const fixturesPath = path.join(__dirname, 'fixtures');
-	const workspacePath = path.join(__dirname, '../../../..');
+	const fixturesPath = path.join(__dirname, '../../../../../src/test/unit/languages/php/fixtures');
+	const workspacePath = path.join(__dirname, '../../../../../src/test/unit/languages/php/fixtures');
 
 	/**
 	 * Test Plan Validation:
