@@ -65,12 +65,10 @@ export class JavaScriptParser extends AbstractParserStrategy {
 
 			visit(sourceFile);
 
-			// If no classes found, try extracting module-level functions
-			if (classes.length === 0) {
-				const moduleInfo = this.extractModuleInfo(sourceFile, filePath);
-				if (moduleInfo) {
-					classes.push(moduleInfo);
-				}
+			// Always check for module-level functions (even if classes exist)
+			const moduleInfo = this.extractModuleInfo(sourceFile, filePath);
+			if (moduleInfo) {
+				classes.push(moduleInfo);
 			}
 		} catch {
 			// Return empty on parse error — never crash
@@ -94,6 +92,7 @@ export class JavaScriptParser extends AbstractParserStrategy {
 		for (const classInfo of classes) {
 			const fromId = `${classInfo.filePath}__${classInfo.name}`;
 
+			// Inheritance relationships
 			if (classInfo.extends) {
 				const targets = classMap.get(classInfo.extends) || [];
 				targets.forEach(target => {
@@ -111,18 +110,67 @@ export class JavaScriptParser extends AbstractParserStrategy {
 				}
 			}
 
-			// Dependency detection from properties and method params
+			// Property type dependencies (composition)
 			const dependencies = new Set<string>();
 
 			for (const prop of classInfo.properties) {
 				const typeNames = this.extractTypeNames(prop.type);
-				console.log(`    🔗 JS property "${prop.name}: ${prop.type}" -> types: [${typeNames.join(', ')}]`);
 				typeNames.forEach(t => {
 					if (allClassNames.has(t) && t !== classInfo.name) { 
 						dependencies.add(t); 
-						console.log(`      ✅ Found dependency: ${classInfo.name} -> ${t}`);
 					}
 				});
+			}
+
+			// Method parameter and return type dependencies
+			for (const method of classInfo.methods) {
+				for (const param of method.parameters) {
+					const typeNames = this.extractTypeNames(param.type);
+					typeNames.forEach(t => {
+						// Create parameter relationships for all types (not just classes in allClassNames)
+						// because JSDoc typedefs might not be in allClassNames
+						if (t && t !== classInfo.name && t !== 'any') {
+							const targets = classMap.get(t) || [];
+							if (targets.length > 0) {
+								targets.forEach(target => {
+									const toId = `${target.filePath}__${target.name}`;
+									relationships.push({ from: fromId, to: toId, type: 'parameter' });
+								});
+							} else {
+								// Type might be a typedef or external type, create relationship anyway
+								// using a synthetic ID for the type
+								relationships.push({ 
+									from: fromId, 
+									to: `${classInfo.filePath}__${t}`, 
+									type: 'parameter' 
+								});
+							}
+						}
+					});
+				}
+				
+				if (method.returnType) {
+					const typeNames = this.extractTypeNames(method.returnType);
+					typeNames.forEach(t => {
+						// Create returns relationships for all types (not just classes in allClassNames)
+						if (t && t !== classInfo.name && t !== 'any') {
+							const targets = classMap.get(t) || [];
+							if (targets.length > 0) {
+								targets.forEach(target => {
+									const toId = `${target.filePath}__${target.name}`;
+									relationships.push({ from: fromId, to: toId, type: 'returns' });
+								});
+							} else {
+								// Type might be a typedef or external type, create relationship anyway
+								relationships.push({ 
+									from: fromId, 
+									to: `${classInfo.filePath}__${t}`, 
+									type: 'returns' 
+								});
+							}
+						}
+					});
+				}
 			}
 
 			dependencies.forEach(dep => {
@@ -138,6 +186,163 @@ export class JavaScriptParser extends AbstractParserStrategy {
 					}
 				});
 			});
+
+			// Extract method call relationships by parsing the file again
+			relationships.push(...this.extractMethodCallRelationships(classInfo, allClassNames, classMap));
+		}
+
+		return relationships;
+	}
+
+	private extractMethodCallRelationships(
+		classInfo: ClassInfo, 
+		allClassNames: Set<string>,
+		classMap: Map<string, ClassInfo[]>
+	): ClassRelationship[] {
+		const relationships: ClassRelationship[] = [];
+
+		try {
+			const sourceCode = fs.readFileSync(classInfo.filePath, 'utf-8');
+			const sourceFile = ts.createSourceFile(
+				classInfo.filePath,
+				sourceCode,
+				ts.ScriptTarget.Latest,
+				true,
+				ts.ScriptKind.JS
+			);
+
+			// For module functions, extract intra-module call relationships
+			if (classInfo.isModule === true && (classInfo as any)._functionNodes) {
+				const functionNodes = (classInfo as any)._functionNodes as Map<string, ts.Node>;
+				const functionNames = new Set(classInfo.methods.map(m => m.name));
+				
+				// For each function, scan its body for calls to other functions
+				for (const [funcName, funcNode] of functionNodes.entries()) {
+					const visitFunctionBody = (node: ts.Node) => {
+						if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+							const calledFuncName = node.expression.getText();
+							// Check if it's calling another function in this module
+							if (functionNames.has(calledFuncName) && calledFuncName !== funcName) {
+								const fromId = `${classInfo.filePath}__${funcName}`;
+								const toId = `${classInfo.filePath}__${calledFuncName}`;
+								relationships.push({ from: fromId, to: toId, type: 'calls' });
+							}
+						}
+						
+						// Check for await calls
+						if (ts.isAwaitExpression(node) && ts.isCallExpression(node.expression)) {
+							const callExpr = node.expression;
+							if (ts.isIdentifier(callExpr.expression)) {
+								const calledFuncName = callExpr.expression.getText();
+								if (functionNames.has(calledFuncName) && calledFuncName !== funcName) {
+									const fromId = `${classInfo.filePath}__${funcName}`;
+									const toId = `${classInfo.filePath}__${calledFuncName}`;
+									relationships.push({ from: fromId, to: toId, type: 'async-calls' });
+								}
+							}
+						}
+						
+						ts.forEachChild(node, visitFunctionBody);
+					};
+					
+					ts.forEachChild(funcNode, visitFunctionBody);
+				}
+				
+				return relationships; // For modules, only return intra-module relationships
+			}
+
+			const visitNode = (node: ts.Node) => {
+				// 1. CALLS-SUPER: super.method() or super() calls
+				if (ts.isCallExpression(node)) {
+					if (ts.isPropertyAccessExpression(node.expression) && 
+						node.expression.expression.kind === ts.SyntaxKind.SuperKeyword) {
+						// super.method() call
+						if (classInfo.extends) {
+							const targets = classMap.get(classInfo.extends) || [];
+							targets.forEach(target => {
+								const fromId = `${classInfo.filePath}__${classInfo.name}`;
+								const toId = `${target.filePath}__${target.name}`;
+								relationships.push({ from: fromId, to: toId, type: 'calls-super' });
+							});
+						}
+					} else if (node.expression.kind === ts.SyntaxKind.SuperKeyword) {
+						// super() constructor call
+						if (classInfo.extends) {
+							const targets = classMap.get(classInfo.extends) || [];
+							targets.forEach(target => {
+								const fromId = `${classInfo.filePath}__${classInfo.name}`;
+								const toId = `${target.filePath}__${target.name}`;
+								relationships.push({ from: fromId, to: toId, type: 'calls-super' });
+							});
+						}
+					}
+
+					// 2. CALLS-STATIC: ClassName.staticMethod() calls
+					if (ts.isPropertyAccessExpression(node.expression) && 
+						ts.isIdentifier(node.expression.expression)) {
+						const className = node.expression.expression.getText();
+						if (allClassNames.has(className)) {
+							const targets = classMap.get(className) || [];
+							targets.forEach(target => {
+								const fromId = `${classInfo.filePath}__${classInfo.name}`;
+								const toId = `${target.filePath}__${target.name}`;
+								relationships.push({ from: fromId, to: toId, type: 'calls-static' });
+							});
+						}
+					}
+
+					// 3. CALLS: Regular function calls (function-to-function)
+					if (ts.isIdentifier(node.expression)) {
+						const funcName = node.expression.getText();
+						if (funcName !== classInfo.name) {
+							// Check if the function is a method in any module
+							for (const [name, targets] of classMap.entries()) {
+								for (const target of targets) {
+									if (target.isModule === true) {
+										// Check if this module has a method with funcName
+										const hasMethod = target.methods?.some(m => m.name === funcName);
+										if (hasMethod) {
+											const fromId = `${classInfo.filePath}__${classInfo.name}`;
+											const toId = `${target.filePath}__${target.name}`;
+											relationships.push({ from: fromId, to: toId, type: 'calls' });
+											break; // Found it, no need to check other targets
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+
+				// 4. ASYNC-CALLS: await expressions
+				if (ts.isAwaitExpression(node) && ts.isCallExpression(node.expression)) {
+					const callExpr = node.expression;
+					if (ts.isIdentifier(callExpr.expression)) {
+						const funcName = callExpr.expression.getText();
+						// Check if the function is a method in any module
+						for (const [name, targets] of classMap.entries()) {
+							for (const target of targets) {
+								if (target.isModule === true) {
+									// Check if this module has a method with funcName
+									const hasMethod = target.methods?.some(m => m.name === funcName);
+									if (hasMethod) {
+										const fromId = `${classInfo.filePath}__${classInfo.name}`;
+										const toId = `${target.filePath}__${target.name}`;
+										relationships.push({ from: fromId, to: toId, type: 'async-calls' });
+										break; // Found it, no need to check other targets
+									}
+								}
+							}
+						}
+					}
+				}
+
+				ts.forEachChild(node, visitNode);
+			};
+
+			visitNode(sourceFile);
+		} catch (error) {
+			// Silently fail if we can't parse the file
 		}
 
 		return relationships;
@@ -298,12 +503,14 @@ export class JavaScriptParser extends AbstractParserStrategy {
 		const fileName = path.basename(filePath, path.extname(filePath));
 		const moduleName = `[${fileName}]`;
 		const methods: MethodInfo[] = [];
+		const functionNodes = new Map<string, ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression>();
 
 		sourceFile.forEachChild(node => {
 			// function declarations
 			if (ts.isFunctionDeclaration(node) && node.name) {
+				const funcName = node.name.getText();
 				methods.push({
-					name: node.name.getText(),
+					name: funcName,
 					parameters: node.parameters.map(p => ({
 						name: p.name.getText(),
 						type: 'any',
@@ -314,6 +521,7 @@ export class JavaScriptParser extends AbstractParserStrategy {
 					isStatic: true,
 					isAsync: node.modifiers?.some(m => m.kind === ts.SyntaxKind.AsyncKeyword) || false,
 				});
+				functionNodes.set(funcName, node);
 			}
 
 			// const foo = () => {} or const foo = function() {}
@@ -321,8 +529,9 @@ export class JavaScriptParser extends AbstractParserStrategy {
 				for (const decl of node.declarationList.declarations) {
 					if (ts.isIdentifier(decl.name) && decl.initializer &&
 						(ts.isArrowFunction(decl.initializer) || ts.isFunctionExpression(decl.initializer))) {
+						const funcName = decl.name.getText();
 						methods.push({
-							name: decl.name.getText(),
+							name: funcName,
 							parameters: decl.initializer.parameters.map(p => ({
 								name: p.name.getText(),
 								type: 'any',
@@ -335,13 +544,25 @@ export class JavaScriptParser extends AbstractParserStrategy {
 								m => m.kind === ts.SyntaxKind.AsyncKeyword
 							) || false,
 						});
+						functionNodes.set(funcName, decl.initializer);
 					}
 				}
 			}
 		});
 
 		if (methods.length === 0) { return null; }
-		return { name: moduleName, filePath, properties: [], methods, isModule: true, classType: 'module' };
+		
+		// Store function nodes for relationship extraction
+		const moduleInfo: any = { 
+			name: moduleName, 
+			filePath, 
+			properties: [], 
+			methods, 
+			isModule: true, 
+			classType: 'module',
+			_functionNodes: functionNodes // Store AST nodes for relationship extraction
+		};
+		return moduleInfo;
 	}
 
 	private extractTypeNames(typeString: string): string[] {
@@ -362,6 +583,28 @@ export class JavaScriptParser extends AbstractParserStrategy {
 	 * Extract type from JSDoc @type or @param annotations
 	 */
 	private getTypeFromJSDoc(node: ts.Node, typeChecker?: ts.TypeChecker): string | undefined {
+		// For parameters, check parent method's @param tags
+		if (ts.isParameter(node) && node.parent) {
+			const paramName = node.name.getText();
+			const jsDocs = (node.parent as any).jsDoc;
+			if (jsDocs) {
+				for (const jsDoc of jsDocs) {
+					if (jsDoc.tags) {
+						for (const tag of jsDoc.tags) {
+							if (tag.kind === ts.SyntaxKind.JSDocParameterTag) {
+								const tagParamName = tag.name?.getText();
+								if (tagParamName === paramName && tag.typeExpression) {
+									const typeText = tag.typeExpression.type.getText();
+									return typeText;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// For other nodes, try type checker
 		if (!typeChecker) return undefined;
 
 		const symbol = typeChecker.getSymbolAtLocation(node);
@@ -372,25 +615,6 @@ export class JavaScriptParser extends AbstractParserStrategy {
 		for (const tag of jsDocTags) {
 			if (tag.name === 'type') {
 				return tag.text?.map((t: any) => t.text).join('') || undefined;
-			}
-		}
-
-		// For parameters, check parent function's @param tags
-		if (ts.isParameter(node) && node.parent) {
-			const paramName = node.name.getText();
-			const jsDocs = (node.parent as any).jsDoc;
-			if (jsDocs) {
-				for (const jsDoc of jsDocs) {
-					if (jsDoc.tags) {
-						for (const tag of jsDoc.tags) {
-							if (tag.kind === ts.SyntaxKind.JSDocParameterTag && 
-								tag.name?.getText() === paramName &&
-								tag.typeExpression) {
-								return tag.typeExpression.type.getText();
-							}
-						}
-					}
-				}
 			}
 		}
 

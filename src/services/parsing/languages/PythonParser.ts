@@ -20,6 +20,7 @@ export class PythonParser extends AbstractParserStrategy {
 			let currentClass: any = null;
 			let currentMethod: any = null;
 			let currentIndent = 0;
+			let pendingDecorators: string[] = []; // Track decorators before method/class
 
 			for (let i = 0; i < lines.length; i++) {
 				const line = lines[i];
@@ -28,6 +29,13 @@ export class PythonParser extends AbstractParserStrategy {
 
 				// Skip empty lines and comments
 				if (!trimmed || trimmed.startsWith('#')) {
+					continue;
+				}
+
+				// Decorator: @decorator_name or @decorator_name(args)
+				const decoratorMatch = trimmed.match(/^@(\w+)(?:\(.*\))?$/);
+				if (decoratorMatch) {
+					pendingDecorators.push(decoratorMatch[1]);
 					continue;
 				}
 
@@ -50,9 +58,11 @@ export class PythonParser extends AbstractParserStrategy {
 						properties: [],
 						methods: [],
 						baseClasses: bases.filter(b => b && b !== 'object'),
+						decorators: pendingDecorators, // Store class decorators
 					};
 					currentIndent = indent;
 					currentMethod = null;
+					pendingDecorators = []; // Clear decorators after use
 					continue;
 				}
 
@@ -60,43 +70,47 @@ export class PythonParser extends AbstractParserStrategy {
 					continue;
 				}
 
-				// Method definition: def method_name(self, ...):
-			// Support complex return types like Optional[Product], List[str], etc.
-			const methodMatch = trimmed.match(/^def\s+(\w+)\s*\(([^)]*)\)\s*(?:->\s*([^:]+))?:/);
-			if (methodMatch && indent > currentIndent) {
-				const methodName = methodMatch[1];
-				const paramsStr = methodMatch[2];
-				const returnType = methodMatch[3]?.trim() || 'None';
+				// Method definition: def method_name(self, ...): or async def method_name(...):
+				// Support complex return types like Optional[Product], List[str], etc.
+				const methodMatch = trimmed.match(/^(async\s+)?def\s+(\w+)\s*\(([^)]*)\)\s*(?:->\s*([^:]+))?:/);
+				if (methodMatch && indent > currentIndent) {
+					const isAsync = !!methodMatch[1];
+					const methodName = methodMatch[2];
+					const paramsStr = methodMatch[3];
+					const returnType = methodMatch[4]?.trim() || 'None';
 
-				// Parse parameters
-				const params = paramsStr
-					.split(',')
-					.map(p => p.trim())
-					.filter(p => p && p !== 'self')
-					.map(p => {
-						// Handle type hints: name: type = default
-						const paramMatch = p.match(/(\w+)(?:\s*:\s*([^=]+))?(?:\s*=\s*(.+))?/);
-						if (paramMatch) {
-							return {
-								name: paramMatch[1],
-								type: paramMatch[2]?.trim() || 'Any',
-								optional: !!paramMatch[3],
-							};
-						}
-						return { name: p, type: 'Any', optional: false };
-					});
+					// Parse parameters
+					const params = paramsStr
+						.split(',')
+						.map(p => p.trim())
+						.filter(p => p && p !== 'self')
+						.map(p => {
+							// Handle type hints: name: type = default
+							const paramMatch = p.match(/(\w+)(?:\s*:\s*([^=]+))?(?:\s*=\s*(.+))?/);
+							if (paramMatch) {
+								return {
+									name: paramMatch[1],
+									type: paramMatch[2]?.trim() || 'Any',
+									optional: !!paramMatch[3],
+								};
+							}
+							return { name: p, type: 'Any', optional: false };
+						});
 
-				currentMethod = {
-					name: methodName,
-					parameters: params,
-					returnType,
-					startLine: i + 1,
-				};
+					currentMethod = {
+						name: methodName,
+						parameters: params,
+						returnType,
+						startLine: i + 1,
+						decorators: pendingDecorators, // Store method decorators
+						isAsync: isAsync, // Track if it's an async method
+					};
 
-				currentClass.methods.push(currentMethod);
-				console.log(`    📌 Found method: ${methodName}() at line ${i + 1} -> ${returnType}`);
-			continue;
-		}
+					currentClass.methods.push(currentMethod);
+					pendingDecorators = []; // Clear decorators after use
+					console.log(`    📌 Found method: ${methodName}() at line ${i + 1} -> ${returnType}${isAsync ? ' (async)' : ''}`);
+					continue;
+				}
 
 		// Property from type annotation: name: type = value
 		const propMatch = trimmed.match(/^(\w+)\s*:\s*(\w+)(?:\s*=\s*(.+))?/);
@@ -142,20 +156,18 @@ export class PythonParser extends AbstractParserStrategy {
 				classes.push(this.finishClass(currentClass, filePath, lines.length));
 			}
 
-			// If no classes found, create a module-level entry
-			if (classes.length === 0) {
+			// Always check for module-level functions (even if classes exist)
+			const moduleFunctions = this.extractModuleFunctions(lines);
+			if (moduleFunctions.length > 0) {
 				const moduleName = `[${path.basename(filePath, '.py')}]`;
-				const functions = this.extractModuleFunctions(lines);
-				if (functions.length > 0) {
-					classes.push({
-						name: moduleName,
-						filePath,
-						properties: [],
-						methods: functions,
-						isModule: true,
-						classType: 'module',
-					});
-				}
+				classes.push({
+					name: moduleName,
+					filePath,
+					properties: [],
+					methods: moduleFunctions,
+					isModule: true,
+					classType: 'module',
+				});
 			}
 		} catch (error) {
 			console.error(`Error parsing Python file ${filePath}:`, error);
@@ -202,8 +214,8 @@ export class PythonParser extends AbstractParserStrategy {
 				parameters: m.parameters,
 				returnType: m.returnType,
 				visibility: m.name.startsWith('_') ? 'private' : 'public',
-				isStatic: m.name === 'staticmethod' || m.name === 'classmethod',
-				isAsync: false,
+				isStatic: m.decorators?.includes('staticmethod') || m.decorators?.includes('classmethod') || false,
+				isAsync: m.isAsync || false,
 				lineNumber: m.startLine,
 				endLineNumber: m.endLine,
 			})),
@@ -214,6 +226,7 @@ export class PythonParser extends AbstractParserStrategy {
 
 	private extractModuleFunctions(lines: string[]): MethodInfo[] {
 		const functions: MethodInfo[] = [];
+		let pendingDecorators: string[] = [];
 
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
@@ -224,12 +237,20 @@ export class PythonParser extends AbstractParserStrategy {
 				continue;
 			}
 
-			// Function definition: def function_name(...):
-			const funcMatch = trimmed.match(/^def\s+(\w+)\s*\(([^)]*)\)\s*(?:->\s*(\w+))?:/);
+			// Decorator at module level
+			const decoratorMatch = trimmed.match(/^@(\w+)(?:\(.*\))?$/);
+			if (decoratorMatch) {
+				pendingDecorators.push(decoratorMatch[1]);
+				continue;
+			}
+
+			// Function definition: def function_name(...): or async def function_name(...):
+			const funcMatch = trimmed.match(/^(async\s+)?def\s+(\w+)\s*\(([^)]*)\)\s*(?:->\s*(.+))?:/);
 			if (funcMatch) {
-				const funcName = funcMatch[1];
-				const paramsStr = funcMatch[2];
-				const returnType = funcMatch[3] || 'None';
+				const isAsync = !!funcMatch[1];
+				const funcName = funcMatch[2];
+				const paramsStr = funcMatch[3];
+				const returnType = funcMatch[4]?.trim() || 'None';
 
 				// Parse parameters
 				const params = paramsStr
@@ -237,9 +258,13 @@ export class PythonParser extends AbstractParserStrategy {
 					.map(p => p.trim())
 					.filter(p => p)
 					.map(p => {
-						const paramMatch = p.match(/(\w+)(?:\s*:\s*(\w+))?/);
+						const paramMatch = p.match(/(\w+)(?:\s*:\s*([^=]+))?(?:\s*=\s*(.+))?/);
 						return paramMatch
-							? { name: paramMatch[1], type: paramMatch[2] || 'Any', optional: false }
+							? { 
+								name: paramMatch[1], 
+								type: paramMatch[2]?.trim() || 'Any', 
+								optional: !!paramMatch[3]
+							}
 							: { name: p, type: 'Any', optional: false };
 					});
 
@@ -248,11 +273,12 @@ export class PythonParser extends AbstractParserStrategy {
 					parameters: params,
 					returnType,
 					visibility: funcName.startsWith('_') ? 'private' : 'public',
-					isStatic: false,
-					isAsync: false,
+					isStatic: pendingDecorators.includes('staticmethod') || pendingDecorators.includes('classmethod'),
+					isAsync: isAsync,
 					lineNumber: i + 1,
 					endLineNumber: i + 1, // Will be set properly below
 				});
+				pendingDecorators = []; // Clear decorators after use
 			}
 		}
 
