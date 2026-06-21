@@ -119,17 +119,20 @@ users.map(user => user.name);  // Callback function
 
 **Test fixtures:**
 ```
-src/test/unit/languages/typescript/
-├── class-based.ts          (Classes, inheritance, interfaces)
-├── functional.ts           (Functions, calls, composition)
-├── type-relationships.ts   (Property/return/parameter types)
-├── parent-calls.ts         (super.method() calls)
-├── static-calls.ts         (Static method calls)
-├── re-exports.ts           (Re-export patterns)
-├── factory-pattern.ts      (Factory → Product)
-├── async-chains.ts         (Async/await call chains)
-├── higher-order.ts         (Callbacks, generics)
-└── imports.ts              (Module dependencies)
+src/test/unit/languages/
+├── typescript/                  ✅ COMPLETE (20 tests)
+│   ├── parser.test.ts
+│   └── fixtures/ (10 files)
+└── javascript/                  ✅ COMPLETE (30 tests)
+    ├── parser.test.ts
+    └── fixtures/ (7 files)
+        ├── class-based.js
+        ├── functional.js
+        ├── type-relationships.js (JSDoc)
+        ├── parent-calls.js
+        ├── static-calls.js
+        ├── async-chains.js
+        └── imports.js
 ```
 
 ---
