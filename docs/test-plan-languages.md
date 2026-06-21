@@ -151,15 +151,17 @@ src/test/unit/languages/
 
 **Test fixtures:**
 ```
-src/test/unit/languages/python/
-├── class_based.py          (Classes, inheritance)
-├── functional.py           (Functions, composition)
-├── type_hints.py           (Type annotations)
-├── parent_calls.py         (super().method())
-├── static_methods.py       (@staticmethod calls)
-├── decorators.py           (@router.get, @property)
-├── async_chains.py         (async def, await)
-└── imports.py              (from/import patterns)
+src/test/unit/languages/python/        ✅ COMPLETE (34 tests - RIGOROUS)
+├── parser.test.ts
+└── fixtures/
+    ├── class_based.py          (Classes, inheritance)
+    ├── functional.py           (Functions, composition)
+    ├── type_hints.py           (Type annotations)
+    ├── parent_calls.py         (super().method())
+    ├── static_methods.py       (@staticmethod calls)
+    ├── decorators.py           (@router.get, @property)
+    ├── async_chains.py         (async def, await)
+    └── imports.py              (from/import patterns)
 ```
 
 ---
