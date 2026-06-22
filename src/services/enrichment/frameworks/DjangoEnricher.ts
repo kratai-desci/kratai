@@ -564,9 +564,171 @@ export class DjangoEnricher extends AbstractEnricher {
 	}
 	
 	/**
-	 * Create URL route relationships (simplified - would need AST parsing for real implementation)
+	 * Create URL route relationships (by parsing urls.py files)
 	 */
 	private createURLRouteRelationships(classes: any[], context: EnrichmentContext): ClassRelationship[] {
+		const relationships: ClassRelationship[] = [];
+		
+		// Find all urls.py files in workspace
+		const urlFiles = this.findUrlFiles(context.workspacePath);
+		
+		if (urlFiles.length === 0) {
+			// Fallback to heuristic approach if no urls.py found
+			return this.createHeuristicRoutes(classes);
+		}
+		
+		// Parse each urls.py file
+		for (const urlFile of urlFiles) {
+			const patterns = this.parseUrlFile(urlFile, classes);
+			
+			for (const pattern of patterns) {
+				// Create synthetic route node
+				const routeNode = {
+					name: pattern.path,
+					filePath: `route://${pattern.path}`,
+					classType: 'route',
+					properties: [],
+					methods: [],
+					routeMeta: {
+						path: pattern.path,
+						method: 'GET',
+						definedIn: urlFile,
+						viewName: pattern.viewName,
+						dynamicParams: pattern.dynamicParams
+					}
+				};
+				
+				classes.push(routeNode);
+				
+				// Create route → view relationship
+				if (pattern.viewClass) {
+					relationships.push({
+						from: this.getClassId(routeNode),
+						to: this.getClassId(pattern.viewClass),
+						type: 'routes-to',
+						metadata: { 
+							path: pattern.path,
+							urlFile: urlFile
+						}
+					});
+				}
+			}
+		}
+		
+		return relationships;
+	}
+	
+	/**
+	 * Find all urls.py files in workspace
+	 */
+	private findUrlFiles(workspacePath: string): string[] {
+		const urlFiles: string[] = [];
+		
+		const searchDir = (dir: string, depth: number = 0): void => {
+			if (depth > 5) return; // Limit recursion
+			
+			try {
+				const entries = fs.readdirSync(dir, { withFileTypes: true });
+				
+				for (const entry of entries) {
+					if (entry.isFile() && entry.name === 'urls.py') {
+						urlFiles.push(path.join(dir, entry.name));
+					} else if (entry.isDirectory() && 
+					           entry.name !== 'node_modules' && 
+					           entry.name !== '.git' &&
+					           entry.name !== '__pycache__' &&
+					           !entry.name.startsWith('.')) {
+						searchDir(path.join(dir, entry.name), depth + 1);
+					}
+				}
+			} catch (error) {
+				// Ignore permission errors
+			}
+		};
+		
+		searchDir(workspacePath);
+		return urlFiles;
+	}
+	
+	/**
+	 * Parse urls.py file and extract URL patterns
+	 */
+	private parseUrlFile(filePath: string, classes: any[]): UrlPattern[] {
+		const patterns: UrlPattern[] = [];
+		
+		try {
+			const content = fs.readFileSync(filePath, 'utf-8');
+			
+			// Regex to match: path('route/', views.ViewName or path('route/', views.view_func)
+			// Handles both .as_view() and direct function references
+			const pathRegex = /path\s*\(\s*['"r]([^'"]+)['"]\s*,\s*views\.(\w+)(?:\.as_view\(\))?/g;
+			
+			let match;
+			while ((match = pathRegex.exec(content)) !== null) {
+				const routePath = match[1];  // 'users/' or 'users/<int:pk>/'
+				const viewName = match[2];   // 'UserListView' or 'list_users_api'
+				
+				// Find matching view class/function
+				const viewClass = this.findViewByName(viewName, classes);
+				
+				// Extract dynamic parameters
+				const dynamicParams = this.extractDynamicParams(routePath);
+				
+				patterns.push({
+					path: routePath,
+					viewName: viewName,
+					viewClass: viewClass,
+					dynamicParams: dynamicParams
+				});
+			}
+		} catch (error) {
+			// Ignore file read errors
+			console.warn(`Failed to parse ${filePath}:`, error);
+		}
+		
+		return patterns;
+	}
+	
+	/**
+	 * Extract dynamic parameters from route path
+	 */
+	private extractDynamicParams(routePath: string): DynamicParam[] {
+		const params: DynamicParam[] = [];
+		
+		// Match <int:pk>, <slug:slug>, <str:username>, <uuid:id>, etc.
+		const paramRegex = /<(\w+):(\w+)>/g;
+		
+		let match;
+		while ((match = paramRegex.exec(routePath)) !== null) {
+			params.push({
+				type: match[1],  // 'int', 'slug', 'str', 'uuid'
+				name: match[2]   // 'pk', 'slug', 'username', 'id'
+			});
+		}
+		
+		return params;
+	}
+	
+	/**
+	 * Find view class/function by name
+	 */
+	private findViewByName(viewName: string, classes: any[]): any | null {
+		// Try exact match first
+		let view = classes.find(c => c.name === viewName);
+		if (view) return view;
+		
+		// Try case-insensitive match
+		const lowerViewName = viewName.toLowerCase();
+		view = classes.find(c => c.name.toLowerCase() === lowerViewName);
+		if (view) return view;
+		
+		return null;
+	}
+	
+	/**
+	 * Fallback: Create heuristic routes if no urls.py found
+	 */
+	private createHeuristicRoutes(classes: any[]): ClassRelationship[] {
 		const relationships: ClassRelationship[] = [];
 		
 		// Find all views (class-based and function-based)
@@ -582,10 +744,8 @@ export class DjangoEnricher extends AbstractEnricher {
 			return false;
 		});
 		
-		// For each view, create a synthetic route node (simplified)
+		// For each view, infer route from name
 		for (const view of views) {
-			// Create synthetic route based on view name
-			// e.g., UserListView → /users/
 			const routePath = this.inferRouteFromViewName(view.name);
 			
 			if (routePath) {
@@ -619,7 +779,7 @@ export class DjangoEnricher extends AbstractEnricher {
 	}
 	
 	/**
-	 * Infer route path from view name (heuristic)
+	 * Infer route path from view name (heuristic fallback)
 	 */
 	private inferRouteFromViewName(viewName: string): string | null {
 		// UserListView → /users/
@@ -663,4 +823,22 @@ export class DjangoEnricher extends AbstractEnricher {
 	private getClassId(classInfo: any): string {
 		return `${classInfo.filePath}__${classInfo.name}`;
 	}
+}
+
+/**
+ * URL pattern parsed from urls.py
+ */
+interface UrlPattern {
+	path: string;           // 'users/' or 'users/<int:pk>/'
+	viewName: string;       // 'UserListView'
+	viewClass: any | null;  // Matched ClassInfo object
+	dynamicParams: DynamicParam[];
+}
+
+/**
+ * Dynamic parameter in URL route
+ */
+interface DynamicParam {
+	type: string;  // 'int', 'slug', 'str', 'uuid'
+	name: string;  // 'pk', 'slug', 'username'
 }

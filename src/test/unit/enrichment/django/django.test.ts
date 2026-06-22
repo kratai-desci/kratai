@@ -40,43 +40,50 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 	
 	suite('URL Pattern Detection', () => {
 		test('should detect URL patterns from urls.py', async () => {
-			// File: urls.py with path('users/', views.UserListView)
-			const mockClasses: ClassInfo[] = [{
-				name: 'urlpatterns',
-				filePath: 'users/urls.py',
-				properties: [],
-				methods: [],
-				classType: 'module'
-			}];
+			// Real urls.py file exists in fixtures/
+			// Contains: path('users/', views.UserListView.as_view())
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'UserListView',
+					filePath: 'fixtures/views.py',
+					extends: 'ListView',
+					properties: [],
+					methods: [],
+					classType: 'class'
+				}
+			];
 			
 			const context: EnrichmentContext = {
-				workspacePath,
+				workspacePath: fixturesPath,  // Enricher can read urls.py from here
 				classes: mockClasses,
 				relationships: []
 			};
 			
 			const result = await enricher.enrich(context);
 			
-			// Should create route node for /users/
+			// Should create route node for 'users/'
 			const routeNode = result.enhancedClasses.find(c => 
-				c.classType === 'route' && c.routeMeta?.path === '/users/'
+				c.classType === 'route' && c.routeMeta?.path === 'users/'
 			);
 			
 			assert.ok(routeNode, 'MUST create route node from URL pattern');
 		});
 		
 		test('should detect dynamic URL parameters', async () => {
-			// path('users/<int:pk>/', views.UserDetailView)
-			const mockClasses: ClassInfo[] = [{
-				name: 'urlpatterns',
-				filePath: 'users/urls.py',
-				properties: [],
-				methods: [],
-				classType: 'module'
-			}];
+			// Real urls.py contains: path('users/<int:pk>/', views.UserDetailView.as_view())
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'UserDetailView',
+					filePath: 'fixtures/views.py',
+					extends: 'DetailView',
+					properties: [],
+					methods: [],
+					classType: 'class'
+				}
+			];
 			
 			const context: EnrichmentContext = {
-				workspacePath,
+				workspacePath: fixturesPath,  // Enricher reads urls.py
 				classes: mockClasses,
 				relationships: []
 			};
@@ -91,18 +98,12 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 		});
 		
 		test('should create URL → View relationship', async () => {
-			// path('users/', views.UserListView)
+			// Real urls.py: path('users/', views.UserListView)
 			const mockClasses: ClassInfo[] = [
 				{
-					name: 'urlpatterns',
-					filePath: 'users/urls.py',
-					properties: [],
-					methods: [],
-					classType: 'module'
-				},
-				{
 					name: 'UserListView',
-					filePath: 'users/views.py',
+					filePath: 'fixtures/views.py',
+					extends: 'ListView',
 					properties: [],
 					methods: [],
 					classType: 'class'
@@ -110,14 +111,14 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 			];
 			
 			const context: EnrichmentContext = {
-				workspacePath,
+				workspacePath: fixturesPath,  // Enricher reads urls.py
 				classes: mockClasses,
 				relationships: []
 			};
 			
 			const result = await enricher.enrich(context);
 			
-			// Should create: route /users/ → UserListView
+			// Should create: route → view relationship
 			const routeRel = result.newRelationships.find(rel => 
 				rel.type === 'routes-to' &&
 				rel.to.includes('UserListView')
