@@ -896,7 +896,7 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 			const mockClasses: ClassInfo[] = [
 				{
 					name: 'TaskListView',
-					filePath: 'webapp/views.py',
+					filePath: 'views.py',  // Use actual fixture file
 					extends: 'ListView',
 					properties: [
 						{
@@ -918,7 +918,7 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 			];
 			
 			const context: EnrichmentContext = {
-				workspacePath,
+				workspacePath: fixturesPath,  // Point to fixtures directory
 				classes: mockClasses,
 				relationships: []
 			};
@@ -941,7 +941,7 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 			const mockClasses: ClassInfo[] = [
 				{
 					name: 'task_list',
-					filePath: 'webapp/views.py',
+					filePath: 'function-views.py',  // Use actual fixture file
 					properties: [],
 					methods: [],
 					classType: 'function'
@@ -956,7 +956,7 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 			];
 			
 			const context: EnrichmentContext = {
-				workspacePath: fixturesPath,  // Enricher reads views.py to find render() calls
+				workspacePath: fixturesPath,  // Enricher reads function-views.py to find render() calls
 				classes: mockClasses,
 				relationships: []
 			};
@@ -978,7 +978,7 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 			const mockClasses: ClassInfo[] = [
 				{
 					name: 'TaskListView',
-					filePath: 'webapp/views.py',
+					filePath: 'views.py',
 					extends: 'ListView',
 					properties: [
 						{
@@ -991,8 +991,8 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 					classType: 'class'
 				},
 				{
-					name: 'list.html',
-					filePath: 'webapp/templates/webapp/tasks/list.html',
+					name: 'task_list.html',
+					filePath: 'webapp/templates/webapp/tasks/task_list.html',
 					properties: [],
 					methods: [],
 					classType: 'template'
@@ -1000,7 +1000,7 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 			];
 			
 			const context: EnrichmentContext = {
-				workspacePath,
+				workspacePath: fixturesPath,
 				classes: mockClasses,
 				relationships: []
 			};
@@ -1011,19 +1011,19 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 			const rendersRel = result.newRelationships.find(rel => 
 				rel.type === 'renders' &&
 				rel.from.includes('TaskListView') &&
-				rel.to.includes('list.html')
+				rel.to.includes('task_list.html')
 			);
 			
 			assert.ok(rendersRel, 'MUST match templates by filename with nested paths');
 		});
 		
 		test('should handle multiple views using the same template', async () => {
-			// Both views use 'webapp/base.html'
+			// Both views use 'webapp/task_form.html'
 			const mockClasses: ClassInfo[] = [
 				{
-					name: 'TaskListView',
-					filePath: 'webapp/views.py',
-					extends: 'ListView',
+					name: 'TaskCreateView',
+					filePath: 'views.py',
+					extends: 'CreateView',
 					properties: [
 						{
 							name: 'template_name',
@@ -1035,9 +1035,9 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 					classType: 'class'
 				},
 				{
-					name: 'TaskDetailView',
-					filePath: 'webapp/views.py',
-					extends: 'DetailView',
+					name: 'TaskUpdateView',
+					filePath: 'views.py',
+					extends: 'UpdateView',
 					properties: [
 						{
 							name: 'template_name',
@@ -1049,8 +1049,8 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 					classType: 'class'
 				},
 				{
-					name: 'base.html',
-					filePath: 'webapp/templates/webapp/base.html',
+					name: 'task_form.html',
+					filePath: 'webapp/templates/webapp/task_form.html',
 					properties: [],
 					methods: [],
 					classType: 'template'
@@ -1058,7 +1058,7 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 			];
 			
 			const context: EnrichmentContext = {
-				workspacePath,
+				workspacePath: fixturesPath,
 				classes: mockClasses,
 				relationships: []
 			};
@@ -1066,20 +1066,20 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 			const result = await enricher.enrich(context);
 			
 			// Should create relationships for both views
-			const taskListRel = result.newRelationships.find(rel => 
+			const taskCreateRel = result.newRelationships.find(rel => 
 				rel.type === 'renders' &&
-				rel.from.includes('TaskListView') &&
-				rel.to.includes('base.html')
+				rel.from.includes('TaskCreateView') &&
+				rel.to.includes('task_form.html')
 			);
 			
-			const taskDetailRel = result.newRelationships.find(rel => 
+			const taskUpdateRel = result.newRelationships.find(rel => 
 				rel.type === 'renders' &&
-				rel.from.includes('TaskDetailView') &&
-				rel.to.includes('base.html')
+				rel.from.includes('TaskUpdateView') &&
+				rel.to.includes('task_form.html')
 			);
 			
-			assert.ok(taskListRel, 'MUST create relationship for first view');
-			assert.ok(taskDetailRel, 'MUST create relationship for second view');
+			assert.ok(taskCreateRel, 'MUST create relationship for first view');
+			assert.ok(taskUpdateRel, 'MUST create relationship for second view');
 		});
 		
 		test('should not create relationship when template does not exist', async () => {
@@ -1087,7 +1087,7 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 			const mockClasses: ClassInfo[] = [
 				{
 					name: 'TaskListView',
-					filePath: 'webapp/views.py',
+					filePath: 'views.py',
 					extends: 'ListView',
 					properties: [
 						{
@@ -1103,14 +1103,14 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 			];
 			
 			const context: EnrichmentContext = {
-				workspacePath,
+				workspacePath: fixturesPath,
 				classes: mockClasses,
 				relationships: []
 			};
 			
 			const result = await enricher.enrich(context);
 			
-			// Should NOT create orphan relationships
+			// Should NOT create orphan relationships when there are no templates
 			const rendersRel = result.newRelationships.find(rel => 
 				rel.type === 'renders' &&
 				rel.from.includes('TaskListView')

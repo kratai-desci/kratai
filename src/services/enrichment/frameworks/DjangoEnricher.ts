@@ -160,15 +160,20 @@ export class DjangoEnricher extends AbstractEnricher {
 		const nestedSerializerRels = this.createNestedSerializerRelationships(enhancedClasses);
 		newRelationships.push(...nestedSerializerRels);
 		
-		// 10. Detect middleware
+		// 10. Create View → Template relationships
+		const viewTemplateRels = this.createViewTemplateRelationships(enhancedClasses, context);
+		newRelationships.push(...viewTemplateRels);
+		features.push('view-templates');
+		
+		// 11. Detect middleware
 		this.enrichMiddleware(enhancedClasses);
 		features.push('middleware');
 		
-		// 11. Create middleware protection relationships
+		// 12. Create middleware protection relationships
 		const middlewareRels = this.createMiddlewareRelationships(enhancedClasses);
 		newRelationships.push(...middlewareRels);
 		
-		// 12. Detect URL patterns (synthetic route nodes)
+		// 13. Detect URL patterns (synthetic route nodes)
 		const urlRels = this.createURLRouteRelationships(enhancedClasses, context);
 		newRelationships.push(...urlRels);
 		features.push('url-routing');
@@ -507,6 +512,164 @@ export class DjangoEnricher extends AbstractEnricher {
 		}
 		
 		return relationships;
+	}
+	
+	/**
+	 * Create View → Template relationships
+	 * Detects template_name property in class-based views and render() calls in function-based views
+	 */
+	private createViewTemplateRelationships(classes: any[], context: EnrichmentContext): ClassRelationship[] {
+		const relationships: ClassRelationship[] = [];
+		
+		// Find views and templates
+		const views = classes.filter(c => 
+			c.classType === 'view' || 
+			c.classType === 'class' || 
+			c.classType === 'function'
+		);
+		const templates = classes.filter(c => c.classType === 'template');
+		
+		if (templates.length === 0) {
+			return relationships; // No templates to link to
+		}
+		
+		for (const view of views) {
+			let templatePath: string | null = null;
+			
+			// Method 1: Check for template_name property in class-based views (from PropertyInfo)
+			if (view.properties) {
+				const templateNameProp = view.properties.find((p: any) => p.name === 'template_name');
+				if (templateNameProp) {
+					// Try to extract from source file first (for real files)
+					templatePath = this.extractTemplateFromSource(view.filePath, view.name, 'template_name', context.workspacePath);
+				}
+			}
+			
+			// Method 2: Check for render() calls in function-based views (requires reading source)
+			if (!templatePath && view.classType === 'function') {
+				templatePath = this.extractTemplateFromRenderCall(view.filePath, view.name, context.workspacePath);
+			}
+			
+			// Match template by path
+			if (templatePath) {
+				const matchedTemplate = this.findTemplateByPath(templatePath, templates);
+				
+				if (matchedTemplate) {
+					relationships.push({
+						from: this.getClassId(view),
+						to: this.getClassId(matchedTemplate),
+						type: 'renders',
+						metadata: { template: templatePath }
+					});
+				}
+			}
+		}
+		
+		return relationships;
+	}
+	
+	/**
+	 * Extract template path from template_name = 'path' in source file for a specific class
+	 */
+	private extractTemplateFromSource(filePath: string, className: string, propertyName: string, workspacePath: string): string | null {
+		try {
+			const fullPath = path.join(workspacePath, filePath);
+			
+			if (!fs.existsSync(fullPath)) {
+				return null;
+			}
+			
+			const sourceCode = fs.readFileSync(fullPath, 'utf-8');
+			
+			// Find the class definition first
+			const classRegex = new RegExp(`class\\s+${className}\\s*\\([^)]+\\):`, 'g');
+			const classMatch = classRegex.exec(sourceCode);
+			
+			if (!classMatch) {
+				return null; // Class not found
+			}
+			
+			// Look for template_name after the class definition
+			const afterClass = sourceCode.substring(classMatch.index);
+			
+			// Find the next class definition or end of file to limit search scope
+			const nextClassMatch = /\nclass\s+\w+/.exec(afterClass.substring(1));
+			const searchScope = nextClassMatch 
+				? afterClass.substring(0, nextClassMatch.index + 1)
+				: afterClass;
+			
+			// Match: template_name = 'webapp/task_form.html' or "webapp/task_form.html"
+			const regex = new RegExp(`${propertyName}\\s*=\\s*['"]([^'"]+)['"]`, 'g');
+			const match = regex.exec(searchScope);
+			
+			if (match && match[1]) {
+				return match[1]; // Return the template path
+			}
+		} catch (error) {
+			// Ignore errors (file not found, permission denied, etc.)
+		}
+		
+		return null;
+	}
+	
+	/**
+	 * Extract template path from render(request, 'template.html') calls
+	 */
+	private extractTemplateFromRenderCall(filePath: string, functionName: string, workspacePath: string): string | null {
+		try {
+			const fullPath = path.join(workspacePath, filePath);
+			if (!fs.existsSync(fullPath)) {
+				return null;
+			}
+			
+			const sourceCode = fs.readFileSync(fullPath, 'utf-8');
+			
+			// Find the function definition
+			const funcRegex = new RegExp(`def\\s+${functionName}\\s*\\([^)]*\\):`, 'g');
+			const funcMatch = funcRegex.exec(sourceCode);
+			
+			if (!funcMatch) {
+				return null;
+			}
+			
+			// Look for render() call after function definition
+			const afterFunc = sourceCode.substring(funcMatch.index);
+			
+			// Match: render(request, 'webapp/task_list.html') or render(request, "template.html", ...)
+			const renderRegex = /render\s*\([^,]+,\s*['"]([^'"]+)['"]/g;
+			const renderMatch = renderRegex.exec(afterFunc);
+			
+			if (renderMatch && renderMatch[1]) {
+				return renderMatch[1]; // Return the template path
+			}
+		} catch (error) {
+			// Ignore errors
+		}
+		
+		return null;
+	}
+	
+	/**
+	 * Find template by path (matches by filename, handles nested paths)
+	 * E.g., 'webapp/task_list.html' matches 'templates/webapp/task_list.html'
+	 */
+	private findTemplateByPath(templatePath: string, templates: any[]): any | null {
+		// Extract filename from template path
+		const templateFileName = path.basename(templatePath);
+		
+		// Try exact filename match first
+		for (const template of templates) {
+			if (template.name === templateFileName) {
+				// Additional check: ensure path components match if possible
+				if (template.filePath.includes(templatePath) || 
+				    template.filePath.endsWith(templatePath)) {
+					return template;
+				}
+			}
+		}
+		
+		// Fallback: just match by filename
+		return templates.find(t => t.name === templateFileName) || null;
 	}
 	
 	/**
