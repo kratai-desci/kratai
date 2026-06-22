@@ -2,6 +2,29 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.7.0] - 2026-06-22
+
+### Added
+- **Django Framework Enricher** — Automatic detection and visualization of Django projects
+- **Django URL Pattern Parsing** — Reads urls.py files to create accurate route → view relationships
+- **Django ORM Relationships** — Detects ForeignKey, ManyToManyField, and OneToOneField relationships
+- **Django REST Framework Support** — Recognizes ViewSets, Serializers, and API views
+- **Django Middleware Detection** — Shows middleware protection relationships
+- Dynamic URL parameter detection (`<int:pk>`, `<slug:slug>`, `<str:username>`)
+- Smart model inference from property names (e.g., 'categories' → Category model)
+
+### Technical
+- New `DjangoEnricher` framework enricher with 31 comprehensive tests (100% passing)
+- Regex-based URL pattern parser for urls.py files
+- ORM relationship detection with intelligent name matching (handles pluralization)
+- Middleware, serializer, and ViewSet detection
+- Falls back to heuristic route inference if no urls.py found
+- New relationship types: `belongs-to`, `many-to-many`, `one-to-one`, `serializes`, `protected-by`
+
+### Philosophy
+- Enrichers can read files to detect framework conventions (parsers extract structure, enrichers understand semantics)
+- Framework-specific patterns detected after initial parsing phase
+
 ## [1.6.2] - 2026-06-19
 
 ### Fixed

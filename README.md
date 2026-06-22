@@ -99,7 +99,14 @@ Kratai stores settings in `.vscode/kratai.json` in your workspace:
 
 ## 📝 Release Notes
 
-### Latest: v1.6.2
+### Latest: v1.7.0
+- 🐍 **Django Framework Support** — Automatic detection of Django projects with URL patterns, ORM relationships, and DRF
+- 🔗 **Django URL Parsing** — Reads urls.py to create accurate route → view relationships
+- 📊 **ORM Relationships** — Visualizes ForeignKey, ManyToManyField, OneToOneField
+- 🎯 **DRF Support** — Detects ViewSets, Serializers, and API views
+- 🛡️ **Middleware Detection** — Shows which views are protected by middleware
+
+### v1.6.2
 - 🐛 **CRITICAL FIX** — Python virtual environment scanning freeze (Django/Flask projects)
 - ⚡ **Major Performance** — Excluded venv, __pycache__, site-packages from scanning
 - 🚀 **Instant Loading** — Configuration panel now loads immediately on Python projects
