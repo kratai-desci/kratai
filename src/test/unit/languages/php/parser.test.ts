@@ -1,6 +1,7 @@
 import * as assert from 'assert';
 import * as path from 'path';
 import { PHPParser } from '../../../../services/parsing/languages/PHPParser';
+import { ClassInfo } from '../../../../types/domain/ClassInfo';
 
 suite('PHP Parser Test Suite', () => {
 	const parser = new PHPParser();
@@ -586,6 +587,87 @@ suite('PHP Parser Test Suite', () => {
 			const classes = parser.parseFile(fixturePath);
 			
 			assert.ok(Array.isArray(classes), 'Should return array for comment-only files');
+		});
+	});
+
+	suite('Template Detection', () => {
+		test('should detect Laravel view() calls', () => {
+			// return view('tasks.index')
+			const fixturePath = path.join(fixturesPath, 'templates_controllers.php');
+			const classes = parser.parseFile(fixturePath);
+			const templates = [
+				{ name: 'index.blade.php', filePath: 'views/tasks/index.blade.php', classType: 'template', properties: [], methods: [] } as ClassInfo
+			];
+			
+			const allNames = new Set([...classes.map(c => c.name), ...templates.map(t => t.name)]);
+			const allClasses = [...classes, ...templates];
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+			
+			const rendersRel = relationships.find(r => 
+				r.type === 'renders' && 
+				r.from.includes('TaskController') && 
+				r.to.includes('index.blade.php')
+			);
+			
+			assert.ok(rendersRel, 'MUST detect Laravel view() calls');
+		});
+		
+		test('should detect Symfony render() calls', () => {
+			// return $this->render('user/profile.html.twig')
+			const fixturePath = path.join(fixturesPath, 'templates_controllers.php');
+			const classes = parser.parseFile(fixturePath);
+			const templates = [
+				{ name: 'profile.html.twig', filePath: 'templates/user/profile.html.twig', classType: 'template', properties: [], methods: [] } as ClassInfo
+			];
+			
+			const allNames = new Set([...classes.map(c => c.name), ...templates.map(t => t.name)]);
+			const allClasses = [...classes, ...templates];
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+			
+			const rendersRel = relationships.find(r => 
+				r.type === 'renders' && 
+				r.from.includes('UserController') && 
+				r.to.includes('profile.html.twig')
+			);
+			
+			assert.ok(rendersRel, 'MUST detect Symfony render() calls');
+		});
+		
+		test('should detect include statements for .html files', () => {
+			// include 'templates/header.html'
+			const fixturePath = path.join(fixturesPath, 'templates_controllers.php');
+			const classes = parser.parseFile(fixturePath);
+			const templates = [
+				{ name: 'header.html', filePath: 'templates/header.html', classType: 'template', properties: [], methods: [] } as ClassInfo
+			];
+			
+			const allNames = new Set([...classes.map(c => c.name), ...templates.map(t => t.name)]);
+			const allClasses = [...classes, ...templates];
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+			
+			const rendersRel = relationships.find(r => r.type === 'renders' && r.to.includes('header.html'));
+			assert.ok(rendersRel, 'MUST detect include statements for .html files');
+		});
+		
+		test('should detect Twig render() calls', () => {
+			// return $this->twig->render('pages/index.html.twig')
+			const fixturePath = path.join(fixturesPath, 'templates_controllers.php');
+			const classes = parser.parseFile(fixturePath);
+			const templates = [
+				{ name: 'index.html.twig', filePath: 'templates/pages/index.html.twig', classType: 'template', properties: [], methods: [] } as ClassInfo
+			];
+			
+			const allNames = new Set([...classes.map(c => c.name), ...templates.map(t => t.name)]);
+			const allClasses = [...classes, ...templates];
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+			
+			const rendersRel = relationships.find(r => 
+				r.type === 'renders' && 
+				r.from.includes('TwigController') && 
+				r.to.includes('index.html.twig')
+			);
+			
+			assert.ok(rendersRel, 'MUST detect Twig render() calls');
 		});
 	});
 });

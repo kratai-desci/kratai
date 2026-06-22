@@ -630,4 +630,75 @@ suite('JavaScript Parser Test Suite', () => {
 			});
 		});
 	});
+
+	suite('Template Detection', () => {
+		test('should detect .html in import statements', () => {
+			// import template from './page.html'
+			const fixturePath = path.join(fixturesPath, 'templates_components.js');
+			const classes = parser.parseFile(fixturePath);
+			const templates = [
+				{ name: 'page.html', filePath: 'components/page.html', classType: 'template', properties: [], methods: [] } as ClassInfo
+			];
+			
+			const allNames = new Set([...classes.map(c => c.name), ...templates.map(t => t.name)]);
+			const allClasses = [...classes, ...templates];
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+			
+			const rendersRels = relationships.filter(r => r.type === 'renders' && r.to.includes('page.html'));
+			assert.ok(rendersRels.length > 0, 'MUST detect .html imports');
+		});
+		
+		test('should detect .html in require() calls', () => {
+			// const template = require('./user.html')
+			const fixturePath = path.join(fixturesPath, 'templates_components.js');
+			const classes = parser.parseFile(fixturePath);
+			const templates = [
+				{ name: 'user.html', filePath: 'components/user.html', classType: 'template', properties: [], methods: [] } as ClassInfo
+			];
+			
+			const allNames = new Set([...classes.map(c => c.name), ...templates.map(t => t.name)]);
+			const allClasses = [...classes, ...templates];
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+			
+			const rendersRel = relationships.find(r => r.type === 'renders' && r.to.includes('user.html'));
+			assert.ok(rendersRel, 'MUST detect .html in require()');
+		});
+		
+		test('should detect .html in class properties', () => {
+			// this.template = 'components/user.html'
+			const fixturePath = path.join(fixturesPath, 'templates_components.js');
+			const classes = parser.parseFile(fixturePath);
+			const templates = [
+				{ name: 'user.html', filePath: 'components/user.html', classType: 'template', properties: [], methods: [] } as ClassInfo
+			];
+			
+			const allNames = new Set([...classes.map(c => c.name), ...templates.map(t => t.name)]);
+			const allClasses = [...classes, ...templates];
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+			
+			const rendersRel = relationships.find(r => 
+				r.type === 'renders' && 
+				r.from.includes('UserComponent') && 
+				r.to.includes('user.html')
+			);
+			
+			assert.ok(rendersRel, 'MUST detect .html in class properties');
+		});
+		
+		test('should detect .html in fetch() calls', () => {
+			// fetch('/templates/profile.html')
+			const fixturePath = path.join(fixturesPath, 'templates_components.js');
+			const classes = parser.parseFile(fixturePath);
+			const templates = [
+				{ name: 'profile.html', filePath: 'templates/profile.html', classType: 'template', properties: [], methods: [] } as ClassInfo
+			];
+			
+			const allNames = new Set([...classes.map(c => c.name), ...templates.map(t => t.name)]);
+			const allClasses = [...classes, ...templates];
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+			
+			const rendersRel = relationships.find(r => r.type === 'renders' && r.to.includes('profile.html'));
+			assert.ok(rendersRel, 'MUST detect .html in fetch() calls');
+		});
+	});
 });
