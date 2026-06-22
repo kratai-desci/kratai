@@ -890,17 +890,80 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 	});
 	
 	suite('View → Template Relationships', () => {
-		test('should detect template_name in class-based views', async () => {
-			// class TaskListView(ListView):
-			//     template_name = 'webapp/task_list.html'
+		test('REALITY CHECK: Python parser does NOT extract class-level assignments', async () => {
+			// This test documents the ACTUAL behavior of PythonParser
+			// Python class-level assignments like: template_name = 'value'
+			// Are NOT extracted as properties!
+			const fixturePath = path.join(fixturesPath, 'views.py');
+			const PythonParser = require('../../../../services/parsing/languages/PythonParser').PythonParser;
+			const parser = new PythonParser();
+			
+			const classes = parser.parseFile(fixturePath);
+			const taskListView = classes.find((c: any) => c.name === 'TaskListView');
+			
+			console.log('🔍 TaskListView properties:', taskListView?.properties);
+			
+			// REALITY: Python parser DOES NOT extract template_name property
+			// because it's a class-level assignment, not a type annotation
+			// Template name is NOT in properties array
+			const hasTemplateNameProp = taskListView?.properties?.some((p: any) => p.name === 'template_name');
+			
+			assert.ok(!hasTemplateNameProp, 
+				'Python parser does NOT extract class-level assignments (this is the bug!)');
+		});
+		
+		test('should detect template_name when enricher reads source directly', async () => {
+			// Even though PythonParser doesn't extract template_name property,
+			// Django enricher should still detect it by reading the source file
 			const mockClasses: ClassInfo[] = [
 				{
 					name: 'TaskListView',
-					filePath: 'views.py',  // Use actual fixture file
+					filePath: 'views.py',
+					extends: 'ListView',
+					properties: [],  // Empty! Parser doesn't extract class-level assignments
+					methods: [],
+					classType: 'class'
+				},
+				{
+					name: 'task_list.html',
+					filePath: 'webapp/templates/webapp/task_list.html',
+					properties: [],
+					methods: [],
+					classType: 'template'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath: fixturesPath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			// Django enricher reads source file directly to find template_name
+			const rendersRel = result.newRelationships.find(rel => 
+				rel.type === 'renders' &&
+				rel.from.includes('TaskListView') &&
+				rel.to.includes('task_list.html')
+			);
+			
+			// THIS WILL FAIL because enricher only checks properties array first,
+			// and without template_name in properties, it won't read the source
+			assert.ok(rendersRel, 'MUST create renders relationship by reading source file');
+		});
+		
+		test('DEPRECATED: old test with mock property (not reality)', async () => {
+			// This test MOCKS a property that doesn't exist in real parsing
+			// Kept for backwards compatibility but not reflective of reality
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'TaskListView',
+					filePath: 'views.py',
 					extends: 'ListView',
 					properties: [
 						{
-							name: 'template_name',
+							name: 'template_name',  // ← This doesn't exist in real parsing!
 							type: 'str',
 							visibility: 'public'
 						}
@@ -918,21 +981,32 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 			];
 			
 			const context: EnrichmentContext = {
-				workspacePath: fixturesPath,  // Point to fixtures directory
+				workspacePath: fixturesPath,
 				classes: mockClasses,
 				relationships: []
 			};
 			
 			const result = await enricher.enrich(context);
 			
-			// Should create: TaskListView → task_list.html (renders)
+			// Debug: Log what we got
+			console.log('📊 Test result:', {
+				enhancedClasses: result.enhancedClasses.length,
+				newRelationships: result.newRelationships.length,
+				relationships: result.newRelationships.map(r => ({
+					type: r.type,
+					from: r.from,
+					to: r.to
+				}))
+			});
+			
+			// This passes ONLY because we mocked the property
 			const rendersRel = result.newRelationships.find(rel => 
 				rel.type === 'renders' &&
 				rel.from.includes('TaskListView') &&
 				rel.to.includes('task_list.html')
 			);
 			
-			assert.ok(rendersRel, 'MUST create renders relationship from template_name attribute');
+			assert.ok(rendersRel, 'PASSES with mocked property (not realistic)');
 		});
 		
 		test('should detect render() function calls', async () => {

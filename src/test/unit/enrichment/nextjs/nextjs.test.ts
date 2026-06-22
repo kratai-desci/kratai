@@ -441,11 +441,160 @@ suite('NextJSEnricher - Framework Enrichment', () => {
 		});
 	});
 	
-	suite('Component Composition', () => {
+	suite('Component Composition (Template Detection)', () => {
 		test('should detect component rendering in JSX', async () => {
 			// Page renders <UserList users={users} />
 			// Should create: UsersPage → UserList (renders relationship)
-			assert.ok(true, 'TODO: Implement JSX component detection');
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'UsersPage',
+					filePath: 'app/users/page.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				},
+				{
+					name: 'UserList',
+					filePath: 'components/UserList.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			// Should create: UsersPage → UserList (renders relationship)
+			const rendersRel = result.newRelationships.find(rel => 
+				rel.type === 'renders' &&
+				rel.from.includes('UsersPage') &&
+				rel.to.includes('UserList')
+			);
+			
+			assert.ok(rendersRel, 'MUST create renders relationship for JSX component usage');
+		});
+		
+		test('should detect multiple components rendered in same page', async () => {
+			// Page renders: <Header />, <UserList />, <Footer />
+			// Should create 3 renders relationships
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'UsersPage',
+					filePath: 'app/users/page.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				},
+				{
+					name: 'Header',
+					filePath: 'components/Header.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				},
+				{
+					name: 'UserList',
+					filePath: 'components/UserList.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				},
+				{
+					name: 'Footer',
+					filePath: 'components/Footer.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			// Should create 3 renders relationships
+			const rendersRels = result.newRelationships.filter(rel => 
+				rel.type === 'renders' && rel.from.includes('UsersPage')
+			);
+			
+			assert.ok(rendersRels.length >= 3, 
+				`MUST detect all rendered components (found ${rendersRels.length}, expected 3)`);
+		});
+		
+		test('should handle self-closing JSX tags', async () => {
+			// <UserCard /> or <Avatar/>
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'Profile',
+					filePath: 'app/profile/page.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				},
+				{
+					name: 'Avatar',
+					filePath: 'components/Avatar.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			const rendersRel = result.newRelationships.find(rel => 
+				rel.type === 'renders' &&
+				rel.from.includes('Profile') &&
+				rel.to.includes('Avatar')
+			);
+			
+			assert.ok(rendersRel, 'MUST detect self-closing JSX tags');
+		});
+		
+		test('should ignore HTML tags (lowercase)', async () => {
+			// <div>, <span>, <button> should NOT create relationships
+			// Only components (PascalCase) like <UserList>
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'UsersPage',
+					filePath: 'app/users/page.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			// Should NOT create relationships to HTML tags
+			const htmlTagRels = result.newRelationships.filter(rel => 
+				rel.to.match(/__(div|span|button|input|form)$/)
+			);
+			
+			assert.strictEqual(htmlTagRels.length, 0, 
+				'MUST NOT create relationships to HTML tags');
 		});
 		
 		test('should detect client components ("use client")', async () => {
