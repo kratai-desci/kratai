@@ -23,8 +23,8 @@ export class FolderStructureBuilder {
 			const className = node.data.classInfo.name;
 			
 			// Match the full path structure, capturing everything before the file
-			// Supports .ts, .tsx, .js, .jsx, .py, .php files
-			const matchPath = filePath.match(/^(.+)\/[^\/]+\.(tsx?|jsx?|py|php)$/);
+			// Supports .ts, .tsx, .js, .jsx, .py, .php, .html, .htm files
+			const matchPath = filePath.match(/^(.+)\/[^\/]+\.(tsx?|jsx?|py|php|html?|twig)$/);
 			
 			if (matchPath) {
 				// File has a folder path - split into parts
