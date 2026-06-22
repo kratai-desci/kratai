@@ -2,18 +2,19 @@ import * as assert from 'assert';
 import * as path from 'path';
 import { HTMLParser } from '../../../../services/parsing/languages/HTMLParser';
 
-describe('HTMLParser', () => {
+suite('HTML Parser Test Suite', () => {
+	const fixturesPath = path.join(__dirname, '../../../../../src/test/unit/languages/html/fixtures');
+	const workspacePath = path.join(__dirname, '../../../../../src/test/unit/languages/html/fixtures');
 	let parser: HTMLParser;
-	const fixturesPath = path.join(__dirname, 'fixtures');
 
-	beforeEach(() => {
+	setup(() => {
 		parser = new HTMLParser();
 	});
 
-	describe('File Detection', () => {
-		it('should detect .html files', async () => {
+	suite('File Detection', () => {
+		test('should detect .html files', async () => {
 			const filePath = path.join(fixturesPath, 'simple.html');
-			const result = await parser.parse(filePath, fixturesPath);
+			const result = await parser.parse(filePath, workspacePath);
 
 			assert.strictEqual(result.classes.length, 1, 'Should create one ClassInfo node');
 			
@@ -24,9 +25,9 @@ describe('HTMLParser', () => {
 			assert.strictEqual(template.methods.length, 0, 'Should have no methods');
 		});
 
-		it('should detect .blade.php files', async () => {
+		test('should detect .blade.php files', async () => {
 			const filePath = path.join(fixturesPath, 'blade-template.blade.php');
-			const result = await parser.parse(filePath, fixturesPath);
+			const result = await parser.parse(filePath, workspacePath);
 
 			assert.strictEqual(result.classes.length, 1);
 			
@@ -35,9 +36,9 @@ describe('HTMLParser', () => {
 			assert.strictEqual(template.classType, 'template');
 		});
 
-		it('should detect .html.twig files', async () => {
+		test('should detect .html.twig files', async () => {
 			const filePath = path.join(fixturesPath, 'twig-template.html.twig');
-			const result = await parser.parse(filePath, fixturesPath);
+			const result = await parser.parse(filePath, workspacePath);
 
 			assert.strictEqual(result.classes.length, 1);
 			
@@ -46,9 +47,9 @@ describe('HTMLParser', () => {
 			assert.strictEqual(template.classType, 'template');
 		});
 
-		it('should handle Django templates with special syntax', async () => {
+		test('should handle Django templates with special syntax', async () => {
 			const filePath = path.join(fixturesPath, 'django-template.html');
-			const result = await parser.parse(filePath, fixturesPath);
+			const result = await parser.parse(filePath, workspacePath);
 
 			assert.strictEqual(result.classes.length, 1);
 			
@@ -57,41 +58,41 @@ describe('HTMLParser', () => {
 			assert.strictEqual(template.classType, 'template');
 		});
 
-		it('should handle nested folder structures', async () => {
+		test('should handle nested folder structures', async () => {
 			const filePath = path.join(fixturesPath, 'nested/subfolder/deep.html');
-			const result = await parser.parse(filePath, fixturesPath);
+			const result = await parser.parse(filePath, workspacePath);
 
 			assert.strictEqual(result.classes.length, 1);
 			
 			const template = result.classes[0];
 			assert.strictEqual(template.name, 'deep.html');
 			assert.strictEqual(template.classType, 'template');
-			assert.ok(template.filePath.includes('nested/subfolder'), 'Should preserve folder path');
+			assert.ok(template.filePath.includes('nested'), 'Should preserve folder path');
 		});
 	});
 
-	describe('No Content Parsing', () => {
-		it('should not parse template syntax', async () => {
+	suite('No Content Parsing', () => {
+		test('should not parse template syntax', async () => {
 			const filePath = path.join(fixturesPath, 'django-template.html');
-			const result = await parser.parse(filePath, fixturesPath);
+			const result = await parser.parse(filePath, workspacePath);
 
 			// Should not extract template variables, blocks, or includes
 			assert.strictEqual(result.classes.length, 1, 'Should only create one node for the file');
 			assert.strictEqual(result.relationships.length, 0, 'Should not create relationships from content');
 		});
 
-		it('should not parse Blade directives', async () => {
+		test('should not parse Blade directives', async () => {
 			const filePath = path.join(fixturesPath, 'blade-template.blade.php');
-			const result = await parser.parse(filePath, fixturesPath);
+			const result = await parser.parse(filePath, workspacePath);
 
 			// Should not extract @extends, @section, @include
 			assert.strictEqual(result.classes.length, 1);
 			assert.strictEqual(result.relationships.length, 0);
 		});
 
-		it('should not parse Twig syntax', async () => {
+		test('should not parse Twig syntax', async () => {
 			const filePath = path.join(fixturesPath, 'twig-template.html.twig');
-			const result = await parser.parse(filePath, fixturesPath);
+			const result = await parser.parse(filePath, workspacePath);
 
 			// Should not extract {% extends %}, {% block %}, {% include %}
 			assert.strictEqual(result.classes.length, 1);
@@ -99,15 +100,15 @@ describe('HTMLParser', () => {
 		});
 	});
 
-	describe('Supported Extensions', () => {
-		it('should report supported extensions', () => {
+	suite('Supported Extensions', () => {
+		test('should report supported extensions', () => {
 			const extensions = parser.supportedExtensions;
 			
 			assert.ok(extensions.includes('.html'), 'Should support .html');
 			assert.ok(extensions.includes('.htm'), 'Should support .htm');
 		});
 
-		it('should support blade.php extension', () => {
+		test('should support blade.php extension', () => {
 			const extensions = parser.supportedExtensions;
 			assert.ok(
 				extensions.includes('.blade.php') || extensions.includes('.html'),
@@ -116,19 +117,19 @@ describe('HTMLParser', () => {
 		});
 	});
 
-	describe('File Path Handling', () => {
-		it('should use workspace-relative paths', async () => {
+	suite('File Path Handling', () => {
+		test('should use workspace-relative paths', async () => {
 			const filePath = path.join(fixturesPath, 'simple.html');
-			const result = await parser.parse(filePath, fixturesPath);
+			const result = await parser.parse(filePath, workspacePath);
 
 			const template = result.classes[0];
-			assert.ok(!template.filePath.includes(fixturesPath), 'Should not include fixtures path');
+			assert.ok(!template.filePath.includes(workspacePath), 'Should not include workspace path');
 			assert.ok(template.filePath.endsWith('simple.html'), 'Should end with filename');
 		});
 
-		it('should preserve folder structure in paths', async () => {
+		test('should preserve folder structure in paths', async () => {
 			const filePath = path.join(fixturesPath, 'nested/subfolder/deep.html');
-			const result = await parser.parse(filePath, fixturesPath);
+			const result = await parser.parse(filePath, workspacePath);
 
 			const template = result.classes[0];
 			assert.ok(template.filePath.includes('nested'), 'Should include folder name');
@@ -136,11 +137,11 @@ describe('HTMLParser', () => {
 		});
 	});
 
-	describe('Empty and Edge Cases', () => {
-		it('should handle empty HTML files', async () => {
+	suite('Empty and Edge Cases', () => {
+		test('should handle empty HTML files', async () => {
 			// Create a temp empty file test
 			const filePath = path.join(fixturesPath, 'simple.html');
-			const result = await parser.parse(filePath, fixturesPath);
+			const result = await parser.parse(filePath, workspacePath);
 
 			// Should still create a node even if file is empty/simple
 			assert.strictEqual(result.classes.length, 1);

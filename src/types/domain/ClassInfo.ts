@@ -21,6 +21,8 @@ export interface ClassInfo {
 		| 'function'
 		// HTTP types (HTTPParser)
 		| 'route'
+		// Template types (HTMLParser)
+		| 'template'      // HTML/Blade/Twig template files
 		// Framework types (Enrichers)
 		| 'middleware'    // Next.js/Laravel middleware
 		| 'layout'        // Next.js layout component

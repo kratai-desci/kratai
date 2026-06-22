@@ -4,6 +4,7 @@ import { TypeScriptParser } from './TypeScriptParser';
 import { JavaScriptParser } from './JavaScriptParser';
 import { PythonParser } from './PythonParser';
 import { PHPParser } from './PHPParser';
+import { HTMLParser } from './HTMLParser';
 import { HTTPParser } from './HTTPParser';
 
 export class ParserFactory {
@@ -15,6 +16,7 @@ export class ParserFactory {
 		this.register(new JavaScriptParser());
 		this.register(new PythonParser());
 		this.register(new PHPParser());
+		this.register(new HTMLParser());
 		
 		// HTTPParser is special - it's a second-pass cross-language parser
 		this.httpParser = new HTTPParser();
