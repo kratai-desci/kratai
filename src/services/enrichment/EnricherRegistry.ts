@@ -1,5 +1,6 @@
 import { AbstractEnricher, EnrichmentContext } from './AbstractEnricher';
 import { NextJSEnricher } from './frameworks/NextJSEnricher';
+import { DjangoEnricher } from './frameworks/DjangoEnricher';
 
 /**
  * EnricherRegistry - Registry + Factory + Orchestrator Pattern
@@ -21,8 +22,8 @@ export class EnricherRegistry {
 		// Register all framework enrichers
 		// Add more enrichers here as they're implemented
 		this.register(new NextJSEnricher());
+		this.register(new DjangoEnricher());
 		// this.register(new LaravelEnricher());
-		// this.register(new DjangoEnricher());
 		// this.register(new PrismaEnricher());
 	}
 	
