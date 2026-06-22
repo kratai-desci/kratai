@@ -517,6 +517,17 @@ export class DjangoEnricher extends AbstractEnricher {
 	/**
 	 * Create View → Template relationships
 	 * Detects template_name property in class-based views and render() calls in function-based views
+	 * 
+	 * IMPORTANT: PythonParser does NOT extract class-level assignments (e.g., template_name = 'x.html')
+	 * So we MUST read the source file directly for ALL Django views, not just when property exists.
+	 * 
+	 * The extractTemplateFromSource method properly scopes by:
+	 * 1. Finding the class definition start
+	 * 2. Finding the next class definition (or EOF)
+	 * 3. Only searching for template_name within that scope
+	 * 
+	 * This prevents TaskDeleteView from incorrectly linking to TaskListView's template
+	 * when both are in the same file (views.py).
 	 */
 	private createViewTemplateRelationships(classes: any[], context: EnrichmentContext): ClassRelationship[] {
 		const relationships: ClassRelationship[] = [];
@@ -536,11 +547,15 @@ export class DjangoEnricher extends AbstractEnricher {
 		for (const view of views) {
 			let templatePath: string | null = null;
 			
-			// Method 1: Check for template_name property in class-based views (from PropertyInfo)
-			if (view.properties) {
-				const templateNameProp = view.properties.find((p: any) => p.name === 'template_name');
-				if (templateNameProp) {
-					// Try to extract from source file first (for real files)
+			// Method 1: For class-based views, ALWAYS try to extract template_name from source
+			// (Python parser doesn't extract class-level assignments, so properties won't have it)
+			if (view.classType === 'view' || (view.classType === 'class' && view.extends)) {
+				// Check if it's a Django view (extends ListView, DetailView, etc.)
+				const djangoViewClasses = ['ListView', 'DetailView', 'CreateView', 'UpdateView', 
+				                           'DeleteView', 'TemplateView', 'RedirectView', 'View'];
+				const isDjangoView = view.extends && djangoViewClasses.some(v => view.extends.includes(v));
+				
+				if (isDjangoView) {
 					templatePath = this.extractTemplateFromSource(view.filePath, view.name, 'template_name', context.workspacePath);
 				}
 			}

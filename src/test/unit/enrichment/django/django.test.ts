@@ -922,7 +922,7 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 					extends: 'ListView',
 					properties: [],  // Empty! Parser doesn't extract class-level assignments
 					methods: [],
-					classType: 'class'
+					classType: 'class'  // Will be enriched to 'view' by enricher
 				},
 				{
 					name: 'task_list.html',
@@ -941,6 +941,14 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 			
 			const result = await enricher.enrich(context);
 			
+			console.log('📊 Result:', {
+				relationships: result.newRelationships.map(r => ({
+					type: r.type,
+					from: r.from,
+					to: r.to
+				}))
+			});
+			
 			// Django enricher reads source file directly to find template_name
 			const rendersRel = result.newRelationships.find(rel => 
 				rel.type === 'renders' &&
@@ -948,9 +956,192 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 				rel.to.includes('task_list.html')
 			);
 			
-			// THIS WILL FAIL because enricher only checks properties array first,
-			// and without template_name in properties, it won't read the source
 			assert.ok(rendersRel, 'MUST create renders relationship by reading source file');
+		});
+		
+		test('TDD: should NOT detect wrong templates when multiple views in same file', async () => {
+			// This is the SCOPE problem: views.py has 5 views with different templates
+			// TaskDeleteView should ONLY link to task_confirm_delete.html, not all 4 templates
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'TaskDeleteView',
+					filePath: 'views.py',
+					extends: 'DeleteView',
+					properties: [],
+					methods: [],
+					classType: 'class'  // Will be enriched to 'view' by enricher
+				},
+				{
+					name: 'task_list.html',
+					filePath: 'webapp/templates/webapp/task_list.html',
+					properties: [],
+					methods: [],
+					classType: 'template'
+				},
+				{
+					name: 'task_detail.html',
+					filePath: 'webapp/templates/webapp/task_detail.html',
+					properties: [],
+					methods: [],
+					classType: 'template'
+				},
+				{
+					name: 'task_form.html',
+					filePath: 'webapp/templates/webapp/task_form.html',
+					properties: [],
+					methods: [],
+					classType: 'template'
+				},
+				{
+					name: 'task_confirm_delete.html',
+					filePath: 'webapp/templates/webapp/task_confirm_delete.html',
+					properties: [],
+					methods: [],
+					classType: 'template'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath: fixturesPath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			// Filter to only renders relationships from TaskDeleteView
+			const taskDeleteRels = result.newRelationships.filter(rel => 
+				rel.type === 'renders' && rel.from.includes('TaskDeleteView')
+			);
+			
+			console.log('📊 TaskDeleteView relationships:', taskDeleteRels);
+			
+			// Should have EXACTLY 1 relationship: TaskDeleteView → task_confirm_delete.html
+			assert.strictEqual(taskDeleteRels.length, 1, 
+				'TaskDeleteView should link to ONLY 1 template, not all templates in file');
+			
+			// Verify it's the correct template
+			const correctRel = taskDeleteRels.find(r => r.to.includes('task_confirm_delete.html'));
+			assert.ok(correctRel, 'TaskDeleteView should link to task_confirm_delete.html');
+			
+			// Verify it does NOT link to wrong templates
+			const wrongRels = taskDeleteRels.filter(r => 
+				r.to.includes('task_list.html') || 
+				r.to.includes('task_detail.html') || 
+				r.to.includes('task_form.html')
+			);
+			assert.strictEqual(wrongRels.length, 0, 
+				'TaskDeleteView should NOT link to other views\' templates');
+		});
+		
+		test('TDD: all views in same file should get correct templates', async () => {
+			// Comprehensive test: ALL 5 views in views.py should get their own templates
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'TaskListView',
+					filePath: 'views.py',
+					extends: 'ListView',
+					properties: [],
+					methods: [],
+					classType: 'class'
+				},
+				{
+					name: 'TaskDetailView',
+					filePath: 'views.py',
+					extends: 'DetailView',
+					properties: [],
+					methods: [],
+					classType: 'class'
+				},
+				{
+					name: 'TaskCreateView',
+					filePath: 'views.py',
+					extends: 'CreateView',
+					properties: [],
+					methods: [],
+					classType: 'class'
+				},
+				{
+					name: 'TaskUpdateView',
+					filePath: 'views.py',
+					extends: 'UpdateView',
+					properties: [],
+					methods: [],
+					classType: 'class'
+				},
+				{
+					name: 'TaskDeleteView',
+					filePath: 'views.py',
+					extends: 'DeleteView',
+					properties: [],
+					methods: [],
+					classType: 'class'
+				},
+				{
+					name: 'task_list.html',
+					filePath: 'webapp/templates/webapp/task_list.html',
+					properties: [],
+					methods: [],
+					classType: 'template'
+				},
+				{
+					name: 'task_detail.html',
+					filePath: 'webapp/templates/webapp/task_detail.html',
+					properties: [],
+					methods: [],
+					classType: 'template'
+				},
+				{
+					name: 'task_form.html',
+					filePath: 'webapp/templates/webapp/task_form.html',
+					properties: [],
+					methods: [],
+					classType: 'template'
+				},
+				{
+					name: 'task_confirm_delete.html',
+					filePath: 'webapp/templates/webapp/task_confirm_delete.html',
+					properties: [],
+					methods: [],
+					classType: 'template'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath: fixturesPath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			const rendersRels = result.newRelationships.filter(r => r.type === 'renders');
+			
+			console.log('📊 All renders relationships:', rendersRels.map(r => ({
+				view: r.from.split('__')[1],
+				template: r.to.split('__')[1]
+			})));
+			
+			// Should have exactly 5 renders relationships (one per view)
+			// Note: TaskCreateView and TaskUpdateView both use task_form.html, so 4 unique templates
+			assert.ok(rendersRels.length >= 4, 
+				`Should have at least 4 renders relationships (got ${rendersRels.length})`);
+			
+			// Verify each view gets correct template
+			const assertions = [
+				{ view: 'TaskListView', template: 'task_list.html' },
+				{ view: 'TaskDetailView', template: 'task_detail.html' },
+				{ view: 'TaskCreateView', template: 'task_form.html' },
+				{ view: 'TaskUpdateView', template: 'task_form.html' },
+				{ view: 'TaskDeleteView', template: 'task_confirm_delete.html' }
+			];
+			
+			for (const { view, template } of assertions) {
+				const rel = rendersRels.find(r => 
+					r.from.includes(view) && r.to.includes(template)
+				);
+				assert.ok(rel, `${view} should link to ${template}`);
+			}
 		});
 		
 		test('DEPRECATED: old test with mock property (not reality)', async () => {
