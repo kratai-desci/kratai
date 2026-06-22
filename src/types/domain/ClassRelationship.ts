@@ -33,7 +33,15 @@ export interface ClassRelationship {
 		| 'layout-wraps'    // Next.js: Layout → Nested page/layout
 		| 'injects'         // Laravel/Django: DI container → Service
 		| 'observes'        // Laravel: Observer → Model
-		| 'triggers';       // Django: Signal → Handler
+		| 'triggers'        // Django: Signal → Handler
+		// ORM relationships
+		| 'belongs-to'      // Django/Laravel: ForeignKey, belongsTo
+		| 'has-many'        // Django/Laravel: Reverse ForeignKey, hasMany
+		| 'many-to-many'    // Django/Laravel: ManyToManyField
+		| 'one-to-one'      // Django/Laravel: OneToOneField
+		// Django REST Framework
+		| 'serializes'      // DRF: Serializer → Model
+		| 'protected-by';   // Middleware/Guard → View/Route
 	
 	// Optional metadata for additional context
 	metadata?: {
