@@ -1,6 +1,8 @@
 import * as assert from 'assert';
 import * as path from 'path';
 import { HTMLParser } from '../../../../services/parsing/languages/HTMLParser';
+import { ClassInfo } from '../../../../types/domain/ClassInfo';
+import { ClassRelationship } from '../../../../types/domain/ClassRelationship';
 
 suite('HTML Parser Test Suite', () => {
 	const fixturesPath = path.join(__dirname, '../../../../../src/test/unit/languages/html/fixtures');
