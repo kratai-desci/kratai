@@ -92,6 +92,30 @@ src/test/unit/http/            ⏳ TODO (TDD Implementation Pending)
 
 ---
 
+## HTML Template Files (Language Parser)
+
+**Simple Job:** HTMLParser creates one ClassInfo node per `.html` file.
+
+### 14. Template File Detection
+```typescript
+// For any .html file: task_list.html
+{
+  name: 'task_list.html',
+  filePath: 'templates/task_list.html',
+  classType: 'template',
+  properties: [],
+  methods: []
+}
+```
+**Must detect:** Template file existence (no content parsing)
+
+**Note:** Framework enrichers (Django, Laravel, Flask) handle:
+- Detecting `render()` or `view()` calls in backend code
+- Creating View → Template relationships
+- Optionally parsing template inheritance (.blade.php, Jinja2)
+
+---
+
 ## Critical Patterns to Support
 
 ### 1. Object-Oriented Programming
@@ -309,6 +333,10 @@ For HTTP parser:
 ⏳ **Create route nodes** (virtual ClassInfo for visualization)  
 ⏳ **Generate HTTP relationships** (http-call, routes-to)
 
+For HTML parser:
+
+⏳ **Create template nodes** (one per .html file, no content parsing)
+
 ---
 
 ## Relationship ID Format
@@ -339,7 +367,7 @@ const rel = relationships.find(r =>
 );
 ```
 
-**All parsers (TypeScript, Python, PHP, HTTP) must follow this format.**
+**All parsers (TypeScript, Python, PHP, HTTP, HTML) must follow this format.**
 
 ---
 
@@ -364,6 +392,7 @@ const rel = relationships.find(r =>
 | Class | Class | `generic` | `Repository<User>` |
 | **Component** | **Route** | **`http-call`** | **`fetch('/api/users')`** |
 | **Route** | **Handler** | **`routes-to`** | **`GET /api/users → UserController`** |
+| **View** | **Template** | **`renders`** | **`render(request, 'list.html')`** |
 
 ---
 
