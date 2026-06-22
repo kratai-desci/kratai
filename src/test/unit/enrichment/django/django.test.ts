@@ -889,6 +889,237 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 		});
 	});
 	
+	suite('View → Template Relationships', () => {
+		test('should detect template_name in class-based views', async () => {
+			// class TaskListView(ListView):
+			//     template_name = 'webapp/task_list.html'
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'TaskListView',
+					filePath: 'webapp/views.py',
+					extends: 'ListView',
+					properties: [
+						{
+							name: 'template_name',
+							type: 'str',
+							visibility: 'public'
+						}
+					],
+					methods: [],
+					classType: 'class'
+				},
+				{
+					name: 'task_list.html',
+					filePath: 'webapp/templates/webapp/task_list.html',
+					properties: [],
+					methods: [],
+					classType: 'template'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			// Should create: TaskListView → task_list.html (renders)
+			const rendersRel = result.newRelationships.find(rel => 
+				rel.type === 'renders' &&
+				rel.from.includes('TaskListView') &&
+				rel.to.includes('task_list.html')
+			);
+			
+			assert.ok(rendersRel, 'MUST create renders relationship from template_name attribute');
+		});
+		
+		test('should detect render() function calls', async () => {
+			// def task_list(request):
+			//     return render(request, 'webapp/task_list.html')
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'task_list',
+					filePath: 'webapp/views.py',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				},
+				{
+					name: 'task_list.html',
+					filePath: 'webapp/templates/webapp/task_list.html',
+					properties: [],
+					methods: [],
+					classType: 'template'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath: fixturesPath,  // Enricher reads views.py to find render() calls
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			// Should create: task_list → task_list.html (renders)
+			const rendersRel = result.newRelationships.find(rel => 
+				rel.type === 'renders' &&
+				rel.from.includes('task_list') &&
+				rel.to.includes('task_list.html')
+			);
+			
+			assert.ok(rendersRel, 'MUST create renders relationship from render() function call');
+		});
+		
+		test('should handle nested template paths', async () => {
+			// template_name = 'webapp/tasks/list.html'
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'TaskListView',
+					filePath: 'webapp/views.py',
+					extends: 'ListView',
+					properties: [
+						{
+							name: 'template_name',
+							type: 'str',
+							visibility: 'public'
+						}
+					],
+					methods: [],
+					classType: 'class'
+				},
+				{
+					name: 'list.html',
+					filePath: 'webapp/templates/webapp/tasks/list.html',
+					properties: [],
+					methods: [],
+					classType: 'template'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			// Should match by filename even with nested path
+			const rendersRel = result.newRelationships.find(rel => 
+				rel.type === 'renders' &&
+				rel.from.includes('TaskListView') &&
+				rel.to.includes('list.html')
+			);
+			
+			assert.ok(rendersRel, 'MUST match templates by filename with nested paths');
+		});
+		
+		test('should handle multiple views using the same template', async () => {
+			// Both views use 'webapp/base.html'
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'TaskListView',
+					filePath: 'webapp/views.py',
+					extends: 'ListView',
+					properties: [
+						{
+							name: 'template_name',
+							type: 'str',
+							visibility: 'public'
+						}
+					],
+					methods: [],
+					classType: 'class'
+				},
+				{
+					name: 'TaskDetailView',
+					filePath: 'webapp/views.py',
+					extends: 'DetailView',
+					properties: [
+						{
+							name: 'template_name',
+							type: 'str',
+							visibility: 'public'
+						}
+					],
+					methods: [],
+					classType: 'class'
+				},
+				{
+					name: 'base.html',
+					filePath: 'webapp/templates/webapp/base.html',
+					properties: [],
+					methods: [],
+					classType: 'template'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			// Should create relationships for both views
+			const taskListRel = result.newRelationships.find(rel => 
+				rel.type === 'renders' &&
+				rel.from.includes('TaskListView') &&
+				rel.to.includes('base.html')
+			);
+			
+			const taskDetailRel = result.newRelationships.find(rel => 
+				rel.type === 'renders' &&
+				rel.from.includes('TaskDetailView') &&
+				rel.to.includes('base.html')
+			);
+			
+			assert.ok(taskListRel, 'MUST create relationship for first view');
+			assert.ok(taskDetailRel, 'MUST create relationship for second view');
+		});
+		
+		test('should not create relationship when template does not exist', async () => {
+			// View references non-existent template
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'TaskListView',
+					filePath: 'webapp/views.py',
+					extends: 'ListView',
+					properties: [
+						{
+							name: 'template_name',
+							type: 'str',
+							visibility: 'public'
+						}
+					],
+					methods: [],
+					classType: 'class'
+				}
+				// No template file in classes
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			// Should NOT create orphan relationships
+			const rendersRel = result.newRelationships.find(rel => 
+				rel.type === 'renders' &&
+				rel.from.includes('TaskListView')
+			);
+			
+			assert.ok(!rendersRel, 'MUST NOT create relationship to non-existent template');
+		});
+	});
+	
 	suite('Feature Metadata', () => {
 		test('should report detected features in metadata', async () => {
 			const context: EnrichmentContext = {

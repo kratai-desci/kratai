@@ -41,7 +41,9 @@ export interface ClassRelationship {
 		| 'one-to-one'      // Django/Laravel: OneToOneField
 		// Django REST Framework
 		| 'serializes'      // DRF: Serializer → Model
-		| 'protected-by';   // Middleware/Guard → View/Route
+		| 'protected-by'    // Middleware/Guard → View/Route
+		// Template rendering
+		| 'renders';        // View/Controller → Template file
 	
 	// Optional metadata for additional context
 	metadata?: {

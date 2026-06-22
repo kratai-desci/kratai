@@ -144,6 +144,7 @@ GET /users → Guard → Controller → Service → DTO → Response
 #### 7. Django (Python)
 ```
 GET /users → urls.py → Middleware → View → Service → Model → Serializer → JSON
+GET /tasks → urls.py → Middleware → View → Service → Model → Template → HTML
 ```
 **Must detect:**
 - URL patterns (`path('users/', views.UserListView)`)
@@ -152,11 +153,14 @@ GET /users → urls.py → Middleware → View → Service → Model → Seriali
 - Models (Django ORM)
 - Model relationships (ForeignKey, ManyToMany)
 - Serializers (DRF) - data transformation
-- Request/response (`request.POST`, `JsonResponse`)
+- Templates (HTML rendering)
+- View → Template relationships (`template_name`, `render()`)
+- Request/response (`request.POST`, `JsonResponse`, `render()`)
 - Permissions (DRF decorators)
 
 **Test case:** 
-- `/api/users/` → `UserListView` → `User.objects.all()` → `UserSerializer`
+- `/api/users/` → `UserListView` → `User.objects.all()` → `UserSerializer` (REST API)
+- `/tasks/` → `TaskListView` → `Task.objects.all()` → `task_list.html` (HTML view)
 - Model relationship: `User` → `Post` (ForeignKey)
 
 ---
@@ -191,13 +195,14 @@ GET /users → Route → Middleware → Controller → Service → Model → Vie
 - Eloquent models
 - Model relationships (`hasMany`, `belongsTo`, `morphMany`)
 - Service layer
-- Blade views (if used)
-- View data flow (`view('users.index', ['users' => $users])`)
+- Blade views/templates
+- View → Template relationships (`view('users.index')`, `return view()`)
 - Resource controllers (convention)
 - Request validation (FormRequest)
 
 **Test case:** 
-- `/users` → `Route::get` → `auth middleware` → `UserController@index` → `User::all()` → `view`
+- `/users` → `Route::get` → `auth middleware` → `UserController@index` → `User::all()` → `users/index.blade.php` (HTML view)
+- `/api/users` → `Route::get` → `UserController@apiIndex` → `User::all()` → `UserResource` (JSON API)
 - Model relationship: `User::posts()` → `Post` (hasMany)
 
 ---
