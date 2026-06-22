@@ -74,21 +74,6 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 				console.log('🔍 Git diff analysis completed');
 			}
 
-			// Deduplicate classes (config with overlapping folder paths causes duplicates)
-			const originalCount = diagramData.classes.length;
-			const classMap = new Map<string, typeof diagramData.classes[0]>();
-			diagramData.classes.forEach(classInfo => {
-				const key = `${classInfo.filePath}:${classInfo.name}`;
-				if (!classMap.has(key)) {
-					classMap.set(key, classInfo);
-				}
-			});
-			diagramData.classes = Array.from(classMap.values());
-			
-			if (originalCount > diagramData.classes.length) {
-				console.log(`🔧 Deduplicated: ${originalCount} → ${diagramData.classes.length} classes (removed ${originalCount - diagramData.classes.length} duplicates)`);
-			}
-
 			// Apply class type filters
 			const classTypeFilters = config.classTypeFilters || {};
 			const hasFilters = Object.keys(classTypeFilters).length > 0;

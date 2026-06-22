@@ -128,6 +128,24 @@ export class CodeParserService {
 			}
 		}
 
+		// === DEDUPLICATION ===
+		// Deduplicate classes BEFORE enrichment to prevent orphaned relationships
+		// (Config with overlapping folder paths can cause the same file to be parsed multiple times)
+		const originalClassCount = classes.length;
+		const classMap = new Map<string, ClassInfo>();
+		classes.forEach(classInfo => {
+			const key = `${classInfo.filePath}:${classInfo.name}`;
+			if (!classMap.has(key)) {
+				classMap.set(key, classInfo);
+			}
+		});
+		classes.length = 0;
+		classes.push(...Array.from(classMap.values()));
+		
+		if (originalClassCount > classes.length) {
+			console.log(`🔧 Deduplicated: ${originalClassCount} → ${classes.length} classes (removed ${originalClassCount - classes.length} duplicates)`);
+		}
+
 		// === THIRD PASS: Framework Enrichers ===
 		// Run after language parsers and HTTP parser to add framework-specific knowledge
 		if (config.frameworkEnrichment !== false) {
