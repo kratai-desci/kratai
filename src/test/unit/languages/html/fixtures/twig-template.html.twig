@@ -1,0 +1,20 @@
+{% extends "base.html.twig" %}
+
+{% block title %}Product List{% endblock %}
+
+{% block body %}
+<div class="products">
+    <h1>Products</h1>
+    
+    {% for product in products %}
+        <div class="product">
+            <h2>{{ product.name }}</h2>
+            <p>{{ product.price }}</p>
+        </div>
+    {% else %}
+        <p>No products available.</p>
+    {% endfor %}
+    
+    {% include 'partials/footer.html.twig' %}
+</div>
+{% endblock %}

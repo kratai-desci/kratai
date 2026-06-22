@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Task List{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Tasks</h1>
+    
+    {% for task in tasks %}
+        <div class="task">
+            <h2>{{ task.title }}</h2>
+            <p>{{ task.description }}</p>
+        </div>
+    {% empty %}
+        <p>No tasks found.</p>
+    {% endfor %}
+    
+    {% include "partials/footer.html" %}
+</div>
+{% endblock %}
