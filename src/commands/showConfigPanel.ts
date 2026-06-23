@@ -623,75 +623,16 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
                 });
             }
             
-            // Update parent states up the tree
-            updateParentStates(checkbox);
+            // Checkboxes are now independent - no automatic parent updates
         }
 
-        function updateParentStates(checkbox) {
-            // Find the parent folder item by traversing up the DOM
-            let currentElement = checkbox.closest('.folder-item');
-            let parentChildren = currentElement.parentElement;
-            
-            // Keep going up the tree while we have parent folder-children containers
-            while (parentChildren && parentChildren.classList.contains('folder-children')) {
-                // Get the parent folder-item (previous sibling of folder-children)
-                const parentFolderItem = parentChildren.previousElementSibling;
-                if (!parentFolderItem || !parentFolderItem.classList.contains('folder-item')) {
-                    break;
-                }
-                
-                const parentCheckbox = parentFolderItem.querySelector('input[type="checkbox"]');
-                if (!parentCheckbox) {
-                    break;
-                }
-                
-                // Count checked children
-                const allChildCheckboxes = parentChildren.querySelectorAll(':scope > .folder-item > input[type="checkbox"], :scope > .folder-children > .folder-item > input[type="checkbox"]');
-                let checkedCount = 0;
-                let totalCount = 0;
-                
-                allChildCheckboxes.forEach(cb => {
-                    const cbParent = cb.closest('.folder-item').parentElement;
-                    // Only count direct children
-                    if (cbParent === parentChildren) {
-                        totalCount++;
-                        if (cb.checked) checkedCount++;
-                    }
-                });
-                
-                // Set parent state based on children
-                if (checkedCount === 0) {
-                    parentCheckbox.checked = false;
-                    parentCheckbox.indeterminate = false;
-                } else if (checkedCount === totalCount) {
-                    parentCheckbox.checked = true;
-                    parentCheckbox.indeterminate = false;
-                } else {
-                    parentCheckbox.checked = false;
-                    parentCheckbox.indeterminate = true;
-                }
-                
-                // Move up to the next level
-                currentElement = parentFolderItem;
-                parentChildren = parentFolderItem.parentElement;
-            }
-        }
-
-        // Initialize parent states on load
+        // Initialize checkbox event listeners
         document.addEventListener('DOMContentLoaded', () => {
-            // Find all leaf checkboxes and update their parents
             const allCheckboxes = document.querySelectorAll('.folder-item input[type="checkbox"]');
             allCheckboxes.forEach(cb => {
                 cb.addEventListener('change', () => {
                     toggleFolder(cb, cb.value);
                 });
-            });
-            
-            // Do initial parent state update for all checkboxes (bottom-up)
-            const checkboxesArray = Array.from(allCheckboxes);
-            // Process from deepest to shallowest
-            checkboxesArray.reverse().forEach(cb => {
-                updateParentStates(cb);
             });
         });
 
