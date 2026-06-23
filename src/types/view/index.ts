@@ -3,3 +3,4 @@ export * from './ReactFlowNode';
 export * from './ReactFlowEdge';
 export * from './ConfigFolderNode';
 export * from './ExtensionInfo';
+export * from './DiagramView';

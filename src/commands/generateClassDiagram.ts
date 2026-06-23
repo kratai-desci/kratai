@@ -7,6 +7,7 @@ import { ClassDiagramView } from '../views/classDiagramView';
 import { ConfigService } from '../services/config/configService';
 import { GitDiffEnricher } from '../services/git/gitDiffEnricher';
 import { TelemetryService } from '../services/telemetry/telemetryService';
+import { KrataiConfig } from '../types/config';
 
 export async function generateClassDiagram(context: vscode.ExtensionContext): Promise<void> {
 	// Check if workspace is opened
@@ -37,7 +38,7 @@ export async function generateClassDiagram(context: vscode.ExtensionContext): Pr
 	}
 }
 
-// New function for direct diagram generation (called from config panel)
+// New function for direct diagram generation (called from config panel or generateDiagramFromView)
 export async function generateClassDiagramDirect(context: vscode.ExtensionContext): Promise<void> {
 	// Check if workspace is opened
 	if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
@@ -50,15 +51,15 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 	const workspaceName = workspaceFolder.name;
 
 	try {
-		// Load config and show info
-		const config = await ConfigService.loadConfig(workspacePath);
-		const configInfo = ConfigService.getProjectInfo(config);
+		// Load config from workspace state (set by generateDiagramFromView or showConfigPanel)
+		const config: KrataiConfig = context.workspaceState.get('currentViewConfig') || await ConfigService.loadConfig(workspacePath);
+		const viewName: string = context.workspaceState.get('currentViewName') || workspaceName;
 		
-		console.log('🔍 Kratai Config:', configInfo);
+		console.log(`🔍 Generating diagram: ${viewName}`);
 
 		await vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
-			title: "Generating class diagram...",
+			title: `Generating "${viewName}" diagram...`,
 			cancellable: false
 		}, async (progress) => {
 			// Parse workspace
@@ -121,7 +122,7 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 			// Create and show webview
 			const panel = vscode.window.createWebviewPanel(
 				'krataiClassDiagram',
-				'Class Diagram',
+				`Class Diagram: ${viewName}`,
 				vscode.ViewColumn.One,
 				{
 					enableScripts: true,
@@ -131,7 +132,7 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 			);
 
 			const iconUri = panel.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'icon.png'));
-			panel.webview.html = ClassDiagramView.generate(nodes, edges, workspaceName, iconUri.toString());
+			panel.webview.html = ClassDiagramView.generate(nodes, edges, viewName, iconUri.toString());
 
 			TelemetryService.trackGenerateClassDiagram(
 				diagramData.classes.length,
