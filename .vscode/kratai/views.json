@@ -1,8 +1,8 @@
 {
   "views": [
     {
-      "id": "design-class-diagram",
-      "name": "Design Class Diagram",
+      "id": "full-diagram",
+      "name": "Full diagram",
       "config": {
         "selectedFolders": [
           "src/commands",
@@ -58,11 +58,11 @@
         }
       },
       "createdAt": "2026-06-23T09:46:28.251Z",
-      "lastGenerated": "2026-06-23T09:47:06.707Z"
+      "lastGenerated": "2026-06-23T22:00:20.036Z"
     },
     {
-      "id": "diagram-2",
-      "name": "diagram-2",
+      "id": "parsing-package",
+      "name": "Parsing package",
       "config": {
         "selectedFolders": [
           "src/commands",
@@ -112,7 +112,7 @@
         }
       },
       "createdAt": "2026-06-23T09:47:34.040Z",
-      "lastGenerated": "2026-06-23T09:48:45.946Z"
+      "lastGenerated": "2026-06-23T22:00:21.362Z"
     }
   ]
 }
