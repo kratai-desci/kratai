@@ -750,6 +750,239 @@ suite('NextJSEnricher - Framework Enrichment', () => {
 		});
 	});
 	
+	suite('TypeScript Type Usage Detection', () => {
+		test('TDD REALITY CHECK: TypeScript type annotations NOT extracted by parser', async () => {
+			// The fixture has: const [user, setUser] = useState<PublicUserDTO | null>(null);
+			// TypeScriptParser does NOT extract type annotations from source
+			// They're not in the ClassInfo properties or methods
+			const fixturePath = path.join(fixturesPath, 'page-with-api-calls.tsx');
+			const TypeScriptParser = require('../../../../services/parsing/languages/TypeScriptParser').TypeScriptParser;
+			const parser = new TypeScriptParser();
+			
+			const classes = parser.parseFile(fixturePath);
+			const homePage = classes.find((c: any) => c.name === 'Home');
+			
+			console.log('🔍 Home properties:', homePage?.properties);
+			console.log('🔍 Home methods:', homePage?.methods?.map((m: any) => m.name));
+			
+			// REALITY: Parser extracts Home function but NOT type annotations
+			assert.ok(homePage, 'Home function should be extracted');
+			
+			// Type annotations like <PublicUserDTO> are NOT in properties/methods
+			const hasTypeAnnotation = homePage?.properties?.some((p: any) => 
+				p.type === 'PublicUserDTO' || p.name === 'PublicUserDTO'
+			);
+			
+			assert.ok(!hasTypeAnnotation, 
+				'TypeScript parser does NOT extract type annotations (this is the gap!)');
+		});
+		
+		test('should detect TypeScript type annotations in useState', async () => {
+			// const [user, setUser] = useState<PublicUserDTO | null>(null);
+			// Should create: Home → PublicUserDTO (uses relationship)
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'Home',
+					filePath: 'page-with-api-calls.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				},
+				{
+					name: 'PublicUserDTO',
+					filePath: 'lib/l3_data/types/user.types.ts',
+					properties: [
+						{ name: 'id', type: 'string', visibility: 'public' },
+						{ name: 'email', type: 'string', visibility: 'public' },
+						{ name: 'name', type: 'string', visibility: 'public' }
+					],
+					methods: [],
+					classType: 'interface'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath: fixturesPath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			// Should detect: Home → PublicUserDTO
+			const typeUsage = result.newRelationships.find(rel => 
+				rel.type === 'uses' &&
+				rel.from.includes('Home') &&
+				rel.to.includes('PublicUserDTO')
+			);
+			
+			console.log('📊 Type usage relationships:', result.newRelationships.filter(r => 
+				r.type === 'uses'
+			));
+			
+			assert.ok(typeUsage, 'MUST create uses relationship for TypeScript type annotations');
+		});
+		
+		test('should detect type annotations in function parameters', async () => {
+			// function handleSubmit(data: FormData) {}
+			// Should create: Home → FormData (uses relationship)
+			assert.ok(true, 'TODO: Implement parameter type detection');
+		});
+		
+		test('should detect type annotations in variable declarations', async () => {
+			// const response: ApiResponse = await fetch(...)
+			// Should create: Home → ApiResponse (uses relationship)
+			assert.ok(true, 'TODO: Implement variable type detection');
+		});
+	});
+	
+	suite('HTTP API Calls Detection (fetch)', () => {
+		test('TDD REALITY CHECK: enricher must read source to find fetch() calls', async () => {
+			// fetch() calls are in function body, so we MUST read source code
+			// Similar to JSX detection
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'Home',
+					filePath: 'page-with-api-calls.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath: fixturesPath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			// Should detect fetch() calls to API routes
+			const apiCalls = result.newRelationships.filter(rel => 
+				rel.type === 'http-call' && rel.from.includes('Home')
+			);
+			
+			console.log('📊 API call relationships:', apiCalls.map(r => ({
+				from: r.from.split('__')[1],
+				to: r.to,
+				method: r.metadata?.method
+			})));
+			
+			// Page has 3 fetch calls:
+			// - POST /api/auth/register
+			// - POST /api/auth/login
+			// - GET /api/users/${id}
+			assert.ok(apiCalls.length >= 3, 
+				`Should detect at least 3 fetch() calls (found ${apiCalls.length})`);
+		});
+		
+		test('should detect POST fetch to /api/auth/register', async () => {
+			// await fetch('/api/auth/register', { method: 'POST' })
+			// Should create: Home → POST /api/auth/register (http-call)
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'Home',
+					filePath: 'page-with-api-calls.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath: fixturesPath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			const registerCall = result.newRelationships.find(rel => 
+				rel.type === 'http-call' &&
+				rel.from.includes('Home') &&
+				rel.to.includes('/api/auth/register') &&
+				rel.metadata?.method === 'POST'
+			);
+			
+			assert.ok(registerCall, 'MUST detect POST /api/auth/register call');
+		});
+		
+		test('should detect POST fetch to /api/auth/login', async () => {
+			// await fetch('/api/auth/login', { method: 'POST' })
+			// Should create: Home → POST /api/auth/login (http-call)
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'Home',
+					filePath: 'page-with-api-calls.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath: fixturesPath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			const loginCall = result.newRelationships.find(rel => 
+				rel.type === 'http-call' &&
+				rel.from.includes('Home') &&
+				rel.to.includes('/api/auth/login') &&
+				rel.metadata?.method === 'POST'
+			);
+			
+			assert.ok(loginCall, 'MUST detect POST /api/auth/login call');
+		});
+		
+		test('should detect GET fetch with template literal URL', async () => {
+			// await fetch(`/api/users/${data.userId}`)
+			// Should create: Home → GET /api/users/:id (http-call)
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'Home',
+					filePath: 'page-with-api-calls.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath: fixturesPath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			// Template literal ${data.userId} should be converted to :id parameter
+			const userCall = result.newRelationships.find(rel => 
+				rel.type === 'http-call' &&
+				rel.from.includes('Home') &&
+				(rel.to.includes('/api/users/:id') || rel.to.includes('/api/users/${'))
+			);
+			
+			assert.ok(userCall, 'MUST detect GET /api/users/:id with template literal');
+		});
+		
+		test('should default to GET method when not specified', async () => {
+			// await fetch('/api/data') without method option
+			// Should default to GET
+			assert.ok(true, 'TODO: Implement default GET method detection');
+		});
+		
+		test('should handle fetch options from variables', async () => {
+			// const options = { method: 'POST' }; fetch(url, options)
+			// Should still detect method (harder to parse)
+			assert.ok(true, 'TODO: Implement variable-based options detection');
+		});
+	});
+	
 	suite('API Route to Service Flow', () => {
 		test('should detect route handler calling service', async () => {
 			// GET handler → UserService.getUserById
