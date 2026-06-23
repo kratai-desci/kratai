@@ -1,0 +1,40 @@
+{
+  "selectedFolders": [
+    "src/services/parsing",
+    "src/services/parsing/frameworks",
+    "src/services/parsing/languages"
+  ],
+  "selectedExtensions": [
+    ".ts",
+    "on",
+    "on",
+    "on",
+    "on",
+    "on",
+    "on",
+    "on",
+    "on",
+    "on",
+    "on"
+  ],
+  "respectGitignore": true,
+  "followSymlinks": false,
+  "classTypeFilters": {
+    "class": true,
+    "interface": true,
+    "abstract": true,
+    "module": true
+  },
+  "relationshipTypeFilters": {
+    "extends": true,
+    "implements": true,
+    "composition": true,
+    "uses": true,
+    "calls": true
+  },
+  "gitDiff": {
+    "enabled": true,
+    "baseCommit": "HEAD~1"
+  },
+  "lastUpdated": "2026-06-23T09:57:26.679Z"
+}

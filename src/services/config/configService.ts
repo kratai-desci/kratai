@@ -21,8 +21,9 @@ export class ConfigService {
 	}
 
 	static generateSmartDefaults(workspacePath: string): KrataiConfig {
-		// Default to selecting the root folder only (simple and predictable)
-		const selectedFolders = [''];
+		// NEW: Mark all folders as selected by default
+		// Users can uncheck what they don't want
+		const selectedFolders = this.collectAllFolders(workspacePath);
 
 		// Detect file types in the project
 		const extensions = this.detectFileExtensions(workspacePath);
@@ -178,20 +179,55 @@ export class ConfigService {
 			return true;
 		}
 
-		// Check if folder is in selected list or is a parent/child of selected
-		for (const selected of config.selectedFolders) {
-			if (relativePath === selected || 
-			    relativePath.startsWith(selected + '/') || 
-			    selected.startsWith(relativePath + '/')) {
-				return true;
-			}
-		}
-
-		return false;
+		// NEW LOGIC: Only include folders that are EXPLICITLY checked
+		// This prevents automatic inclusion of subdirectories
+		// User must check each folder they want to scan
+		return config.selectedFolders.includes(relativePath);
 	}
 
 	static shouldIncludeFile(filePath: string, config: KrataiConfig): boolean {
 		const ext = path.extname(filePath);
 		return config.selectedExtensions.includes(ext);
+	}
+
+	/**
+	 * Collect all folders in the workspace (excluding default exclusions)
+	 * Used for marking all folders as checked by default
+	 */
+	private static collectAllFolders(workspacePath: string, currentPath: string = '', folders: string[] = []): string[] {
+		const defaultExclusions = [
+			'node_modules', 'dist', 'build', 'out', '.git', '.vscode',
+			'venv', '.venv', 'env', '__pycache__', 'site-packages', '.tox', '.pytest_cache',
+			'vendor', '.idea', '.DS_Store', 'coverage', '.next', '.nuxt'
+		];
+
+		const fullPath = path.join(workspacePath, currentPath);
+		
+		if (!fs.existsSync(fullPath)) {
+			return folders;
+		}
+
+		try {
+			const entries = fs.readdirSync(fullPath, { withFileTypes: true });
+
+			for (const entry of entries) {
+				if (!entry.isDirectory()) continue;
+				
+				// Skip default exclusions
+				if (defaultExclusions.includes(entry.name)) {
+					continue;
+				}
+
+				const childRelativePath = currentPath ? `${currentPath}/${entry.name}` : entry.name;
+				folders.push(childRelativePath);
+
+				// Recursively collect subdirectories
+				this.collectAllFolders(workspacePath, childRelativePath, folders);
+			}
+		} catch (error) {
+			// Ignore errors (permission denied, etc.)
+		}
+
+		return folders;
 	}
 }
