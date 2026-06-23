@@ -333,10 +333,10 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
             user-select: none;
         }
         .folder-children {
-            display: none;
-        }
-        .folder-children.expanded {
             display: block;
+        }
+        .folder-children.collapsed {
+            display: none;
         }
         .extension-list {
             display: flex;
@@ -596,8 +596,8 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
         function toggleFolderExpand(element) {
             const children = element.parentElement.nextElementSibling;
             if (children && children.classList.contains('folder-children')) {
-                children.classList.toggle('expanded');
-                element.textContent = children.classList.contains('expanded') ? '▼' : '▶';
+                children.classList.toggle('collapsed');
+                element.textContent = children.classList.contains('collapsed') ? '▶' : '▼';
             }
         }
 
@@ -746,7 +746,7 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
 
 function renderFolderTree(node: any, level: number = 0): string {
 	const hasChildren = node.children && node.children.length > 0;
-	const toggleIcon = hasChildren ? '▶' : ' ';
+	const toggleIcon = hasChildren ? '▼' : ' '; // Changed to ▼ (expanded by default)
 	const indent = level * 20;
 	
 	let html = `
@@ -759,6 +759,7 @@ function renderFolderTree(node: any, level: number = 0): string {
 	`;
 
 	if (hasChildren) {
+		// Add 'expanded' class by default (removed - now default is expanded)
 		html += `<div class="folder-children">`;
 		for (const child of node.children) {
 			html += renderFolderTree(child, level + 1);
