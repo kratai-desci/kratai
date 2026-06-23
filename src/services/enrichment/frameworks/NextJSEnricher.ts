@@ -117,6 +117,12 @@ export class NextJSEnricher extends AbstractEnricher {
 		const serviceRels = this.inferServiceRelationships(enhancedClasses, context);
 		newRelationships.push(...serviceRels);
 		
+		// 10. Detect JSX component rendering (Component → Component relationships)
+		// This is Next.js's version of "template detection" - components render other components
+		const jsxRenderRels = this.detectJSXComponentUsage(enhancedClasses, context);
+		newRelationships.push(...jsxRenderRels);
+		features.push('jsx-component-rendering');
+		
 		return {
 			enhancedClasses,
 			newRelationships,
@@ -510,6 +516,96 @@ export class NextJSEnricher extends AbstractEnricher {
 						}
 					});
 				}
+			}
+		}
+		
+		return relationships;
+	}
+	
+	/**
+	 * Detect JSX component usage (Component → Component relationships)
+	 * 
+	 * This is Next.js's version of "template detection":
+	 * - Django: View → HTML template file
+	 * - Next.js: Component → Component (via JSX)
+	 * 
+	 * Reads .tsx/.jsx files to find JSX component usage patterns like:
+	 * - <UserList users={users} />
+	 * - <Header />
+	 * - {isVisible && <Modal />}
+	 * 
+	 * Only matches PascalCase components (ignores lowercase HTML tags like <div>)
+	 * 
+	 * TDD APPROACH (like Django enricher):
+	 * 1. Read source file for each component
+	 * 2. Find JSX usage: <ComponentName> or <ComponentName/>
+	 * 3. Match to other components in workspace
+	 * 4. Create 'renders' relationships
+	 */
+	private detectJSXComponentUsage(classes: any[], context: EnrichmentContext): ClassRelationship[] {
+		const relationships: ClassRelationship[] = [];
+		
+		// Build component name lookup (only React/Next.js components)
+		const componentMap = new Map<string, any>();
+		const reactComponents = classes.filter(c => 
+			(c.classType === 'function' || c.classType === 'class') &&
+			(c.filePath.endsWith('.tsx') || c.filePath.endsWith('.jsx'))
+		);
+		
+		for (const component of reactComponents) {
+			componentMap.set(component.name, component);
+		}
+		
+		// For each component, scan its source for JSX usage
+		for (const component of reactComponents) {
+			const fullPath = path.join(context.workspacePath, component.filePath);
+			
+			if (!fs.existsSync(fullPath)) {
+				continue;
+			}
+			
+			try {
+				const sourceCode = fs.readFileSync(fullPath, 'utf-8');
+				const fromId = this.getClassId(component);
+				
+				// Match JSX component tags: <UserList> or <UserList/>
+				// Pattern: < followed by PascalCase name (components, not HTML tags)
+				// Matches: <UserList, <UserList/>, <Avatar
+				// Ignores: <div, <span, <button (lowercase = HTML)
+				const jsxPattern = /<([A-Z][a-zA-Z0-9]*)/g;
+				let match;
+				
+				const foundComponents = new Set<string>(); // Avoid duplicates
+				
+				while ((match = jsxPattern.exec(sourceCode)) !== null) {
+					const componentName = match[1]; // e.g., 'UserList'
+					const targetComponent = componentMap.get(componentName);
+					
+					if (targetComponent && targetComponent.name !== component.name) {
+						// Found a component usage!
+						foundComponents.add(componentName);
+					}
+				}
+				
+				// Create relationships for all found components
+				for (const compName of foundComponents) {
+					const targetComponent = componentMap.get(compName);
+					if (targetComponent) {
+						const toId = this.getClassId(targetComponent);
+						
+						relationships.push({
+							from: fromId,
+							to: toId,
+							type: 'renders',
+							metadata: {
+								jsxComponent: true,
+								componentName: compName
+							}
+						});
+					}
+				}
+			} catch (error) {
+				// Ignore file read errors
 			}
 		}
 		

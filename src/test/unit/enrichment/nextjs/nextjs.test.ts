@@ -442,51 +442,13 @@ suite('NextJSEnricher - Framework Enrichment', () => {
 	});
 	
 	suite('Component Composition (Template Detection)', () => {
-		test('should detect component rendering in JSX', async () => {
-			// Page renders <UserList users={users} />
-			// Should create: UsersPage → UserList (renders relationship)
+		test('TDD REALITY CHECK: enricher must read source to find JSX usage', async () => {
+			// Unlike Django where template_name is a property,
+			// JSX usage is in the function BODY, so we MUST read source code
 			const mockClasses: ClassInfo[] = [
 				{
 					name: 'UsersPage',
-					filePath: 'app/users/page.tsx',
-					properties: [],
-					methods: [],
-					classType: 'function'
-				},
-				{
-					name: 'UserList',
-					filePath: 'components/UserList.tsx',
-					properties: [],
-					methods: [],
-					classType: 'function'
-				}
-			];
-			
-			const context: EnrichmentContext = {
-				workspacePath,
-				classes: mockClasses,
-				relationships: []
-			};
-			
-			const result = await enricher.enrich(context);
-			
-			// Should create: UsersPage → UserList (renders relationship)
-			const rendersRel = result.newRelationships.find(rel => 
-				rel.type === 'renders' &&
-				rel.from.includes('UsersPage') &&
-				rel.to.includes('UserList')
-			);
-			
-			assert.ok(rendersRel, 'MUST create renders relationship for JSX component usage');
-		});
-		
-		test('should detect multiple components rendered in same page', async () => {
-			// Page renders: <Header />, <UserList />, <Footer />
-			// Should create 3 renders relationships
-			const mockClasses: ClassInfo[] = [
-				{
-					name: 'UsersPage',
-					filePath: 'app/users/page.tsx',
+					filePath: 'page-with-components.tsx',
 					properties: [],
 					methods: [],
 					classType: 'function'
@@ -515,7 +477,99 @@ suite('NextJSEnricher - Framework Enrichment', () => {
 			];
 			
 			const context: EnrichmentContext = {
-				workspacePath,
+				workspacePath: fixturesPath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			const rendersRels = result.newRelationships.filter(r => r.type === 'renders');
+			
+			console.log('📊 JSX renders relationships:', rendersRels.map(r => ({
+				from: r.from.split('__')[1],
+				to: r.to.split('__')[1]
+			})));
+			
+			// Should detect: UsersPage → Header, UserList, Footer
+			assert.ok(rendersRels.length >= 3, 
+				`Should detect at least 3 JSX components (found ${rendersRels.length})`);
+		});
+		
+		test('should detect component rendering in JSX', async () => {
+			// Page renders <UserList users={users} />
+			// Should create: UsersPage → UserList (renders relationship)
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'UsersPage',
+					filePath: 'page-with-components.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				},
+				{
+					name: 'UserList',
+					filePath: 'components/UserList.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath: fixturesPath,  // Use fixtures path
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			// Should create: UsersPage → UserList (renders relationship)
+			const rendersRel = result.newRelationships.find(rel => 
+				rel.type === 'renders' &&
+				rel.from.includes('UsersPage') &&
+				rel.to.includes('UserList')
+			);
+			
+			assert.ok(rendersRel, 'MUST create renders relationship for JSX component usage');
+		});
+		
+		test('should detect multiple components rendered in same page', async () => {
+			// Page renders: <Header />, <UserList />, <Footer />
+			// Should create 3 renders relationships
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'UsersPage',
+					filePath: 'page-with-components.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				},
+				{
+					name: 'Header',
+					filePath: 'components/Header.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				},
+				{
+					name: 'UserList',
+					filePath: 'components/UserList.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				},
+				{
+					name: 'Footer',
+					filePath: 'components/Footer.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath: fixturesPath,  // Use fixtures path
 				classes: mockClasses,
 				relationships: []
 			};
@@ -532,11 +586,109 @@ suite('NextJSEnricher - Framework Enrichment', () => {
 		});
 		
 		test('should handle self-closing JSX tags', async () => {
-			// <UserCard /> or <Avatar/>
+			// The fixture already has self-closing tags like <Header />
+			// This test verifies they're detected
 			const mockClasses: ClassInfo[] = [
 				{
-					name: 'Profile',
-					filePath: 'app/profile/page.tsx',
+					name: 'UsersPage',
+					filePath: 'page-with-components.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				},
+				{
+					name: 'Header',
+					filePath: 'components/Header.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath: fixturesPath,  // Use fixtures path
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			const rendersRel = result.newRelationships.find(rel => 
+				rel.type === 'renders' &&
+				rel.from.includes('UsersPage') &&
+				rel.to.includes('Header')
+			);
+			
+			assert.ok(rendersRel, 'MUST detect self-closing JSX tags');
+		});
+		
+		test('should ignore HTML tags (lowercase)', async () => {
+			// <div>, <span>, <button> should NOT create relationships
+			// Only components (PascalCase) like <UserList>
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'UsersPage',
+					filePath: 'page-with-components.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				}
+			];
+			
+			const context: EnrichmentContext = {
+				workspacePath: fixturesPath,
+				classes: mockClasses,
+				relationships: []
+			};
+			
+			const result = await enricher.enrich(context);
+			
+			// Should NOT create relationships to HTML tags
+			const htmlTagRels = result.newRelationships.filter(rel => 
+				rel.to.match(/__(div|span|button|input|form|h1)$/)
+			);
+			
+			assert.strictEqual(htmlTagRels.length, 0, 
+				'MUST NOT create relationships to HTML tags');
+		});
+		
+		test('TDD: proper scoping - ProfilePage should NOT link to UsersPage components', async () => {
+			// We have two files:
+			// - page-with-components.tsx: UsersPage renders Header, UserList, Footer
+			// - profile-page.tsx: ProfilePage renders Avatar
+			// ProfilePage should ONLY link to Avatar, not to Header/UserList/Footer
+			const mockClasses: ClassInfo[] = [
+				{
+					name: 'UsersPage',
+					filePath: 'page-with-components.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				},
+				{
+					name: 'ProfilePage',
+					filePath: 'profile-page.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				},
+				{
+					name: 'Header',
+					filePath: 'components/Header.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				},
+				{
+					name: 'UserList',
+					filePath: 'components/UserList.tsx',
+					properties: [],
+					methods: [],
+					classType: 'function'
+				},
+				{
+					name: 'Footer',
+					filePath: 'components/Footer.tsx',
 					properties: [],
 					methods: [],
 					classType: 'function'
@@ -551,50 +703,39 @@ suite('NextJSEnricher - Framework Enrichment', () => {
 			];
 			
 			const context: EnrichmentContext = {
-				workspacePath,
+				workspacePath: fixturesPath,
 				classes: mockClasses,
 				relationships: []
 			};
 			
 			const result = await enricher.enrich(context);
 			
-			const rendersRel = result.newRelationships.find(rel => 
-				rel.type === 'renders' &&
-				rel.from.includes('Profile') &&
-				rel.to.includes('Avatar')
+			// Filter to ProfilePage relationships only
+			const profileRels = result.newRelationships.filter(rel => 
+				rel.type === 'renders' && rel.from.includes('ProfilePage')
 			);
 			
-			assert.ok(rendersRel, 'MUST detect self-closing JSX tags');
-		});
-		
-		test('should ignore HTML tags (lowercase)', async () => {
-			// <div>, <span>, <button> should NOT create relationships
-			// Only components (PascalCase) like <UserList>
-			const mockClasses: ClassInfo[] = [
-				{
-					name: 'UsersPage',
-					filePath: 'app/users/page.tsx',
-					properties: [],
-					methods: [],
-					classType: 'function'
-				}
-			];
+			console.log('📊 ProfilePage relationships:', profileRels.map(r => ({
+				from: r.from.split('__')[1],
+				to: r.to.split('__')[1]
+			})));
 			
-			const context: EnrichmentContext = {
-				workspacePath,
-				classes: mockClasses,
-				relationships: []
-			};
+			// Should have EXACTLY 1 relationship: ProfilePage → Avatar
+			assert.strictEqual(profileRels.length, 1, 
+				`ProfilePage should link to ONLY Avatar (found ${profileRels.length})`);
 			
-			const result = await enricher.enrich(context);
+			// Verify it's Avatar
+			const avatarRel = profileRels.find(r => r.to.includes('Avatar'));
+			assert.ok(avatarRel, 'ProfilePage should link to Avatar');
 			
-			// Should NOT create relationships to HTML tags
-			const htmlTagRels = result.newRelationships.filter(rel => 
-				rel.to.match(/__(div|span|button|input|form)$/)
+			// Verify it does NOT link to UsersPage components
+			const wrongRels = profileRels.filter(r => 
+				r.to.includes('Header') || 
+				r.to.includes('UserList') || 
+				r.to.includes('Footer')
 			);
-			
-			assert.strictEqual(htmlTagRels.length, 0, 
-				'MUST NOT create relationships to HTML tags');
+			assert.strictEqual(wrongRels.length, 0, 
+				'ProfilePage should NOT link to UsersPage components');
 		});
 		
 		test('should detect client components ("use client")', async () => {
