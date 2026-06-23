@@ -2,6 +2,64 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.8.0] - 2026-06-23
+
+### Added — Framework-Aware Relationship Detection
+- **Django Template Detection** — Automatically detects View → Template relationships by reading source files
+  - Detects `template_name = 'path.html'` in class-based views
+  - Detects `render(request, 'template.html')` in function-based views
+  - Properly scoped: Each view links only to its own template (no cross-contamination)
+  - Works even though PythonParser doesn't extract class-level assignments
+- **Next.js JSX Component Detection** — Automatically detects Component → Component relationships
+  - Detects `<UserList />`, `<Header/>`, and other JSX component usage
+  - Reads .tsx/.jsx files to find PascalCase component tags
+  - Ignores lowercase HTML tags (`<div>`, `<span>`)
+  - Proper file-level scoping prevents cross-contamination
+- **Next.js TypeScript Type Detection** — Detects Component → DTO/Type relationships
+  - Detects `useState<PublicUserDTO>` generic type annotations
+  - Detects `const x: ApiResponse` variable type annotations
+  - Detects `as UserDTO` type casting
+  - Creates "uses" relationships connecting components to types/DTOs
+- **Next.js fetch() API Call Detection** — Detects Component → API route relationships
+  - Detects `fetch('/api/users')` and `fetch('/api/auth/login', { method: 'POST' })`
+  - Extracts HTTP method (GET, POST, etc.) from fetch options
+  - Converts template literals: `fetch(\`/api/users/\${id}\`)` → `/api/users/:id`
+  - Creates "http-call" relationships with HTTP method metadata
+
+### Technical
+- Enhanced `DjangoEnricher.createViewTemplateRelationships()` to ALWAYS read source for Django views
+  - No longer checks properties array (PythonParser doesn't extract class-level assignments)
+  - Properly scopes by finding class definition boundaries
+  - Prevents TaskDeleteView from linking to TaskListView's template
+- New `NextJSEnricher.detectJSXComponentUsage()` method
+  - Regex pattern: `/<([A-Z][a-zA-Z0-9]*)/g` matches PascalCase components only
+  - Builds component map for fast lookups
+  - Uses Set to avoid duplicate relationships
+- New `NextJSEnricher.detectTypeScriptTypeUsage()` method
+  - Detects useState, variable declarations, type casting, generics
+  - Filters to only known types/interfaces/DTOs in workspace
+  - Creates "uses" relationships for type dependencies
+- New `NextJSEnricher.detectFetchAPICalls()` method
+  - Regex pattern captures fetch URL, method, and options
+  - Normalizes template literals to route parameters
+  - Creates synthetic route IDs: `route:///api/users/:id`
+- Comprehensive test coverage: 58 total Next.js tests (49 passing + 9 TODOs)
+  - Django: 9 View → Template relationship tests (all passing)
+  - Next.js JSX: 8 component rendering tests (all passing)
+  - Next.js Types: 4 type annotation tests (3 passing + 1 TODO)
+  - Next.js fetch(): 6 API call tests (all passing)
+
+### Testing Philosophy (TDD)
+- **Reality Check Tests** — Document actual parser behavior (e.g., "Parser doesn't extract class-level assignments")
+- **Scoping Tests** — Verify no cross-contamination (e.g., "TaskDeleteView should NOT link to TaskListView's template")
+- **Comprehensive Tests** — Test all patterns in real user code (e.g., "All 5 views get correct templates")
+- Test fixtures mirror real application code patterns
+
+### Impact
+- Django projects now show complete View → Template relationships
+- Next.js projects now show Component → Component, Component → Type/DTO, and Component → API route relationships
+- Your page.tsx with `useState<PublicUserDTO>` and `fetch('/api/auth/login')` now shows all relationships!
+
 ## [1.7.0] - 2026-06-22
 
 ### Added

@@ -14,8 +14,14 @@ Understand your codebase at a glance across **TypeScript, JavaScript, Python, an
 - 📂 **Hover-to-Open** — Three-dot button appears on hover to instantly open files in editor
 - 📊 **Git Diff Highlighting** — See uncommitted changes at a glance (green = added, red = deleted)
 - 🌍 **Multi-Language Support** — Works with TypeScript, JavaScript, Python, and PHP in the same project
-- 🎯 **Smart Relationships** — Auto-detects inheritance, interfaces, and dependencies
+- 🧠 **Framework-Aware** — Automatically detects and enriches Django and Next.js projects
+- 🎯 **Smart Relationships** — Auto-detects inheritance, interfaces, dependencies, and framework-specific patterns
 - ⚙️ **Fully Configurable** — Choose which folders, files, and relationships to display
+
+**Framework Enrichment (Automatic Detection):**
+- **Django** (✅ Fully Supported): View → Template relationships, ORM models (ForeignKey, ManyToMany), REST Framework (ViewSets, Serializers)
+- **Next.js** (✅ Fully Supported): Component → Component (JSX), Component → Type/DTO, Component → API routes (fetch calls)
+- **React, Laravel, Symfony** (⏳ Planned): Coming in future releases
 
 ---
 
@@ -56,16 +62,23 @@ Control exactly what gets visualized with the built-in settings panel:
 
 ---
 
-## 🌐 Supported Languages
+## 🌐 Supported Languages & Frameworks
 
-| Language | Status | Parser | Features |
+| Language | Status | Parser | Framework Enrichment |
 |---|---|---|---|
-| **TypeScript** | ✅ Full Support | TypeScriptParser | Generics, decorators, interfaces, React/NestJS patterns |
-| **JavaScript** | ✅ Full Support | JavaScriptParser | ES6 classes, JSX, JSDoc type annotations, React hooks |
-| **Python** | ✅ Full Support | PythonParser | Complex type hints (Optional, List, Dict), async/await, protocols |
-| **PHP** | ✅ Full Support | PHPParser | PHP 7.4+/8.0+ type hints, Laravel/Symfony, traits |
+| **TypeScript** | ✅ Full Support | TypeScriptParser | Next.js (✅ Component rendering, type usage, fetch calls) |
+| **JavaScript** | ✅ Full Support | JavaScriptParser | Next.js (✅ JSX components) |
+| **Python** | ✅ Full Support | PythonParser | Django (✅ Views, Templates, ORM, DRF) |
+| **PHP** | ✅ Full Support | PHPParser | Laravel/Symfony (⏳ Planned) |
 
-Works great with polyglot codebases! Visualize a TypeScript frontend and Python backend in one diagram.
+**Framework Enrichment Status:**
+- **✅ Django:** Fully implemented — View → Template (`template_name`, `render()`), ORM relationships (ForeignKey, ManyToMany), REST Framework (ViewSets → Serializers), URL routing, middleware detection
+- **✅ Next.js:** Fully implemented — Component → Component (JSX like `<UserList />`), Component → Type/DTO (`useState<UserDTO>`), Component → API routes (`fetch('/api/users')`), HTTP method detection
+- **⏳ React (standalone):** Planned for future release
+- **⏳ Laravel:** Planned for future release
+- **⏳ Symfony:** Planned for future release
+
+**Note:** You can still visualize TypeScript/JavaScript/PHP codebases without framework enrichment — you'll get standard class diagrams with inheritance, interfaces, and dependencies. Framework enrichment adds deeper insights specific to Django and Next.js projects.
 
 ---
 
@@ -99,7 +112,15 @@ Kratai stores settings in `.vscode/kratai.json` in your workspace:
 
 ## 📝 Release Notes
 
-### Latest: v1.7.0
+### Latest: v1.8.0
+- 🎯 **Django Template Detection** — Automatic View → Template relationships (`template_name`, `render()`)
+- ⚛️ **Next.js Component Detection** — Automatic Component → Component relationships (JSX like `<UserList />`)
+- 📦 **TypeScript Type Detection** — Component → DTO/Type relationships (`useState<UserDTO>`, `const x: ApiResponse`)
+- 🌐 **fetch() API Call Detection** — Component → API route relationships with HTTP method detection
+- 🔍 **Smart Source Reading** — Enrichers read source files to detect framework conventions
+- ✅ **58 Comprehensive Tests** — TDD approach with reality checks and scoping tests
+
+### v1.7.0
 - 🐍 **Django Framework Support** — Automatic detection of Django projects with URL patterns, ORM relationships, and DRF
 - 🔗 **Django URL Parsing** — Reads urls.py to create accurate route → view relationships
 - 📊 **ORM Relationships** — Visualizes ForeignKey, ManyToManyField, OneToOneField
