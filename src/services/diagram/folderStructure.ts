@@ -63,8 +63,8 @@ export class FolderStructureBuilder {
 			console.log(`⚠️ Files without folder structure (${unmatchedFiles.length}):`, unmatchedFiles.join(', '));
 		}
 		
-		// Optimize structure: collapse pass-through folders like "src/components" -> "src > components"
-		this.collapsePassThroughFolders(root);
+		// DISABLED: Folder collapsing - users want to see full hierarchy
+		// this.collapsePassThroughFolders(root);
 		
 		return root;
 	}
