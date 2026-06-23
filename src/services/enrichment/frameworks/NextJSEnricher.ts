@@ -123,6 +123,18 @@ export class NextJSEnricher extends AbstractEnricher {
 		newRelationships.push(...jsxRenderRels);
 		features.push('jsx-component-rendering');
 		
+		// 11. Detect TypeScript type annotations (Component → DTO/Type relationships)
+		// Detects: useState<UserDTO>, function(data: FormData), const x: ApiResponse
+		const typeUsageRels = this.detectTypeScriptTypeUsage(enhancedClasses, context);
+		newRelationships.push(...typeUsageRels);
+		features.push('typescript-type-usage');
+		
+		// 12. Detect fetch() API calls (Component → API route relationships)
+		// Detects: fetch('/api/users'), fetch('/api/auth/login', { method: 'POST' })
+		const fetchCallRels = this.detectFetchAPICalls(enhancedClasses, context);
+		newRelationships.push(...fetchCallRels);
+		features.push('fetch-api-calls');
+		
 		return {
 			enhancedClasses,
 			newRelationships,
@@ -603,6 +615,203 @@ export class NextJSEnricher extends AbstractEnricher {
 							}
 						});
 					}
+				}
+			} catch (error) {
+				// Ignore file read errors
+			}
+		}
+		
+		return relationships;
+	}
+	
+	/**
+	 * Detect TypeScript type annotations (Component/Page → DTO/Type relationships)
+	 * 
+	 * Detects type usage patterns in TypeScript/TSX files:
+	 * - useState<UserDTO>
+	 * - function(data: FormData)
+	 * - const response: ApiResponse
+	 * - as UserDTO
+	 * 
+	 * Creates "uses" relationships to connect components to the types they use.
+	 * 
+	 * TDD APPROACH (like Django/JSX detection):
+	 * 1. Read source file for each component
+	 * 2. Find type annotations with regex
+	 * 3. Match to classes/interfaces in workspace
+	 * 4. Create 'uses' relationships
+	 */
+	private detectTypeScriptTypeUsage(classes: any[], context: EnrichmentContext): ClassRelationship[] {
+		const relationships: ClassRelationship[] = [];
+		
+		// Build type name lookup (interfaces, types, classes that can be used as types)
+		const typeMap = new Map<string, any>();
+		const possibleTypes = classes.filter(c => 
+			c.classType === 'interface' || 
+			c.classType === 'class' ||
+			c.classType === 'enum' ||
+			(c.filePath.includes('/types/') || c.filePath.includes('/types.'))
+		);
+		
+		for (const type of possibleTypes) {
+			typeMap.set(type.name, type);
+		}
+		
+		// For each TypeScript/TSX component, scan for type annotations
+		const tsFiles = classes.filter(c => 
+			c.filePath.endsWith('.ts') || c.filePath.endsWith('.tsx')
+		);
+		
+		for (const component of tsFiles) {
+			const fullPath = path.join(context.workspacePath, component.filePath);
+			
+			if (!fs.existsSync(fullPath)) {
+				continue;
+			}
+			
+			try {
+				const sourceCode = fs.readFileSync(fullPath, 'utf-8');
+				const fromId = this.getClassId(component);
+				
+				const foundTypes = new Set<string>(); // Avoid duplicates
+				
+				// Pattern 1: useState<TypeName> or useState<TypeName | null>
+				const useStatePattern = /useState<([A-Z][a-zA-Z0-9]*)/g;
+				let match;
+				while ((match = useStatePattern.exec(sourceCode)) !== null) {
+					const typeName = match[1];
+					if (typeMap.has(typeName)) {
+						foundTypes.add(typeName);
+					}
+				}
+				
+				// Pattern 2: Variable declarations: const x: TypeName
+				const varTypePattern = /:\s*([A-Z][a-zA-Z0-9]*)/g;
+				while ((match = varTypePattern.exec(sourceCode)) !== null) {
+					const typeName = match[1];
+					if (typeMap.has(typeName)) {
+						foundTypes.add(typeName);
+					}
+				}
+				
+				// Pattern 3: Type casting: as TypeName
+				const asTypePattern = /as\s+([A-Z][a-zA-Z0-9]*)/g;
+				while ((match = asTypePattern.exec(sourceCode)) !== null) {
+					const typeName = match[1];
+					if (typeMap.has(typeName)) {
+						foundTypes.add(typeName);
+					}
+				}
+				
+				// Pattern 4: Generic types: Promise<TypeName>, Array<TypeName>
+				const genericPattern = /<([A-Z][a-zA-Z0-9]*)>/g;
+				while ((match = genericPattern.exec(sourceCode)) !== null) {
+					const typeName = match[1];
+					if (typeMap.has(typeName)) {
+						foundTypes.add(typeName);
+					}
+				}
+				
+				// Create relationships for all found types
+				for (const typeName of foundTypes) {
+					const targetType = typeMap.get(typeName);
+					if (targetType) {
+						const toId = this.getClassId(targetType);
+						
+						relationships.push({
+							from: fromId,
+							to: toId,
+							type: 'uses',
+							metadata: {
+								typeAnnotation: true,
+								typeName: typeName
+							}
+						});
+					}
+				}
+			} catch (error) {
+				// Ignore file read errors
+			}
+		}
+		
+		return relationships;
+	}
+	
+	/**
+	 * Detect fetch() API calls (Component/Page → API route relationships)
+	 * 
+	 * Detects fetch() patterns in TypeScript/TSX files:
+	 * - fetch('/api/users')
+	 * - fetch('/api/auth/login', { method: 'POST' })
+	 * - fetch(`/api/users/${id}`) - template literals
+	 * 
+	 * Creates "http-call" relationships with HTTP method metadata.
+	 * 
+	 * TDD APPROACH (like Django/JSX detection):
+	 * 1. Read source file for each component
+	 * 2. Find fetch() calls with regex
+	 * 3. Extract URL and method
+	 * 4. Create 'http-call' relationships
+	 */
+	private detectFetchAPICalls(classes: any[], context: EnrichmentContext): ClassRelationship[] {
+		const relationships: ClassRelationship[] = [];
+		
+		// For each TypeScript/TSX file, scan for fetch() calls
+		const tsFiles = classes.filter(c => 
+			c.filePath.endsWith('.ts') || c.filePath.endsWith('.tsx')
+		);
+		
+		for (const component of tsFiles) {
+			const fullPath = path.join(context.workspacePath, component.filePath);
+			
+			if (!fs.existsSync(fullPath)) {
+				continue;
+			}
+			
+			try {
+				const sourceCode = fs.readFileSync(fullPath, 'utf-8');
+				const fromId = this.getClassId(component);
+				
+				// Pattern: fetch('url') or fetch("url") or fetch(`url`)
+				// Captures both single-line and multi-line fetch calls
+				const fetchPattern = /fetch\s*\(\s*(['"`])([^'"`]+)\1\s*(?:,\s*\{([^}]*)\})?/g;
+				let match;
+				
+				while ((match = fetchPattern.exec(sourceCode)) !== null) {
+					const url = match[2]; // URL string
+					const optionsBlock = match[3]; // Options object (if exists)
+					
+					// Extract HTTP method from options
+					let method = 'GET'; // Default
+					if (optionsBlock) {
+						const methodMatch = /method:\s*['"](\w+)['"]/i.exec(optionsBlock);
+						if (methodMatch) {
+							method = methodMatch[1].toUpperCase();
+						}
+					}
+					
+					// Convert template literals ${...} to :param
+					// e.g., /api/users/${id} → /api/users/:id
+					// e.g., /api/users/${data.userId} → /api/users/:id
+					let normalizedUrl = url.replace(/\$\{[^}]+\}/g, () => {
+						// Use generic :id for all template parameters
+						// This matches standard API route notation
+						return ':id';
+					});
+					
+					// Create synthetic route ID for the API endpoint
+					const routeId = `route://${normalizedUrl}`;
+					
+					relationships.push({
+						from: fromId,
+						to: routeId,
+						type: 'http-call',
+						metadata: {
+							method: method,
+							url: normalizedUrl,
+							originalUrl: url
+						}
+					});
 				}
 			} catch (error) {
 				// Ignore file read errors
