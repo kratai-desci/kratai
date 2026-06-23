@@ -2,6 +2,26 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.8.1] - 2026-06-23
+
+### Fixed
+- **CRITICAL: Folder Selection Bug** — Diagrams now properly respect user-selected folders in settings
+  - Previously, `parseWorkspace()` was called without passing the config parameter
+  - This caused all diagrams to scan the entire workspace regardless of folder settings
+  - Fixed by passing config to `parseWorkspace(workspacePath, config)` in generateClassDiagram.ts
+- **Diagram Rename Bug** — Config files now properly renamed when changing diagram names
+  - Previously, renaming "diagram-1" to "API Routes" would update `views.json` but leave `diagram-1.json` orphaned
+  - Now `ViewManager.updateView()` renames both the config file and registry entry
+  - Returns new viewId to keep workspace state in sync
+
+### Added
+- **Delete Diagram Feature** — New Danger Zone tab in diagram settings
+  - Only visible when editing existing diagrams (not when creating new ones)
+  - Styled with red warning theme and clear consequences
+  - Uses VS Code's native confirmation dialog (modal: true)
+  - Deletes config file, removes from registry, closes panel, refreshes sidebar
+  - `ViewManager.deleteView()` method handles complete cleanup
+
 ## [1.8.0] - 2026-06-23
 
 ### Added — Framework-Aware Relationship Detection

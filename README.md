@@ -112,7 +112,12 @@ Kratai stores settings in `.vscode/kratai.json` in your workspace:
 
 ## 📝 Release Notes
 
-### Latest: v1.8.0
+### Latest: v1.8.1
+- 🐛 **CRITICAL FIX** — Folder selection now properly respected (diagrams were ignoring user-selected folders)
+- 🗑️ **Delete Diagram Feature** — New Danger Zone tab in settings allows safe diagram deletion
+- ✏️ **Fixed Rename Bug** — Config files now properly renamed when changing diagram names
+
+### v1.8.0
 - 🎯 **Django Template Detection** — Automatic View → Template relationships (`template_name`, `render()`)
 - ⚛️ **Next.js Component Detection** — Automatic Component → Component relationships (JSX like `<UserList />`)
 - 📦 **TypeScript Type Detection** — Component → DTO/Type relationships (`useState<UserDTO>`, `const x: ApiResponse`)
