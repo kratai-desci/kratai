@@ -175,16 +175,56 @@ export class ViewManager {
 
 	/**
 	 * Update view metadata (name, etc.)
+	 * If name changes, this will rename the config file and update the viewId
 	 */
-	static async updateView(workspacePath: string, viewId: string, updates: Partial<Pick<DiagramView, 'name'>>): Promise<void> {
+	static async updateView(workspacePath: string, viewId: string, updates: Partial<Pick<DiagramView, 'name'>>): Promise<string> {
 		const registry = await this.loadRegistry(workspacePath);
 		const view = registry.views.find(v => v.id === viewId);
 		
-		if (view) {
-			if (updates.name) {
-				view.name = updates.name;
+		if (!view) {
+			throw new Error(`View not found: ${viewId}`);
+		}
+		
+		let newViewId = viewId;
+		
+		if (updates.name && updates.name !== view.name) {
+			// Name is changing - need to rename config file and update ID
+			newViewId = this.slugify(updates.name);
+			
+			if (newViewId !== viewId) {
+				// Rename the config file
+				const oldConfigPath = this.getViewConfigPath(workspacePath, viewId);
+				const newConfigPath = this.getViewConfigPath(workspacePath, newViewId);
+				
+				if (fs.existsSync(oldConfigPath)) {
+					fs.renameSync(oldConfigPath, newConfigPath);
+				}
+				
+				// Update the ID in registry
+				view.id = newViewId;
 			}
-			await this.saveRegistry(workspacePath, registry);
+			
+			view.name = updates.name;
+		}
+		
+		await this.saveRegistry(workspacePath, registry);
+		return newViewId; // Return new ID so caller can update workspace state
+	}
+
+	/**
+	 * Delete a view
+	 */
+	static async deleteView(workspacePath: string, viewId: string): Promise<void> {
+		const registry = await this.loadRegistry(workspacePath);
+		
+		// Remove from registry
+		registry.views = registry.views.filter(v => v.id !== viewId);
+		await this.saveRegistry(workspacePath, registry);
+		
+		// Delete config file
+		const configPath = this.getViewConfigPath(workspacePath, viewId);
+		if (fs.existsSync(configPath)) {
+			fs.unlinkSync(configPath);
 		}
 	}
 }

@@ -140,6 +140,8 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 					try {
 						if (mode === 'edit' && viewId) {
 							// Update existing diagram
+							let finalViewId = viewId;
+							
 							// Check if name changed
 							if (finalDiagramName !== diagramName) {
 								const newViewId = ViewManager.slugify(finalDiagramName);
@@ -151,12 +153,16 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 								}
 							}
 							
-							// Save config to existing view
+							// Save config to existing view (using current viewId)
 							await ViewManager.saveViewConfig(workspacePath, viewId, newConfig);
 							
-							// If name changed, update the registry
+							// If name changed, update the registry and rename config file
 							if (finalDiagramName !== diagramName) {
-								await ViewManager.updateView(workspacePath, viewId, { name: finalDiagramName });
+								finalViewId = await ViewManager.updateView(workspacePath, viewId, { name: finalDiagramName });
+								
+								// Update workspace state with new viewId
+								context.workspaceState.update('currentViewId', finalViewId);
+								context.workspaceState.update('currentViewName', finalDiagramName);
 							}
 							
 							vscode.window.showInformationMessage(`Diagram "${finalDiagramName}" updated!`);
