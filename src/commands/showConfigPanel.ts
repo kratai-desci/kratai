@@ -159,16 +159,23 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 							// If name changed, update the registry and rename config file
 							if (finalDiagramName !== diagramName) {
 								finalViewId = await ViewManager.updateView(workspacePath, viewId, { name: finalDiagramName });
-								
-								// Update workspace state with new viewId
-								context.workspaceState.update('currentViewId', finalViewId);
-								context.workspaceState.update('currentViewName', finalDiagramName);
 							}
+							
+							// Always update workspace state with current config
+							context.workspaceState.update('currentViewId', finalViewId);
+							context.workspaceState.update('currentViewName', finalDiagramName);
+							context.workspaceState.update('currentViewConfig', newConfig);
 							
 							vscode.window.showInformationMessage(`Diagram "${finalDiagramName}" updated!`);
 						} else {
 							// Create new view
-							await ViewManager.createView(workspacePath, finalDiagramName, newConfig);
+							const newView = await ViewManager.createView(workspacePath, finalDiagramName, newConfig);
+							
+							// Store view context immediately (so Settings button works)
+							context.workspaceState.update('currentViewId', newView.id);
+							context.workspaceState.update('currentViewName', finalDiagramName);
+							context.workspaceState.update('currentViewConfig', newConfig);
+							
 							vscode.window.showInformationMessage(`Diagram "${finalDiagramName}" created!`);
 						}
 						
@@ -180,10 +187,12 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 							panel.dispose();
 							const finalViewId = viewId || ViewManager.slugify(finalDiagramName);
 							
-							// Store view context for generation
-							context.workspaceState.update('currentViewId', finalViewId);
-							context.workspaceState.update('currentViewName', finalDiagramName);
-							context.workspaceState.update('currentViewConfig', newConfig);
+							// Store view context for generation (already stored above for new views)
+							if (mode === 'edit') {
+								context.workspaceState.update('currentViewId', finalViewId);
+								context.workspaceState.update('currentViewName', finalDiagramName);
+								context.workspaceState.update('currentViewConfig', newConfig);
+							}
 							
 							vscode.commands.executeCommand('kratai.generateClassDiagramDirect');
 						}
