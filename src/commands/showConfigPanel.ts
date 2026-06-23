@@ -191,6 +191,29 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 						vscode.window.showErrorMessage(`Error saving diagram: ${error}`);
 					}
 					break;
+				
+				case 'delete':
+					if (mode === 'edit' && viewId) {
+						try {
+							const diagramName = message.diagramName || 'this diagram';
+							const confirm = await vscode.window.showWarningMessage(
+								`Are you sure you want to delete "${diagramName}"? This action cannot be undone.`,
+								{ modal: true },
+								'Delete',
+								'Cancel'
+							);
+							
+							if (confirm === 'Delete') {
+								await ViewManager.deleteView(workspacePath, viewId);
+								vscode.window.showInformationMessage(`Diagram "${diagramName}" deleted successfully`);
+								panel.dispose();
+								await vscode.commands.executeCommand('kratai.refreshViews');
+							}
+						} catch (error) {
+							vscode.window.showErrorMessage(`Error deleting diagram: ${error}`);
+						}
+					}
+					break;
 			}
 		},
 		undefined,
@@ -384,6 +407,33 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
             background: var(--vscode-button-secondaryBackground);
             color: var(--vscode-button-secondaryForeground);
         }
+        button.danger {
+            background: #d32f2f;
+            color: white;
+            font-weight: 600;
+        }
+        button.danger:hover {
+            background: #b71c1c;
+        }
+        .danger-zone {
+            background: rgba(211, 47, 47, 0.1);
+            border: 1px solid rgba(211, 47, 47, 0.3);
+            border-radius: 4px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .danger-zone h3 {
+            color: #d32f2f;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        .danger-zone-warning {
+            background: rgba(255, 193, 7, 0.1);
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            margin: 15px 0;
+            font-size: 13px;
+        }
         .info-box {
             background: var(--vscode-textBlockQuote-background);
             border-left: 4px solid var(--vscode-textLink-foreground);
@@ -427,6 +477,7 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
         <button class="tab active" onclick="switchTab('folders')">📁 Folders</button>
         <button class="tab" onclick="switchTab('extensions')">📄 File Types</button>
         <button class="tab" onclick="switchTab('filters')">🔍 Display Filters</button>
+        ${mode === 'edit' ? `<button class="tab" onclick="switchTab('danger')">⚠️ Danger Zone</button>` : ''}
     </div>
 
     <div id="folders-tab" class="tab-content active">
@@ -501,8 +552,38 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
         </div>
     </div>
 
+    ${mode === 'edit' ? `
+    <div id="danger-tab" class="tab-content">
+        <div class="danger-zone">
+            <h3>⚠️ Delete This Diagram</h3>
+            
+            <div class="danger-zone-warning">
+                ⚠️ <strong>Warning:</strong> This action cannot be undone. The diagram configuration will be permanently deleted.
+            </div>
+            
+            <p style="margin-bottom: 20px;">
+                Deleting this diagram will:
+            </p>
+            <ul style="margin-left: 20px; margin-bottom: 20px;">
+                <li>Remove the diagram from the sidebar</li>
+                <li>Delete the configuration file</li>
+                <li>This action is permanent and cannot be reversed</li>
+            </ul>
+            
+            <button onclick="deleteDiagram()" class="danger">🗑️ Delete This Diagram</button>
+        </div>
+    </div>
+    ` : ''}
+
     <script>
         const vscode = acquireVsCodeApi();
+
+        function deleteDiagram() {
+            vscode.postMessage({
+                command: 'delete',
+                diagramName: document.getElementById('diagram-name').value.trim()
+            });
+        }
 
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
