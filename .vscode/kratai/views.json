@@ -112,7 +112,50 @@
         }
       },
       "createdAt": "2026-06-23T09:47:34.040Z",
-      "lastGenerated": "2026-06-23T22:00:21.362Z"
+      "lastGenerated": "2026-06-23T22:02:32.763Z"
+    },
+    {
+      "id": "domain-model",
+      "name": "Domain model",
+      "config": {
+        "selectedFolders": [
+          "src/types/domain"
+        ],
+        "selectedExtensions": [
+          ".ts",
+          "on",
+          "on",
+          "on",
+          "on",
+          "on",
+          "on",
+          "on",
+          "on",
+          "on",
+          "on"
+        ],
+        "respectGitignore": true,
+        "followSymlinks": false,
+        "classTypeFilters": {
+          "class": true,
+          "interface": true,
+          "abstract": true,
+          "module": true
+        },
+        "relationshipTypeFilters": {
+          "extends": true,
+          "implements": true,
+          "composition": true,
+          "uses": true,
+          "calls": true
+        },
+        "gitDiff": {
+          "enabled": true,
+          "baseCommit": "HEAD~1"
+        }
+      },
+      "createdAt": "2026-06-23T22:02:19.543Z",
+      "lastGenerated": "2026-06-23T22:02:31.482Z"
     }
   ]
 }
