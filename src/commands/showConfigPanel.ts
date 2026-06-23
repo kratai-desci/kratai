@@ -8,7 +8,9 @@ import { KrataiConfig } from '../types/config';
 import { ViewManager } from '../services/view';
 
 interface ConfigPanelOptions {
-	viewName?: string;  // Optional diagram name (auto-generated if not provided)
+	mode?: 'create' | 'edit';  // create new or edit existing
+	viewName?: string;          // Diagram name for create mode
+	viewId?: string;            // View ID for edit mode
 }
 
 async function detectAvailableTypes(workspacePath: string): Promise<string[]> {
@@ -62,16 +64,36 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 	const workspaceFolder = vscode.workspace.workspaceFolders[0];
 	const workspacePath = workspaceFolder.uri.fsPath;
 
-	// Generate auto-incrementing diagram name if not provided
-	let diagramName = options?.viewName;
-	if (!diagramName) {
-		const views = await ViewManager.listViews(workspacePath);
-		const diagramNumber = views.length + 1;
-		diagramName = `diagram-${diagramNumber}`;
-	}
+	const mode = options?.mode || 'create';
+	let diagramName: string;
+	let viewId: string | undefined;
+	let config: KrataiConfig;
 
-	// Start with smart defaults (root folder selected)
-	const config = ConfigService.generateSmartDefaults(workspacePath);
+	if (mode === 'edit' && options?.viewId) {
+		// Edit existing diagram
+		viewId = options.viewId;
+		const view = await ViewManager.getView(workspacePath, viewId);
+		
+		if (!view) {
+			vscode.window.showErrorMessage(`Diagram not found: ${viewId}`);
+			return;
+		}
+		
+		diagramName = view.name;
+		config = await ViewManager.loadViewConfig(workspacePath, viewId);
+	} else {
+		// Create new diagram
+		// Generate auto-incrementing diagram name if not provided
+		diagramName = options?.viewName || '';
+		if (!diagramName) {
+			const views = await ViewManager.listViews(workspacePath);
+			const diagramNumber = views.length + 1;
+			diagramName = `diagram-${diagramNumber}`;
+		}
+		
+		// Start with smart defaults (root folder selected)
+		config = ConfigService.generateSmartDefaults(workspacePath);
+	}
 
 	// Scan workspace
 	const folderTree = WorkspaceScanner.scanFolders(workspacePath, config.selectedFolders);
@@ -89,14 +111,14 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 	// Create webview panel
 	const panel = vscode.window.createWebviewPanel(
 		'krataiConfig',
-		'⚙️ Create New Diagram',
+		mode === 'edit' ? '⚙️ Edit Diagram' : '⚙️ Create New Diagram',
 		vscode.ViewColumn.One,
 		{
 			enableScripts: true
 		}
 	);
 
-	panel.webview.html = generateConfigHTML(folderTree, extensions, config, availableTypes, availableRelTypes, diagramName);
+	panel.webview.html = generateConfigHTML(folderTree, extensions, config, availableTypes, availableRelTypes, diagramName, mode);
 
 	// Handle messages from webview
 	panel.webview.onDidReceiveMessage(
@@ -116,9 +138,33 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 					};
 					
 					try {
-						// Create new view
-						await ViewManager.createView(workspacePath, finalDiagramName, newConfig);
-						vscode.window.showInformationMessage(`Diagram "${finalDiagramName}" created!`);
+						if (mode === 'edit' && viewId) {
+							// Update existing diagram
+							// Check if name changed
+							if (finalDiagramName !== diagramName) {
+								const newViewId = ViewManager.slugify(finalDiagramName);
+								// Check if new name conflicts with existing diagram
+								const existingView = await ViewManager.getView(workspacePath, newViewId);
+								if (existingView && existingView.id !== viewId) {
+									vscode.window.showErrorMessage(`A diagram named "${finalDiagramName}" already exists`);
+									return;
+								}
+							}
+							
+							// Save config to existing view
+							await ViewManager.saveViewConfig(workspacePath, viewId, newConfig);
+							
+							// If name changed, update the registry
+							if (finalDiagramName !== diagramName) {
+								await ViewManager.updateView(workspacePath, viewId, { name: finalDiagramName });
+							}
+							
+							vscode.window.showInformationMessage(`Diagram "${finalDiagramName}" updated!`);
+						} else {
+							// Create new view
+							await ViewManager.createView(workspacePath, finalDiagramName, newConfig);
+							vscode.window.showInformationMessage(`Diagram "${finalDiagramName}" created!`);
+						}
 						
 						// Refresh sidebar
 						await vscode.commands.executeCommand('kratai.refreshViews');
@@ -126,10 +172,10 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 						// Optionally generate diagram immediately
 						if (message.generateDiagram) {
 							panel.dispose();
-							const viewId = ViewManager.slugify(finalDiagramName);
+							const finalViewId = viewId || ViewManager.slugify(finalDiagramName);
 							
 							// Store view context for generation
-							context.workspaceState.update('currentViewId', viewId);
+							context.workspaceState.update('currentViewId', finalViewId);
 							context.workspaceState.update('currentViewName', finalDiagramName);
 							context.workspaceState.update('currentViewConfig', newConfig);
 							
@@ -146,11 +192,16 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 	);
 }
 
-function generateConfigHTML(folderTree: any, extensions: any[], config: any, availableTypes: string[], availableRelTypes: string[], diagramName: string): string {
-	const infoMessage = `<div class="info-box">
-		➕ <strong>Creating new diagram</strong><br/>
-		📁 Root folder selected by default. Adjust folders and file types below.
-	</div>`;
+function generateConfigHTML(folderTree: any, extensions: any[], config: any, availableTypes: string[], availableRelTypes: string[], diagramName: string, mode: string): string {
+	const infoMessage = mode === 'edit'
+		? `<div class="info-box">
+			✏️ <strong>Editing diagram settings</strong><br/>
+			📁 Adjust folders, filters, and file types below.
+		</div>`
+		: `<div class="info-box">
+			➕ <strong>Creating new diagram</strong><br/>
+			📁 Root folder selected by default. Adjust folders and file types below.
+		</div>`;
 
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -346,7 +397,7 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
 </head>
 <body>
     <div class="header">
-        <h2>⚙️ Create New Diagram</h2>
+        <h2>⚙️ ${mode === 'edit' ? 'Edit Diagram' : 'Create New Diagram'}</h2>
         <div class="header-actions">
             <button onclick="saveConfig(false)" class="secondary">💾 Save Only</button>
             <button onclick="saveConfig(true)">💾 Save & Generate Diagram</button>

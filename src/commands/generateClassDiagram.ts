@@ -64,7 +64,7 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 		}, async (progress) => {
 			// Parse workspace
 			progress.report({ message: 'Analyzing code...' });
-			const diagramData = await CodeParserService.parseWorkspace(workspacePath);
+			const diagramData = await CodeParserService.parseWorkspace(workspacePath, config);
 			// Paths are now workspace-relative thanks to CodeParserService normalization
 
 			// Enrich with git diff information if enabled
@@ -148,7 +148,18 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 				async message => {
 					switch (message.command) {
 						case 'openSettings':
-							vscode.commands.executeCommand('kratai.showConfigPanel');
+							// Get current view ID from workspace state
+							const currentViewId = context.workspaceState.get<string>('currentViewId');
+							if (currentViewId) {
+								// Open config panel in edit mode for this diagram
+								vscode.commands.executeCommand('kratai.showConfigPanel', {
+									mode: 'edit',
+									viewId: currentViewId
+								});
+							} else {
+								// Fallback to create mode if no view ID
+								vscode.commands.executeCommand('kratai.showConfigPanel');
+							}
 							break;
 						
 						case 'openMember':

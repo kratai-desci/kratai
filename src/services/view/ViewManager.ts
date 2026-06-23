@@ -172,4 +172,19 @@ export class ViewManager {
 			await this.saveRegistry(workspacePath, registry);
 		}
 	}
+
+	/**
+	 * Update view metadata (name, etc.)
+	 */
+	static async updateView(workspacePath: string, viewId: string, updates: Partial<Pick<DiagramView, 'name'>>): Promise<void> {
+		const registry = await this.loadRegistry(workspacePath);
+		const view = registry.views.find(v => v.id === viewId);
+		
+		if (view) {
+			if (updates.name) {
+				view.name = updates.name;
+			}
+			await this.saveRegistry(workspacePath, registry);
+		}
+	}
 }
