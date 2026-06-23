@@ -1,7 +1,24 @@
 # Change Log
 
 All notable changes to the Kratai extension will be documented in this file.
+## [1.8.2] - 2026-06-23
 
+### Fixed
+- **Folder Selection Persistence** — Config panel now correctly saves and restores folder selections when clicking Settings button
+- **Independent Folder Checkboxes** — Each folder checkbox now operates independently without automatic parent/child cascading
+- **Workspace State Management** — Diagram viewId now properly stored in workspace state after save
+
+### Changed
+- **Folder Selection UI** — All folders now marked as checked by default; users uncheck folders they want to exclude
+- **Folder Tree Display** — Config panel now shows fully expanded folder tree by default for better visibility
+- **Explicit Folder Scanning** — Only explicitly checked folders are scanned (no automatic parent/child inclusion)
+- **Smart Folder Collapsing** — Pass-through folders (no classes, single child) automatically collapsed for cleaner diagrams (e.g., "api > admin > users" instead of 3 nested boxes)
+
+### Technical
+- Updated `shouldIncludeFolder()` to only include explicitly checked folders (no parent/child inference)
+- Added `collectAllFolders()` method to scan workspace and mark all folders by default
+- Removed automatic parent checkbox state updates in config panel UI
+- Enhanced folder selection persistence across Settings button clicks
 ## [1.8.1] - 2026-06-23
 
 ### Fixed

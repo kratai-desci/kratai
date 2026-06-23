@@ -112,7 +112,14 @@ Kratai stores settings in `.vscode/kratai.json` in your workspace:
 
 ## 📝 Release Notes
 
-### Latest: v1.8.1
+### Latest: v1.8.2
+- ✅ **Folder Selection Fixes** — Settings button now properly preserves your folder selections
+- 🔲 **Independent Checkboxes** — Each folder checkbox operates independently (no automatic parent updates)
+- 📂 **Smart Defaults** — All folders checked by default; uncheck what you don't want
+- 🌳 **Expanded Tree View** — Folder tree fully expanded by default for better visibility
+- 📦 **Cleaner Diagrams** — Pass-through folders automatically collapsed (e.g., "api > admin > users")
+
+### v1.8.1
 - 🐛 **CRITICAL FIX** — Folder selection now properly respected (diagrams were ignoring user-selected folders)
 - 🗑️ **Delete Diagram Feature** — New Danger Zone tab in settings allows safe diagram deletion
 - ✏️ **Fixed Rename Bug** — Config files now properly renamed when changing diagram names
