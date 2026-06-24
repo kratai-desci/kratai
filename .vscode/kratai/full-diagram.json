@@ -36,15 +36,33 @@
     "module": true
   },
   "relationshipTypeFilters": {
-    "extends": false,
-    "implements": false,
-    "composition": false,
-    "uses": false,
-    "calls": false
+    "extends": true,
+    "implements": true,
+    "uses": true,
+    "calls": false,
+    "calls-super": false,
+    "calls-static": false,
+    "async-calls": false,
+    "parameter": false,
+    "returns": false,
+    "creates": false,
+    "imports": false,
+    "re-exports": false,
+    "http-call": false,
+    "routes-to": false,
+    "belongs-to": false,
+    "many-to-many": false,
+    "one-to-one": false,
+    "renders": false,
+    "serializes": false,
+    "protected-by": false,
+    "middleware": false,
+    "layout-wraps": false,
+    "server-action": false
   },
   "gitDiff": {
     "enabled": true,
     "baseCommit": "HEAD~1"
   },
-  "lastUpdated": "2026-06-24T00:28:21.689Z"
+  "lastUpdated": "2026-06-24T03:03:56.367Z"
 }

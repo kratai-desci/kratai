@@ -2,21 +2,25 @@
 
 Understand your codebase at a glance across **TypeScript, JavaScript, Python, and PHP**. Kratai generates interactive **class diagrams** directly inside VS Code, with **git diff highlighting** to show your uncommitted changes.
 
+**Build multiple perspectives** — Create tailored views for architecture overviews, domain analysis, or feature exploration. Switch between them instantly.
+
 ![Kratai in Action](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo.gif)
 
 ---
 
 ## ✨ Key Features
 
-- 🗺️ **Interactive Class Diagrams** — Visualize your entire codebase with folder-based organization
-- 🖱️ **Click-to-Jump** — Click any method or property to instantly open file and highlight the code
-- 💡 **Click-to-Highlight** — Click any class to highlight it and its dependencies (press ESC to clear)
-- 📂 **Hover-to-Open** — Three-dot button appears on hover to instantly open files in editor
-- 📊 **Git Diff Highlighting** — See uncommitted changes at a glance (green = added, red = deleted)
-- 🌍 **Multi-Language Support** — Works with TypeScript, JavaScript, Python, and PHP in the same project
-- 🧠 **Framework-Aware** — Automatically detects and enriches Django and Next.js projects
-- 🎯 **Smart Relationships** — Auto-detects inheritance, interfaces, dependencies, and framework-specific patterns
-- ⚙️ **Fully Configurable** — Choose which folders, files, and relationships to display
+- 📊 **Multiple Perspectives** — Build and save different diagram views for architecture, domains, or specific features
+- 🗺️ **Interactive Visualization** — See your entire codebase organized by folders with all relationships
+- 🖱️ **Instant Navigation** — Click any method or property to jump directly to the exact line in your code
+- 💡 **Dependency Highlighting** — Click any class to see what it connects to (press ESC to clear)
+- 📂 **Quick File Access** — Hover over classes to reveal file actions
+- 📊 **Change Tracking** — Visual indicators show uncommitted changes (green = added, red = deleted, yellow = modified)
+- 🎛️ **Fine-Grained Control** — 24 relationship types and 4 class types to customize your view
+- 🌍 **Multi-Language** — Works with TypeScript, JavaScript, Python, and PHP in the same project
+- 🧠 **Framework-Aware** — Automatically enriches Django and Next.js projects with framework-specific relationships
+- 🎯 **Smart Detection** — Auto-detects inheritance, interfaces, dependencies, and framework patterns
+- ⚙️ **Fully Configurable** — Choose folders, files, and relationship types for each diagram
 
 **Framework Enrichment (Automatic Detection):**
 - **Django** (✅ Fully Supported): View → Template relationships, ORM models (ForeignKey, ManyToMany), REST Framework (ViewSets, Serializers)
@@ -30,8 +34,14 @@ Understand your codebase at a glance across **TypeScript, JavaScript, Python, an
 1. **Install** the extension from VS Code Marketplace
 2. **Open** a project with `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, or `.php` files
 3. **Click** the Kratai icon in the Activity Bar (left sidebar)
-4. **Configure** which folders to scan (root folder selected by default on first run)
-5. **Generate** your class diagram and start exploring!
+4. **Create** your first diagram — root folder selected by default
+5. **Generate** and start exploring!
+
+**Build Different Perspectives:**
+- **Full Architecture** — Visualize everything to understand system structure
+- **Domain Focus** — Isolate core business logic and entities
+- **API Layer** — Concentrate on endpoints and routing
+- **Feature Scopes** — Select specific folders for targeted analysis
 
 **Interactive Tips:**
 - **Click a class** to highlight its dependencies (black outline = focused, grey = related)
@@ -43,22 +53,32 @@ Understand your codebase at a glance across **TypeScript, JavaScript, Python, an
 
 ## 📸 Visual Tour
 
-### Class Diagram with Uncommitted Changes
-See your entire codebase structure with color-coded uncommitted changes:
+### 1. Organize with Multiple Views
+Build different perspectives of your codebase — each diagram saved and ready to switch between:
 
-![Class Diagram Example](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_1.png)
+![Multiple Diagrams](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_1.png)
 
-### Click-to-Jump Navigation
-Click any method or property to instantly open the file with precise highlighting:
+### 2. See the Big Picture
+Understand your entire architecture — all classes, folders, and their connections visualized:
 
-![Click-to-Jump](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_2.png)
+![Full Class Diagram](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_2.png)
 
-**Note:** Green/red git diff highlighting only appears when you have uncommitted changes.
+### 3. Zoom Into What Matters
+Create focused views of specific areas — with visual indicators showing your uncommitted changes:
 
-### Easy Configuration
-Control exactly what gets visualized with the built-in settings panel:
+![Domain Model](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_3.png)
 
-![Configuration Panel](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_4.png)
+### 4. Navigate Instantly
+Bridge the gap between visual and code — one click takes you to the exact line:
+
+![Click-to-Jump](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_4.png)
+
+### 5. Configure to Your Needs
+Fine-tune every aspect — choose exactly which elements and connections to display:
+
+![Configuration Panel](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_5.png)
+
+**Visual Indicators:** Green = added, Red = deleted, Yellow = modified (appears automatically with uncommitted changes)
 
 ---
 
@@ -84,13 +104,30 @@ Control exactly what gets visualized with the built-in settings panel:
 
 ## ⚙️ Configuration
 
-Kratai stores settings in `.vscode/kratai.json` in your workspace:
+Kratai stores settings in `.vscode/kratai.json` in your workspace. Each diagram has its own configuration:
 
+### Per-Diagram Settings
+- **Diagram name** — Label for easy identification (e.g., "Domain Model", "API Routes")
 - **Folders to scan** — Root folder selected by default; customize to include only specific directories
 - **File extensions** — Select languages: `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, `.php`
-- **Class type filters** — Show/hide interfaces, modules, classes
-- **Relationship type filters** — Show/hide inheritance, usage, implementation
+
+### Display Filters
+- **Class types (4 options)** — Show/hide: Classes, Interfaces, Abstract Classes, Modules
+- **Relationship types (24 options)** — Fine-grained control over what connections to display:
+  - **Core OOP**: extends, implements, composition, uses
+  - **Method Calls**: calls, calls-super, calls-static, async-calls
+  - **Type Relationships**: parameter, returns, creates
+  - **Module Graph**: imports, re-exports
+  - **HTTP**: http-call, routes-to
+  - **ORM**: belongs-to, many-to-many, one-to-one
+  - **Templates & Views**: renders, serializes, protected-by
+  - **Framework**: middleware, layout-wraps, server-action
 - **Git diff highlighting** — Toggle on/off to show uncommitted changes
+
+**Build Different Perspectives:** Create multiple diagrams with different configurations:
+- **Architecture Overview** — All folders, all relationships for system understanding
+- **Domain Core** — Just entities and models, show only composition and inheritance
+- **API Mapping** — Focus on HTTP endpoints and routing patterns
 
 **First-Time Setup:** On your first diagram generation, Kratai opens the configuration panel with the root folder pre-selected. You can adjust settings and click "Save & Generate Diagram" to proceed.
 
