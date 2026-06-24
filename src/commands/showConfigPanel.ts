@@ -24,9 +24,17 @@ async function detectAvailableTypes(workspacePath: string): Promise<string[]> {
 			typeSet.add(type);
 		});
 		
+		// Always show these 4 core types (even if not present in codebase)
+		// Users may want to filter them out, so they should always be visible
+		const coreTypes = ['class', 'interface', 'abstract', 'module'];
+		const detectedTypes = Array.from(typeSet);
+		
+		// Merge core types with detected types, remove duplicates
+		const allTypes = [...new Set([...coreTypes, ...detectedTypes])];
+		
 		// Return types in a consistent order
 		const typeOrder = ['class', 'interface', 'abstract', 'module', 'enum'];
-		return typeOrder.filter(t => typeSet.has(t));
+		return typeOrder.filter(t => allTypes.includes(t));
 	} catch (error) {
 		console.error('Error detecting types:', error);
 		return ['class', 'interface', 'abstract', 'module']; // Fallback
@@ -46,13 +54,76 @@ function getTypeLabel(type: string): string {
 
 function getRelTypeLabel(type: string): string {
 	const labels: { [key: string]: string } = {
-		'extends': '🔵 Extends (Inheritance)',
-		'implements': '🟣 Implements (Interface)',
-		'composition': '🔴 Composition',
-		'uses': '⚪ Uses (Dependency)',
-		'calls': '🟪 HTTP API Calls'
+		// Core OOP
+		'extends': '🔵 Extends',
+		'implements': '🟣 Implements',
+		'uses': '⚪ Uses',
+		// Method calls
+		'calls': '📞 Calls',
+		'calls-super': '⬆️ Calls Super',
+		'calls-static': '🔷 Calls Static',
+		'async-calls': '⚡ Async Calls',
+		// Type relationships
+		'parameter': '📝 Parameter',
+		'returns': '↩️ Returns',
+		'creates': '🏭 Creates',
+		// Module graph
+		'imports': '📦 Imports',
+		're-exports': '🔄 Re-exports',
+		// HTTP
+		'http-call': '📡 HTTP Call',
+		'routes-to': '🔗 Routes To',
+		// ORM
+		'belongs-to': '🗄️ Belongs To',
+		'many-to-many': '🔗 Many-to-Many',
+		'one-to-one': '⚡ One-to-One',
+		// Templates & Views
+		'renders': '🎨 Renders',
+		'serializes': '📦 Serializes',
+		'protected-by': '🛡️ Protected By',
+		// Framework-specific
+		'middleware': '🔐 Middleware',
+		'layout-wraps': '🧱 Layout Wraps',
+		'server-action': '⚡ Server Action'
 	};
 	return labels[type] || `🔗 ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+}
+
+function getRelTypeDescription(type: string): string {
+	const descriptions: { [key: string]: string } = {
+		// Core OOP
+		'extends': 'Class inheritance',
+		'implements': 'Interface implementation',
+		'uses': 'Dependencies and imports',
+		// Method calls
+		'calls': 'Method/function calls',
+		'calls-super': 'super() method calls',
+		'calls-static': 'Static method calls',
+		'async-calls': 'Async function calls',
+		// Type relationships
+		'parameter': 'Function parameter types',
+		'returns': 'Function return types',
+		'creates': 'Object creation (new)',
+		// Module graph
+		'imports': 'Module imports',
+		're-exports': 'Module re-exports',
+		// HTTP
+		'http-call': 'fetch() calls to API endpoints',
+		'routes-to': 'URL pattern → Handler',
+		// ORM
+		'belongs-to': 'ForeignKey, one-to-many',
+		'many-to-many': 'M2M field relationships',
+		'one-to-one': '1-to-1 field relationships',
+		// Templates & Views
+		'renders': 'View → Template',
+		'serializes': 'DRF Serializer → Model',
+		'protected-by': 'Middleware → Protected route',
+		// Framework-specific
+		'middleware': 'Next.js middleware protection',
+		'layout-wraps': 'Next.js layout → Nested page',
+		'server-action': 'Next.js form → Server action'
+	};
+	return descriptions[type] || '';
 }
 
 export async function showConfigPanel(context: vscode.ExtensionContext, options?: ConfigPanelOptions): Promise<void> {
@@ -106,7 +177,24 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 
 	// Detect available types in the codebase
 	const availableTypes = await detectAvailableTypes(workspacePath);
-	const availableRelTypes = ['extends', 'implements', 'composition', 'uses', 'calls'];
+	const availableRelTypes = [
+		// Core OOP
+		'extends', 'implements', 'uses',
+		// Method calls
+		'calls', 'calls-super', 'calls-static', 'async-calls',
+		// Type relationships
+		'parameter', 'returns', 'creates',
+		// Module graph
+		'imports', 're-exports',
+		// HTTP
+		'http-call', 'routes-to',
+		// ORM
+		'belongs-to', 'many-to-many', 'one-to-one',
+		// Templates & Views
+		'renders', 'serializes', 'protected-by',
+		// Framework-specific
+		'middleware', 'layout-wraps', 'server-action'
+	];
 
 	// Create webview panel
 	const panel = vscode.window.createWebviewPanel(
@@ -531,21 +619,6 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
         </div>
 
         <div style="margin-bottom: 30px;">
-            <h4 style="margin-bottom: 10px;">Relationships to Show</h4>
-            <div class="extension-list">
-                ${availableRelTypes.map(type => {
-                    const isChecked = config.relationshipTypeFilters?.[type] !== false;
-                    return `
-                        <div class="extension-item">
-                            <input type="checkbox" id="rel-${type}" data-reltype="${type}" ${isChecked ? 'checked' : ''}>
-                            <label for="rel-${type}">${getRelTypeLabel(type)}</label>
-                        </div>
-                    `;
-                }).join('')}
-            </div>
-        </div>
-
-        <div>
             <h4 style="margin-bottom: 10px;">Git Diff Visualization</h4>
             <div class="extension-list">
                 <div class="extension-item">
@@ -559,6 +632,64 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
                 </div>
             </div>
         </div>
+
+        <div style="margin-bottom: 30px;">
+			<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+				<h4 style="margin: 0;">Relationships to Show</h4>
+				<div style="display: flex; gap: 10px;">
+					<button onclick="selectAllRels()" style="
+						padding: 4px 12px;
+						font-size: 12px;
+						background: var(--vscode-button-secondaryBackground);
+						color: var(--vscode-button-secondaryForeground);
+						border: none;
+						border-radius: 3px;
+						cursor: pointer;
+					">Select All</button>
+					<button onclick="clearAllRels()" style="
+						padding: 4px 12px;
+						font-size: 12px;
+						background: var(--vscode-button-secondaryBackground);
+						color: var(--vscode-button-secondaryForeground);
+						border: none;
+						border-radius: 3px;
+						cursor: pointer;
+					">Clear All</button>
+				</div>
+			</div>
+			<table style="
+				width: 100%;
+				border-collapse: collapse;
+				margin-top: 10px;
+				background: var(--vscode-editor-background);
+				border: 1px solid var(--vscode-panel-border);
+			">
+				<thead>
+					<tr style="background: var(--vscode-editorWidget-background);">
+						<th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--vscode-panel-border); width: 25%;">Type</th>
+						<th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--vscode-panel-border); width: 60%;">Description</th>
+						<th style="padding: 8px; text-align: center; border-bottom: 1px solid var(--vscode-panel-border); width: 15%;">Show</th>
+					</tr>
+				</thead>
+				<tbody>
+					${availableRelTypes.map((type, index) => {
+						const isChecked = config.relationshipTypeFilters?.[type] !== false;
+						// Add visual separators between categories
+						const addSeparator = index === 3 || index === 7 || index === 10 || index === 12 || index === 14 || index === 17 || index === 20;
+						return `
+							${addSeparator ? '<tr style="height: 10px; background: transparent;"><td colspan="3"></td></tr>' : ''}
+							<tr style="border-bottom: 1px solid var(--vscode-panel-border);">
+								<td style="padding: 8px;">${getRelTypeLabel(type)}</td>
+								<td style="padding: 8px; color: var(--vscode-descriptionForeground);">${getRelTypeDescription(type)}</td>
+								<td style="padding: 8px; text-align: center;">
+									<input type="checkbox" id="rel-${type}" data-reltype="${type}" ${isChecked ? 'checked' : ''} style="cursor: pointer;">
+								</td>
+							</tr>
+						`;
+					}).join('')}
+				</tbody>
+			</table>
+		</div>
     </div>
 
     ${mode === 'edit' ? `
@@ -624,6 +755,18 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
             }
             
             // Checkboxes are now independent - no automatic parent updates
+        }
+
+        function selectAllRels() {
+            document.querySelectorAll('#filters-tab input[data-reltype]').forEach(cb => {
+                cb.checked = true;
+            });
+        }
+
+        function clearAllRels() {
+            document.querySelectorAll('#filters-tab input[data-reltype]').forEach(cb => {
+                cb.checked = false;
+            });
         }
 
         // Initialize checkbox event listeners

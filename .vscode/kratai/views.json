@@ -58,7 +58,7 @@
         }
       },
       "createdAt": "2026-06-23T09:46:28.251Z",
-      "lastGenerated": "2026-06-23T22:00:20.036Z"
+      "lastGenerated": "2026-06-23T22:07:16.986Z"
     },
     {
       "id": "parsing-package",
@@ -112,7 +112,7 @@
         }
       },
       "createdAt": "2026-06-23T09:47:34.040Z",
-      "lastGenerated": "2026-06-23T22:02:32.763Z"
+      "lastGenerated": "2026-06-23T22:07:04.102Z"
     },
     {
       "id": "domain-model",
@@ -155,7 +155,7 @@
         }
       },
       "createdAt": "2026-06-23T22:02:19.543Z",
-      "lastGenerated": "2026-06-23T22:02:31.482Z"
+      "lastGenerated": "2026-06-23T22:07:02.168Z"
     }
   ]
 }
