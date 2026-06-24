@@ -2,6 +2,17 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.8.4] - 2026-06-24
+
+### Changed
+- **Custom Diagram Headers** — Diagram title now displays your custom name (e.g., "Domain Model", "API Routes") instead of generic "Class Diagram"
+- **Enhanced Documentation** — README restructured to better showcase multiple diagram perspectives and configuration capabilities
+
+### Improved
+- **Visual Tour Narrative** — Screenshot descriptions rewritten to emphasize: organizing with multiple views, seeing the big picture, zooming into focused areas, instant navigation, and custom configuration
+- **Feature List** — Reorganized to highlight multiple perspectives, instant navigation, and fine-grained control as primary benefits
+- **Getting Started** — Clearer guidance on building different perspectives (architecture, domain, API layer, feature scopes)
+
 ## [1.8.3] - 2026-06-24
 
 ### Added

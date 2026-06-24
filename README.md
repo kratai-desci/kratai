@@ -149,7 +149,12 @@ Kratai stores settings in `.vscode/kratai.json` in your workspace. Each diagram 
 
 ## 📝 Release Notes
 
-### Latest: v1.8.3
+### Latest: v1.8.4
+- 🏷️ **Custom Diagram Headers** — Your diagram name now appears as the main title (no more generic "Class Diagram")
+- 📖 **Enhanced Documentation** — README restructured to better showcase multiple perspectives and configuration capabilities
+- 🎯 **Clearer Messaging** — Visual tour and feature list rewritten to emphasize tailored views and instant navigation
+
+### v1.8.3
 - 🎯 **Complete Relationship Filters** — All 24 relationship types now in Display Filters with descriptions
 - 📊 **Table-Based UI** — Clean, scannable table showing type, description, and toggle for each relationship
 - ✅ **Accurate Filtering** — Unchecking all relationships now correctly hides all lines (fixed opt-in logic)
