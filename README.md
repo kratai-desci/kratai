@@ -112,7 +112,14 @@ Kratai stores settings in `.vscode/kratai.json` in your workspace:
 
 ## 📝 Release Notes
 
-### Latest: v1.8.2
+### Latest: v1.8.3
+- 🎯 **Complete Relationship Filters** — All 23 relationship types now in Display Filters with descriptions
+- 📊 **Table-Based UI** — Clean, scannable table showing type, description, and toggle for each relationship
+- ✅ **Accurate Filtering** — Unchecking all relationships now correctly hides all lines (fixed opt-in logic)
+- 🎨 **Better Organization** — Relationships grouped by category (OOP, Method Calls, HTTP, ORM, etc.)
+- ⚡ **Bulk Actions** — Select All / Clear All buttons for quick filtering
+
+### v1.8.2
 - ✅ **Folder Selection Fixes** — Settings button now properly preserves your folder selections
 - 🔲 **Independent Checkboxes** — Each folder checkbox operates independently (no automatic parent updates)
 - 📂 **Smart Defaults** — All folders checked by default; uncheck what you don't want

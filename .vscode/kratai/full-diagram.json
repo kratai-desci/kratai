@@ -25,11 +25,6 @@
     "on",
     "on",
     "on",
-    "on",
-    "on",
-    "on",
-    "on",
-    "on",
     "on"
   ],
   "respectGitignore": true,
@@ -41,15 +36,15 @@
     "module": true
   },
   "relationshipTypeFilters": {
-    "extends": true,
-    "implements": true,
-    "composition": true,
-    "uses": true,
-    "calls": true
+    "extends": false,
+    "implements": false,
+    "composition": false,
+    "uses": false,
+    "calls": false
   },
   "gitDiff": {
     "enabled": true,
     "baseCommit": "HEAD~1"
   },
-  "lastUpdated": "2026-06-23T21:56:17.292Z"
+  "lastUpdated": "2026-06-24T00:28:21.689Z"
 }
