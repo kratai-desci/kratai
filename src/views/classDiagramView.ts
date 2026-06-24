@@ -265,8 +265,8 @@ export class ClassDiagramView {
         <div style="display:flex;align-items:center;gap:16px">
             ${iconUri ? `<img src="${iconUri}" style="height:48px;width:48px;object-fit:contain;filter:invert(1);opacity:0.9;flex-shrink:0" />` : ''}
             <div>
-                <h1>Class Diagram</h1>
-                <p>${workspaceName} • ${classCount} classes • ${folderCount} folders • ${edgeCount} relationships</p>
+                <h1>${workspaceName}</h1>
+                <p>${classCount} classes • ${folderCount} folders • ${edgeCount} relationships</p>
             </div>
         </div>
         <div class="header-controls">
