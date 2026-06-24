@@ -57,6 +57,7 @@ function getRelTypeLabel(type: string): string {
 		// Core OOP
 		'extends': '🔵 Extends',
 		'implements': '🟣 Implements',
+		'composition': '🔴 Composition',
 		'uses': '⚪ Uses',
 		// Method calls
 		'calls': '📞 Calls',
@@ -94,6 +95,7 @@ function getRelTypeDescription(type: string): string {
 		// Core OOP
 		'extends': 'Class inheritance',
 		'implements': 'Interface implementation',
+		'composition': 'Property type relationships',
 		'uses': 'Dependencies and imports',
 		// Method calls
 		'calls': 'Method/function calls',
@@ -179,7 +181,7 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 	const availableTypes = await detectAvailableTypes(workspacePath);
 	const availableRelTypes = [
 		// Core OOP
-		'extends', 'implements', 'uses',
+		'extends', 'implements', 'composition', 'uses',
 		// Method calls
 		'calls', 'calls-super', 'calls-static', 'async-calls',
 		// Type relationships
@@ -675,7 +677,7 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
 					${availableRelTypes.map((type, index) => {
 						const isChecked = config.relationshipTypeFilters?.[type] !== false;
 						// Add visual separators between categories
-						const addSeparator = index === 3 || index === 7 || index === 10 || index === 12 || index === 14 || index === 17 || index === 20;
+						const addSeparator = index === 4 || index === 8 || index === 11 || index === 13 || index === 15 || index === 18 || index === 21;
 						return `
 							${addSeparator ? '<tr style="height: 10px; background: transparent;"><td colspan="3"></td></tr>' : ''}
 							<tr style="border-bottom: 1px solid var(--vscode-panel-border);">

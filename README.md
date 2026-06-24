@@ -113,9 +113,10 @@ Kratai stores settings in `.vscode/kratai.json` in your workspace:
 ## 📝 Release Notes
 
 ### Latest: v1.8.3
-- 🎯 **Complete Relationship Filters** — All 23 relationship types now in Display Filters with descriptions
+- 🎯 **Complete Relationship Filters** — All 24 relationship types now in Display Filters with descriptions
 - 📊 **Table-Based UI** — Clean, scannable table showing type, description, and toggle for each relationship
 - ✅ **Accurate Filtering** — Unchecking all relationships now correctly hides all lines (fixed opt-in logic)
+- 🔗 **Property Relationships** — Fixed composition relationships (e.g., Book → Author) now properly displayed
 - 🎨 **Better Organization** — Relationships grouped by category (OOP, Method Calls, HTTP, ORM, etc.)
 - ⚡ **Bulk Actions** — Select All / Clear All buttons for quick filtering
 
