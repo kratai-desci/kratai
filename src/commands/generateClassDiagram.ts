@@ -8,6 +8,7 @@ import { ConfigService } from '../services/config/configService';
 import { GitDiffEnricher } from '../services/git/gitDiffEnricher';
 import { TelemetryService } from '../services/telemetry/telemetryService';
 import { KrataiConfig } from '../types/config';
+import { MarkdownExporter } from '../services/export/MarkdownExporter';
 
 export async function generateClassDiagram(context: vscode.ExtensionContext): Promise<void> {
 	// Check if workspace is opened
@@ -202,9 +203,10 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 							fs.mkdirSync(exportsDir, { recursive: true });
 						}
 						
-						// Save empty file for now (Phase A)
-						const filePath = path.join(exportsDir, fileName);
-						fs.writeFileSync(filePath, '');
+					// Generate markdown content and save file
+					const filePath = path.join(exportsDir, fileName);
+					const markdownContent = MarkdownExporter.toMarkdown(diagramData, diagramName);
+					fs.writeFileSync(filePath, markdownContent, 'utf-8');
 												// Open the file immediately
 						const savedFileUri = vscode.Uri.file(filePath);
 						await vscode.window.showTextDocument(savedFileUri, {

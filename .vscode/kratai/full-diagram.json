@@ -6,6 +6,7 @@
     "src/services/diagram",
     "src/services/enrichment",
     "src/services/enrichment/frameworks",
+    "src/services/export",
     "src/services/git",
     "src/services/parsing",
     "src/services/parsing/frameworks",
@@ -65,5 +66,5 @@
     "enabled": true,
     "baseCommit": "HEAD~1"
   },
-  "lastUpdated": "2026-06-25T10:35:35.375Z"
+  "lastUpdated": "2026-06-25T12:07:06.941Z"
 }
