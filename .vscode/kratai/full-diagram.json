@@ -1,6 +1,7 @@
 {
   "selectedFolders": [
     "src/commands",
+    "src/mcp",
     "src/services",
     "src/services/config",
     "src/services/diagram",
@@ -66,5 +67,5 @@
     "enabled": true,
     "baseCommit": "HEAD~1"
   },
-  "lastUpdated": "2026-06-25T12:07:06.941Z"
+  "lastUpdated": "2026-06-25T13:44:02.276Z"
 }

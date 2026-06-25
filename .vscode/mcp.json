@@ -1,0 +1,12 @@
+{
+	"servers": {
+		"kratai": {
+			"type": "stdio",
+			"command": "node",
+			"args": [
+				"${workspaceFolder}/out/mcp/server.mjs",
+				"${workspaceFolder}"
+			]
+		}
+	}
+}
