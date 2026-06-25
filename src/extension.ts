@@ -55,7 +55,15 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand('kratai.generateClassDiagram', () => generateClassDiagram(context)),
 		vscode.commands.registerCommand('kratai.generateClassDiagramDirect', () => generateClassDiagramDirect(context)),
 		vscode.commands.registerCommand('kratai.showConfigPanel', (options) => showConfigPanel(context, options)),
-		vscode.commands.registerCommand('kratai.generateDiagramFromView', (viewId: string) => generateDiagramFromView(context, viewId))
+		vscode.commands.registerCommand('kratai.generateDiagramFromView', (viewId: string) => generateDiagramFromView(context, viewId)),
+		vscode.commands.registerCommand('kratai.openExportedFile', async (filePath: string) => {
+			// Open exported markdown file
+			const fileUri = vscode.Uri.file(filePath);
+			await vscode.window.showTextDocument(fileUri, {
+				preview: false,
+				viewColumn: vscode.ViewColumn.Active
+			});
+		})
 	);
 }
 

@@ -272,7 +272,7 @@ export class ClassDiagramView {
         <div class="header-controls">
             <button onclick="zoomIn()">Zoom In</button>
             <button onclick="zoomOut()">Zoom Out</button>
-            <button onclick="resetZoom()">Reset</button>
+            <button onclick="saveAsMD()">💾 Save as MD</button>
             <button onclick="openSettings()">⚙️ Settings</button>
         </div>
     </div>
@@ -296,6 +296,13 @@ export class ClassDiagramView {
         
         // Initialize VS Code API for communication
         const vscode = acquireVsCodeApi();
+        
+        function saveAsMD() {
+            vscode.postMessage({
+                command: 'saveAsMD',
+                diagramName: '${workspaceName}'
+            });
+        }
         
         function openSettings() {
             vscode.postMessage({

@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { ViewManager } from '../services/view';
 
 export class KrataiTreeItem extends vscode.TreeItem {
@@ -36,6 +38,17 @@ export class KrataiTreeProvider implements vscode.TreeDataProvider<KrataiTreeIte
 		// Get workspace path
 		if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
 			this.workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
+			
+			// Watch exports folder for changes
+			const exportsPattern = new vscode.RelativePattern(
+				this.workspacePath,
+				'.kratai/exports/**/*.md'
+			);
+			const watcher = vscode.workspace.createFileSystemWatcher(exportsPattern);
+			
+			// Refresh tree when files are created, changed, or deleted
+			watcher.onDidCreate(() => this.refresh());
+			watcher.onDidDelete(() => this.refresh());
 		}
 	}
 
@@ -63,6 +76,13 @@ export class KrataiTreeProvider implements vscode.TreeDataProvider<KrataiTreeIte
 					'files',
 					vscode.TreeItemCollapsibleState.Expanded,
 					'diagramsGroup'
+				),
+				new KrataiTreeItem(
+					'Exported Files',
+					'',
+					'archive',
+					vscode.TreeItemCollapsibleState.Expanded,
+					'exportsGroup'
 				),
 				new KrataiTreeItem(
 					'Show Git Changes',
@@ -120,6 +140,72 @@ export class KrataiTreeProvider implements vscode.TreeDataProvider<KrataiTreeIte
 				});
 			} catch (error) {
 				console.error('Error loading diagram views:', error);
+				return [];
+			}
+		}
+
+		// Child items for "Exported Files"
+		if (element.contextValue === 'exportsGroup') {
+			if (!this.workspacePath) {
+				return [];
+			}
+
+			try {
+				const exportsDir = path.join(this.workspacePath, '.kratai', 'exports');
+				
+				// Check if exports directory exists
+				if (!fs.existsSync(exportsDir)) {
+					const emptyItem = new KrataiTreeItem(
+						'No exports yet',
+						'',
+						'info',
+						vscode.TreeItemCollapsibleState.None
+					);
+					emptyItem.tooltip = 'Export diagrams to see them here';
+					return [emptyItem];
+				}
+
+				// Read all .md files in exports directory
+				const files = fs.readdirSync(exportsDir)
+					.filter(file => file.endsWith('.md'))
+					.sort((a, b) => {
+						// Sort by modification time, newest first
+						const statA = fs.statSync(path.join(exportsDir, a));
+						const statB = fs.statSync(path.join(exportsDir, b));
+						return statB.mtime.getTime() - statA.mtime.getTime();
+					});
+
+				if (files.length === 0) {
+					const emptyItem = new KrataiTreeItem(
+						'No exports yet',
+						'',
+						'info',
+						vscode.TreeItemCollapsibleState.None
+					);
+					emptyItem.tooltip = 'Export diagrams to see them here';
+					return [emptyItem];
+				}
+
+				return files.map(file => {
+					const filePath = path.join(exportsDir, file);
+					const item = new KrataiTreeItem(
+						file,
+						'kratai.openExportedFile',
+						'file-text',
+						vscode.TreeItemCollapsibleState.None,
+						'exportedFile',
+						filePath
+					);
+					
+					// Add tooltip with file info
+					const stats = fs.statSync(filePath);
+					const modifiedDate = stats.mtime.toLocaleString();
+					item.tooltip = `Modified: ${modifiedDate}\\nClick to open`;
+					
+					return item;
+				});
+			} catch (error) {
+				console.error('Error loading exported files:', error);
 				return [];
 			}
 		}

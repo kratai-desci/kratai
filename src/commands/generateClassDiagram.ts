@@ -188,6 +188,33 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 							preserveFocus: false
 						});
 						break;
+					
+					case 'saveAsMD':
+						// Save diagram as markdown file
+						const diagramName = message.diagramName || 'diagram';
+						const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0] + '_' + 
+						                  new Date().toISOString().replace(/[:.]/g, '-').split('T')[1].split('Z')[0];
+						const fileName = `${diagramName}_${timestamp}.md`;
+						
+						// Create exports folder if it doesn't exist
+						const exportsDir = path.join(workspacePath, '.kratai', 'exports');
+						if (!fs.existsSync(exportsDir)) {
+							fs.mkdirSync(exportsDir, { recursive: true });
+						}
+						
+						// Save empty file for now (Phase A)
+						const filePath = path.join(exportsDir, fileName);
+						fs.writeFileSync(filePath, '');
+												// Open the file immediately
+						const savedFileUri = vscode.Uri.file(filePath);
+						await vscode.window.showTextDocument(savedFileUri, {
+							preview: false
+						});
+						
+						// Refresh tree view to show new exported file
+						vscode.commands.executeCommand('kratai.refreshViews');
+												vscode.window.showInformationMessage(`\u2705 Saved to ${fileName}`);
+						break;
 					}
 				},
 				undefined,
