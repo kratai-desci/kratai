@@ -100,39 +100,4 @@ export class DiagramGeneratorService {
 				};
 		}
 	}
-
-	static generateMermaidDiagram(diagramData: DiagramData): string {
-		let mermaid = 'classDiagram\n';
-
-		// Add classes
-		for (const classInfo of diagramData.classes) {
-			const classType = classInfo.isInterface ? '<<interface>>' : classInfo.isAbstract ? '<<abstract>>' : '';
-			
-			mermaid += `  class ${classInfo.name}${classType ? ' ' + classType : ''}\n`;
-			
-			// Add properties
-			for (const prop of classInfo.properties) {
-				const visibility = prop.visibility === 'private' ? '-' : prop.visibility === 'protected' ? '#' : '+';
-				mermaid += `  ${classInfo.name} : ${visibility}${prop.name} ${prop.type}\n`;
-			}
-
-			// Add methods (limit to 5 for readability)
-			for (const method of classInfo.methods.slice(0, 5)) {
-				const visibility = method.visibility === 'private' ? '-' : method.visibility === 'protected' ? '#' : '+';
-				const params = method.parameters.map(p => `${p.name}: ${p.type}`).join(', ');
-				mermaid += `  ${classInfo.name} : ${visibility}${method.name}(${params}) ${method.returnType}\n`;
-			}
-		}
-
-		// Add relationships
-		for (const rel of diagramData.relationships) {
-			if (rel.type === 'extends') {
-				mermaid += `  ${rel.to} <|-- ${rel.from}\n`;
-			} else if (rel.type === 'implements') {
-				mermaid += `  ${rel.to} <|.. ${rel.from}\n`;
-			}
-		}
-
-		return mermaid;
-	}
 }
