@@ -56,6 +56,9 @@ export class KrataiMCPServer {
 				
 				case 'kratai_get_diagram':
 					return await this.getDiagram(args?.diagramId as string);
+				
+				case 'kratai_create_diagram':
+					return await this.createDiagram(args as any);
 
 				default:
 					throw new Error(`Unknown tool: ${name}`);
@@ -88,6 +91,30 @@ export class KrataiMCPServer {
 						},
 					},
 					required: ['diagramId'],
+				},
+			},
+			{
+				name: 'kratai_create_diagram',
+				description: 'Create a new Kratai architecture diagram for specific folders or the entire workspace. Use this when analyzing a new codebase for the first time, when no diagrams exist yet (kratai_list_diagrams returns empty), or when user wants to analyze a specific part of the codebase. Creates a diagram view, generates it immediately, and returns the diagram ID for use with kratai_get_diagram. Example: "Analyze my codebase", "Create diagram for src/services", "Map my architecture".',
+				inputSchema: {
+					type: 'object',
+					properties: {
+						name: {
+							type: 'string',
+							description: 'Diagram name (e.g., "full-analysis", "services-view", "domain-model"). Must be unique.',
+						},
+						targetFolders: {
+							type: 'array',
+							items: { type: 'string' },
+							description: 'Folders to include relative to workspace root (e.g., ["src/"], ["src/services/", "src/models/"]). Empty array or omitted = entire workspace.',
+						},
+						languages: {
+							type: 'array',
+							items: { type: 'string', enum: ['typescript', 'javascript', 'python', 'php'] },
+							description: 'Languages to parse. Default: ["typescript", "javascript", "python", "php"] (auto-detect all).',
+						},
+					},
+					required: ['name'],
 				},
 			},
 		];
@@ -195,6 +222,242 @@ export class KrataiMCPServer {
 					{
 						type: 'text',
 						text: `Error generating diagram: ${error}`,
+					},
+				],
+				isError: true,
+			};
+		}
+	}
+
+	/**
+	 * Recursively scan directories to get all subdirectories
+	 */
+	private scanDirectoriesRecursively(
+		basePath: string, 
+		relativePath: string = '', 
+		isRootScan: boolean = false
+	): string[] {
+		const folders: string[] = [];
+		const fullPath = path.join(basePath, relativePath);
+
+		// Check if path exists and is accessible
+		if (!fs.existsSync(fullPath)) {
+			return folders;
+		}
+
+		try {
+			const stats = fs.statSync(fullPath);
+			if (!stats.isDirectory()) {
+				return folders;
+			}
+
+			// Add current directory if not empty string
+			if (relativePath) {
+				folders.push(relativePath);
+			}
+
+			// Scan subdirectories
+			const entries = fs.readdirSync(fullPath, { withFileTypes: true });
+			for (const entry of entries) {
+				if (entry.isDirectory()) {
+					// Always skip these directories at any level
+					const alwaysSkip = [
+						'node_modules',
+						'.git',
+						'__pycache__',
+						'.pytest_cache',
+						'.mypy_cache',
+						'.tox',
+						'.eggs',
+						'venv',
+						'.venv',
+						'env',
+						'.env',
+						// Skip test and fixture directories (avoid circular test data)
+						'test',
+						'tests',
+						'__tests__',
+						'spec',
+						'specs',
+						'fixture',
+						'fixtures',
+						'mock',
+						'mocks',
+						'__mocks__'
+					];
+					
+					// Additional folders to skip when scanning from root (for MCP)
+					const rootLevelSkip = [
+						'dist',
+						'build',
+						'out',
+						'coverage',
+						'.coverage',
+						'htmlcov',
+						'.nyc_output',
+						'target',
+						'bin',
+						'obj',
+						'.next',
+						'.nuxt',
+						'.output',
+						'.vercel',
+						'public',
+						'static',
+						'assets',
+						'tmp',
+						'temp',
+						'logs',
+						'vendor'
+					];
+
+					// Skip hidden folders (starting with .) when at root level
+					if (isRootScan && !relativePath && entry.name.startsWith('.')) {
+						continue;
+					}
+
+					// Check skip lists
+					if (alwaysSkip.includes(entry.name)) {
+						continue;
+					}
+
+					// Apply root-level skip list only when we're actually at root
+					if (isRootScan && !relativePath && rootLevelSkip.includes(entry.name)) {
+						continue;
+					}
+
+					const subPath = relativePath ? path.join(relativePath, entry.name) : entry.name;
+					// Stop propagating isRootScan after first level
+					folders.push(...this.scanDirectoriesRecursively(basePath, subPath, false));
+				}
+			}
+		} catch (error) {
+			// Skip directories we can't read
+		}
+
+		return folders;
+	}
+
+	/**
+	 * Create a new diagram
+	 */
+	private async createDiagram(args: {
+		name: string;
+		targetFolders?: string[];
+		languages?: string[];
+	}) {
+		try {
+			if (!args.name) {
+				throw new Error('name is required');
+			}
+
+			// Map languages to extensions
+			const languageExtensions: Record<string, string[]> = {
+				'typescript': ['.ts', '.tsx'],
+				'javascript': ['.js', '.jsx', '.mjs', '.cjs'],
+				'python': ['.py'],
+				'php': ['.php']
+			};
+
+			// Get extensions based on requested languages
+			let extensions: string[] = [];
+			if (args.languages && args.languages.length > 0) {
+				for (const lang of args.languages) {
+					extensions.push(...(languageExtensions[lang] || []));
+				}
+			} else {
+				// Default: all languages
+				extensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.php'];
+			}
+
+			// Expand target folders to include all subdirectories (like UI does)
+			let expandedFolders: string[] = [];
+			if (args.targetFolders && args.targetFolders.length > 0) {
+				for (const folder of args.targetFolders) {
+					// Remove trailing slash if present
+					const cleanFolder = folder.replace(/\/$/, '');
+					
+					// Check if requesting workspace root
+					if (cleanFolder === '.' || cleanFolder === '') {
+						// Scan workspace root with aggressive filtering (isRootScan=true)
+						expandedFolders = this.scanDirectoriesRecursively(this.workspacePath, '', true);
+					} else {
+						// Scan specific folder without root filtering
+						const scanned = this.scanDirectoriesRecursively(this.workspacePath, cleanFolder, false);
+						if (scanned.length > 0) {
+							expandedFolders.push(...scanned);
+						} else {
+							// If scan returned nothing, add the folder itself
+							expandedFolders.push(cleanFolder);
+						}
+					}
+				}
+			} else {
+				// No folders specified - scan workspace root with aggressive filtering
+				expandedFolders = this.scanDirectoriesRecursively(this.workspacePath, '', true);
+				if (expandedFolders.length === 0) {
+					expandedFolders = ['.'];
+				}
+			}
+
+			// Create config using correct KrataiConfig structure
+			const config: any = {
+				selectedFolders: expandedFolders,
+				selectedExtensions: extensions,
+				respectGitignore: true,
+				followSymlinks: false,
+				classTypeFilters: {}, // Empty = show all types
+				relationshipTypeFilters: {
+					'extends': true,
+					'implements': true,
+					'uses': true,
+					'composition': true,
+					'aggregation': true,
+					'association': true,
+					'http-call': true,
+					'routes-to': true
+				},
+				gitDiff: {
+					enabled: false
+				},
+				detectHttpCalls: true,
+				frameworkEnrichment: true
+			};
+
+			// Create view
+			const view = await ViewManager.createView(
+				this.workspacePath,
+				args.name,
+				config
+			);
+
+			// Generate diagram immediately
+			const diagramData = await CodeParserService.parseWorkspace(
+				this.workspacePath,
+				config
+			);
+
+			// Update last generated timestamp
+			await ViewManager.updateLastGenerated(this.workspacePath, view.id);
+
+			// Generate markdown for AI to consume
+			const markdown = MarkdownExporter.toMarkdown(diagramData, view.name);
+
+			// Return markdown directly (AI can analyze it immediately)
+			return {
+				content: [
+					{
+						type: 'text',
+						text: `Created diagram "${view.name}" (ID: ${view.id}) with ${diagramData.classes.length} classes and ${diagramData.relationships.length} relationships.\n\n---\n\n${markdown}`,
+					},
+				],
+			};
+		} catch (error) {
+			return {
+				content: [
+					{
+						type: 'text',
+						text: `Error creating diagram: ${error}`,
 					},
 				],
 				isError: true,
