@@ -1,57 +1,41 @@
-# Kratai — Code Visualizer
+# Kratai
 
-Understand your codebase at a glance across **TypeScript, JavaScript, Python, and PHP**. Kratai generates interactive **class diagrams** directly inside VS Code, with **git diff highlighting** to show your uncommitted changes.
+> Know your code. Build production-quality software with AI.
 
-**Build multiple perspectives** — Create tailored views for architecture overviews, domain analysis, or feature exploration. Switch between them instantly.
+Kratai is the architectural layer of Spec-Driven Development. It helps developers maintain clear visibility and control over system architecture while collaborating with AI coding agents — enabling you to build scalable, maintainable, and production-grade applications with confidence.
 
 ![Kratai in Action](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo.gif)
 
 ---
 
+## Spec-Driven Development
+
+Spec-Driven Development (SDD) represents a shift in how software is built with AI. Instead of starting with code and hoping the architecture and behavior emerge correctly, SDD treats **specifications and architecture** as the primary artifacts that guide development.
+
+In traditional AI-assisted workflows, developers often rely on prompts and generated code, which can lead to:
+
+- Inconsistent architectural decisions
+- Difficulty understanding the overall system structure
+- Growing technical debt as AI-generated code accumulates
+
+Spec-Driven Development addresses this by making both **what** the system should do (specification) and **how** it should be structured (architecture) explicit and actionable. This creates a stronger foundation for AI agents to work from, resulting in more predictable, maintainable, and scalable outcomes.
+
+Kratai contributes to this approach by giving developers clear **visibility and oversight** over architectural decisions as they build with AI. It helps you understand how your system is structured, how changes impact that structure, and how to keep architectural intent aligned with implementation — even as AI generates large portions of the codebase.
+
+---
+
 ## ✨ Key Features
 
-- 📊 **Multiple Perspectives** — Build and save different diagram views for architecture, domains, or specific features
-- 🗺️ **Interactive Visualization** — See your entire codebase organized by folders with all relationships
-- 🖱️ **Instant Navigation** — Click any method or property to jump directly to the exact line in your code
-- 💡 **Dependency Highlighting** — Click any class to see what it connects to (press ESC to clear)
-- 📂 **Quick File Access** — Hover over classes to reveal file actions
-- 📊 **Change Tracking** — Visual indicators show uncommitted changes (green = added, red = deleted, yellow = modified)
-- 🎛️ **Fine-Grained Control** — 24 relationship types and 4 class types to customize your view
-- 🌍 **Multi-Language** — Works with TypeScript, JavaScript, Python, and PHP in the same project
-- 🧠 **Framework-Aware** — Automatically enriches Django and Next.js projects with framework-specific relationships
-- 🎯 **Smart Detection** — Auto-detects inheritance, interfaces, dependencies, and framework patterns
-- ⚙️ **Fully Configurable** — Choose folders, files, and relationship types for each diagram
+### 📊 **Architecture Intelligence Without AI Costs**
+Generate interactive architecture diagrams directly from your codebase using static analysis — no LLM tokens required. Diagrams always reflect the current state of your code, with git diff highlighting to show uncommitted changes and click-to-navigate for instant code exploration.
 
-**Framework Enrichment (Automatic Detection):**
-- **Django** (✅ Fully Supported): View → Template relationships, ORM models (ForeignKey, ManyToMany), REST Framework (ViewSets, Serializers)
-- **Next.js** (✅ Fully Supported): Component → Component (JSX), Component → Type/DTO, Component → API routes (fetch calls)
-- **React, Laravel, Symfony** (⏳ Planned): Coming in future releases
+### 🤖 **AI Integration Layer**
+Built-in MCP server and architecture-aware SKILL give AI agents direct access to your system structure. AI understands how your code is organized before generating new code, automatically following your design principles and existing patterns.
+
 
 ---
 
-## 🚀 Getting Started
-
-1. **Install** the extension from VS Code Marketplace
-2. **Open** a project with `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, or `.php` files
-3. **Click** the Kratai icon in the Activity Bar (left sidebar)
-4. **Create** your first diagram — root folder selected by default
-5. **Generate** and start exploring!
-
-**Build Different Perspectives:**
-- **Full Architecture** — Visualize everything to understand system structure
-- **Domain Focus** — Isolate core business logic and entities
-- **API Layer** — Concentrate on endpoints and routing
-- **Feature Scopes** — Select specific folders for targeted analysis
-
-**Interactive Tips:**
-- **Click a class** to highlight its dependencies (black outline = focused, grey = related)
-- **Click any method or property** to open the file and jump directly to the definition
-- **Hover over a class** and click the ⋮ button to open its source file
-- **Press ESC** to clear highlights and return to full view
-
----
-
-## 📸 Visual Tour
+## � Visual Tour
 
 ### 1. Organize with Multiple Views
 Build different perspectives of your codebase — each diagram saved and ready to switch between:
@@ -82,6 +66,16 @@ Fine-tune every aspect — choose exactly which elements and connections to disp
 
 ---
 
+## 🚀 Getting Started
+
+1. **Install** the extension from VS Code Marketplace
+2. **Open** a project with `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, or `.php` files
+3. **Click** the Kratai icon in the Activity Bar (left sidebar)
+4. **Create** your first diagram — root folder selected by default
+5. **Generate** and start exploring!
+
+---
+
 ## 🌐 Supported Languages & Frameworks
 
 | Language | Status | Parser | Framework Enrichment |
@@ -94,11 +88,7 @@ Fine-tune every aspect — choose exactly which elements and connections to disp
 **Framework Enrichment Status:**
 - **✅ Django:** Fully implemented — View → Template (`template_name`, `render()`), ORM relationships (ForeignKey, ManyToMany), REST Framework (ViewSets → Serializers), URL routing, middleware detection
 - **✅ Next.js:** Fully implemented — Component → Component (JSX like `<UserList />`), Component → Type/DTO (`useState<UserDTO>`), Component → API routes (`fetch('/api/users')`), HTTP method detection
-- **⏳ React (standalone):** Planned for future release
-- **⏳ Laravel:** Planned for future release
-- **⏳ Symfony:** Planned for future release
 
-**Note:** You can still visualize TypeScript/JavaScript/PHP codebases without framework enrichment — you'll get standard class diagrams with inheritance, interfaces, and dependencies. Framework enrichment adds deeper insights specific to Django and Next.js projects.
 
 ---
 
@@ -181,35 +171,6 @@ Kratai stores settings in `.vscode/kratai.json` in your workspace. Each diagram 
 - 🌐 **fetch() API Call Detection** — Component → API route relationships with HTTP method detection
 - 🔍 **Smart Source Reading** — Enrichers read source files to detect framework conventions
 - ✅ **58 Comprehensive Tests** — TDD approach with reality checks and scoping tests
-
-### v1.7.0
-- 🐍 **Django Framework Support** — Automatic detection of Django projects with URL patterns, ORM relationships, and DRF
-- 🔗 **Django URL Parsing** — Reads urls.py to create accurate route → view relationships
-- 📊 **ORM Relationships** — Visualizes ForeignKey, ManyToManyField, OneToOneField
-- 🎯 **DRF Support** — Detects ViewSets, Serializers, and API views
-- 🛡️ **Middleware Detection** — Shows which views are protected by middleware
-
-### v1.6.2
-- 🐛 **CRITICAL FIX** — Python virtual environment scanning freeze (Django/Flask projects)
-- ⚡ **Major Performance** — Excluded venv, __pycache__, site-packages from scanning
-- 🚀 **Instant Loading** — Configuration panel now loads immediately on Python projects
-
-### v1.6.1
-- 📚 **Documentation** — Updated architecture docs to clarify git diff behavior
-- ✅ **Verified** — All documentation accurate and ready for production
-
-### v1.6.0
-- 🖱️ **Click-to-Jump Navigation** — Click methods/properties to instantly open and highlight code
-- ⚡ **Major Performance Boost** — Removed method analysis overhead (5-30s faster generation)
-- 🎨 **Git Diff Simplified** — Now only highlights uncommitted changes (not previous commits)
-- 🐛 **Fixed Event Propagation** — Methods no longer trigger class focus mode when clicked
-- 🎯 **Precise Highlighting** — Blue selection spans entire method/property for easy spotting
-
-### v1.5.0
-- 🔗 **Import Detection** — Routes show dependencies on imported classes (Database, auth)
-- 🎯 **Smart Clickable Methods** — Only methods with calls are clickable (light blue background)
-- 🐛 **Fixed HTTP Calls** — API endpoints now correctly match route handlers
-- 📊 **Sequence Panel Reuse** — Updates same panel instead of creating multiple columns
 
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
