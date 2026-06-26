@@ -45,6 +45,14 @@
   "bin": {
     "kratai-mcp": "./out/mcp/server.mjs"
   },
+  "files": [
+    "out/**",
+    "skills/**",
+    "icon_white.png",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -90,6 +98,17 @@
         "command": "kratai.openCommunity",
         "title": "Community & Feedback",
         "icon": "$(comment-discussion)"
+      }
+    ],
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "kratai.mcpProvider",
+        "label": "Kratai MCP Server"
+      }
+    ],
+    "chatSkills": [
+      {
+        "path": "./skills/kratai-architecture-driven-development/SKILL.md"
       }
     ]
   },

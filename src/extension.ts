@@ -1,6 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { showGitChanges, generateClassDiagram, generateClassDiagramDirect, showConfigPanel, generateDiagramFromView } from './commands';
 import { KrataiTreeProvider } from './views/krataiTreeProvider';
 import { TelemetryService } from './services/telemetry/telemetryService';
@@ -46,6 +47,38 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('kratai.refreshViews', () => {
 			treeProvider.refresh();
+		})
+	);
+
+	// Register refresh alias for tree view
+	context.subscriptions.push(
+		vscode.commands.registerCommand('kratai.refreshTreeView', () => {
+			treeProvider.refresh();
+		})
+	);
+
+	// Register MCP Server Provider
+	const providerId = 'kratai.mcpProvider';
+	context.subscriptions.push(
+		vscode.lm.registerMcpServerDefinitionProvider(providerId, {
+			provideMcpServerDefinitions: async () => {
+				const serverScript = path.join(
+					context.extensionPath,
+					'out',
+					'mcp',
+					'server.mjs'
+				);
+
+				return [
+					new vscode.McpStdioServerDefinition(
+						'Kratai',
+						'node',
+						[serverScript, '${workspaceFolder}'],
+						undefined,
+						context.extension.packageJSON.version
+					),
+				];
+			},
 		})
 	);
 
