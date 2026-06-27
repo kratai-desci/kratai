@@ -98,38 +98,18 @@ Choose exactly what to show — select folders, filter relationship types, and c
 
 ## 📝 Release Notes
 
-### Latest: v1.8.4
-- 🏷️ **Custom Diagram Headers** — Your diagram name now appears as the main title (no more generic "Class Diagram")
-- 📖 **Enhanced Documentation** — README restructured to better showcase multiple perspectives and configuration capabilities
-- 🎯 **Clearer Messaging** — Visual tour and feature list rewritten to emphasize tailored views and instant navigation
+### Latest: v1.9.0 (2026-06-27)
+- ✨ **Enhanced Key Features** — Restructured into scannable bullet points highlighting deterministic analysis, single source of truth, and AI integration
+
+### v1.8.4
+- 🏷️ **Custom Diagram Headers** — Your diagram name now appears as the main title
+- 📖 **Enhanced Documentation** — README restructured for better clarity
+- 🎯 **Clearer Messaging** — Visual tour emphasizing tailored views
 
 ### v1.8.3
-- 🎯 **Complete Relationship Filters** — All 24 relationship types now in Display Filters with descriptions
-- 📊 **Table-Based UI** — Clean, scannable table showing type, description, and toggle for each relationship
-- ✅ **Accurate Filtering** — Unchecking all relationships now correctly hides all lines (fixed opt-in logic)
-- 🔗 **Property Relationships** — Fixed composition relationships (e.g., Book → Author) now properly displayed
-- 🎨 **Better Organization** — Relationships grouped by category (OOP, Method Calls, HTTP, ORM, etc.)
-- ⚡ **Bulk Actions** — Select All / Clear All buttons for quick filtering
-
-### v1.8.2
-- ✅ **Folder Selection Fixes** — Settings button now properly preserves your folder selections
-- 🔲 **Independent Checkboxes** — Each folder checkbox operates independently (no automatic parent updates)
-- 📂 **Smart Defaults** — All folders checked by default; uncheck what you don't want
-- 🌳 **Expanded Tree View** — Folder tree fully expanded by default for better visibility
-- 📦 **Cleaner Diagrams** — Pass-through folders automatically collapsed (e.g., "api > admin > users")
-
-### v1.8.1
-- 🐛 **CRITICAL FIX** — Folder selection now properly respected (diagrams were ignoring user-selected folders)
-- 🗑️ **Delete Diagram Feature** — New Danger Zone tab in settings allows safe diagram deletion
-- ✏️ **Fixed Rename Bug** — Config files now properly renamed when changing diagram names
-
-### v1.8.0
-- 🎯 **Django Template Detection** — Automatic View → Template relationships (`template_name`, `render()`)
-- ⚛️ **Next.js Component Detection** — Automatic Component → Component relationships (JSX like `<UserList />`)
-- 📦 **TypeScript Type Detection** — Component → DTO/Type relationships (`useState<UserDTO>`, `const x: ApiResponse`)
-- 🌐 **fetch() API Call Detection** — Component → API route relationships with HTTP method detection
-- 🔍 **Smart Source Reading** — Enrichers read source files to detect framework conventions
-- ✅ **58 Comprehensive Tests** — TDD approach with reality checks and scoping tests
+- 🎯 **Complete Relationship Filters** — All 24 types with descriptions
+- 📊 **Table-Based UI** — Scannable relationship filter table
+- ✅ **Accurate Filtering** — Fixed opt-in logic for relationships
 
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 

@@ -2,6 +2,29 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.9.0] - 2026-06-27
+
+### Major Changes
+- **Complete Brand Repositioning** — kratai is now positioned as "Architecture as source of truth" and the architectural layer of Spec-Driven Development
+- **README Rewrite** — Comprehensive restructure emphasizing SDD workflow, MCP/SKILL integration, and architectural oversight
+- **New Tagline** — "Architecture as source of truth" replaces "Code Visualizer"
+
+### Enhanced
+- **Key Features Section** — Restructured into bullet points for better scannability: Architecture Intelligence (deterministic analysis, single source of truth, developer-friendly navigation) and AI Integration (MCP server, architecture-aware SKILL)
+- **Visual Tour** — Reorganized to showcase: (1) Architecture as single source of truth, (2) Multiple perspectives, (3) AI understanding architecture, (4) Built-in SKILL & MCP, (5) Fine-grained control
+- **Spec-Driven Development Section** — Added comprehensive explanation of how kratai fits into SDD workflow alongside Spec Kit
+- **Getting Started** — Simplified to 4-step quick start with 30-second setup time
+- **Supported Languages** — Condensed table with framework enrichment highlights
+
+### Improved
+- **Screenshot Sizing** — Screenshots 2, 3, and 4 now display at 50% width for better readability
+- **Messaging** — All copy updated to emphasize architectural control, token cost reduction, and AI collaboration
+- **Brand Voice** — Consistent lowercase "kratai" throughout, authoritative positioning as foundational tool
+
+### Technical
+- Updated package.json displayName to "kratai" (lowercase)
+- Updated package.json description to reflect new positioning
+
 ## [1.8.4] - 2026-06-24
 
 ### Changed
