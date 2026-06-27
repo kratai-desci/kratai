@@ -49,22 +49,22 @@ Architecture diagrams generated from your actual codebase — not representation
 ### 2. Multiple Perspectives for Different Needs
 Create and save different architectural views — focus on domains, API layers, or specific features. Each diagram is a lens into your system structure.
 
-<!-- ![Full Class Diagram](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_2.png) -->
+![Screenshot 2 - Diagram Menu](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_2.png)
 
 ### 3. AI Understands Your Architecture
 AI agents query your architecture before generating code. No expensive context dumps — AI gets structured, accurate system information through MCP server.
 
-<!-- ![Domain Model](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_3.png) -->
+![Screenshot 3 - AI understand architecture](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_3.png)
 
 ### 4. Built-in SKILL & MCP Server
 Pre-configured SKILL teaches AI to follow your design principles automatically. MCP server provides direct access to architecture data — no manual setup required.
 
-<!-- ![Click-to-Jump](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_4.png) -->
+![Screenshot 4 - AI uses kratai skill](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_4.png)
 
 ### 5. Fine-Grained Control Over Your Views
 Choose exactly what to show — select folders, filter relationship types, and control class types. Tailor each diagram to your specific needs.
 
-<!-- ![Configuration Panel](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_5.png) -->
+![Screenshot 5 - Configuration Panel](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_5.png)
 
 
 ---
