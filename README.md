@@ -1,8 +1,8 @@
-# kratai
+# kratai 
 
-> Know your code. Build production-quality software with AI.
+> Architecture as source of truth
 
-kratai is the architectural layer of Spec-Driven Development. It helps developers maintain clear visibility and control over system architecture while collaborating with AI coding agents — enabling you to build scalable, maintainable, and production-grade applications with confidence.
+kratai generates architecture diagrams that serve as the single source of truth for your system structure. Maintain architectural oversight while AI agents code, and eliminate expensive context dumps by giving AI access to structured diagrams instead of raw files.
 
 ![kratai in Action](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo.gif)
 
