@@ -45,14 +45,6 @@
   "bin": {
     "kratai-mcp": "./out/mcp/server.mjs"
   },
-  "files": [
-    "out/**",
-    "skills/**",
-    "icon_white.png",
-    "README.md",
-    "LICENSE",
-    "CHANGELOG.md"
-  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
