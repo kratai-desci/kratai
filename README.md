@@ -1,14 +1,29 @@
-# Kratai
+# kratai
 
 > Know your code. Build production-quality software with AI.
 
-Kratai is the architectural layer of Spec-Driven Development. It helps developers maintain clear visibility and control over system architecture while collaborating with AI coding agents — enabling you to build scalable, maintainable, and production-grade applications with confidence.
+kratai is the architectural layer of Spec-Driven Development. It helps developers maintain clear visibility and control over system architecture while collaborating with AI coding agents — enabling you to build scalable, maintainable, and production-grade applications with confidence.
 
-![Kratai in Action](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo.gif)
+![kratai in Action](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo.gif)
 
 ---
 
-## Spec-Driven Development
+## ✨ Key Features
+
+### 📊 **Architecture Intelligence**
+
+- **Deterministic Analysis** — Generate interactive architecture diagrams directly from your codebase using static analysis. No LLM tokens required, no hallucinations, always reflects the actual code structure.
+- **Single Source of Truth** — Diagrams represent the real state of your system, making it easy for developers to understand the overall architecture and reducing token costs when AI agents need context.
+- **Developer-Friendly Navigation** — Git diff highlighting shows uncommitted changes at a glance. Click any element to jump directly to the code.
+
+### 🤖 **AI Integration via SKILL & MCP Server**
+
+- **MCP Server** — Built-in Model Context Protocol server gives AI agents direct access to your architecture diagrams. AI can query your system structure before generating code, understanding the full context.
+- **Architecture-Aware SKILL** — Pre-configured skill teaches AI to analyze existing patterns and follow your design principles automatically. No manual prompting required.
+
+---
+
+## 📐 Spec-Driven Development
 
 Spec-Driven Development (SDD) represents a shift in how software is built with AI. Instead of starting with code and hoping the architecture and behavior emerge correctly, SDD treats **specifications and architecture** as the primary artifacts that guide development.
 
@@ -20,22 +35,11 @@ In traditional AI-assisted workflows, developers often rely on prompts and gener
 
 Spec-Driven Development addresses this by making both **what** the system should do (specification) and **how** it should be structured (architecture) explicit and actionable. This creates a stronger foundation for AI agents to work from, resulting in more predictable, maintainable, and scalable outcomes.
 
-Kratai contributes to this approach by giving developers clear **visibility and oversight** over architectural decisions as they build with AI. It helps you understand how your system is structured, how changes impact that structure, and how to keep architectural intent aligned with implementation — even as AI generates large portions of the codebase.
+kratai contributes to this approach by giving developers clear **visibility and oversight** over architectural decisions as they build with AI. It helps you understand how your system is structured, how changes impact that structure, and how to keep architectural intent aligned with implementation — even as AI generates large portions of the codebase.
 
 ---
 
-## ✨ Key Features
-
-### 📊 **Architecture Intelligence Without AI Costs**
-Generate interactive architecture diagrams directly from your codebase using static analysis — no LLM tokens required. Diagrams always reflect the current state of your code, with git diff highlighting to show uncommitted changes and click-to-navigate for instant code exploration.
-
-### 🤖 **AI Integration Layer**
-Built-in MCP server and architecture-aware SKILL give AI agents direct access to your system structure. AI understands how your code is organized before generating new code, automatically following your design principles and existing patterns.
-
-
----
-
-## � Visual Tour
+## 📸 Visual Tour
 
 ### 1. Organize with Multiple Views
 Build different perspectives of your codebase — each diagram saved and ready to switch between:
@@ -70,9 +74,21 @@ Fine-tune every aspect — choose exactly which elements and connections to disp
 
 1. **Install** the extension from VS Code Marketplace
 2. **Open** a project with `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, or `.php` files
-3. **Click** the Kratai icon in the Activity Bar (left sidebar)
+3. **Click** the kratai icon in the Activity Bar (left sidebar)
 4. **Create** your first diagram — root folder selected by default
 5. **Generate** and start exploring!
+
+**Build Different Perspectives:**
+- **Full Architecture** — Visualize everything to understand system structure
+- **Domain Focus** — Isolate core business logic and entities
+- **API Layer** — Concentrate on endpoints and routing
+- **Feature Scopes** — Select specific folders for targeted analysis
+
+**Interactive Tips:**
+- **Click a class** to highlight its dependencies (black outline = focused, grey = related)
+- **Click any method or property** to open the file and jump directly to the definition
+- **Hover over a class** and click the ⋮ button to open its source file
+- **Press ESC** to clear highlights and return to full view
 
 ---
 
@@ -94,7 +110,7 @@ Fine-tune every aspect — choose exactly which elements and connections to disp
 
 ## ⚙️ Configuration
 
-Kratai stores settings in `.vscode/kratai.json` in your workspace. Each diagram has its own configuration:
+kratai stores settings in `.vscode/kratai.json` in your workspace. Each diagram has its own configuration:
 
 ### Per-Diagram Settings
 - **Diagram name** — Label for easy identification (e.g., "Domain Model", "API Routes")
@@ -119,7 +135,7 @@ Kratai stores settings in `.vscode/kratai.json` in your workspace. Each diagram 
 - **Domain Core** — Just entities and models, show only composition and inheritance
 - **API Mapping** — Focus on HTTP endpoints and routing patterns
 
-**First-Time Setup:** On your first diagram generation, Kratai opens the configuration panel with the root folder pre-selected. You can adjust settings and click "Save & Generate Diagram" to proceed.
+**First-Time Setup:** On your first diagram generation, kratai opens the configuration panel with the root folder pre-selected. You can adjust settings and click "Save & Generate Diagram" to proceed.
 
 ---
 
@@ -185,4 +201,4 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ---
 
-**Made with ❤️ by the Kratai team** | [MIT License](LICENSE)
+**Made with ❤️ by the kratai team** | [MIT License](LICENSE)
