@@ -41,32 +41,31 @@ kratai contributes to this approach by giving developers clear **visibility and 
 
 ## 📸 Visual Tour
 
-### 1. Organize with Multiple Views
-Build different perspectives of your codebase — each diagram saved and ready to switch between:
+### 1. Architecture as Single Source of Truth
+Architecture diagrams generated from your actual codebase — not representations, but the definitive source of truth. Git diff highlighting shows exactly what changed at a glance.
 
-![Multiple Diagrams](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_1.png)
+![Screenshot 1 - Class Diagram](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_1.png)
 
-### 2. See the Big Picture
-Understand your entire architecture — all classes, folders, and their connections visualized:
+### 2. Multiple Perspectives for Different Needs
+Create and save different architectural views — focus on domains, API layers, or specific features. Each diagram is a lens into your system structure.
 
-![Full Class Diagram](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_2.png)
+<!-- ![Full Class Diagram](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_2.png) -->
 
-### 3. Zoom Into What Matters
-Create focused views of specific areas — with visual indicators showing your uncommitted changes:
+### 3. AI Understands Your Architecture
+AI agents query your architecture before generating code. No expensive context dumps — AI gets structured, accurate system information through MCP server.
 
-![Domain Model](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_3.png)
+<!-- ![Domain Model](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_3.png) -->
 
-### 4. Navigate Instantly
-Bridge the gap between visual and code — one click takes you to the exact line:
+### 4. Built-in SKILL & MCP Server
+Pre-configured SKILL teaches AI to follow your design principles automatically. MCP server provides direct access to architecture data — no manual setup required.
 
-![Click-to-Jump](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_4.png)
+<!-- ![Click-to-Jump](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_4.png) -->
 
-### 5. Configure to Your Needs
-Fine-tune every aspect — choose exactly which elements and connections to display:
+### 5. Fine-Grained Control Over Your Views
+Choose exactly what to show — select folders, filter relationship types, and control class types. Tailor each diagram to your specific needs.
 
-![Configuration Panel](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_5.png)
+<!-- ![Configuration Panel](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_5.png) -->
 
-**Visual Indicators:** Green = added, Red = deleted, Yellow = modified (appears automatically with uncommitted changes)
 
 ---
 
