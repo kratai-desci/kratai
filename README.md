@@ -49,17 +49,17 @@ Architecture diagrams generated from your actual codebase — not representation
 ### 2. Multiple Perspectives for Different Needs
 Create and save different architectural views — focus on domains, API layers, or specific features. Each diagram is a lens into your system structure.
 
-![Screenshot 2 - Diagram Menu](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_2.png)
+<img src="https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_2.png" alt="Multiple Diagrams" width="33%">
 
 ### 3. AI Understands Your Architecture
 AI agents query your architecture before generating code. No expensive context dumps — AI gets structured, accurate system information through MCP server.
 
-![Screenshot 3 - AI understand architecture](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_3.png)
+<img src="https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_3.png" alt="AI understands architecture" width="50%">
 
 ### 4. Built-in SKILL & MCP Server
 Pre-configured SKILL teaches AI to follow your design principles automatically. MCP server provides direct access to architecture data — no manual setup required.
 
-![Screenshot 4 - AI uses kratai skill](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_4.png)
+<img src="https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_4.png" alt="AI uses kratai skill" width="50%">
 
 ### 5. Fine-Grained Control Over Your Views
 Choose exactly what to show — select folders, filter relationship types, and control class types. Tailor each diagram to your specific needs.
@@ -71,84 +71,28 @@ Choose exactly what to show — select folders, filter relationship types, and c
 
 ## 🚀 Getting Started
 
-1. **Install** the extension from VS Code Marketplace
-2. **Open** a project with `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, or `.php` files
-3. **Click** the kratai icon in the Activity Bar (left sidebar)
-4. **Create** your first diagram — root folder selected by default
-5. **Generate** and start exploring!
+### Quick Start (30 seconds)
 
-**Build Different Perspectives:**
-- **Full Architecture** — Visualize everything to understand system structure
-- **Domain Focus** — Isolate core business logic and entities
-- **API Layer** — Concentrate on endpoints and routing
-- **Feature Scopes** — Select specific folders for targeted analysis
-
-**Interactive Tips:**
-- **Click a class** to highlight its dependencies (black outline = focused, grey = related)
-- **Click any method or property** to open the file and jump directly to the definition
-- **Hover over a class** and click the ⋮ button to open its source file
-- **Press ESC** to clear highlights and return to full view
+1. Install from [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=kratai-core.kratai)
+2. Open any TypeScript/JavaScript/Python/PHP project
+3. Click the kratai icon in the sidebar
+4. Click "Create New Diagram" → Generate
 
 ---
 
 ## 🌐 Supported Languages & Frameworks
 
-| Language | Status | Parser | Framework Enrichment |
-|---|---|---|---|
-| **TypeScript** | ✅ Full Support | TypeScriptParser | Next.js (✅ Component rendering, type usage, fetch calls) |
-| **JavaScript** | ✅ Full Support | JavaScriptParser | Next.js (✅ JSX components) |
-| **Python** | ✅ Full Support | PythonParser | Django (✅ Views, Templates, ORM, DRF) |
-| **PHP** | ✅ Full Support | PHPParser | Laravel/Symfony (⏳ Planned) |
+| Language | Support | Framework Enrichment |
+|---|---|---|
+| **TypeScript** | ✅ Full | Next.js (components, types, API calls) |
+| **JavaScript** | ✅ Full | Next.js (JSX rendering) |
+| **Python** | ✅ Full | Django (views, templates, ORM, DRF) |
+| **PHP** | ✅ Full | Laravel/Symfony (planned) |
 
-**Framework Enrichment Status:**
-- **✅ Django:** Fully implemented — View → Template (`template_name`, `render()`), ORM relationships (ForeignKey, ManyToMany), REST Framework (ViewSets → Serializers), URL routing, middleware detection
-- **✅ Next.js:** Fully implemented — Component → Component (JSX like `<UserList />`), Component → Type/DTO (`useState<UserDTO>`), Component → API routes (`fetch('/api/users')`), HTTP method detection
+**Framework-specific features** automatically detect patterns like:
+- **Django:** View→Template, ORM relationships, REST Framework
+- **Next.js:** Component rendering, type usage, fetch() detection
 
-
----
-
-## ⚙️ Configuration
-
-kratai stores settings in `.vscode/kratai.json` in your workspace. Each diagram has its own configuration:
-
-### Per-Diagram Settings
-- **Diagram name** — Label for easy identification (e.g., "Domain Model", "API Routes")
-- **Folders to scan** — Root folder selected by default; customize to include only specific directories
-- **File extensions** — Select languages: `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, `.php`
-
-### Display Filters
-- **Class types (4 options)** — Show/hide: Classes, Interfaces, Abstract Classes, Modules
-- **Relationship types (24 options)** — Fine-grained control over what connections to display:
-  - **Core OOP**: extends, implements, composition, uses
-  - **Method Calls**: calls, calls-super, calls-static, async-calls
-  - **Type Relationships**: parameter, returns, creates
-  - **Module Graph**: imports, re-exports
-  - **HTTP**: http-call, routes-to
-  - **ORM**: belongs-to, many-to-many, one-to-one
-  - **Templates & Views**: renders, serializes, protected-by
-  - **Framework**: middleware, layout-wraps, server-action
-- **Git diff highlighting** — Toggle on/off to show uncommitted changes
-
-**Build Different Perspectives:** Create multiple diagrams with different configurations:
-- **Architecture Overview** — All folders, all relationships for system understanding
-- **Domain Core** — Just entities and models, show only composition and inheritance
-- **API Mapping** — Focus on HTTP endpoints and routing patterns
-
-**First-Time Setup:** On your first diagram generation, kratai opens the configuration panel with the root folder pre-selected. You can adjust settings and click "Save & Generate Diagram" to proceed.
-
----
-
-## 📋 Requirements
-
-- VS Code 1.120.0 or higher
-- A code project with supported languages
-- Git repository (optional, for diff highlighting)
-
----
-
-## ⚠️ Known Issues
-
-- Very large codebases (1000+ classes) may render slowly
 
 ---
 
