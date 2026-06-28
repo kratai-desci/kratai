@@ -98,7 +98,12 @@ Choose exactly what to show — select folders, filter relationship types, and c
 
 ## 📝 Release Notes
 
-### Latest: v1.9.0 (2026-06-27)
+### Latest: v1.9.1 (2026-06-28)
+- 🔧 **Intelligent Relationship Deduplication** — Reduces edge count by 60-75% by collapsing duplicate relationships into multi-type edges
+- 🎨 **Multi-Type Edge Labels** — See all relationship types in one edge (e.g., "renders, uses")
+- ⚡ **Improved Performance** — Faster rendering with cleaner, more readable diagrams
+
+### v1.9.0 (2026-06-27)
 - ✨ **Enhanced Key Features** — Restructured into scannable bullet points highlighting deterministic analysis, single source of truth, and AI integration
 
 ### v1.8.4

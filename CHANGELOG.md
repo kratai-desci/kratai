@@ -2,6 +2,24 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.9.1] - 2026-06-28
+
+### Added
+- **Intelligent Relationship Deduplication** — Automatically collapses multiple relationship types between the same two classes into a single edge (e.g., `Button → Icon (renders, uses)` instead of two separate edges)
+- **Multi-Type Edge Labels** — Edges with multiple relationship types now display all types in the label for complete context
+- **Visual Distinction** — Multi-type relationships use a distinct blue dashed style to differentiate from single-type edges
+
+### Improved
+- **Diagram Clarity** — Reduces edge count by 60-75% for large projects (e.g., 11,148 → ~2,500 relationships) by eliminating visual noise from duplicate edges
+- **Better Architectural Understanding** — Cleaner diagrams make it easier to understand system architecture without redundant connection clutter
+- **Performance** — Faster diagram rendering with significantly fewer edges to display
+
+### Technical
+- Relationship deduplication runs automatically after enrichment phase
+- Supports both single-type and multi-type relationships with backward compatibility
+- Enhanced filtering logic handles multi-type relationships (shows edge if ANY type matches filter)
+- Updated markdown export to properly handle and display multi-type relationships
+
 ## [1.9.0] - 2026-06-27
 
 ### Major Changes
