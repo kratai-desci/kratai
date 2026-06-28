@@ -97,9 +97,11 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 			const originalRelCount = diagramData.relationships.length;
 			if (hasRelFilters) {
 				diagramData.relationships = diagramData.relationships.filter(rel => {
-					// Only show relationships that are explicitly set to true
-					// If not in config, default to false (hidden)
-					return relationshipTypeFilters[rel.type] === true;
+					// Handle both single type and array of types
+					const types: string[] = Array.isArray(rel.type) ? rel.type : [rel.type as string];
+					
+					// Show relationship if ANY of its types is enabled in filter
+					return types.some(type => relationshipTypeFilters[type] === true);
 				});
 				console.log(`🔍 Relationship filter: ${originalRelCount} → ${diagramData.relationships.length} relationships`);
 			}

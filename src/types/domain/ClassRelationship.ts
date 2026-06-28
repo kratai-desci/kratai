@@ -1,6 +1,7 @@
 export interface ClassRelationship {
 	from: string;
 	to: string;
+	// Can be single string or array (after deduplication, same edge may have multiple types)
 	type: 
 		// OOP relationships
 		| 'extends' 
@@ -43,7 +44,8 @@ export interface ClassRelationship {
 		| 'serializes'      // DRF: Serializer → Model
 		| 'protected-by'    // Middleware/Guard → View/Route
 		// Template rendering
-		| 'renders';        // View/Controller → Template file
+		| 'renders'        // View/Controller → Template file
+		| string[];
 	
 	// Optional metadata for additional context
 	metadata?: {

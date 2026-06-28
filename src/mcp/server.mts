@@ -195,7 +195,10 @@ export class KrataiMCPServer {
 			const relationshipTypeFilters = config.relationshipTypeFilters || {};
 			if (Object.keys(relationshipTypeFilters).length > 0) {
 				diagramData.relationships = diagramData.relationships.filter(rel => {
-					return relationshipTypeFilters[rel.type] === true;
+					// Handle both single type and array of types
+					const types: string[] = Array.isArray(rel.type) ? rel.type : [rel.type as string];
+					// Show relationship if ANY of its types is enabled in filter
+					return types.some(type => relationshipTypeFilters[type] === true);
 				});
 			}
 

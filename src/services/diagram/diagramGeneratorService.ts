@@ -63,8 +63,27 @@ export class DiagramGeneratorService {
 		return edges;
 	}
 
-	private static getEdgeStyle(type: string): { type: string; label?: string; animated: boolean; style: Record<string, any> } {
-		switch (type) {
+	private static getEdgeStyle(type: string | string[]): { type: string; label?: string; animated: boolean; style: Record<string, any> } {
+		// Normalize to array
+		const types = Array.isArray(type) ? type : [type];
+		
+		// If multiple types, create a combined style
+		if (types.length > 1) {
+			return {
+				type: 'smoothstep',
+				label: types.join(', '),
+				animated: false,
+				style: { 
+					stroke: '#3498db',  // Blue for multi-type relationships
+					strokeWidth: 2.5,
+					strokeDasharray: '4,2'
+				}
+			};
+		}
+		
+		// Single type - use existing type-specific styling
+		const singleType = types[0];
+		switch (singleType) {
 			case 'extends':
 				return {
 					type: 'smoothstep',

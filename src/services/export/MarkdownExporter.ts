@@ -117,19 +117,25 @@ export class MarkdownExporter {
 			md += `_No relationships found._\n\n`;
 		} else {
 			// Group relationships by type
+			// For multi-type relationships, show them under each type
 			const byType = new Map<string, typeof data.relationships>();
 			for (const rel of data.relationships) {
-				if (!byType.has(rel.type)) {
-					byType.set(rel.type, []);
+				const types: string[] = Array.isArray(rel.type) ? rel.type : [rel.type as string];
+				
+				for (const type of types) {
+					if (!byType.has(type)) {
+						byType.set(type, []);
+					}
+					byType.get(type)!.push(rel);
 				}
-				byType.get(rel.type)!.push(rel);
 			}
 			
 			// Output by type with better formatting
 			for (const [type, rels] of byType) {
 				md += `### ${type} (${rels.length})\n\n`;
 				for (const rel of rels) {
-					md += `- **${rel.from}** → **${rel.to}** _(${type})_`;
+					const relTypes = Array.isArray(rel.type) ? rel.type.join(', ') : rel.type;
+					md += `- **${rel.from}** → **${rel.to}** _(${relTypes})_`;
 					
 					// Format metadata more clearly
 					if (rel.metadata) {
@@ -168,7 +174,12 @@ export class MarkdownExporter {
 	private static getRelationshipStats(data: DiagramData): Record<string, number> {
 		const stats: Record<string, number> = {};
 		for (const rel of data.relationships) {
-			stats[rel.type] = (stats[rel.type] || 0) + 1;
+			// Handle both single type and array of types
+			const types: string[] = Array.isArray(rel.type) ? rel.type : [rel.type as string];
+			
+			for (const type of types) {
+				stats[type] = (stats[type] || 0) + 1;
+			}
 		}
 		return stats;
 	}
