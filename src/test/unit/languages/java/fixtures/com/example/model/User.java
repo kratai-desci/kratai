@@ -1,7 +1,7 @@
 package com.example.model;
 
 /**
- * Test nested package structure - model layer
+ * Pure Java - Domain model in separate package
  */
 public class User {
     private Long id;

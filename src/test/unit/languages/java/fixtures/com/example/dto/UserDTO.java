@@ -1,7 +1,7 @@
 package com.example.dto;
 
 /**
- * Data Transfer Object in separate package - for parameter/return type testing
+ * Pure Java - Data Transfer Object in separate package (for parameter/return type testing)
  */
 public class UserDTO {
     private String name;

@@ -533,6 +533,42 @@ suite('Java Parser Test Suite', () => {
 				'Should preserve full package path in filePath');
 		});
 
+		test('should use workspace-relative paths (not absolute)', () => {
+			const fixturePath = path.join(fixturesPath, 'com/example/controller/UserController.java');
+			const classes = parser.parseFile(fixturePath);
+
+			assert.strictEqual(classes.length, 1);
+			const controller = classes[0];
+			
+			// CRITICAL: Must be workspace-relative like TypeScript/Python/PHP parsers
+			assert.ok(!controller.filePath.startsWith('/'), 
+				'filePath must NOT be absolute (should be workspace-relative)');
+			assert.ok(!controller.filePath.includes(fixturesPath), 
+				'filePath must NOT include fixtures absolute path');
+			
+			// Should be relative path from workspace root
+			assert.ok(controller.filePath.endsWith('com/example/controller/UserController.java'),
+				'filePath should end with package path + filename');
+		});
+
+		test('should produce same path format as other language parsers', () => {
+			const fixturePath = path.join(fixturesPath, 'com/example/model/User.java');
+			const classes = parser.parseFile(fixturePath);
+
+			assert.strictEqual(classes.length, 1);
+			const model = classes[0];
+			
+			// Format must match TypeScript: "src/models/User.ts"
+			// Format must match Python: "src/models/User.py"
+			// Format must match PHP: "app/Models/User.php"
+			// All use forward slashes, workspace-relative paths
+			
+			assert.ok(model.filePath.includes('/'), 'Should use forward slashes');
+			assert.ok(!model.filePath.includes('\\'), 'Should NOT use backslashes');
+			assert.ok(model.filePath.includes('com/example/model'), 
+				'Should include full package path with forward slashes');
+		});
+
 		test('should handle multiple files in nested packages', () => {
 			const controllerPath = path.join(fixturesPath, 'com/example/controller/UserController.java');
 			const servicePath = path.join(fixturesPath, 'com/example/service/UserService.java');
@@ -558,6 +594,30 @@ suite('Java Parser Test Suite', () => {
 			assert.ok(service?.filePath.includes('service'), 'Service should have service path');
 			assert.ok(repository?.filePath.includes('repository'), 'Repository should have repository path');
 			assert.ok(model?.filePath.includes('model'), 'Model should have model path');
+			
+			// All should be workspace-relative
+			[controller, service, repository, model].forEach(cls => {
+				assert.ok(cls, 'Class should exist');
+				assert.ok(!cls.filePath.startsWith('/'), 
+					`${cls.name} filePath must be workspace-relative, not absolute`);
+			});
+		});
+
+		test('should create correct IDs with full paths', () => {
+			const controllerPath = path.join(fixturesPath, 'com/example/controller/UserController.java');
+			const classes = parser.parseFile(controllerPath);
+
+			assert.strictEqual(classes.length, 1);
+			const controller = classes[0];
+			
+			// ID format: filePath__className
+			const expectedId = `${controller.filePath}__${controller.name}`;
+			
+			// ID must include package path to avoid collisions
+			assert.ok(expectedId.includes('com/example/controller'),
+				'ID must include full package path');
+			assert.ok(expectedId.includes('__UserController'),
+				'ID must include __ separator and class name');
 		});
 
 		test('should detect extends across packages', () => {
@@ -581,6 +641,10 @@ suite('Java Parser Test Suite', () => {
 			assert.ok(extendsRel, 'Should detect extends across packages');
 			assert.ok(extendsRel.from.includes('controller'), 'From should include controller package');
 			assert.ok(extendsRel.to.includes('base'), 'To should include base package');
+			
+			// Verify relationship uses filePath__className format
+			assert.ok(extendsRel.from.includes('__'), 'From ID must use filePath__className format');
+			assert.ok(extendsRel.to.includes('__'), 'To ID must use filePath__className format');
 		});
 
 		test('should detect implements across packages', () => {
@@ -604,6 +668,12 @@ suite('Java Parser Test Suite', () => {
 			assert.ok(implementsRel, 'Should detect implements across packages');
 			assert.ok(implementsRel.from.includes('service'), 'From should include service package');
 			assert.ok(implementsRel.to.includes('interfaces'), 'To should include interfaces package');
+			
+			// Verify full path IDs
+			assert.ok(implementsRel.from.includes('com/example/service'),
+				'From ID must include full package path');
+			assert.ok(implementsRel.to.includes('com/example/interfaces'),
+				'To ID must include full package path');
 		});
 
 		test('should detect composition across packages', () => {
@@ -627,6 +697,12 @@ suite('Java Parser Test Suite', () => {
 			assert.ok(compositionRel, 'Should detect composition across packages');
 			assert.ok(compositionRel.from.includes('controller'), 'From should include controller package');
 			assert.ok(compositionRel.to.includes('service'), 'To should include service package');
+			
+			// Relationship IDs must be unambiguous across entire workspace
+			assert.ok(!compositionRel.from.startsWith('/'),
+				'Relationship from must use workspace-relative path');
+			assert.ok(!compositionRel.to.startsWith('/'),
+				'Relationship to must use workspace-relative path');
 		});
 
 		test('should detect return types across packages', () => {
@@ -768,7 +844,7 @@ suite('Java Parser Test Suite', () => {
 			assert.ok(genericRel.to.includes('model'), 'To should include model package');
 		});
 
-		test('should handle same class name in different packages', () => {
+		test('should handle same class name in different packages without collision', () => {
 			const exampleUserPath = path.join(fixturesPath, 'com/example/model/User.java');
 			const acmeUserPath = path.join(fixturesPath, 'com/acme/model/User.java');
 
@@ -778,19 +854,25 @@ suite('Java Parser Test Suite', () => {
 			assert.strictEqual(exampleUser.length, 1);
 			assert.strictEqual(acmeUser.length, 1);
 			
-			// Both are named "User" but should have different file paths
+			// Both are named "User" but must have different file paths
 			assert.strictEqual(exampleUser[0].name, 'User');
 			assert.strictEqual(acmeUser[0].name, 'User');
 			
+			// Paths must be distinguishable
 			assert.ok(exampleUser[0].filePath.includes('com/example/model'), 
 				'com.example.User should have example path');
 			assert.ok(acmeUser[0].filePath.includes('com/acme/model'), 
 				'com.acme.User should have acme path');
 			
-			// IDs should be different (filePath__className format prevents ambiguity)
+			// CRITICAL: IDs must be unique to prevent collision in DiagramGeneratorService
 			const exampleId = `${exampleUser[0].filePath}__${exampleUser[0].name}`;
 			const acmeId = `${acmeUser[0].filePath}__${acmeUser[0].name}`;
-			assert.notStrictEqual(exampleId, acmeId, 'Same class name in different packages must have unique IDs');
+			assert.notStrictEqual(exampleId, acmeId, 
+				'Same class name in different packages MUST have unique IDs');
+			
+			// Both IDs must be workspace-relative for DiagramGeneratorService folder grouping
+			assert.ok(!exampleId.startsWith('/'), 'com.example.User ID must be workspace-relative');
+			assert.ok(!acmeId.startsWith('/'), 'com.acme.User ID must be workspace-relative');
 		});
 
 		test('should handle deep nesting (7+ levels)', () => {
@@ -803,6 +885,40 @@ suite('Java Parser Test Suite', () => {
 			assert.strictEqual(deepService.name, 'DeepService');
 			assert.ok(deepService.filePath.includes('com/company/app/module/feature/service/impl'), 
 				'Should preserve all 7 levels of nesting');
+			
+			// Deep paths must still be workspace-relative
+			assert.ok(!deepService.filePath.startsWith('/'),
+				'Even deeply nested paths must be workspace-relative');
+		});
+
+		test('should enable DiagramGeneratorService to create folder hierarchy', () => {
+			// This is the critical integration test!
+			// DiagramGeneratorService expects workspace-relative paths like:
+			// - "src/services/UserService.ts"  (TypeScript)
+			// - "app/Models/User.php"          (PHP)
+			// - "com/example/service/UserService.java" (Java should match this pattern)
+			
+			const servicePath = path.join(fixturesPath, 'com/example/service/UserService.java');
+			const classes = parser.parseFile(servicePath);
+
+			assert.strictEqual(classes.length, 1);
+			const service = classes[0];
+			
+			// Extract folder path (everything before the filename)
+			const pathParts = service.filePath.split('/');
+			const filename = pathParts[pathParts.length - 1];
+			const folderPath = pathParts.slice(0, -1).join('/');
+			
+			// DiagramGeneratorService needs this to create folders
+			assert.strictEqual(filename, 'UserService.java', 'Filename should be extracted correctly');
+			assert.ok(folderPath.includes('com/example/service'),
+				'Folder path should be extractable for DiagramGeneratorService');
+			assert.ok(folderPath.length > 0,
+				'Folder path must not be empty for nested packages');
+			
+			// The path format must allow folder hierarchy creation
+			assert.ok(pathParts.length >= 4,
+				'Java packages typically have 3+ levels (com/example/service/...)');
 		});
 	});
 });

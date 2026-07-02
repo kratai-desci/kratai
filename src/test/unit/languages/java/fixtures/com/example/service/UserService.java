@@ -8,7 +8,7 @@ import com.example.factory.UserFactory;
 import java.util.List;
 
 /**
- * Test comprehensive cross-package relationships
+ * Pure Java - Test comprehensive cross-package relationships
  * - Implements IUserService (different package)
  * - Uses UserRepository (composition)
  * - Generic type: List<User>
@@ -22,12 +22,10 @@ public class UserService implements IUserService {
         this.repository = repository;
     }
     
-    @Override
     public User findById(Long id) {
         return repository.findById(id);
     }
     
-    @Override
     public void save(User user) {
         repository.save(user);
     }

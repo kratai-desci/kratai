@@ -7,7 +7,7 @@ import com.example.base.BaseController;
 import com.example.util.ValidationUtils;
 
 /**
- * Test comprehensive cross-package relationships
+ * Pure Java - Test comprehensive cross-package relationships
  * - Extends BaseController (different package)
  * - Uses UserService (composition)
  * - Returns User (return type)
@@ -22,7 +22,6 @@ public class UserController extends BaseController {
         this.userService = userService;
     }
     
-    @Override
     public void initialize() {
         super.logRequest("UserController initialized");
     }

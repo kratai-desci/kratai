@@ -1,7 +1,7 @@
 package com.company.app.module.feature.service.impl;
 
 /**
- * Test DEEP nesting (7 levels)
+ * Pure Java - Test DEEP nesting (7 levels)
  * com/company/app/module/feature/service/impl/DeepService.java
  */
 public class DeepService {

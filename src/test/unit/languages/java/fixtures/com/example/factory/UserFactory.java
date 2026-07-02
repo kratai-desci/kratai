@@ -3,7 +3,7 @@ package com.example.factory;
 import com.example.model.User;
 
 /**
- * Factory in separate package - for creates relationship testing
+ * Pure Java - Factory in separate package (for creates relationship testing)
  */
 public class UserFactory {
     public static User createDefault() {
