@@ -76,11 +76,11 @@ suite('SpringBootEnricher - Framework Enrichment', () => {
 				'MUST mark @RestController as rest-controller type');
 		});
 		
-		test.skip('should detect @Controller class for MVC', async () => {
-			// Skipped: No UserViewController.java fixture exists
-			const mockClasses: ClassInfo[] = [{
-				name: 'UserViewController',
-				filePath: 'src/main/java/com/example/controller/UserViewController.java',
+test('should detect @Controller class for MVC', async () => {
+		// MVC controllers return HTML views (not JSON)
+		const mockClasses: ClassInfo[] = [{
+			name: 'UserViewController',
+			filePath: 'UserViewController.java',
 				properties: [],
 				methods: [],
 				classType: 'class'
