@@ -136,8 +136,8 @@ export class SpringBootEnricher extends AbstractEnricher {
 			classInfo.classType = 'service';
 			features.push('service');
 		}
-		// @Repository - Data access layer
-		else if (/@Repository\b/.test(content)) {
+		// @Repository - Data access layer (override 'interface' if needed)
+		if (/@Repository\b/.test(content)) {
 			classInfo.classType = 'repository';
 			features.push('repository');
 		}
@@ -169,11 +169,12 @@ export class SpringBootEnricher extends AbstractEnricher {
 				};
 			}
 			
-			// Find primary key field (@Id annotation)
-			const idMatch = /@Id\s+[\w\s<>]+\s+(\w+)\s*;/.exec(content);
+			// Find primary key field (@Id annotation) - handle multi-line
+			const idPattern = /@Id[\s\S]*?private\s+(\w+)\s+(\w+)\s*;/;
+			const idMatch = idPattern.exec(content);
 			if (idMatch) {
 				if (!classInfo.entityMeta) classInfo.entityMeta = {};
-				classInfo.entityMeta.primaryKey = idMatch[1];
+				classInfo.entityMeta.primaryKey = idMatch[2]; // Field name is second capture group
 			}
 		}
 	}
@@ -277,10 +278,13 @@ export class SpringBootEnricher extends AbstractEnricher {
 			}
 		});
 		
-		// Handle @GetMapping, @PostMapping etc. without explicit path
+		// Handle @GetMapping, @PostMapping etc. without explicit path (just basePath)
 		const noPathPatterns = [
-			/@GetMapping(?:\s*\(\s*\))?[\s\n]+(?:public|private|protected)/g,
-			/@PostMapping(?:\s*\(\s*\))?[\s\n]+(?:public|private|protected)/g,
+			/@GetMapping(?:\s*\(\s*\))?\s+/g,
+			/@PostMapping(?:\s*\(\s*\))?\s+/g,
+			/@PutMapping(?:\s*\(\s*\))?\s+/g,
+			/@DeleteMapping(?:\s*\(\s*\))?\s+/g,
+			/@PatchMapping(?:\s*\(\s*\))?\s+/g,
 		];
 		
 		noPathPatterns.forEach((pattern, index) => {
@@ -360,25 +364,19 @@ export class SpringBootEnricher extends AbstractEnricher {
 			return;
 		}
 		
-		// @OneToMany - One entity has many of another
-		const oneToManyRegex = /@OneToMany[^;]*?(\w+)\s+(\w+)\s*;/g;
+		// @OneToMany - One entity has many of another (handle multi-line)
+		const oneToManyPattern = /@OneToMany[\s\S]*?(?:private|public|protected)\s+(?:List|Set|Collection)<(\w+)>\s+(\w+)\s*[=;]/g;
 		let match;
-		while ((match = oneToManyRegex.exec(content)) !== null) {
-			// Extract target entity type from generic or field type
-			const fieldType = match[1]; // e.g., "List<Post>" or "Set<Role>"
+		while ((match = oneToManyPattern.exec(content)) !== null) {
+			const targetEntity = match[1];
 			const fieldName = match[2];
 			
-			// Extract generic type
-			const genericMatch = /(?:List|Set|Collection)<(\w+)>/.exec(fieldType);
-			if (genericMatch) {
-				const targetEntity = genericMatch[1];
-				newRelationships.push({
-					from: classInfo.name,
-					to: targetEntity,
-					type: 'one-to-many'
-				});
-				features.push('jpa-relationships');
-			}
+			newRelationships.push({
+				from: classInfo.name,
+				to: targetEntity,
+				type: 'one-to-many'
+			});
+			features.push('jpa-relationships');
 		}
 		
 		// @ManyToOne - Many entities reference one
@@ -395,9 +393,9 @@ export class SpringBootEnricher extends AbstractEnricher {
 			features.push('jpa-relationships');
 		}
 		
-		// @ManyToMany
-		const manyToManyRegex = /@ManyToMany[^;]*?(?:Set|List)<(\w+)>\s+(\w+)\s*;/g;
-		while ((match = manyToManyRegex.exec(content)) !== null) {
+		// @ManyToMany (handle multi-line)
+		const manyToManyPattern = /@ManyToMany[\s\S]*?(?:private|public|protected)\s+(?:Set|List|Collection)<(\w+)>\s+(\w+)\s*[=;]/g;
+		while ((match = manyToManyPattern.exec(content)) !== null) {
 			const targetEntity = match[1];
 			const fieldName = match[2];
 			
