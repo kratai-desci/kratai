@@ -2,6 +2,26 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.9.2] - 2026-07-03
+
+### Added
+- **Java & Spring Boot Support** — Full support for Java language and Spring Boot framework enrichment
+- **Spring Boot Framework Detection** — Automatic detection of @Controller, @RestController, @Service, @Repository annotations
+- **MVC View Rendering** — Detects controller → JSP/Thymeleaf view relationships (supports both `return "viewName"` and `ModelAndView` patterns)
+- **JPA Relationship Detection** — Automatically maps @OneToMany, @ManyToOne, @ManyToMany, @OneToOne entity relationships
+- **Dependency Injection Tracking** — Detects constructor injection and @Autowired field injection patterns
+- **REST API Mapping** — Extracts @GetMapping, @PostMapping, @PutMapping, @DeleteMapping endpoints
+- **Repository Pattern Detection** — Recognizes JpaRepository extensions and @Query methods
+
+### Fixed
+- **Relationship ID Format** — SpringBootEnricher now uses proper `filePath__name` IDs matching other enrichers, fixing relationship filtering issues
+- **Test Fixture Syntax** — Fixed extra closing brace in UserViewController test fixture
+
+### Technical
+- All SpringBootEnricher relationships now use consistent ID format for proper orphan filtering
+- Added 38 comprehensive tests covering Spring Boot patterns (controllers, services, repositories, JPA, DI)
+- Enhanced view name extraction to support real-world Spring MVC patterns
+
 ## [1.9.1] - 2026-06-28
 
 ### Added

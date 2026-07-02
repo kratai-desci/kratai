@@ -87,9 +87,11 @@ Choose exactly what to show — select folders, filter relationship types, and c
 | **TypeScript** | ✅ Full | Next.js (components, types, API calls) |
 | **JavaScript** | ✅ Full | Next.js (JSX rendering) |
 | **Python** | ✅ Full | Django (views, templates, ORM, DRF) |
+| **Java** | ✅ Full | Spring Boot (MVC, JPA, REST, DI) |
 | **PHP** | ✅ Full | Laravel/Symfony (planned) |
 
 **Framework-specific features** automatically detect patterns like:
+- **Spring Boot:** Controller→View (JSP/Thymeleaf), JPA relationships, REST endpoints, dependency injection
 - **Django:** View→Template, ORM relationships, REST Framework
 - **Next.js:** Component rendering, type usage, fetch() detection
 
@@ -98,7 +100,12 @@ Choose exactly what to show — select folders, filter relationship types, and c
 
 ## 📝 Release Notes
 
-### Latest: v1.9.1 (2026-06-28)
+### Latest: v1.9.2 (2026-07-03)
+- ☕ **Java & Spring Boot Support** — Full language and framework support with MVC, JPA, REST, and dependency injection detection
+- 🎯 **Spring Boot Patterns** — Automatic detection of controllers, services, repositories, and view rendering
+- 🔗 **JPA Relationships** — Maps @OneToMany, @ManyToOne, @ManyToMany, @OneToOne entity relationships
+
+### v1.9.1 (2026-06-28)
 - 🔧 **Intelligent Relationship Deduplication** — Reduces edge count by 60-75% by collapsing duplicate relationships into multi-type edges
 - 🎨 **Multi-Type Edge Labels** — See all relationship types in one edge (e.g., "renders, uses")
 - ⚡ **Improved Performance** — Faster rendering with cleaner, more readable diagrams
