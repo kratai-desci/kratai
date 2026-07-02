@@ -54,4 +54,3 @@ public class UserViewController {
         return new ModelAndView("users/form");
     }
 }
-}
