@@ -121,41 +121,6 @@ export class SpringBootEnricher extends AbstractEnricher {
 	 * Detect Spring stereotype annotations and set classType
 	 */
 	private detectStereotypes(classInfo: ClassInfo, content: string, features: string[]): void {
-		// If file doesn't exist (mock test), infer from naming conventions
-		if (!fileExists) {
-			const fileName = classInfo.name;
-			const filePath = classInfo.filePath.toLowerCase();
-			
-			if (fileName.includes('Controller') && !fileName.includes('Advice')) {
-				// Use 'controller' for MVC controllers (typically have 'View' in name)
-				// Use 'rest-controller' for REST API controllers
-				if (fileName.includes('View')) {
-					classInfo.classType = 'controller';
-					features.push('controller');
-				} else {
-					classInfo.classType = 'rest-controller';
-					features.push('rest-controller');
-				}
-				return;
-			}
-			if (fileName.includes('Service') || filePath.includes('/service/')) {
-				classInfo.classType = 'service';
-				features.push('service');
-				return;
-			}
-			if (fileName.includes('Repository') || filePath.includes('/repository/')) {
-				classInfo.classType = 'repository';
-				features.push('repository');
-				return;
-			}
-			if (fileName.includes('Entity') || filePath.includes('/entity/') || filePath.includes('/model/')) {
-				classInfo.classType = 'entity';
-				features.push('jpa-entity');
-				return;
-			}
-			return;
-		}
-		
 		// @RestController - REST API controller (returns JSON)
 		if (/@RestController\b/.test(content)) {
 			classInfo.classType = 'rest-controller';
@@ -192,17 +157,6 @@ export class SpringBootEnricher extends AbstractEnricher {
 	 * Detect @Entity annotation
 	 */
 	private detectEntity(classInfo: ClassInfo, content: string, features: string[]): void {
-		// If class is already marked as entity by stereotype detection, add metadata
-		if (classInfo.classType === 'entity' && !content) {
-			// For mocks without file content, infer from class name
-			const idProp = classInfo.properties.find(p => p.name === 'id' || p.name.toLowerCase().endsWith('id'));
-			classInfo.entityMeta = {
-				tableName: classInfo.name.toLowerCase() + 's',
-				primaryKey: idProp ? idProp.name : undefined
-			};
-			return;
-		}
-		
 		if (/@Entity\b/.test(content)) {
 			classInfo.classType = 'entity';
 			features.push('jpa-entity');
@@ -266,58 +220,6 @@ export class SpringBootEnricher extends AbstractEnricher {
 		enhancedClasses: ClassInfo[],
 		features: string[]
 	): void {
-		// For mock tests without files, create routes from method names
-		if (!fileExists) {
-			// Infer base path from controller name (e.g., UserController -> /users)
-			const basePath = '/' + classInfo.name.replace('Controller', '').replace('View', '').toLowerCase() + 's';
-			
-			for (const method of classInfo.methods) {
-				// Infer HTTP method from method name
-				let httpMethod = 'GET';
-				const methodName = method.name.toLowerCase();
-				if (methodName.startsWith('create') || methodName.startsWith('save') || methodName.startsWith('add')) {
-					httpMethod = 'POST';
-				} else if (methodName.startsWith('update') || methodName.startsWith('edit')) {
-					httpMethod = 'PUT';
-				} else if (methodName.startsWith('delete') || methodName.startsWith('remove')) {
-					httpMethod = 'DELETE';
-				} else if (methodName.startsWith('patch')) {
-					httpMethod = 'PATCH';
-				}
-				
-				// Infer path from method parameters
-				let path = basePath;
-				const pathVariables: string[] = [];
-				
-				// Check if method has id parameter
-				for (const param of method.parameters) {
-					if (param.name === 'id' || param.name.endsWith('Id')) {
-						path += '/:' + param.name;
-						pathVariables.push(param.name);
-					}
-				}
-				
-				// Create route node
-				const routeNode: ClassInfo = {
-					name: `${httpMethod} ${path}`,
-					filePath: classInfo.filePath,
-					properties: [],
-					methods: [],
-					classType: 'route',
-					routeMeta: {
-						path: path,
-						method: httpMethod,
-						definedIn: classInfo.name,
-						pathVariables: pathVariables.length > 0 ? pathVariables : undefined
-					}
-				};
-				
-				enhancedClasses.push(routeNode);
-				features.push('http-routes');
-			}
-			return;
-		}
-		
 		// Get base path from @RequestMapping at class level
 		let basePath = '';
 		const classRequestMapping = /@RequestMapping\s*\(\s*(?:value\s*=\s*)?["']([^"']+)["']/.exec(content);
@@ -531,21 +433,6 @@ export class SpringBootEnricher extends AbstractEnricher {
 		newRelationships: ClassRelationship[],
 		features: string[]
 	): void {
-		// For mock tests, infer DI from properties
-		if (!fileExists) {
-			for (const prop of classInfo.properties) {
-				if (!this.isPrimitiveOrCommon(prop.type)) {
-					newRelationships.push({
-						from: classInfo.name,
-						to: prop.type,
-						type: 'injects'
-					});
-					features.push('dependency-injection');
-				}
-			}
-			return;
-		}
-		
 		// Constructor injection (recommended pattern)
 		// Look for constructor parameters
 		const constructorRegex = new RegExp(`public\\s+${classInfo.name}\\s*\\(([^)]*)\\)`, 'g');
