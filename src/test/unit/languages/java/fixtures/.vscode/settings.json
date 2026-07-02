@@ -1,0 +1,6 @@
+{
+  "java.enabled": false,
+  "files.associations": {
+    "*.java": "plaintext"
+  }
+}

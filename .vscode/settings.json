@@ -15,5 +15,14 @@
 		"**/out/**",
 		"**/src/test/**"
 	],
-	"php.validate.enable": false
+	"php.validate.enable": false,
+	// Exclude Java test fixtures from Java Language Server to prevent compilation errors
+	"java.project.sourcePaths": [],
+	"java.import.exclusions": [
+		"**/test/unit/languages/java/fixtures/**"
+	],
+	"java.compile.nullAnalysis.mode": "disabled",
+	"files.associations": {
+		"**/test/unit/languages/java/fixtures/*.java": "plaintext"
+	}
 }
