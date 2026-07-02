@@ -395,8 +395,8 @@ private detectStereotypes(classInfo: ClassInfo, content: string, features: strin
 				// Link to real JSP file (don't create virtual view)
 				console.log(`🎨   ✅ Linked "${viewName}" → real JSP: ${matchingJsp.name}`);
 				newRelationships.push({
-					from: classInfo.name,
-					to: matchingJsp.name,
+				from: `${classInfo.filePath}__${classInfo.name}`,
+				to: `${matchingJsp.filePath}__${matchingJsp.name}`,
 					type: 'renders'
 				});
 				features.push('mvc-views');
@@ -490,7 +490,7 @@ private detectStereotypes(classInfo: ClassInfo, content: string, features: strin
 					const isManyToMany = manyToManyKeywords.some(keyword => propName.includes(keyword));
 					
 					newRelationships.push({
-						from: classInfo.name,
+						from: `${classInfo.filePath}__${classInfo.name}`,
 						to: targetEntity,
 						type: isManyToMany ? 'many-to-many' : 'one-to-many'
 					});
@@ -507,7 +507,7 @@ private detectStereotypes(classInfo: ClassInfo, content: string, features: strin
 					const isOneToOne = oneToOneKeywords.some(keyword => propName.includes(keyword));
 					
 					newRelationships.push({
-						from: classInfo.name,
+						from: `${classInfo.filePath}__${classInfo.name}`,
 						to: propType,
 						type: isOneToOne ? 'one-to-one' : 'many-to-one'
 					});
@@ -525,7 +525,7 @@ private detectStereotypes(classInfo: ClassInfo, content: string, features: strin
 			const fieldName = match[2];
 			
 			newRelationships.push({
-				from: classInfo.name,
+				from: `${classInfo.filePath}__${classInfo.name}`,
 				to: targetEntity,
 				type: 'one-to-many'
 			});
@@ -539,7 +539,7 @@ private detectStereotypes(classInfo: ClassInfo, content: string, features: strin
 			const fieldName = match[2];
 			
 			newRelationships.push({
-				from: classInfo.name,
+				from: `${classInfo.filePath}__${classInfo.name}`,
 				to: targetEntity,
 				type: 'many-to-one'
 			});
@@ -553,7 +553,7 @@ private detectStereotypes(classInfo: ClassInfo, content: string, features: strin
 			const fieldName = match[2];
 			
 			newRelationships.push({
-				from: classInfo.name,
+				from: `${classInfo.filePath}__${classInfo.name}`,
 				to: targetEntity,
 				type: 'many-to-many'
 			});
@@ -567,7 +567,7 @@ private detectStereotypes(classInfo: ClassInfo, content: string, features: strin
 			const fieldName = match[2];
 			
 			newRelationships.push({
-				from: classInfo.name,
+				from: `${classInfo.filePath}__${classInfo.name}`,
 				to: targetEntity,
 				type: 'one-to-one'
 			});
@@ -600,7 +600,7 @@ private detectStereotypes(classInfo: ClassInfo, content: string, features: strin
 					// Skip primitive types and common Java types
 					if (!this.isPrimitiveOrCommon(injectedType)) {
 						newRelationships.push({
-							from: classInfo.name,
+							from: `${classInfo.filePath}__${classInfo.name}`,
 							to: injectedType,
 							type: 'injects'
 						});
@@ -618,7 +618,7 @@ private detectStereotypes(classInfo: ClassInfo, content: string, features: strin
 			
 			if (!this.isPrimitiveOrCommon(injectedType)) {
 				newRelationships.push({
-					from: classInfo.name,
+					from: `${classInfo.filePath}__${classInfo.name}`,
 					to: injectedType,
 					type: 'injects'
 				});
@@ -656,20 +656,11 @@ private detectStereotypes(classInfo: ClassInfo, content: string, features: strin
 			if (matchingService) {
 				// Check if there's already an "injects" relationship (from DI)
 				const hasInjects = newRelationships.some(r =>
-					r.from === controller.name &&
-					r.to === matchingService.name &&
-					r.type === 'injects'
-				);
-				
-				// If no DI relationship, create a "calls" relationship
-				if (!hasInjects) {
-					newRelationships.push({
-						from: controller.name,
-						to: matchingService.name,
-						type: 'calls'
-					});
-					features.push('service-calls');
-				}
+				r.from === `${controller.filePath}__${controller.name}` &&
+				r.to === matchingService.name &&
+				r.type === 'injects'
+			);
+			
 			}
 		}
 	}
