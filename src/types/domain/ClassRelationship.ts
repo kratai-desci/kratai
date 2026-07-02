@@ -40,6 +40,9 @@ export interface ClassRelationship {
 		| 'has-many'        // Django/Laravel: Reverse ForeignKey, hasMany
 		| 'many-to-many'    // Django/Laravel: ManyToManyField
 		| 'one-to-one'      // Django/Laravel: OneToOneField
+		// JPA relationships (Spring Boot)
+		| 'one-to-many'     // JPA @OneToMany: User -> List<Post>
+		| 'many-to-one'     // JPA @ManyToOne: Post -> User
 		// Django REST Framework
 		| 'serializes'      // DRF: Serializer → Model
 		| 'protected-by'    // Middleware/Guard → View/Route

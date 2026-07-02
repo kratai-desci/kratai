@@ -28,9 +28,13 @@ export interface ClassInfo {
 		| 'layout'        // Next.js layout component
 		| 'page'          // Next.js page component
 		| 'server-action' // Next.js server action
-		| 'controller'    // Laravel/Django controller
+		| 'controller'    // MVC controller (returns views)
+		| 'rest-controller' // REST API controller (returns JSON)
 		| 'service'       // Service layer
-		| 'repository';   // Data access layer
+		| 'repository'    // Data access layer
+		| 'entity'        // JPA/ORM entity
+		| 'configuration' // Spring @Configuration
+		| 'exception-handler'; // Spring @ControllerAdvice
 	changeStatus?: 'added' | 'deleted' | 'modified' | 'unchanged';
 	
 	// HTTP route metadata (for route nodes)
@@ -38,5 +42,18 @@ export interface ClassInfo {
 		path: string;        // '/api/users/:id'
 		method: string;      // 'GET', 'POST', '*' (any)
 		definedIn?: string;  // Source file path
+		pathVariables?: string[]; // ['id', 'postId']
+	};
+	
+	// Spring Boot repository metadata
+	repositoryMeta?: {
+		entityType?: string;  // 'User' from JpaRepository<User, Long>
+		idType?: string;      // 'Long' from JpaRepository<User, Long>
+	};
+	
+	// Spring Boot entity metadata
+	entityMeta?: {
+		tableName?: string;   // From @Table(name = "users")
+		primaryKey?: string;  // Field marked with @Id
 	};
 }
