@@ -236,4 +236,68 @@ suite('FolderStructureBuilder Test Suite', () => {
 		const totalFolders = FolderStructureBuilder.countFolders(root);
 		assert.strictEqual(totalFolders, 4, 'Should count 4 folders (root + com + example + other)');
 	});
+
+	test('should support Spring template files (JSP, FreeMarker, Mustache)', () => {
+		const mockClassInfo = (name: string, filePath: string): ClassInfo => ({
+			name,
+			filePath,
+			properties: [],
+			methods: [],
+			classType: 'class'
+		});
+
+		const nodes: ReactFlowNode[] = [
+			{
+				id: 'jsp',
+				type: 'customClass',
+				position: { x: 0, y: 0 },
+				data: {
+					label: 'userList',
+					classInfo: mockClassInfo('userList', 'WEB-INF/views/user/userList.jsp')
+				}
+			},
+			{
+				id: 'ftl',
+				type: 'customClass',
+				position: { x: 0, y: 0 },
+				data: {
+					label: 'dashboard',
+					classInfo: mockClassInfo('dashboard', 'templates/admin/dashboard.ftl')
+				}
+			},
+			{
+				id: 'mustache',
+				type: 'customClass',
+				position: { x: 0, y: 0 },
+				data: {
+					label: 'home',
+					classInfo: mockClassInfo('home', 'templates/home.mustache')
+				}
+			}
+		];
+
+		const root = FolderStructureBuilder.build(nodes);
+
+		// All should be in folders, not at root
+		assert.strictEqual(root.classes.length, 0, 'All template files should be organized in folders');
+
+		// JSP in WEB-INF/views/user/
+		const webinf = root.children.get('WEB-INF')!;
+		assert.ok(webinf, 'Should have WEB-INF folder');
+		const views = webinf.children.get('views')!;
+		const user = views.children.get('user')!;
+		assert.strictEqual(user.classes.length, 1, 'Should have JSP in user folder');
+		assert.strictEqual(user.classes[0].data.label, 'userList');
+
+		// FreeMarker in templates/admin/
+		const templates = root.children.get('templates')!;
+		assert.ok(templates, 'Should have templates folder');
+		const admin = templates.children.get('admin')!;
+		assert.strictEqual(admin.classes.length, 1, 'Should have FTL in admin folder');
+		assert.strictEqual(admin.classes[0].data.label, 'dashboard');
+
+		// Mustache in templates/
+		assert.strictEqual(templates.classes.length, 1, 'Should have Mustache in templates folder');
+		assert.strictEqual(templates.classes[0].data.label, 'home');
+	});
 });

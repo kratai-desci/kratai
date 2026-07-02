@@ -24,7 +24,8 @@ export class FolderStructureBuilder {
 			
 			// Match the full path structure, capturing everything before the file
 			// Supports: TypeScript, JavaScript, Python, PHP, Java, Kotlin, Groovy, HTML, Twig
-			const matchPath = filePath.match(/^(.+)\/[^\/]+\.(tsx?|jsx?|py|php|java|kt|groovy|html?|twig)$/);
+			// + Spring templates: JSP, FreeMarker, Mustache, Velocity + XML configs
+			const matchPath = filePath.match(/^(.+)\/[^\/]+\.(tsx?|jsx?|py|php|java|kt|groovy|html?|twig|jsp|ftlh?|mustache|vm|xml)$/);
 			
 			if (matchPath) {
 				// File has a folder path - split into parts
