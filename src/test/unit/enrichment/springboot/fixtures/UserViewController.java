@@ -5,18 +5,22 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.servlet.ModelAndView;
 import com.example.service.UserService;
 
 /**
  * MVC Controller - Returns HTML views (Thymeleaf/JSP)
  * Uses @Controller for traditional web pages
+ * Tests REAL-WORLD Spring MVC patterns
  * 
  * MUST detect:
  * - @Controller annotation → classType = 'controller'
  * - Constructor injection (UserService)
  * - @RequestMapping at class level
  * - @GetMapping methods
- * - Returns view names (String), not ResponseEntity
+ * - Pattern 1: Simple string return
+ * - Pattern 2: ModelAndView variable
+ * - Pattern 3: Inline ModelAndView
  */
 @Controller
 @RequestMapping("/users")
@@ -29,23 +33,25 @@ public class UserViewController {
         this.userService = userService;
     }
     
-    // MUST detect: GET /users (list view)
+    // PATTERN 1: Simple string return (original pattern)
     @GetMapping
     public String listUsers(Model model) {
         model.addAttribute("users", userService.findAll());
         return "users/list"; // Returns view name (Thymeleaf template)
     }
     
-    // MUST detect: GET /users/:id (detail view)
+    // PATTERN 2: ModelAndView variable (most common real-world pattern)
     @GetMapping("/{id}")
-    public String viewUser(@PathVariable Long id, Model model) {
-        model.addAttribute("user", userService.findById(id));
-        return "users/view"; // Returns view name
+    public ModelAndView viewUser(@PathVariable Long id) {
+        ModelAndView mv = new ModelAndView("users/view");
+        mv.addObject("user", userService.findById(id));
+        return mv;
     }
     
-    // MUST detect: GET /users/new (create form)
+    // PATTERN 3: Inline ModelAndView (also common)
     @GetMapping("/new")
-    public String newUserForm(Model model) {
-        return "users/form";
+    public ModelAndView newUserForm() {
+        return new ModelAndView("users/form");
     }
+}
 }

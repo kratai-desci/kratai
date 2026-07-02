@@ -110,35 +110,35 @@ export class SpringBootEnricher extends AbstractEnricher {
 			
 			// Phase 1: Extract view names from MVC controllers
 			if (enhanced.classType === 'controller') {
-				this.extractViewNames(enhanced, fileContent, enhancedClasses, newRelationships, features);
-			}
-			
-			// Phase 1: Detect JPA relationships
-			this.detectJpaRelationships(enhanced, fileContent, newRelationships, features);
-			
-			// Phase 1: Detect dependency injection
-			this.detectDependencyInjection(enhanced, fileContent, newRelationships, features);
-			
-			enhancedClasses.push(enhanced);
+			this.extractViewNames(enhanced, fileContent, context.classes, enhancedClasses, newRelationships, features);
 		}
 		
-		// Phase 1: Infer controller->service calls based on naming patterns
-		this.inferServiceCalls(enhancedClasses, newRelationships, features);
+		// Phase 1: Detect JPA relationships
+		this.detectJpaRelationships(enhanced, fileContent, newRelationships, features);
 		
-		return {
-			enhancedClasses,
-			newRelationships,
-			metadata: {
-				framework: this.framework,
-				features: Array.from(new Set(features))
-			}
-		};
+		// Phase 1: Detect dependency injection
+		this.detectDependencyInjection(enhanced, fileContent, newRelationships, features);
+		
+		enhancedClasses.push(enhanced);
 	}
 	
-	/**
-	 * Detect Spring stereotype annotations and set classType
-	 */
-	private detectStereotypes(classInfo: ClassInfo, content: string, features: string[]): void {
+	// Phase 1: Infer controller->service calls based on naming patterns
+	this.inferServiceCalls(enhancedClasses, newRelationships, features);
+	
+	return {
+		enhancedClasses,
+		newRelationships,
+		metadata: {
+			framework: this.framework,
+			features: Array.from(new Set(features))
+		}
+	};
+}
+
+/**
+ * Detect Spring stereotype annotations and set classType
+ */
+private detectStereotypes(classInfo: ClassInfo, content: string, features: string[]): void {
 		// @RestController - REST API controller (returns JSON)
 		if (/@RestController\b/.test(content)) {
 			classInfo.classType = 'rest-controller';
@@ -330,19 +330,26 @@ export class SpringBootEnricher extends AbstractEnricher {
 	/**
 	 * Extract view names from MVC controller methods
 	 * MVC controllers return String (view name) instead of ResponseEntity
+	 * 
+	 * Strategy:
+	 * 1. Check if real JSP file exists for the view name
+	 * 2. If yes, link to real JSP file (don't create virtual view)
+	 * 3. If no, create virtual view node (fallback)
 	 */
 	private extractViewNames(
 		classInfo: ClassInfo,
 		content: string,
+		allClasses: ClassInfo[],
 		enhancedClasses: ClassInfo[],
 		newRelationships: ClassRelationship[],
 		features: string[]
 	): void {
-		// Extract return statements with string literals
-		// Pattern: return "viewName"; or return "path/to/view";
-		const returnPattern = /return\s+"([^"]+)"\s*;/g;
 		const viewNames = new Set<string>();
 		
+		console.log(`🎨 [SpringBoot] Extracting view names from controller: ${classInfo.name}`);
+		
+		// Pattern 1: Simple string return - return "viewName";
+		const returnPattern = /return\s+"([^"]+)"\s*;/g;
 		let match;
 		while ((match = returnPattern.exec(content)) !== null) {
 			const viewName = match[1];
@@ -355,31 +362,104 @@ export class SpringBootEnricher extends AbstractEnricher {
 				continue;
 			}
 			
+			console.log(`🎨   Pattern 1 detected: "${viewName}"`);
 			viewNames.add(viewName);
 		}
 		
+		// Pattern 2: ModelAndView constructor - new ModelAndView("viewName")
+		// Matches: return new ModelAndView("viewName");
+		// Matches: ModelAndView mv = new ModelAndView("viewName");
+		const modelAndViewPattern = /new\s+ModelAndView\s*\(\s*"([^"]+)"\s*\)/g;
+		while ((match = modelAndViewPattern.exec(content)) !== null) {
+			const viewName = match[1];
+			
+			// Skip redirects and forwards
+			if (!viewName || 
+			    viewName.startsWith('redirect:') ||
+			    viewName.startsWith('forward:')) {
+				continue;
+			}
+			
+			console.log(`🎨   Pattern 2 detected: "${viewName}"`);
+			viewNames.add(viewName);
+		}
+		
+		console.log(`🎨   Total unique view names: ${viewNames.size}`);
+		
 		// Create view nodes and relationships
 		for (const viewName of viewNames) {
-			// Create view node
-			const viewNode: ClassInfo = {
-				name: viewName,
-				filePath: classInfo.filePath, // Same file as controller
-				properties: [],
-				methods: [],
-				classType: 'view'
-			};
+			// Check if a real JSP file exists for this view name
+			const matchingJsp = this.findMatchingJspFile(viewName, allClasses);
 			
-			enhancedClasses.push(viewNode);
-			
-			// Create controller -> view relationship
-			newRelationships.push({
-				from: classInfo.name,
-				to: viewName,
-				type: 'renders'
-			});
-			
-			features.push('mvc-views');
+			if (matchingJsp) {
+				// Link to real JSP file (don't create virtual view)
+				console.log(`🎨   ✅ Linked "${viewName}" → real JSP: ${matchingJsp.name}`);
+				newRelationships.push({
+					from: classInfo.name,
+					to: matchingJsp.name,
+					type: 'renders'
+				});
+				features.push('mvc-views');
+			} else {
+				// No JSP file found - create virtual view node (fallback)
+				const viewNode: ClassInfo = {
+					name: viewName,
+					filePath: classInfo.filePath, // Same file as controller
+					properties: [],
+					methods: [],
+					classType: 'view'
+				};
+				
+				console.log(`🎨   ⚪ Created virtual view node: ${viewName}`);
+				enhancedClasses.push(viewNode);
+				
+				// Create controller -> view relationship
+				newRelationships.push({
+					from: classInfo.name,
+					to: viewName,
+					type: 'renders'
+				});
+				
+				features.push('mvc-views');
+			}
 		}
+	}
+	
+	/**
+	 * Find matching JSP file for a view name
+	 * 
+	 * @param viewName - View name from controller (e.g., "users/list")
+	 * @param classes - All classes including template nodes from HTMLParser
+	 * @returns Matching JSP ClassInfo or undefined
+	 */
+	private findMatchingJspFile(viewName: string, classes: ClassInfo[]): ClassInfo | undefined {
+		// Normalize view name (remove leading/trailing slashes)
+		const normalizedViewName = viewName.replace(/^\/+|\/+$/g, '');
+		
+		// Look for JSP files (classType: 'template')
+		const jspFiles = classes.filter(c => c.classType === 'template');
+		
+		for (const jsp of jspFiles) {
+			// Strategy 1: Check if filePath matches viewName + .jsp
+			// Example: viewName="users/list" matches filePath="users/list.jsp"
+			if (jsp.filePath.endsWith(`${normalizedViewName}.jsp`) ||
+			    jsp.filePath.endsWith(`${normalizedViewName}.jspx`)) {
+				return jsp;
+			}
+			
+			// Strategy 2: Extract base name from view name and check JSP name
+			// Example: viewName="users/list" → basename="list" → match "list.jsp"
+			const viewBasename = normalizedViewName.split('/').pop();
+			if (viewBasename && jsp.name === `${viewBasename}.jsp`) {
+				// Also verify the path contains the directory structure
+				const viewDir = normalizedViewName.substring(0, normalizedViewName.lastIndexOf('/'));
+				if (!viewDir || jsp.filePath.includes(viewDir)) {
+					return jsp;
+				}
+			}
+		}
+		
+		return undefined;
 	}
 	
 	/**
