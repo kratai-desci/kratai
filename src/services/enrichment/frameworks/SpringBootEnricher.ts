@@ -120,12 +120,9 @@ export class SpringBootEnricher extends AbstractEnricher {
 			enhancedClasses.push(enhanced);
 		}
 		
-		return {
-			enhancedClasses,
-			newRelationships,
-			metadata: {
-				framework: this.framework,
-				features: Array.from(new Set(features))
+	// Phase 1: Infer controller->service calls based on naming patterns
+	this.inferServiceCalls(enhancedClasses, newRelationships, features);
+	
 			}
 		};
 	}
@@ -206,23 +203,14 @@ export class SpringBootEnricher extends AbstractEnricher {
 	 */
 	private detectEntity(classInfo: ClassInfo, content: string, features: string[]): void {
 		// If class is already marked as entity by stereotype detection, add metadata
-		if (classInfo.classType === 'entity') {
+		if (classInfo.classType === 'entity' && !content) {
 			// For mocks without file content, infer from class name
-			if (!content) {
-				const idProp = classInfo.properties.find(p => p.name === 'id' || p.name.toLowerCase().endsWith('id'));
-				if (idProp) {
-					classInfo.entityMeta = {
-						primaryKey: idProp.name,
-						// Infer table name from class name (e.g., User -> users)
-						tableName: classInfo.name.toLowerCase() + 's'
-					};
-				} else {
-					classInfo.entityMeta = {
-						tableName: classInfo.name.toLowerCase() + 's'
-					};
-				}
-				return;
-			}
+			const idProp = classInfo.properties.find(p => p.name === 'id' || p.name.toLowerCase().endsWith('id'));
+			classInfo.entityMeta = {
+				tableName: classInfo.name.toLowerCase() + 's',
+				primaryKey: idProp ? idProp.name : undefined
+			};
+			return;
 		}
 		
 		if (/@Entity\b/.test(content)) {
@@ -609,6 +597,53 @@ export class SpringBootEnricher extends AbstractEnricher {
 					type: 'injects'
 				});
 				features.push('dependency-injection');
+			}
+		}
+	}
+	
+	/**
+	 * Infer controller->service "calls" relationships based on naming patterns
+	 * E.g., UserController likely calls UserService
+	 */
+	private inferServiceCalls(
+		classes: ClassInfo[],
+		newRelationships: ClassRelationship[],
+		features: string[]
+	): void {
+		const controllers = classes.filter(c => 
+			c.classType === 'rest-controller' || c.classType === 'controller'
+		);
+		const services = classes.filter(c => c.classType === 'service');
+		
+		for (const controller of controllers) {
+			// Extract base name: UserController -> User
+			const baseName = controller.name
+				.replace(/Controller$/, '')
+				.replace(/RestController$/, '');
+			
+			// Find matching service: User -> UserService
+			const matchingService = services.find(s => 
+				s.name === `${baseName}Service` || 
+				s.name.startsWith(baseName)
+			);
+			
+			if (matchingService) {
+				// Check if there's already an "injects" relationship (from DI)
+				const hasInjects = newRelationships.some(r =>
+					r.from === controller.name &&
+					r.to === matchingService.name &&
+					r.type === 'injects'
+				);
+				
+				// If no DI relationship, create a "calls" relationship
+				if (!hasInjects) {
+					newRelationships.push({
+						from: controller.name,
+						to: matchingService.name,
+						type: 'calls'
+					});
+					features.push('service-calls');
+				}
 			}
 		}
 	}
