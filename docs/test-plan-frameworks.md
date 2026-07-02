@@ -228,6 +228,43 @@ GET /users → Route → Controller → Service → Repository → Entity → Tw
 
 ---
 
+#### 11. Spring Boot (Java)
+```
+GET /users → @RestController → Service → Repository → Entity → ResponseEntity
+```
+**Must detect:**
+- Controller annotations (`@RestController`, `@Controller`)
+- Request mapping annotations (`@GetMapping`, `@PostMapping`, `@RequestMapping`)
+- Path variables (`@PathVariable`, `@RequestParam`, `@RequestBody`)
+- Services (`@Service`)
+- Repositories (`@Repository`, `JpaRepository<T, ID>`)
+- Entities (`@Entity`, JPA annotations)
+- JPA relationships (`@OneToMany`, `@ManyToOne`, `@ManyToMany`, `@OneToOne`)
+- Dependency injection (`@Autowired`, constructor injection)
+- DTOs and response entities (`ResponseEntity<UserDTO>`)
+- Exception handlers (`@ExceptionHandler`, `@ControllerAdvice`)
+- Configuration (`@Configuration`, `@Bean`)
+- Interceptors and filters (`HandlerInterceptor`, `Filter`)
+- Request/response validation (`@Valid`, `@Validated`)
+- Transaction management (`@Transactional`)
+
+**Test case:** 
+- `/api/users/{id}` → `@GetMapping` → `UserController.getUser` → `UserService.findById` → `UserRepository` → `User` → `ResponseEntity<UserDTO>`
+- DI chain: `UserController` → `UserService` → `UserRepository` (all injected)
+- JPA relationship: `User.posts` → `Post` (`@OneToMany`)
+- Exception handling: `@ControllerAdvice` → `@ExceptionHandler`
+
+**Key Spring Boot patterns:**
+- RESTful APIs (`@RestController` + JSON responses)
+- Layered architecture (Controller → Service → Repository → Entity)
+- JPA/Hibernate ORM with relationship mapping
+- Constructor-based dependency injection (recommended)
+- Response entity wrapping (`ResponseEntity<T>`)
+- Exception handling with `@ControllerAdvice`
+- Bean lifecycle and configuration
+
+---
+
 ## Relationship ID Format
 
 **CRITICAL:** All relationships must use the full `filePath__className` format:
@@ -268,6 +305,9 @@ GET /users → Route → Controller → Service → Repository → Entity → Tw
 | Route | Handler | `file-routing` | `/app/api/users/route.ts` → handler |
 | Controller | Request | `validates` | `FormRequest` validation |
 | Controller | Repository | `uses-repository` | `UserController` → `UserRepository` |
+| Entity | Entity | `one-to-many` | `User.posts` → `Post` (JPA @OneToMany) |
+| Entity | Entity | `many-to-one` | `Post.user` → `User` (JPA @ManyToOne) |
+| Controller | Exception Handler | `handled-by` | `@ControllerAdvice` exception handling |
 
 ---
 
@@ -322,13 +362,25 @@ src/test/unit/frameworks/
 │   └── fixtures/
 │       ├── route-middleware.php         (Route::middleware())
 │       ├── eloquent-relationships.php   (hasMany, belongsTo)
-│       ├── resource-controller.php      (RESTful conventions)
-│       └── view-data.php                (view() with data)
+├── symfony/
+│   ├── symfony.test.ts
+│   └── fixtures/
+│       ├── route-annotation.php         (#[Route] decorator)
+│       ├── service-injection.php        (DI container)
+│       ├── doctrine-entity.php          (ORM relationships)
+│       └── repository-pattern.php       (EntityRepository)
 │
-└── symfony/
-    ├── symfony.test.ts
+└── springboot/
+    ├── springboot.test.ts
     └── fixtures/
-        ├── route-annotation.php         (#[Route] decorator)
+        ├── rest-controller.java         (@RestController, @GetMapping)
+        ├── service-layer.java           (@Service, business logic)
+        ├── repository-layer.java        (@Repository, JpaRepository)
+        ├── jpa-entity.java              (@Entity, JPA relationships)
+        ├── dependency-injection.java    (Constructor DI)
+        ├── dto-validation.java          (@Valid, request/response DTOs)
+        ├── exception-handling.java      (@ControllerAdvice, @ExceptionHandler)
+        └── configuration.java           (@Configuration, @Beanor)
         ├── service-injection.php        (DI container)
         ├── doctrine-entity.php          (ORM relationships)
         └── repository-pattern.php       (EntityRepository)

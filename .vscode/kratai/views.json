@@ -1,8 +1,8 @@
 {
   "views": [
     {
-      "id": "diagram-1",
-      "name": "diagram-1",
+      "id": "overview-architecture",
+      "name": "Overview architecture",
       "config": {
         "selectedFolders": [
           "src",
@@ -74,7 +74,8 @@
           "baseCommit": "HEAD~1"
         }
       },
-      "createdAt": "2026-06-27T04:12:57.775Z"
+      "createdAt": "2026-06-27T04:12:57.775Z",
+      "lastGenerated": "2026-07-02T02:09:05.642Z"
     }
   ]
 }
