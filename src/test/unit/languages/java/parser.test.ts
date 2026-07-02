@@ -519,4 +519,290 @@ suite('Java Parser Test Suite', () => {
 			}
 		});
 	});
+
+	suite('Package Structure', () => {
+		test('should preserve nested package paths', () => {
+			const fixturePath = path.join(fixturesPath, 'com/example/controller/UserController.java');
+			const classes = parser.parseFile(fixturePath);
+
+			assert.strictEqual(classes.length, 1, 'Should parse nested package file');
+			
+			const controller = classes[0];
+			assert.strictEqual(controller.name, 'UserController');
+			assert.ok(controller.filePath.includes('com/example/controller'), 
+				'Should preserve full package path in filePath');
+		});
+
+		test('should handle multiple files in nested packages', () => {
+			const controllerPath = path.join(fixturesPath, 'com/example/controller/UserController.java');
+			const servicePath = path.join(fixturesPath, 'com/example/service/UserService.java');
+			const repositoryPath = path.join(fixturesPath, 'com/example/repository/UserRepository.java');
+			const modelPath = path.join(fixturesPath, 'com/example/model/User.java');
+
+			const allClasses = [
+				...parser.parseFile(controllerPath),
+				...parser.parseFile(servicePath),
+				...parser.parseFile(repositoryPath),
+				...parser.parseFile(modelPath)
+			];
+
+			assert.strictEqual(allClasses.length, 4, 'Should parse all nested package files');
+			
+			// Verify each has correct package path
+			const controller = allClasses.find(c => c.name === 'UserController');
+			const service = allClasses.find(c => c.name === 'UserService');
+			const repository = allClasses.find(c => c.name === 'UserRepository');
+			const model = allClasses.find(c => c.name === 'User');
+
+			assert.ok(controller?.filePath.includes('controller'), 'Controller should have controller path');
+			assert.ok(service?.filePath.includes('service'), 'Service should have service path');
+			assert.ok(repository?.filePath.includes('repository'), 'Repository should have repository path');
+			assert.ok(model?.filePath.includes('model'), 'Model should have model path');
+		});
+
+		test('should detect extends across packages', () => {
+			const controllerPath = path.join(fixturesPath, 'com/example/controller/UserController.java');
+			const basePath = path.join(fixturesPath, 'com/example/base/BaseController.java');
+
+			const allClasses = [
+				...parser.parseFile(controllerPath),
+				...parser.parseFile(basePath)
+			];
+
+			const allNames = new Set(allClasses.map(c => c.name));
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+
+			const extendsRel = relationships.find(r => 
+				r.from.includes('UserController') && 
+				r.to.includes('BaseController') &&
+				r.type === 'extends'
+			);
+
+			assert.ok(extendsRel, 'Should detect extends across packages');
+			assert.ok(extendsRel.from.includes('controller'), 'From should include controller package');
+			assert.ok(extendsRel.to.includes('base'), 'To should include base package');
+		});
+
+		test('should detect implements across packages', () => {
+			const servicePath = path.join(fixturesPath, 'com/example/service/UserService.java');
+			const interfacePath = path.join(fixturesPath, 'com/example/interfaces/IUserService.java');
+
+			const allClasses = [
+				...parser.parseFile(servicePath),
+				...parser.parseFile(interfacePath)
+			];
+
+			const allNames = new Set(allClasses.map(c => c.name));
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+
+			const implementsRel = relationships.find(r => 
+				r.from.includes('UserService') && 
+				r.to.includes('IUserService') &&
+				r.type === 'implements'
+			);
+
+			assert.ok(implementsRel, 'Should detect implements across packages');
+			assert.ok(implementsRel.from.includes('service'), 'From should include service package');
+			assert.ok(implementsRel.to.includes('interfaces'), 'To should include interfaces package');
+		});
+
+		test('should detect composition across packages', () => {
+			const controllerPath = path.join(fixturesPath, 'com/example/controller/UserController.java');
+			const servicePath = path.join(fixturesPath, 'com/example/service/UserService.java');
+
+			const allClasses = [
+				...parser.parseFile(controllerPath),
+				...parser.parseFile(servicePath)
+			];
+
+			const allNames = new Set(allClasses.map(c => c.name));
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+
+			const compositionRel = relationships.find(r => 
+				r.from.includes('UserController') && 
+				r.to.includes('UserService') &&
+				r.type === 'composition'
+			);
+
+			assert.ok(compositionRel, 'Should detect composition across packages');
+			assert.ok(compositionRel.from.includes('controller'), 'From should include controller package');
+			assert.ok(compositionRel.to.includes('service'), 'To should include service package');
+		});
+
+		test('should detect return types across packages', () => {
+			const controllerPath = path.join(fixturesPath, 'com/example/controller/UserController.java');
+			const modelPath = path.join(fixturesPath, 'com/example/model/User.java');
+
+			const allClasses = [
+				...parser.parseFile(controllerPath),
+				...parser.parseFile(modelPath)
+			];
+
+			const allNames = new Set(allClasses.map(c => c.name));
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+
+			const returnsRel = relationships.find(r => 
+				r.from.includes('UserController') && 
+				r.to.includes('User') &&
+				r.type === 'returns'
+			);
+
+			assert.ok(returnsRel, 'Should detect return types across packages');
+			assert.ok(returnsRel.from.includes('controller'), 'From should include controller package');
+			assert.ok(returnsRel.to.includes('model'), 'To should include model package');
+		});
+
+		test('should detect parameter types across packages', () => {
+			const controllerPath = path.join(fixturesPath, 'com/example/controller/UserController.java');
+			const dtoPath = path.join(fixturesPath, 'com/example/dto/UserDTO.java');
+
+			const allClasses = [
+				...parser.parseFile(controllerPath),
+				...parser.parseFile(dtoPath)
+			];
+
+			const allNames = new Set(allClasses.map(c => c.name));
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+
+			const paramRel = relationships.find(r => 
+				r.from.includes('UserController') && 
+				r.to.includes('UserDTO') &&
+				r.type === 'parameter'
+			);
+
+			assert.ok(paramRel, 'Should detect parameter types across packages');
+			assert.ok(paramRel.from.includes('controller'), 'From should include controller package');
+			assert.ok(paramRel.to.includes('dto'), 'To should include dto package');
+		});
+
+		test('should detect static calls across packages', () => {
+			const controllerPath = path.join(fixturesPath, 'com/example/controller/UserController.java');
+			const utilPath = path.join(fixturesPath, 'com/example/util/ValidationUtils.java');
+
+			const allClasses = [
+				...parser.parseFile(controllerPath),
+				...parser.parseFile(utilPath)
+			];
+
+			const allNames = new Set(allClasses.map(c => c.name));
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+
+			const staticCallRel = relationships.find(r => 
+				r.from.includes('UserController') && 
+				r.to.includes('ValidationUtils') &&
+				r.type === 'calls-static'
+			);
+
+			assert.ok(staticCallRel, 'Should detect static calls across packages');
+			assert.ok(staticCallRel.from.includes('controller'), 'From should include controller package');
+			assert.ok(staticCallRel.to.includes('util'), 'To should include util package');
+		});
+
+		test('should detect super calls across packages', () => {
+			const controllerPath = path.join(fixturesPath, 'com/example/controller/UserController.java');
+			const basePath = path.join(fixturesPath, 'com/example/base/BaseController.java');
+
+			const allClasses = [
+				...parser.parseFile(controllerPath),
+				...parser.parseFile(basePath)
+			];
+
+			const allNames = new Set(allClasses.map(c => c.name));
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+
+			const superCallRel = relationships.find(r => 
+				r.from.includes('UserController') && 
+				r.to.includes('BaseController') &&
+				r.type === 'calls-super'
+			);
+
+			assert.ok(superCallRel, 'Should detect super calls across packages');
+			assert.ok(superCallRel.from.includes('controller'), 'From should include controller package');
+			assert.ok(superCallRel.to.includes('base'), 'To should include base package');
+		});
+
+		test('should detect creates (factory) across packages', () => {
+			const factoryPath = path.join(fixturesPath, 'com/example/factory/UserFactory.java');
+			const modelPath = path.join(fixturesPath, 'com/example/model/User.java');
+
+			const allClasses = [
+				...parser.parseFile(factoryPath),
+				...parser.parseFile(modelPath)
+			];
+
+			const allNames = new Set(allClasses.map(c => c.name));
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+
+			const createsRel = relationships.find(r => 
+				r.from.includes('UserFactory') && 
+				r.to.includes('User') &&
+				r.type === 'creates'
+			);
+
+			assert.ok(createsRel, 'Should detect factory creates across packages');
+			assert.ok(createsRel.from.includes('factory'), 'From should include factory package');
+			assert.ok(createsRel.to.includes('model'), 'To should include model package');
+		});
+
+		test('should detect generic types across packages', () => {
+			const servicePath = path.join(fixturesPath, 'com/example/service/UserService.java');
+			const modelPath = path.join(fixturesPath, 'com/example/model/User.java');
+
+			const allClasses = [
+				...parser.parseFile(servicePath),
+				...parser.parseFile(modelPath)
+			];
+
+			const allNames = new Set(allClasses.map(c => c.name));
+			const relationships = parser.extractRelationships(allClasses, allNames, workspacePath);
+
+			// List<User> should create generic relationship
+			const genericRel = relationships.find(r => 
+				r.from.includes('UserService') && 
+				r.to.includes('User') &&
+				r.type === 'generic'
+			);
+
+			assert.ok(genericRel, 'Should detect generic types across packages');
+			assert.ok(genericRel.from.includes('service'), 'From should include service package');
+			assert.ok(genericRel.to.includes('model'), 'To should include model package');
+		});
+
+		test('should handle same class name in different packages', () => {
+			const exampleUserPath = path.join(fixturesPath, 'com/example/model/User.java');
+			const acmeUserPath = path.join(fixturesPath, 'com/acme/model/User.java');
+
+			const exampleUser = parser.parseFile(exampleUserPath);
+			const acmeUser = parser.parseFile(acmeUserPath);
+
+			assert.strictEqual(exampleUser.length, 1);
+			assert.strictEqual(acmeUser.length, 1);
+			
+			// Both are named "User" but should have different file paths
+			assert.strictEqual(exampleUser[0].name, 'User');
+			assert.strictEqual(acmeUser[0].name, 'User');
+			
+			assert.ok(exampleUser[0].filePath.includes('com/example/model'), 
+				'com.example.User should have example path');
+			assert.ok(acmeUser[0].filePath.includes('com/acme/model'), 
+				'com.acme.User should have acme path');
+			
+			// IDs should be different (filePath__className format prevents ambiguity)
+			const exampleId = `${exampleUser[0].filePath}__${exampleUser[0].name}`;
+			const acmeId = `${acmeUser[0].filePath}__${acmeUser[0].name}`;
+			assert.notStrictEqual(exampleId, acmeId, 'Same class name in different packages must have unique IDs');
+		});
+
+		test('should handle deep nesting (7+ levels)', () => {
+			const deepPath = path.join(fixturesPath, 'com/company/app/module/feature/service/impl/DeepService.java');
+			const classes = parser.parseFile(deepPath);
+
+			assert.strictEqual(classes.length, 1, 'Should parse deeply nested file');
+			
+			const deepService = classes[0];
+			assert.strictEqual(deepService.name, 'DeepService');
+			assert.ok(deepService.filePath.includes('com/company/app/module/feature/service/impl'), 
+				'Should preserve all 7 levels of nesting');
+		});
+	});
 });
