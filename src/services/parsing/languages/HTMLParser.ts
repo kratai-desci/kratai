@@ -7,17 +7,19 @@ import { ClassInfo, ClassRelationship } from '../../../types/domain';
  * HTML parser for template files
  * 
  * Simple parser that creates one ClassInfo node per template file.
- * Does NOT parse template syntax (Django, Blade, Twig, etc.)
+ * Does NOT parse template syntax (Django, Blade, Twig, JSP, etc.)
  * Framework enrichers handle template relationships.
  * 
  * Supports:
  * - .html (standard HTML, Django, Jinja2, Flask)
  * - .htm (alternative HTML extension)
+ * - .jsp (JavaServer Pages - Spring Boot MVC views)
+ * - .jspx (XML-based JavaServer Pages)
  * - .blade.php (Laravel Blade - detected by file extension in factory)
  * - .html.twig (Symfony Twig - detected by file extension in factory)
  */
 export class HTMLParser extends AbstractParserStrategy {
-	supportedExtensions = ['.html', '.htm'];
+	supportedExtensions = ['.html', '.htm', '.jsp', '.jspx'];
 
 	/**
 	 * Parse an HTML template file

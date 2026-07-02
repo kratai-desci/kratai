@@ -108,6 +108,11 @@ export class SpringBootEnricher extends AbstractEnricher {
 				this.extractHttpRoutes(enhanced, fileContent, enhancedClasses, features);
 			}
 			
+			// Phase 1: Extract view names from MVC controllers
+			if (enhanced.classType === 'controller') {
+				this.extractViewNames(enhanced, fileContent, enhancedClasses, newRelationships, features);
+			}
+			
 			// Phase 1: Detect JPA relationships
 			this.detectJpaRelationships(enhanced, fileContent, newRelationships, features);
 			
@@ -320,6 +325,61 @@ export class SpringBootEnricher extends AbstractEnricher {
 				features.push('http-routes');
 			}
 		});
+	}
+	
+	/**
+	 * Extract view names from MVC controller methods
+	 * MVC controllers return String (view name) instead of ResponseEntity
+	 */
+	private extractViewNames(
+		classInfo: ClassInfo,
+		content: string,
+		enhancedClasses: ClassInfo[],
+		newRelationships: ClassRelationship[],
+		features: string[]
+	): void {
+		// Extract return statements with string literals
+		// Pattern: return "viewName"; or return "path/to/view";
+		const returnPattern = /return\s+"([^"]+)"\s*;/g;
+		const viewNames = new Set<string>();
+		
+		let match;
+		while ((match = returnPattern.exec(content)) !== null) {
+			const viewName = match[1];
+			
+			// Skip empty strings and common non-view returns
+			if (!viewName || 
+			    viewName === 'redirect:' || 
+			    viewName.startsWith('redirect:') ||
+			    viewName.startsWith('forward:')) {
+				continue;
+			}
+			
+			viewNames.add(viewName);
+		}
+		
+		// Create view nodes and relationships
+		for (const viewName of viewNames) {
+			// Create view node
+			const viewNode: ClassInfo = {
+				name: viewName,
+				filePath: classInfo.filePath, // Same file as controller
+				properties: [],
+				methods: [],
+				classType: 'view'
+			};
+			
+			enhancedClasses.push(viewNode);
+			
+			// Create controller -> view relationship
+			newRelationships.push({
+				from: classInfo.name,
+				to: viewName,
+				type: 'renders'
+			});
+			
+			features.push('mvc-views');
+		}
 	}
 	
 	/**

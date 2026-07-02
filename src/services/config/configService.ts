@@ -9,7 +9,7 @@ export class ConfigService {
 	static getDefaultConfig(): KrataiConfig {
 		return {
 			selectedFolders: [],  // Empty = all folders except node_modules/dist
-			selectedExtensions: ['.ts', '.tsx', '.js', '.jsx', '.py', '.php'],
+			selectedExtensions: ['.ts', '.tsx', '.js', '.jsx', '.py', '.php', '.java', '.html', '.jsp'],
 			respectGitignore: true,
 			followSymlinks: false,
 			gitDiff: {
@@ -99,7 +99,7 @@ export class ConfigService {
 		const pomXmlPath = path.join(workspacePath, 'pom.xml');
 		const buildGradlePath = path.join(workspacePath, 'build.gradle');
 		if (fs.existsSync(pomXmlPath) || fs.existsSync(buildGradlePath)) {
-			return ['.java'];
+			return ['.java', '.jsp', '.jspx', '.html'];
 		}
 
 		// Check for .csproj or .sln (C# projects)

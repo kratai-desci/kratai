@@ -27,6 +27,7 @@ export interface ClassInfo {
 		| 'middleware'    // Next.js/Laravel middleware
 		| 'layout'        // Next.js layout component
 		| 'page'          // Next.js page component
+		| 'view'          // Spring MVC view (JSP/Thymeleaf)
 		| 'server-action' // Next.js server action
 		| 'controller'    // MVC controller (returns views)
 		| 'rest-controller' // REST API controller (returns JSON)
