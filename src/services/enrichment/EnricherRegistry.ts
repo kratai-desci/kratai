@@ -1,6 +1,7 @@
 import { AbstractEnricher, EnrichmentContext } from './AbstractEnricher';
 import { NextJSEnricher } from './frameworks/NextJSEnricher';
 import { DjangoEnricher } from './frameworks/DjangoEnricher';
+import { SpringBootEnricher } from './frameworks/SpringBootEnricher';
 import { ClassRelationship } from '../../types/domain/ClassRelationship';
 
 /**
@@ -22,6 +23,7 @@ export class EnricherRegistry {
 	constructor() {
 		// Register all framework enrichers
 		// Add more enrichers here as they're implemented
+		this.register(new SpringBootEnricher());
 		this.register(new NextJSEnricher());
 		this.register(new DjangoEnricher());
 		// this.register(new LaravelEnricher());

@@ -45,13 +45,26 @@ export class SpringBootEnricher extends AbstractEnricher {
 		}
 		
 		// Check for @SpringBootApplication in any Java file
-		const hasSpringBootApp = context.classes.some(c => 
-			c.filePath.endsWith('.java')
-		);
+		for (const classInfo of context.classes) {
+			if (classInfo.filePath.endsWith('.java')) {
+				const fullPath = path.join(context.workspacePath, classInfo.filePath);
+				if (fs.existsSync(fullPath)) {
+					const content = fs.readFileSync(fullPath, 'utf-8');
+					if (content.includes('@SpringBootApplication') || 
+					    content.includes('@RestController') ||
+					    content.includes('@Controller') ||
+					    content.includes('@Service') ||
+					    content.includes('@Repository') ||
+					    content.includes('@Entity')) {
+						return true;
+					}
+				}
+			}
+		}
 		
-		return hasSpringBootApp;
+		return false;
 	}
-	
+
 	/**
 	 * Enrich Spring Boot application with framework knowledge
 	 */
