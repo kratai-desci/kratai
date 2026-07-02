@@ -228,40 +228,645 @@ GET /users → Route → Controller → Service → Repository → Entity → Tw
 
 ---
 
-#### 11. Spring Boot (Java)
+#### 11. Spring Boot (Java) - COMPREHENSIVE
+
+**REST API Flow:**
 ```
-GET /users → @RestController → Service → Repository → Entity → ResponseEntity
+GET /api/users → @RestController → @Service → @Repository → @Entity → ResponseEntity<UserDTO>
 ```
+
+**MVC Flow (HTML/JSP):**
+```
+GET /users → @Controller → @Service → @Repository → @Entity → ModelAndView → JSP/Thymeleaf
+```
+
+**Security Flow:**
+```
+Request → SecurityFilterChain → @PreAuthorize → Controller → Service
+```
+
+---
+
+### Core Spring Boot Components to Detect
+
+#### A. Controllers & Request Mapping
 **Must detect:**
-- Controller annotations (`@RestController`, `@Controller`)
-- Request mapping annotations (`@GetMapping`, `@PostMapping`, `@RequestMapping`)
-- Path variables (`@PathVariable`, `@RequestParam`, `@RequestBody`)
-- Services (`@Service`)
-- Repositories (`@Repository`, `JpaRepository<T, ID>`)
-- Entities (`@Entity`, JPA annotations)
-- JPA relationships (`@OneToMany`, `@ManyToOne`, `@ManyToMany`, `@OneToOne`)
-- Dependency injection (`@Autowired`, constructor injection)
-- DTOs and response entities (`ResponseEntity<UserDTO>`)
-- Exception handlers (`@ExceptionHandler`, `@ControllerAdvice`)
-- Configuration (`@Configuration`, `@Bean`)
-- Interceptors and filters (`HandlerInterceptor`, `Filter`)
-- Request/response validation (`@Valid`, `@Validated`)
-- Transaction management (`@Transactional`)
+- `@RestController` - RESTful JSON APIs
+- `@Controller` - MVC controllers returning views
+- `@RequestMapping("/api/users")` - Class-level base path
+- `@GetMapping("/users/{id}")` - HTTP GET with path variable
+- `@PostMapping`, `@PutMapping`, `@DeleteMapping`, `@PatchMapping`
+- `@RequestParam` - Query parameters (`?name=John`)
+- `@PathVariable` - URL path variables (`/users/{id}`)
+- `@RequestBody` - Request payload (POST/PUT body)
+- `@ResponseBody` - Return JSON (used with `@Controller`)
+- `@CrossOrigin` - CORS configuration
 
-**Test case:** 
-- `/api/users/{id}` → `@GetMapping` → `UserController.getUser` → `UserService.findById` → `UserRepository` → `User` → `ResponseEntity<UserDTO>`
-- DI chain: `UserController` → `UserService` → `UserRepository` (all injected)
-- JPA relationship: `User.posts` → `Post` (`@OneToMany`)
-- Exception handling: `@ControllerAdvice` → `@ExceptionHandler`
+**Test fixtures needed:**
+- `RestControllerBasic.java` - Simple CRUD endpoints
+- `ControllerWithView.java` - MVC returning ModelAndView
+- `ControllerWithPathVariables.java` - `/users/{id}/posts/{postId}`
+- `ControllerWithRequestParams.java` - `/search?q=java&page=1`
 
-**Key Spring Boot patterns:**
-- RESTful APIs (`@RestController` + JSON responses)
-- Layered architecture (Controller → Service → Repository → Entity)
-- JPA/Hibernate ORM with relationship mapping
-- Constructor-based dependency injection (recommended)
-- Response entity wrapping (`ResponseEntity<T>`)
-- Exception handling with `@ControllerAdvice`
-- Bean lifecycle and configuration
+---
+
+#### B. Service Layer
+**Must detect:**
+- `@Service` - Business logic layer
+- `@Transactional` - Transaction boundaries
+  - Read-only transactions: `@Transactional(readOnly = true)`
+  - Transaction propagation: `@Transactional(propagation = Propagation.REQUIRES_NEW)`
+- Method calls from controllers to services
+- Method calls between services (service composition)
+- Return types (DTOs, entities, primitives)
+
+**Test fixtures needed:**
+- `UserService.java` - Standard service with CRUD operations
+- `TransactionalService.java` - Multiple `@Transactional` methods
+- `ServiceComposition.java` - Service calling other services
+
+---
+
+#### C. Repository Layer (Spring Data JPA)
+**Must detect:**
+- `@Repository` - Data access layer marker
+- `extends JpaRepository<User, Long>` - Generic repository
+- `extends CrudRepository<T, ID>` - Basic CRUD operations
+- Custom query methods (`findByEmailAndActiveTrue()`)
+- `@Query` annotations (JPQL, native SQL)
+- `@Modifying` - Update/delete queries
+- `@Param` - Named query parameters
+- Repository method naming conventions (findBy, countBy, deleteBy)
+
+**Test fixtures needed:**
+- `UserRepository.java` - JpaRepository with custom queries
+- `CustomQueryRepository.java` - @Query with JPQL/native SQL
+- `RepositoryInheritance.java` - Custom base repository
+
+---
+
+#### D. Entities & JPA Relationships
+**Must detect:**
+- `@Entity` - JPA entity marker
+- `@Table(name = "users")` - Table mapping
+- `@Id` - Primary key
+- `@GeneratedValue(strategy = GenerationType.IDENTITY)` - Auto-increment
+- `@Column(name = "email", unique = true, nullable = false)` - Column constraints
+
+**JPA Relationships (CRITICAL):**
+- `@OneToMany(mappedBy = "user", cascade = CascadeType.ALL)` 
+  - User → List<Post> (one user has many posts)
+- `@ManyToOne(fetch = FetchType.LAZY)`
+  - Post → User (many posts belong to one user)
+- `@ManyToMany(mappedBy = "users")`
+  - User ↔ Role (many-to-many with join table)
+- `@OneToOne(mappedBy = "user", cascade = CascadeType.ALL)`
+  - User → Profile (one-to-one)
+- `@JoinColumn(name = "user_id")` - Foreign key column
+- `@JoinTable` - Join table for many-to-many
+
+**Cascade & Fetch:**
+- `cascade = CascadeType.ALL` - Propagate operations
+- `fetch = FetchType.LAZY` - Lazy loading
+- `fetch = FetchType.EAGER` - Eager loading
+- `orphanRemoval = true` - Delete orphaned children
+
+**Test fixtures needed:**
+- `UserEntity.java` - Basic entity with @OneToMany posts
+- `PostEntity.java` - Entity with @ManyToOne user
+- `UserRoleRelationship.java` - @ManyToMany with join table
+- `UserProfileOneToOne.java` - @OneToOne bidirectional
+- `CascadeOperations.java` - Various cascade types
+- `LazyEagerFetching.java` - Fetch strategy examples
+
+---
+
+#### E. DTOs & Data Transfer
+**Must detect:**
+- DTOs (plain Java classes for data transfer)
+- `@ResponseStatus(HttpStatus.CREATED)` - HTTP status on DTOs
+- DTO conversion in services/controllers
+- Mapper usage (MapStruct, ModelMapper patterns)
+- Builder pattern for DTOs
+
+**Test fixtures needed:**
+- `UserDTO.java` - Simple DTO
+- `UserMapper.java` - Entity ↔ DTO conversion
+- `NestedDTO.java` - DTO with nested objects
+
+---
+
+#### F. Dependency Injection (CRITICAL)
+**Must detect:**
+- Constructor injection (RECOMMENDED pattern):
+  ```java
+  public UserController(UserService userService) {
+      this.userService = userService;
+  }
+  ```
+- Field injection (legacy):
+  ```java
+  @Autowired
+  private UserService userService;
+  ```
+- Setter injection:
+  ```java
+  @Autowired
+  public void setUserService(UserService userService) {...}
+  ```
+- `@Autowired` (optional with constructor injection since Spring 4.3)
+- `@Qualifier("beanName")` - Disambiguate multiple beans
+- `@Primary` - Default bean when multiple candidates
+- Injection chains (Controller → Service → Repository)
+
+**Test fixtures needed:**
+- `ConstructorInjection.java` - Recommended pattern
+- `FieldInjection.java` - Legacy pattern
+- `QualifierUsage.java` - Multiple implementations with @Qualifier
+- `DependencyChain.java` - A → B → C → D injection
+
+---
+
+#### G. Validation (JSR-303/JSR-380)
+**Must detect:**
+- `@Valid` - Trigger validation on method parameter
+- `@Validated` - Group validation
+- Bean validation annotations:
+  - `@NotNull`, `@NotEmpty`, `@NotBlank`
+  - `@Size(min = 3, max = 50)`
+  - `@Email`, `@Pattern(regexp = "...")`
+  - `@Min`, `@Max`, `@DecimalMin`, `@DecimalMax`
+  - `@Past`, `@Future`, `@PastOrPresent`, `@FutureOrPresent`
+- Custom validators (`@CustomValidation`)
+- Validation groups (`@Validated(OnCreate.class)`)
+- Method-level validation (`@Validated` on class)
+
+**Test fixtures needed:**
+- `ValidatedDTO.java` - DTO with JSR-303 annotations
+- `ControllerWithValidation.java` - @Valid in controller
+- `CustomValidator.java` - Custom validation logic
+
+---
+
+#### H. Exception Handling
+**Must detect:**
+- `@ControllerAdvice` - Global exception handler
+- `@RestControllerAdvice` - For REST APIs (auto-@ResponseBody)
+- `@ExceptionHandler(UserNotFoundException.class)` - Handle specific exception
+- Multiple exception handlers in one class
+- Exception hierarchy (`@ExceptionHandler({Ex1.class, Ex2.class})`)
+- `@ResponseStatus(HttpStatus.NOT_FOUND)` on exception classes
+- Custom error responses (`ErrorResponse` DTO)
+- Local exception handlers (in controller)
+
+**Test fixtures needed:**
+- `GlobalExceptionHandler.java` - @ControllerAdvice with multiple handlers
+- `CustomExceptions.java` - Custom exception classes
+- `ErrorResponse.java` - Standardized error DTO
+- `LocalExceptionHandler.java` - Controller-level handlers
+
+---
+
+#### I. Configuration & Beans
+**Must detect:**
+- `@Configuration` - Configuration class marker
+- `@Bean` - Bean factory methods
+- `@ComponentScan(basePackages = "com.example")` - Package scanning
+- `@EnableAutoConfiguration` - Spring Boot auto-config
+- `@SpringBootApplication` - Main application class
+- `@Profile("dev")` - Environment-specific beans
+- `@Conditional` annotations - Conditional bean creation
+- `@Value("${app.name}")` - Inject properties
+- `@ConfigurationProperties(prefix = "app")` - Type-safe config
+- Bean dependencies (method parameters in @Bean methods)
+
+**Test fixtures needed:**
+- `AppConfiguration.java` - @Configuration with @Bean methods
+- `ProfileBasedConfig.java` - @Profile usage
+- `ConditionalBeans.java` - @ConditionalOnProperty, etc.
+- `ConfigurationPropertiesExample.java` - Type-safe config binding
+
+---
+
+#### J. Spring Security Integration
+**Must detect:**
+- `@EnableWebSecurity` - Enable security
+- `SecurityFilterChain` bean - Filter chain configuration
+- `@PreAuthorize("hasRole('ADMIN')")` - Method security
+- `@PostAuthorize`, `@Secured`, `@RolesAllowed`
+- `@EnableGlobalMethodSecurity` - Enable method security
+- Authentication/authorization flow
+- Custom authentication providers
+- JWT token filters
+- Security context access (`SecurityContextHolder`)
+
+**Test fixtures needed:**
+- `SecurityConfig.java` - SecurityFilterChain setup
+- `MethodSecurity.java` - @PreAuthorize on methods
+- `JwtAuthenticationFilter.java` - Custom security filter
+- `SecuredController.java` - Controller with role checks
+
+---
+
+#### K. AOP (Aspect-Oriented Programming)
+**Must detect:**
+- `@Aspect` - Aspect class marker
+- `@Before`, `@After`, `@AfterReturning`, `@AfterThrowing`, `@Around` - Advice types
+- Pointcut expressions (`@Pointcut("execution(* com.example.service.*.*(..))")`)
+- `@EnableAspectJAutoProxy` - Enable AOP
+- Logging aspects (cross-cutting concerns)
+- Performance monitoring aspects
+
+**Test fixtures needed:**
+- `LoggingAspect.java` - @Before/@After logging
+- `PerformanceAspect.java` - @Around for timing
+- `ExceptionAspect.java` - @AfterThrowing for error handling
+
+---
+
+#### L. Caching
+**Must detect:**
+- `@EnableCaching` - Enable caching
+- `@Cacheable("users")` - Cache method result
+- `@CacheEvict` - Evict cache entries
+- `@CachePut` - Update cache
+- `@Caching` - Multiple cache operations
+- Cache configuration beans (`CacheManager`)
+
+**Test fixtures needed:**
+- `CacheConfig.java` - Cache manager setup
+- `CacheableService.java` - @Cacheable methods
+
+---
+
+#### M. Async Processing
+**Must detect:**
+- `@EnableAsync` - Enable async support
+- `@Async` - Async method execution
+- `CompletableFuture<T>` return types
+- Thread pool configuration
+- Async exception handling
+
+**Test fixtures needed:**
+- `AsyncConfig.java` - Thread pool configuration
+- `AsyncService.java` - @Async methods with CompletableFuture
+
+---
+
+#### N. Scheduled Tasks
+**Must detect:**
+- `@EnableScheduling` - Enable scheduling
+- `@Scheduled(fixedRate = 5000)` - Fixed rate execution
+- `@Scheduled(cron = "0 0 * * * *")` - Cron expressions
+- `@Scheduled(fixedDelay = 1000)` - Fixed delay
+
+**Test fixtures needed:**
+- `ScheduledTasks.java` - Various @Scheduled methods
+
+---
+
+#### O. Events & Listeners
+**Must detect:**
+- `@EventListener` - Event listener method
+- `ApplicationEventPublisher` - Publish events
+- Custom event classes (`extends ApplicationEvent`)
+- `@Async` on event listeners
+- `@TransactionalEventListener` - Transaction-aware events
+
+**Test fixtures needed:**
+- `CustomEvent.java` - Event class
+- `EventPublisher.java` - Publishes events
+- `EventListener.java` - @EventListener methods
+
+---
+
+#### P. File Upload/Download
+**Must detect:**
+- `@RequestParam("file") MultipartFile file` - File upload
+- File storage service patterns
+- `ResponseEntity<Resource>` - File download
+- `@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)`
+
+**Test fixtures needed:**
+- `FileUploadController.java` - Multipart file handling
+- `FileStorageService.java` - File operations
+
+---
+
+#### Q. Pagination & Sorting
+**Must detect:**
+- `Pageable` parameter in repositories/controllers
+- `Page<T>` return types
+- `PageRequest.of(page, size, Sort.by("name"))`
+- `@PageableDefault` annotation
+- Sort parameter handling
+
+**Test fixtures needed:**
+- `PaginatedController.java` - Pageable endpoints
+- `PaginatedRepository.java` - Page<T> queries
+
+---
+
+#### R. HATEOAS (Hypermedia)
+**Must detect:**
+- `EntityModel<T>` - Wrap entity with links
+- `CollectionModel<T>` - Collection with links
+- `RepresentationModelAssembler` - Convert entity to model
+- Link building (`linkTo()`, `methodOn()`)
+
+**Test fixtures needed:**
+- `UserModelAssembler.java` - HATEOAS assembler
+- `HateoasController.java` - Return EntityModel
+
+---
+
+### Relationship Types for Spring Boot
+
+**Critical relationships to extract:**
+
+| From | To | Type | Example |
+|------|-----|------|---------|
+| Controller | Service | `injects` | Constructor DI: `UserController(UserService service)` |
+| Service | Repository | `injects` | Constructor DI: `UserService(UserRepository repo)` |
+| Controller | Method | `calls` | `userController.getUser()` → `userService.findById()` |
+| Service | Method | `calls` | `userService.create()` → `userRepository.save()` |
+| Repository | Entity | `manages` | `UserRepository` manages `User` entity |
+| Entity | Entity | `one-to-many` | `User.posts` → `List<Post>` (@OneToMany) |
+| Entity | Entity | `many-to-one` | `Post.user` → `User` (@ManyToOne) |
+| Entity | Entity | `many-to-many` | `User.roles` ↔ `Role.users` (@ManyToMany) |
+| Entity | Entity | `one-to-one` | `User.profile` → `Profile` (@OneToOne) |
+| Controller | DTO | `returns` | `ResponseEntity<UserDTO>` |
+| Service | DTO | `transforms` | `toDTO(User entity)` |
+| Service | Entity | `creates` | `new User()` instantiation |
+| ControllerAdvice | Controller | `handles-exceptions-for` | Global exception handling |
+| Aspect | Service | `advises` | `@Around` on service methods |
+| Controller | Validator | `validates-with` | `@Valid UserDTO` |
+| Config | Bean | `defines` | `@Bean SecurityFilterChain` |
+| Filter | Controller | `intercepts` | Security filter chain |
+| Event Publisher | Event Listener | `publishes-to` | Event → Listener |
+| Controller | View | `renders` | MVC: `return "user/profile"` → JSP/Thymeleaf |
+
+---
+
+### Test Case Scenarios
+
+**1. Classic REST API (CRUD):**
+```
+GET /api/users/{id} → 
+    @GetMapping → 
+    UserController.getUser(@PathVariable id) → 
+    UserService.findById(id) → 
+    UserRepository.findById(id) → 
+    User entity → 
+    UserDTO → 
+    ResponseEntity<UserDTO>
+```
+
+**2. Create with Validation:**
+```
+POST /api/users →
+    @PostMapping →
+    UserController.createUser(@Valid @RequestBody UserDTO) →
+    Validation (@NotBlank, @Email) →
+    UserService.create(dto) →
+    @Transactional →
+    UserRepository.save(user) →
+    User entity →
+    UserDTO →
+    ResponseEntity<UserDTO> (201 CREATED)
+```
+
+**3. Exception Flow:**
+```
+GET /api/users/999 →
+    UserController →
+    UserService.findById(999) →
+    throws UserNotFoundException →
+    @ControllerAdvice catches →
+    @ExceptionHandler(UserNotFoundException.class) →
+    ResponseEntity<ErrorResponse> (404 NOT FOUND)
+```
+
+**4. Security Flow:**
+```
+GET /api/admin/users →
+    SecurityFilterChain (JWT validation) →
+    @PreAuthorize("hasRole('ADMIN')") →
+    AdminController.getAllUsers() →
+    UserService.findAll() →
+    ...
+```
+
+**5. JPA Relationships:**
+```
+UserService.getUserWithPosts(id) →
+    UserRepository.findById(id) →
+    User entity (@OneToMany posts) →
+    Lazy load posts →
+    List<Post> (via @ManyToOne user)
+```
+
+**6. Dependency Chain (Full Stack):**
+```
+UserController (injects) →
+    UserService (injects) →
+        UserRepository (manages) →
+            User entity (@OneToMany) →
+                Post entity
+```
+
+**7. Event-Driven:**
+```
+UserService.createUser() →
+    userRepository.save() →
+    eventPublisher.publishEvent(UserCreatedEvent) →
+    @EventListener catches →
+    EmailService.sendWelcomeEmail()
+```
+
+**8. AOP Logging:**
+```
+UserController.getUser() →
+    @Around aspect intercepts →
+    LoggingAspect.logMethodCall() →
+    proceed() →
+    actual method execution →
+    log result
+```
+
+**9. Async Processing:**
+```
+OrderController.placeOrder() →
+    OrderService.processOrder() →
+    @Async OrderService.sendNotification() →
+    CompletableFuture →
+    runs in separate thread
+```
+
+**10. MVC with View:**
+```
+GET /users →
+    @Controller UserViewController.listUsers() →
+    UserService.findAll() →
+    ModelAndView("user/list") →
+    user/list.jsp (renders with model data)
+```
+
+---
+
+### Test Structure for Spring Boot
+
+```
+src/test/unit/frameworks/springboot/
+├── springboot.test.ts
+└── fixtures/
+    # Core Components
+    ├── RestControllerBasic.java
+    ├── ControllerWithView.java
+    ├── ServiceLayer.java
+    ├── RepositoryJpa.java
+    ├── EntityBasic.java
+    
+    # Request Handling
+    ├── PathVariableUsage.java
+    ├── RequestParamUsage.java
+    ├── RequestBodyUsage.java
+    ├── ResponseEntityUsage.java
+    
+    # Dependency Injection
+    ├── ConstructorInjection.java
+    ├── FieldInjection.java
+    ├── QualifierUsage.java
+    ├── DependencyChain.java
+    
+    # JPA Relationships (CRITICAL)
+    ├── OneToManyRelationship.java      (User → Posts)
+    ├── ManyToOneRelationship.java      (Post → User)
+    ├── ManyToManyRelationship.java     (User ↔ Roles)
+    ├── OneToOneRelationship.java       (User → Profile)
+    ├── CascadeOperations.java
+    ├── LazyEagerFetching.java
+    ├── JoinColumnUsage.java
+    ├── BidirectionalRelationship.java
+    
+    # Validation
+    ├── ValidatedDTO.java
+    ├── ControllerWithValidation.java
+    ├── CustomValidator.java
+    ├── ValidationGroups.java
+    
+    # Exception Handling
+    ├── GlobalExceptionHandler.java
+    ├── CustomExceptions.java
+    ├── ErrorResponse.java
+    ├── LocalExceptionHandler.java
+    
+    # Configuration
+    ├── AppConfiguration.java
+    ├── SecurityConfig.java
+    ├── ProfileBasedConfig.java
+    ├── ConditionalBeans.java
+    ├── ConfigurationPropertiesExample.java
+    
+    # Security
+    ├── SecurityFilterChain.java
+    ├── MethodSecurity.java
+    ├── JwtAuthenticationFilter.java
+    ├── SecuredController.java
+    
+    # AOP
+    ├── LoggingAspect.java
+    ├── PerformanceAspect.java
+    ├── ExceptionAspect.java
+    
+    # Caching
+    ├── CacheConfig.java
+    ├── CacheableService.java
+    
+    # Async
+    ├── AsyncConfig.java
+    ├── AsyncService.java
+    
+    # Scheduled
+    ├── ScheduledTasks.java
+    
+    # Events
+    ├── CustomEvent.java
+    ├── EventPublisher.java
+    ├── EventListener.java
+    ├── TransactionalEventListener.java
+    
+    # File Handling
+    ├── FileUploadController.java
+    ├── FileStorageService.java
+    
+    # Pagination
+    ├── PaginatedController.java
+    ├── PaginatedRepository.java
+    
+    # HATEOAS
+    ├── UserModelAssembler.java
+    ├── HateoasController.java
+    
+    # Complex Scenarios
+    ├── FullCrudController.java         (All CRUD operations)
+    ├── LayeredArchitecture.java        (Controller→Service→Repository→Entity)
+    ├── TransactionalService.java       (Multiple @Transactional methods)
+    ├── ServiceComposition.java         (Service calling other services)
+    └── CompleteWorkflow.java           (End-to-end request flow)
+```
+
+---
+
+### Success Criteria for Spring Boot Enricher
+
+✅ **Detect all Spring Boot stereotypes** (@RestController, @Service, @Repository, @Entity, @Configuration)  
+✅ **Map HTTP routes** (All @RequestMapping variants with paths)  
+✅ **Extract dependency injection chains** (Constructor/field/setter injection)  
+✅ **Detect JPA entity relationships** (@OneToMany, @ManyToOne, @ManyToMany, @OneToOne with cascade/fetch)  
+✅ **Map layered architecture** (Controller → Service → Repository → Entity flow)  
+✅ **Extract validation rules** (JSR-303 annotations on DTOs)  
+✅ **Detect exception handling** (@ControllerAdvice global + local handlers)  
+✅ **Map security constraints** (@PreAuthorize, SecurityFilterChain)  
+✅ **Detect cross-cutting concerns** (AOP aspects, caching, async, scheduling)  
+✅ **Extract configuration beans** (@Configuration, @Bean factory methods)  
+✅ **Map event flows** (Publishers → Listeners)  
+✅ **Detect transaction boundaries** (@Transactional with propagation)  
+✅ **Handle both REST and MVC** (JSON APIs + view rendering)  
+✅ **Extract DTO transformations** (Entity ↔ DTO mapping)  
+✅ **Detect pagination patterns** (Pageable, Page<T>)  
+
+---
+
+### Priority Order for Implementation
+
+**Phase 1 (MVP):** Core Spring Boot
+1. ✅ Controllers (@RestController, @Controller)
+2. ✅ Services (@Service)
+3. ✅ Repositories (@Repository, JpaRepository)
+4. ✅ Entities (@Entity)
+5. ✅ Request mappings (All HTTP methods)
+6. ✅ Dependency injection (Constructor pattern)
+7. ✅ JPA relationships (All @One/@Many variants)
+
+**Phase 2 (Essential):**
+8. Exception handling (@ControllerAdvice)
+9. Validation (@Valid, JSR-303)
+10. DTOs and transformations
+11. Transaction management (@Transactional)
+
+**Phase 3 (Advanced):**
+12. Security (@PreAuthorize, filters)
+13. Configuration (@Configuration, @Bean)
+14. AOP (Aspects)
+15. Events (@EventListener)
+16. Caching, Async, Scheduling
+
+**Phase 4 (Complete):**
+17. File handling
+18. Pagination
+19. HATEOAS
+20. WebSocket, GraphQL (if needed)
 
 ---
 
@@ -373,17 +978,72 @@ src/test/unit/frameworks/
 └── springboot/
     ├── springboot.test.ts
     └── fixtures/
-        ├── rest-controller.java         (@RestController, @GetMapping)
-        ├── service-layer.java           (@Service, business logic)
-        ├── repository-layer.java        (@Repository, JpaRepository)
-        ├── jpa-entity.java              (@Entity, JPA relationships)
-        ├── dependency-injection.java    (Constructor DI)
-        ├── dto-validation.java          (@Valid, request/response DTOs)
-        ├── exception-handling.java      (@ControllerAdvice, @ExceptionHandler)
-        └── configuration.java           (@Configuration, @Beanor)
-        ├── service-injection.php        (DI container)
-        ├── doctrine-entity.php          (ORM relationships)
-        └── repository-pattern.php       (EntityRepository)
+        # Core Components
+        ├── RestControllerBasic.java
+        ├── ControllerWithView.java
+        ├── ServiceLayer.java
+        ├── RepositoryJpa.java
+        ├── EntityBasic.java
+        
+        # Request Handling
+        ├── PathVariableUsage.java
+        ├── RequestParamUsage.java
+        ├── RequestBodyUsage.java
+        ├── ResponseEntityUsage.java
+        
+        # Dependency Injection
+        ├── ConstructorInjection.java
+        ├── FieldInjection.java
+        ├── QualifierUsage.java
+        ├── DependencyChain.java
+        
+        # JPA Relationships (CRITICAL)
+        ├── OneToManyRelationship.java      (User → Posts)
+        ├── ManyToOneRelationship.java      (Post → User)
+        ├── ManyToManyRelationship.java     (User ↔ Roles)
+        ├── OneToOneRelationship.java       (User → Profile)
+        ├── CascadeOperations.java
+        ├── LazyEagerFetching.java
+        ├── JoinColumnUsage.java
+        ├── BidirectionalRelationship.java
+        
+        # Validation
+        ├── ValidatedDTO.java
+        ├── ControllerWithValidation.java
+        ├── CustomValidator.java
+        
+        # Exception Handling
+        ├── GlobalExceptionHandler.java
+        ├── CustomExceptions.java
+        ├── ErrorResponse.java
+        
+        # Configuration
+        ├── AppConfiguration.java
+        ├── SecurityConfig.java
+        ├── ProfileBasedConfig.java
+        
+        # Security
+        ├── SecurityFilterChain.java
+        ├── MethodSecurity.java
+        ├── SecuredController.java
+        
+        # AOP & Cross-Cutting
+        ├── LoggingAspect.java
+        ├── PerformanceAspect.java
+        
+        # Caching & Async
+        ├── CacheableService.java
+        ├── AsyncService.java
+        ├── ScheduledTasks.java
+        
+        # Events
+        ├── EventPublisher.java
+        ├── EventListener.java
+        
+        # Complex Scenarios
+        ├── FullCrudController.java         (All CRUD operations)
+        ├── LayeredArchitecture.java        (Controller→Service→Repository→Entity)
+        └── CompleteWorkflow.java           (End-to-end request flow)
 ```
 
 ---
