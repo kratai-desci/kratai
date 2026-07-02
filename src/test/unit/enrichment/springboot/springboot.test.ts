@@ -278,6 +278,86 @@ test('should detect @Controller class for MVC', async () => {
 		
 		// Should use DTO parameter
 		assert.ok(result.enhancedClasses.length > 0, 'MUST detect @RequestBody parameter');
+	});
+	
+	test('should detect MVC view names and create view nodes', async () => {
+		// MVC controllers return String (view name) instead of ResponseEntity
+		const mockClasses: ClassInfo[] = [{
+			name: 'UserViewController',
+			filePath: 'UserViewController.java',
+			properties: [],
+			methods: [],
+			classType: 'class'
+		}];
+		
+		const context: EnrichmentContext = {
+			workspacePath: fixturesPath,
+			classes: mockClasses,
+			relationships: []
+		};
+		
+		const result = await enricher.enrich(context);
+		
+		// MUST detect: View nodes created from return "users/list"
+		const listView = result.enhancedClasses.find(c => 
+			c.classType === 'view' && c.name === 'users/list'
+		);
+		assert.ok(listView, 'MUST create view node for "users/list"');
+		
+		// MUST detect: View nodes created from return "users/view"
+		const detailView = result.enhancedClasses.find(c => 
+			c.classType === 'view' && c.name === 'users/view'
+		);
+		assert.ok(detailView, 'MUST create view node for "users/view"');
+		
+		// MUST detect: View nodes created from return "users/form"
+		const formView = result.enhancedClasses.find(c => 
+			c.classType === 'view' && c.name === 'users/form'
+		);
+		assert.ok(formView, 'MUST create view node for "users/form"');
+	});
+	
+	test('should create Controller -> View relationships', async () => {
+		const mockClasses: ClassInfo[] = [{
+			name: 'UserViewController',
+			filePath: 'UserViewController.java',
+			properties: [],
+			methods: [],
+			classType: 'class'
+		}];
+		
+		const context: EnrichmentContext = {
+			workspacePath: fixturesPath,
+			classes: mockClasses,
+			relationships: []
+		};
+		
+		const result = await enricher.enrich(context);
+		
+		// MUST create: UserViewController -> users/list (renders)
+		const listRenders = result.newRelationships.find(r => 
+			r.from === 'UserViewController' && 
+			r.to === 'users/list' && 
+			r.type === 'renders'
+		);
+		assert.ok(listRenders, 'MUST create UserViewController -> users/list (renders)');
+		
+		// MUST create: UserViewController -> users/view (renders)
+		const detailRenders = result.newRelationships.find(r => 
+			r.from === 'UserViewController' && 
+			r.to === 'users/view' && 
+			r.type === 'renders'
+		);
+		assert.ok(detailRenders, 'MUST create UserViewController -> users/view (renders)');
+		
+		// MUST create: UserViewController -> users/form (renders)
+		const formRenders = result.newRelationships.find(r => 
+			r.from === 'UserViewController' && 
+			r.to === 'users/form' && 
+			r.type === 'renders'
+		);
+		assert.ok(formRenders, 'MUST create UserViewController -> users/form (renders)');
+	});
 	
 	suite('Service Layer Detection - Phase 1 MVP', () => {
 		test('should detect @Service annotation', async () => {
@@ -929,6 +1009,5 @@ test('should detect @Controller class for MVC', async () => {
 			assert.ok(serviceToRepo, 'MUST detect Service -> Repository injection');
 		});
 	});
-});
 });
 });
