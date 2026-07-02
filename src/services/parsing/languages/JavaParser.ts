@@ -219,9 +219,15 @@ export class JavaParser extends AbstractParserStrategy {
 			const visibility = match[1] || 'package-private';
 			const modifier1 = match[2];
 			const modifier2 = match[3];
-			const returnType = match[4]?.trim() || 'void';
+			let returnType = match[4]?.trim() || 'void';
 			const methodName = match[5];
 			const paramsString = match[6];
+			
+			// Clean return type: remove visibility and modifiers if they leaked into the capture
+			returnType = returnType
+				.replace(/^(public|private|protected)\s+/, '')
+				.replace(/^(static|final|abstract|synchronized)\s+/, '')
+				.trim();
 			
 			// Skip constructors (same name as class)
 			const isConstructor = methodName === className;
@@ -316,9 +322,14 @@ export class JavaParser extends AbstractParserStrategy {
 			const fromId = this.createClassId(classInfo);
 
 			// Read source code for this class
+			// Handle both absolute and workspace-relative paths
+			const absolutePath = path.isAbsolute(classInfo.filePath)
+				? classInfo.filePath
+				: path.join(workspacePath, classInfo.filePath);
+			
 			let sourceCode = '';
 			try {
-				sourceCode = fs.readFileSync(classInfo.filePath, 'utf-8');
+				sourceCode = fs.readFileSync(absolutePath, 'utf-8');
 			} catch (error) {
 				continue;
 			}
@@ -368,7 +379,8 @@ export class JavaParser extends AbstractParserStrategy {
 			// 4. RETURN TYPE relationships
 			for (const method of classInfo.methods) {
 				const returnType = this.extractTypeName(method.returnType);
-				if (returnType && returnType !== 'void' && allClassNames.has(returnType)) {
+				// Skip constructors (return type = class name) and void
+				if (returnType && returnType !== 'void' && returnType !== classInfo.name && allClassNames.has(returnType)) {
 					relationships.push(
 						...this.createRelationshipsToTargets(classInfo, returnType, classMap, 'returns')
 					);
