@@ -4,6 +4,7 @@ import { TypeScriptParser } from './TypeScriptParser';
 import { JavaScriptParser } from './JavaScriptParser';
 import { PythonParser } from './PythonParser';
 import { PHPParser } from './PHPParser';
+import { JavaParser } from './JavaParser';
 import { HTMLParser } from './HTMLParser';
 import { HTTPParser } from './HTTPParser';
 
@@ -15,6 +16,7 @@ export class ParserFactory {
 		this.register(new TypeScriptParser());
 		this.register(new JavaScriptParser());
 		this.register(new PythonParser());
+		this.register(new JavaParser());
 		this.register(new PHPParser());
 		this.register(new HTMLParser());
 		

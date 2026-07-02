@@ -193,3 +193,20 @@ public class NotificationService {
 public class Config {
     public void load() {}
 }
+
+/**
+ * Test super() constructor calls  
+ */
+public class ConstructorTest extends BaseService {
+    private String value;
+    
+    public ConstructorTest(String name) {
+        super(name); // Super constructor call
+        this.value = "";
+    }
+    
+    @Override
+    public void execute() {
+        log("Constructor test execution");
+    }
+}

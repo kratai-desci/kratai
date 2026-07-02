@@ -7,10 +7,10 @@ import java.util.Optional;
  * Service demonstrating type relationships
  */
 public class UserService {
-    // Field type - composition relationship
-    private UserRepository repository;
-    private EmailService emailService;
-    private Logger logger;
+    // Field type - composition relationship (with different visibility levels)
+    private UserRepository repository;  // Private
+    protected EmailService emailService;  // Protected
+    public Logger logger;  // Public
     
     public UserService(UserRepository repository, EmailService emailService) {
         this.repository = repository;
