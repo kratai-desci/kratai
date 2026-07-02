@@ -69,36 +69,20 @@ export class SpringBootEnricher extends AbstractEnricher {
 			}
 			
 			// Read file content for annotation detection
-			let fileContent = '';
-			let fileExists = false;
-			
-			// Try to read the file - only use exact paths, don't guess
-			if (fs.existsSync(classInfo.filePath)) {
-				fileContent = fs.readFileSync(classInfo.filePath, 'utf-8');
-				fileExists = true;
-			} else {
-				const relativePath = path.join(context.workspacePath, classInfo.filePath);
-				if (fs.existsSync(relativePath)) {
-					fileContent = fs.readFileSync(relativePath, 'utf-8');
-					fileExists = true;
-				} else {
-					// Last resort: if workspace looks like a test fixtures directory,
-					// try finding the file by class name
-					if (context.workspacePath.includes('fixtures') || context.workspacePath.includes('test')) {
-						const byNamePath = path.join(context.workspacePath, classInfo.name + '.java');
-						if (fs.existsSync(byNamePath)) {
-							fileContent = fs.readFileSync(byNamePath, 'utf-8');
-							fileExists = true;
-						}
-					}
-				}
+			const fullPath = path.join(context.workspacePath, classInfo.filePath);
+			if (!fs.existsSync(fullPath)) {
+				// Skip if file doesn't exist
+				enhancedClasses.push(classInfo);
+				continue;
 			}
+			
+			const fileContent = fs.readFileSync(fullPath, 'utf-8');
 			
 			// Clone the class info to avoid mutating original
 			const enhanced = { ...classInfo };
 			
 			// Phase 1: Detect Spring stereotypes and set classType
-			this.detectStereotypes(enhanced, fileContent, features, fileExists);
+			this.detectStereotypes(enhanced, fileContent, features);
 			
 			// Phase 1: Detect JPA entity
 			this.detectEntity(enhanced, fileContent, features);
@@ -108,21 +92,27 @@ export class SpringBootEnricher extends AbstractEnricher {
 			
 			// Phase 1: Extract HTTP routes from controllers
 			if (enhanced.classType === 'rest-controller' || enhanced.classType === 'controller') {
-				this.extractHttpRoutes(enhanced, fileContent, enhancedClasses, features, fileExists);
+				this.extractHttpRoutes(enhanced, fileContent, enhancedClasses, features);
 			}
 			
 			// Phase 1: Detect JPA relationships
 			this.detectJpaRelationships(enhanced, fileContent, newRelationships, features);
 			
 			// Phase 1: Detect dependency injection
-			this.detectDependencyInjection(enhanced, fileContent, newRelationships, features, fileExists);
+			this.detectDependencyInjection(enhanced, fileContent, newRelationships, features);
 			
 			enhancedClasses.push(enhanced);
 		}
 		
-	// Phase 1: Infer controller->service calls based on naming patterns
-	this.inferServiceCalls(enhancedClasses, newRelationships, features);
-	
+		// Phase 1: Infer controller->service calls based on naming patterns
+		this.inferServiceCalls(enhancedClasses, newRelationships, features);
+		
+		return {
+			enhancedClasses,
+			newRelationships,
+			metadata: {
+				framework: this.framework,
+				features: Array.from(new Set(features))
 			}
 		};
 	}
@@ -130,7 +120,7 @@ export class SpringBootEnricher extends AbstractEnricher {
 	/**
 	 * Detect Spring stereotype annotations and set classType
 	 */
-	private detectStereotypes(classInfo: ClassInfo, content: string, features: string[], fileExists: boolean): void {
+	private detectStereotypes(classInfo: ClassInfo, content: string, features: string[]): void {
 		// If file doesn't exist (mock test), infer from naming conventions
 		if (!fileExists) {
 			const fileName = classInfo.name;
@@ -274,8 +264,7 @@ export class SpringBootEnricher extends AbstractEnricher {
 		classInfo: ClassInfo,
 		content: string,
 		enhancedClasses: ClassInfo[],
-		features: string[],
-		fileExists: boolean
+		features: string[]
 	): void {
 		// For mock tests without files, create routes from method names
 		if (!fileExists) {
@@ -540,8 +529,7 @@ export class SpringBootEnricher extends AbstractEnricher {
 		classInfo: ClassInfo,
 		content: string,
 		newRelationships: ClassRelationship[],
-		features: string[],
-		fileExists: boolean
+		features: string[]
 	): void {
 		// For mock tests, infer DI from properties
 		if (!fileExists) {
