@@ -14,261 +14,238 @@ applyTo:
 
 # Architecture-Driven Development with Kratai
 
-ALWAYS follow this workflow when creating or modifying code.
+## 🎯 When to Use Kratai
 
-## 🔍 Step 1: Understand Current Architecture
+### Adding a New Feature?
+```
+1. kratai_list_diagrams → See what diagrams exist
+2. Pick relevant diagram (e.g., "payment-system" for payments)
+3. kratai_get_diagram(diagramId: "payment-system")
+4. Extract patterns from similar classes
+5. Generate code matching those patterns
+```
 
-Before writing ANY code:
+### Debugging/Editing Code?
+```
+1. kratai_list_diagrams → Find diagram with your class
+2. kratai_get_diagram(diagramId: "relevant-id")
+3. See what depends on it, what it depends on
+4. Assess impact before changing
+5. Fix with full context
+```
 
-1. **Check available diagrams:**
-   ```
-   kratai_list_diagrams
-   ```
+### Exploring Unfamiliar Codebase?
+```
+1. kratai_create_overview_diagram → Get complete picture
+2. Understand layers, patterns, structure
+3. Pick specific diagrams for deeper dives
+```
 
-2. **If no diagrams exist, create one:**
-   ```
-   kratai_create_diagram(
-     name: "architecture-analysis",
-     targetFolders: ["src"] // or relevant folder
-   )
-   ```
+**Key advantage:** Diagrams are generated from actual code, so they're always current (unlike docs that go stale).
 
-3. **Get architecture:**
-   ```
-   kratai_get_diagram(diagramId: "architecture-analysis")
-   ```
+---
 
-## 📋 Step 2: Analyze Existing Patterns
+## 🛠️ Available Tools
 
-From the diagram, extract:
+### kratai_list_diagrams
+Lists all saved architecture diagrams.
+- **Use first** to see what's available
+- Returns: `[{id: "...", name: "...", lastGenerated: "..."}]`
+
+### kratai_get_diagram(diagramId)
+Gets complete architecture in markdown.
+- **Use for:** Classes, methods, relationships, dependencies
+- **Required:** diagramId from list
+- Returns: Full markdown with all architecture details
+
+### kratai_create_overview_diagram
+Creates complete codebase overview.
+- **Use when:** No diagrams exist, first time analyzing
+- **Auto-detects:** Folders, languages, everything
+- Returns: New diagram with complete architecture
+
+---
+
+## 📝 Practical Examples
+
+### Example 1: Add PaymentService
+
+**User asks:** "Create a PaymentService class"
+
+```
+1. kratai_list_diagrams
+   → Found: ["overview", "payment-system", "services"]
+
+2. kratai_get_diagram(diagramId: "payment-system")
+   → See existing: PaymentProcessor, PaymentGateway, PaymentMethod
+
+3. Extract pattern:
+   - Location: src/services/
+   - Naming: {Entity}Service
+   - Structure: constructor(repo: IRepository)
+   - Methods: async process{Action}()
+
+4. Generate PaymentService matching that pattern
+```
+
+### Example 2: Debug AuthService Bug
+
+**User asks:** "Fix authentication bug"
+
+```
+1. kratai_list_diagrams
+   → Found: ["overview", "auth-system"]
+
+2. kratai_get_diagram(diagramId: "auth-system")
+   → See relationships:
+     - LoginController → AuthService
+     - AuthService → UserRepository
+     - SessionMiddleware → AuthService
+
+3. Impact analysis:
+   - 3 classes depend on AuthService
+   - Changing it affects login, sessions
+   - Need to test all 3 after fix
+
+4. Fix AuthService with full context
+```
+
+### Example 3: Refactor Large Class
+
+**User asks:** "Split UserService, it's too big"
+
+```
+1. kratai_get_diagram(diagramId: "services")
+   → UserService has 15 methods:
+     - User CRUD: getUser, createUser, updateUser
+     - Emails: sendWelcome, sendReset
+     - Validation: validateEmail, validatePassword
+
+2. Propose split (SRP violation):
+   - Keep: User CRUD → UserService
+   - Extract: Email methods → EmailService
+   - Extract: Validation → UserValidator
+
+3. Check dependencies in diagram
+   - 5 controllers use UserService
+   - Update them to use new services
+
+4. Generate refactored code
+```
+
+### Example 4: Understand New Codebase
+
+**User asks:** "How does this codebase work?"
+
+```
+1. kratai_create_overview_diagram
+   → Generates complete architecture
+
+2. kratai_get_diagram(diagramId: "overview-...")
+   → See:
+     - Layered architecture: Controllers → Services → Repositories
+     - 45 classes in src/
+     - REST API with route decorators
+     - Repository pattern for data access
+
+3. Answer with architectural insights
+```
+
+---
+
+## 🎯 Pattern Matching Rules
+
+When generating code, ALWAYS match existing patterns:
 
 ### Naming Conventions
-- Classes: `UserService`, `ProductRepository` → Pattern: `{Entity}{Type}`
-- Methods: `getUser()`, `createProduct()` → Pattern: `{verb}{Entity}()`
+- Classes: `UserService`, `ProductRepository` → `{Entity}{Type}`
+- Methods: `getUser()`, `createProduct()` → `{verb}{Entity}()`
 - Files: Match class names
 
 ### Folder Structure
 ```
 src/
+  controllers/  ← HTTP handlers
   services/     ← Business logic
   repositories/ ← Data access
   models/       ← Data structures
-  controllers/  ← HTTP handlers
 ```
-**Rule:** New code goes in the RIGHT folder!
-
-### Design Patterns
-Look for:
-- **Repository Pattern**: `UserRepository`, `ProductRepository`
-- **Service Pattern**: `AuthService`, `PaymentService`
-- **Factory Pattern**: `createUser()`, `buildQuery()`
-- **Strategy Pattern**: Multiple implementations of interface
-
-**Rule:** Follow existing patterns, don't invent new ones!
+**Rule:** Put new code in the RIGHT folder!
 
 ### Dependency Direction
 ```
-Controllers → Services → Repositories → Models
-     ↓           ↓            ↓
-  NO reverse dependencies allowed!
+✅ Controllers → Services → Repositories → Models
+❌ Never reverse this flow!
 ```
 
-Check diagram relationships to verify layers.
+### Design Patterns
+Look for patterns in diagram:
+- **Repository Pattern**: `UserRepository`, `ProductRepository`
+- **Service Pattern**: `AuthService`, `PaymentService`
+- **Factory Pattern**: `createUser()`, `buildQuery()`
 
-## 🎯 Step 3: Apply SOLID Principles
+**Rule:** Follow existing patterns, don't invent new ones!
 
-### Single Responsibility Principle (SRP)
-❌ **Bad:** `UserService` handles users, payments, emails
-✅ **Good:** `UserService`, `PaymentService`, `EmailService`
+---
 
-**Check diagram:** If a class has > 10 methods, it probably violates SRP.
+## ✅ Validation Checklist
 
-### Open/Closed Principle (OCP)
-❌ **Bad:** Modify existing classes when adding features
-✅ **Good:** Extend via composition or inheritance
+Before proposing code, verify:
 
-**Check diagram:** Look for `extends` or `implements` relationships.
+1. ✅ Follows naming convention from diagram?
+2. ✅ In the correct folder?
+3. ✅ Matches existing class patterns?
+4. ✅ Respects dependency direction?
+5. ✅ Single responsibility (not doing too much)?
 
-### Liskov Substitution Principle (LSP)
-❌ **Bad:** Subclass changes parent behavior unexpectedly
-✅ **Good:** Subclass enhances parent behavior
+If any ❌ → Revise!
 
-**Check diagram:** Verify `extends` relationships make sense.
+---
 
-### Interface Segregation Principle (ISP)
-❌ **Bad:** One huge interface with 20 methods
-✅ **Good:** Many small, focused interfaces
+## 🔄 Impact Analysis
 
-**Check diagram:** Look for interfaces with > 5 methods → split them.
-
-### Dependency Inversion Principle (DIP)
-❌ **Bad:** `UserService` depends on concrete `MySQLRepository`
-✅ **Good:** `UserService` depends on `IRepository` interface
-
-**Check diagram:** Services should depend on interfaces, not concrete classes.
-
-## 🏗️ Step 4: Generate Consistent Code
-
-When creating new code:
-
-### Match Existing Structure
-```typescript
-// If diagram shows services like:
-class UserService {
-  constructor(private userRepo: IUserRepository) {}
-  async getUser(id: string): Promise<User> { ... }
-}
-
-// New service MUST follow same pattern:
-class ProductService {
-  constructor(private productRepo: IProductRepository) {}
-  async getProduct(id: string): Promise<Product> { ... }
-}
-```
-
-### Respect Architectural Layers
-```
-✅ Controller → Service → Repository
-❌ Controller → Repository (skip layer!)
-❌ Repository → Service (wrong direction!)
-```
-
-### Create Proper Relationships
-- **Composition:** Service HAS-A Repository
-- **Inheritance:** ProductService IS-A BaseService (if pattern exists)
-- **Interface:** Service IMPLEMENTS IService
-
-**Check diagram:** Follow existing relationship patterns.
-
-## 🚨 Step 5: Validate Against Architecture
-
-Before proposing code, ask:
-
-1. **Does it follow naming conventions?** (Check diagram)
-2. **Is it in the right folder?** (Check folder structure)
-3. **Does it match existing patterns?** (Check similar classes)
-4. **Does it respect dependency direction?** (Check relationships)
-5. **Does it violate SOLID?** (Analyze responsibilities)
-
-If answer is NO → revise the code!
-
-## 🔄 Step 6: Impact Analysis
-
-When MODIFYING existing code, check:
+Before modifying existing code:
 
 ```
-kratai_get_diagram(id: "architecture-analysis")
+1. kratai_get_diagram → Find the class
+2. Check incoming relationships (what depends on it)
+3. Check outgoing relationships (what it depends on)
+4. Assess blast radius
+
+If > 5 classes depend on it → Consider refactoring instead of direct change
 ```
 
-Find the class in diagram, then check:
-- **What depends on it?** (incoming relationships)
-- **What does it depend on?** (outgoing relationships)
-- **What would break?** (all dependent classes)
+---
 
-**Rule:** If > 5 classes depend on it, propose refactoring instead of direct modification.
+## 🚨 Anti-Patterns to Flag
 
-## 📝 Example Workflows
+When reviewing diagram, watch for:
 
-### Workflow 1: Creating New Service
+❌ **Circular Dependencies**: A → B → A  
+❌ **God Classes**: > 15 methods or > 10 relationships  
+❌ **Layer Violations**: Controller → Repository (skipped Service)  
+❌ **Tight Coupling**: Direct dependencies on concrete classes  
 
-**User asks:** "Create a PaymentService"
+If found → Propose refactoring
 
-```markdown
-1. Get architecture: kratai_get_diagram
-2. Analyze:
-   - Found: UserService, OrderService (pattern: {Entity}Service)
-   - Location: src/services/
-   - Dependencies: All services have constructor(repo: IRepository)
-   - Methods: async get{Entity}(), async create{Entity}()
-3. Generate:
-   src/services/PaymentService.ts
-   - Follows naming convention
-   - Uses IPaymentRepository interface
-   - Matches method patterns
-   - Proper error handling (same as other services)
-```
-
-### Workflow 2: Refactoring for SOLID
-
-**User asks:** "Refactor UserService, it's too big"
-
-```markdown
-1. Get architecture: kratai_get_diagram
-2. Analyze UserService:
-   - Methods: getUser, createUser, sendEmail, processPayment
-   - Violations: SRP (doing too many things)
-3. Propose:
-   - Keep: getUser, createUser in UserService
-   - Extract: sendEmail → EmailService
-   - Extract: processPayment → PaymentService
-4. Update relationships:
-   - UserService → EmailService (composition)
-   - UserService → PaymentService (composition)
-```
-
-### Workflow 3: Understanding Impact
-
-**User asks:** "What breaks if I change UserRepository?"
-
-```markdown
-1. Get architecture: kratai_get_diagram
-2. Find UserRepository in diagram
-3. Check relationships:
-   - UserService depends on UserRepository
-   - AuthService depends on UserRepository
-   - AdminController depends on UserService
-4. Answer: "Changing UserRepository affects:
-   - UserService (direct dependency)
-   - AuthService (direct dependency)
-   - AdminController (indirect via UserService)
-   Suggest: Add tests for these 3 classes before changing UserRepository"
-```
-
-## 🎓 Key Principles
-
-1. **NEVER write code without checking architecture first**
-2. **ALWAYS follow existing patterns**
-3. **ALWAYS respect architectural layers**
-4. **ALWAYS check impact before modifying**
-5. **ALWAYS apply SOLID principles**
-
-## 🚀 Advanced: Detect Anti-Patterns
-
-From diagram, flag these issues:
-
-❌ **Circular Dependencies:** A → B → A
-❌ **God Classes:** > 15 methods or > 10 relationships
-❌ **Tight Coupling:** Direct dependencies on concrete classes
-❌ **Layer Violations:** Controller → Repository (skipping Service)
-❌ **Missing Abstractions:** No interfaces, only concrete classes
-
-If found, propose refactoring!
+---
 
 ## 💡 Quick Reference
 
-**Before creating code:**
+**Decision Tree:**
 ```
-1. kratai_list_diagrams
-2. kratai_get_diagram(id: "...")
-3. Analyze patterns
-4. Generate consistent code
-5. Validate against SOLID
+User needs code help?
+  ↓
+  Are diagrams available? → kratai_list_diagrams
+  ├─ Yes → Pick relevant one → kratai_get_diagram(id)
+  └─ No  → kratai_create_overview_diagram
+
+  Got diagram?
+  ↓
+  Extract patterns → Match them in new code
 ```
 
-**Before modifying code:**
-```
-1. kratai_get_diagram(id: "...")
-2. Find class in diagram
-3. Check dependencies (incoming/outgoing)
-4. Assess impact
-5. Proceed with caution
-```
-
-**When refactoring:**
-```
-1. kratai_get_diagram(id: "...")
-2. Identify violations (SRP, DIP, etc.)
-3. Propose extraction/composition
-4. Verify new structure follows patterns
-5. Update relationships
-```
+**Remember:** 
+- Diagrams show CURRENT reality (generated from code)
+- Pick the SPECIFIC diagram for your task
+- MATCH existing patterns (don't invent new ones)

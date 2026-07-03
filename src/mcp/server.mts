@@ -80,7 +80,17 @@ export class KrataiMCPServer {
 		return [
 			{
 				name: 'kratai_list_diagrams',
-				description: 'List all saved Kratai architecture diagrams and class diagram views in this workspace. Use this when the user asks: "what diagrams exist?", "show my diagrams", "list architecture views", "what class diagrams do I have?", or mentions Kratai diagrams. Returns diagram names, IDs, and last generation timestamps.',
+				description: `Lists all saved architecture diagrams in this workspace.
+
+**ALWAYS call this first** when user asks about architecture or code structure.
+
+**Use when:**
+- User asks about architecture, dependencies, classes
+- Before getting a diagram (to find valid IDs)
+- User asks: "what diagrams exist?", "show diagrams"
+
+**Returns:** [{id, name, lastGenerated}, ...]
+**Next:** kratai_get_diagram(id) with an ID from the list`,
 				inputSchema: {
 					type: 'object',
 					properties: {},
@@ -88,13 +98,30 @@ export class KrataiMCPServer {
 			},
 			{
 				name: 'kratai_get_diagram',
-				description: 'Get complete architecture diagram with all classes, methods, properties, relationships, file paths, and line numbers in markdown format. Use this to analyze codebase structure, understand dependencies, find classes, plan refactoring, or answer questions about code architecture. ALWAYS call this when user asks about: class structure, code organization, dependencies, what would break if X changes, how components relate, impact analysis, or needs to see the full architecture. Example queries: "Show domain-model structure", "What classes exist?", "Analyze dependencies", "How is auth structured?"',
+				description: `Gets complete architecture diagram with classes, methods, relationships.
+
+**CALL THIS when user asks:**
+- "What classes exist?", "Show structure"
+- "What depends on X?", "What breaks if I change X?"
+- "How does [feature] work?"
+- Any architecture or dependency question
+
+**Returns:** Markdown with:
+- All classes (methods, properties, file paths, line numbers)
+- All relationships (extends, implements, uses, HTTP calls)
+- Git diff (shows recent changes)
+- Complete codebase structure
+
+**Why use this:** Replaces reading 50+ files. One call = full architecture. Diagrams are generated from code, so always current.
+
+**Required:** diagramId from kratai_list_diagrams
+**Workflow:** list diagrams → get diagram → answer question`,
 				inputSchema: {
 					type: 'object',
 					properties: {
 						diagramId: {
 							type: 'string',
-							description: 'Diagram ID from kratai_list_diagrams (e.g. "domain-model", "full-diagram", "parsing-package")',
+							description: 'Diagram ID from kratai_list_diagrams (e.g. "domain-model", "overview-2026-07-03T14-30-25")',
 						},
 					},
 					required: ['diagramId'],
@@ -102,7 +129,27 @@ export class KrataiMCPServer {
 			},
 			{
 				name: 'kratai_create_overview_diagram',
-				description: 'Create an overview architecture diagram of the entire codebase. Automatically detects project languages, source folders, and generates a complete architecture analysis with classes, methods, relationships, and dependencies. Use this when: analyzing a new codebase, understanding code architecture, planning refactoring, impact analysis, or when the user asks "analyze my code", "show me the architecture", "what\'s the structure?". No parameters needed - the tool intelligently detects everything! Returns complete diagram markdown with all architecture details.',
+				description: `Creates a complete architecture overview of the entire codebase.
+
+**CALL THIS when:**
+- kratai_list_diagrams returns empty (no diagrams exist)
+- First time analyzing a codebase
+- User asks: "analyze my code", "show architecture"
+
+**What it does automatically:**
+- Detects all source folders, languages
+- Scans all code files
+- Extracts classes, methods, properties, relationships
+- Shows git diff (uncommitted changes)
+- Auto-deletes previous overview diagrams
+
+**No parameters needed** - fully automatic!
+
+**Returns:** Complete architecture markdown + diagram ID
+**Typical flow:**
+1. list diagrams → empty?
+2. create overview → returns ID
+3. Use returned markdown immediately`,
 				inputSchema: {
 					type: 'object',
 					properties: {},
