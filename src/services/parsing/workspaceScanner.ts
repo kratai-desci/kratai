@@ -67,55 +67,72 @@ export class WorkspaceScanner {
 
 	/**
 	 * Select folders from workspace (flat array for config)
-	 * Smart selection: Prioritizes standard source folders, excludes non-code folders
+	 * Returns only top-level source folders - parsing will recursively include their contents
 	 * 
 	 * @param workspacePath - Absolute path to workspace
-	 * @returns Array of relative folder paths containing source code
+	 * @returns Array of top-level folder paths (e.g., ["src", "lib", "mcp"])
 	 */
 	static selectFolders(workspacePath: string): string[] {
-		// Phase 1: Try standard source patterns first (highest priority)
-		const standardFolders = this.detectStandardSourceFolders(workspacePath);
-		if (standardFolders.length > 0) {
-			return standardFolders;
-		}
-		
-		// Phase 2: Smart scan with content verification (no depth limit)
-		const folders: string[] = [];
-		this.collectCodeFolders(workspacePath, '', folders);
+		// Detect standard top-level source folders
+		const folders = this.detectTopLevelSourceFolders(workspacePath);
 		return folders.length > 0 ? folders : ['.'];
 	}
 
 	/**
-	 * Detect standard source folder patterns
-	 * Returns folders only if they exist and contain parseable files
+	 * Detect top-level source folders only
+	 * Returns folder names if they exist (parsing will handle recursion)
 	 */
-	private static detectStandardSourceFolders(workspacePath: string): string[] {
+	private static detectTopLevelSourceFolders(workspacePath: string): string[] {
 		const candidates = [
-			// Universal patterns
+			// Universal patterns (top-level only)
 			'src',
 			'lib', 
 			'app',
-			'mcp',  // MCP server development
+			'mcp',        // MCP server development
+			'api',        // API folder (common in Next.js, etc.)
+			'server',     // Server code
 			
-			// Language-specific
-			'src/main/java',     // Java/Spring
-			'src/main/kotlin',   // Kotlin
-			'pkg',               // Go
-			'internal',          // Go
+			// TypeScript/JavaScript Frameworks
+			'pages',      // Next.js
+			'routes',     // SvelteKit/Remix/Express
+			'components', // React/Vue components
+			'modules',    // NestJS/Angular
+			'hooks',      // React hooks
+			'utils',      // Utility functions
+			'helpers',    // Helper functions
+			'services',   // Business logic
+			'middleware', // Express/Koa middleware
+			'controllers',// MVC controllers
+			'models',     // Data models
+			'views',      // View templates
 			
-			// Framework-specific  
-			'pages',             // Next.js
-			'routes',            // SvelteKit/Remix
+			// Python
+			'apps',       // Django apps
+			'core',       // Django core
+			'blueprints', // Flask blueprints
+			'routers',    // FastAPI routers
+			'schemas',    // Pydantic schemas
+			
+			// PHP
+			'resources',  // Laravel resources
+			'database',   // Laravel migrations/seeders/factories
+			
+			// Go
+			'cmd',        // Go commands
+			'pkg',        // Go packages
+			'internal',   // Go internal packages
+			
+			// Java/Kotlin
+			'main',       // Common source folder
 		];
 		
 		const found: string[] = [];
 		
 		for (const candidate of candidates) {
 			const fullPath = path.join(workspacePath, candidate);
-			if (fs.existsSync(fullPath) && this.hasParseableFiles(fullPath)) {
+			// Only check if folder exists and has code (directly or in descendants)
+			if (fs.existsSync(fullPath) && this.hasCodeInTree(fullPath)) {
 				found.push(candidate);
-				// Recursively include all subfolders with code
-				found.push(...this.getCodeSubfolders(workspacePath, candidate));
 			}
 		}
 		
@@ -123,86 +140,48 @@ export class WorkspaceScanner {
 	}
 
 	/**
-	 * Get all subfolders containing code (recursive, no depth limit)
+	 * Check if folder tree contains any parseable code files
+	 * Recursively checks folder and all descendants
 	 */
-	private static getCodeSubfolders(
-		workspacePath: string, 
-		parentPath: string
-	): string[] {
-		const subfolders: string[] = [];
-		const fullPath = path.join(workspacePath, parentPath);
+	private static hasCodeInTree(
+		folderPath: string,
+		maxDepth: number = 5,
+		currentDepth: number = 0
+	): boolean {
+		// Prevent infinite recursion
+		if (currentDepth > maxDepth) return false;
 		
 		try {
-			const entries = fs.readdirSync(fullPath, { withFileTypes: true });
+			const entries = fs.readdirSync(folderPath, { withFileTypes: true });
 			
 			for (const entry of entries) {
-				if (!entry.isDirectory()) continue;
-				if (this.shouldExcludeFolder(entry.name)) continue;
-				
-				const childPath = `${parentPath}/${entry.name}`;
-				const childFullPath = path.join(workspacePath, childPath);
-				
-				if (this.hasParseableFiles(childFullPath)) {
-					subfolders.push(childPath);
-					// Recurse into child folders
-					subfolders.push(...this.getCodeSubfolders(workspacePath, childPath));
+				if (entry.isFile()) {
+					// Check if this is a parseable file
+					const ext = path.extname(entry.name).toLowerCase();
+					const PARSEABLE_EXTENSIONS = [
+						'.ts', '.tsx', '.js', '.jsx', 
+						'.py', '.php', '.java', '.kt', 
+						'.html', '.jsp', '.go', '.rs',
+					];
+					if (PARSEABLE_EXTENSIONS.includes(ext)) {
+						return true;
+					}
+				} else if (entry.isDirectory()) {
+					// Skip excluded folders
+					if (this.shouldExcludeFolder(entry.name)) continue;
+					
+					// Recurse into subdirectory
+					const childPath = path.join(folderPath, entry.name);
+					if (this.hasCodeInTree(childPath, maxDepth, currentDepth + 1)) {
+						return true;
+					}
 				}
 			}
 		} catch (error) {
 			// Can't read folder
 		}
 		
-		return subfolders;
-	}
-
-	/**
-	 * Recursively collect folders with source code (content-aware, no depth limit)
-	 */
-	private static collectCodeFolders(
-		workspacePath: string,
-		relativePath: string,
-		folders: string[]
-	): void {
-		const fullPath = path.join(workspacePath, relativePath);
-
-		if (!fs.existsSync(fullPath)) {
-			return;
-		}
-
-		try {
-			const stats = fs.statSync(fullPath);
-			if (!stats.isDirectory()) {
-				return;
-			}
-
-			// Scan subdirectories
-			const entries = fs.readdirSync(fullPath, { withFileTypes: true });
-
-			for (const entry of entries) {
-				if (!entry.isDirectory()) continue;
-
-				// Skip excluded folders (tests, docs, etc.)
-				if (this.shouldExcludeFolder(entry.name)) {
-					continue;
-				}
-
-				// Build child path
-				const childPath = relativePath 
-					? `${relativePath}/${entry.name}`
-					: entry.name;
-
-				const childFullPath = path.join(workspacePath, childPath);
-
-				// Only include if it contains parseable source files
-				if (this.hasParseableFiles(childFullPath)) {
-					folders.push(childPath);
-					// Recurse into child folders (no depth limit)
-					this.collectCodeFolders(workspacePath, childPath, folders);
-				}
-			}
-		} catch (error) {
-			// Skip folders we can't read
-		}
+		return false;
 	}
 
 	/**
