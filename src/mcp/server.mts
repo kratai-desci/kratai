@@ -62,8 +62,8 @@ export class KrataiMCPServer {
 				case 'kratai_get_diagram':
 					return await this.getDiagram(args?.diagramId as string);
 				
-				case 'kratai_create_diagram':
-					return await this.createDiagram(args as any);
+				case 'kratai_create_overview_diagram':
+					return await this.createOverviewDiagram();
 
 				default:
 					throw new Error(`Unknown tool: ${name}`);
@@ -99,27 +99,11 @@ export class KrataiMCPServer {
 				},
 			},
 			{
-				name: 'kratai_create_diagram',
-				description: 'Create a new Kratai architecture diagram for specific folders or the entire workspace. Use this when analyzing a new codebase for the first time, when no diagrams exist yet (kratai_list_diagrams returns empty), or when user wants to analyze a specific part of the codebase. Creates a diagram view, generates it immediately, and returns the diagram ID for use with kratai_get_diagram. Example: "Analyze my codebase", "Create diagram for src/services", "Map my architecture".',
+				name: 'kratai_create_overview_diagram',
+				description: 'Create an overview architecture diagram of the entire codebase. Automatically detects project languages, source folders, and generates a complete architecture analysis with classes, methods, relationships, and dependencies. Use this when: analyzing a new codebase, understanding code architecture, planning refactoring, impact analysis, or when the user asks "analyze my code", "show me the architecture", "what\'s the structure?". No parameters needed - the tool intelligently detects everything! Returns complete diagram markdown with all architecture details.',
 				inputSchema: {
 					type: 'object',
-					properties: {
-						name: {
-							type: 'string',
-							description: 'Diagram name (e.g., "full-analysis", "services-view", "domain-model"). Must be unique.',
-						},
-						targetFolders: {
-							type: 'array',
-							items: { type: 'string' },
-							description: 'Folders to include relative to workspace root (e.g., ["src/"], ["src/services/", "src/models/"]). Empty array or omitted = entire workspace.',
-						},
-						languages: {
-							type: 'array',
-							items: { type: 'string', enum: ['typescript', 'javascript', 'python', 'php'] },
-							description: 'Languages to parse. Default: ["typescript", "javascript", "python", "php"] (auto-detect all).',
-						},
-					},
-					required: ['name'],
+					properties: {},
 				},
 			},
 		];
@@ -247,49 +231,21 @@ export class KrataiMCPServer {
 	}
 
 	/**
-	 * Create a new diagram
+	 * Create an overview diagram with auto-detection
+	 * No parameters needed - intelligently detects everything!
 	 */
-	private async createDiagram(args: {
-		name: string;
-		targetFolders?: string[];
-		languages?: string[];
-	}) {
+	private async createOverviewDiagram() {
 		try {
-			if (!args.name) {
-				throw new Error('name is required');
-			}
+			// Auto-generate unique name with timestamp
+			const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+			const name = `overview-${timestamp}`;
 
-			// Map languages to extensions
-			const languageExtensions: Record<string, string[]> = {
-				'typescript': ['.ts', '.tsx'],
-				'javascript': ['.js', '.jsx', '.mjs', '.cjs'],
-				'python': ['.py'],
-				'php': ['.php']
-			};
+			// Use smart defaults - auto-detect folders and languages
+			const config = ConfigService.generateSmartDefaults(this.workspacePath);
 
-			// Get extensions based on requested languages
-			let extensions: string[] = [];
-			if (args.languages && args.languages.length > 0) {
-				for (const lang of args.languages) {
-					extensions.push(...(languageExtensions[lang] || []));
-				}
-			} else {
-				// Default: all languages
-				extensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.php'];
-			}
-
-			// Use unified folder selection logic from WorkspaceScanner
-			const expandedFolders = WorkspaceScanner.selectFolders(
-				this.workspacePath,
-				args.targetFolders
-			);
-
-			// Create config using correct KrataiConfig structure
-			const config: any = {
-				selectedFolders: expandedFolders,
-				selectedExtensions: extensions,
-				respectGitignore: true,
-				followSymlinks: false,
+			// Enhance config for MCP
+			const enhancedConfig: any = {
+				...config,
 				classTypeFilters: {}, // Empty = show all types
 				relationshipTypeFilters: {
 					'extends': true,
@@ -303,35 +259,30 @@ export class KrataiMCPServer {
 				},
 				gitDiff: {
 					enabled: false
-				},
-				detectHttpCalls: true,
-				frameworkEnrichment: true
+				}
 			};
 
 			// Create view
 			const view = await ViewManager.createView(
 				this.workspacePath,
-				args.name,
-				config
+				name,
+				enhancedConfig
 			);
 
 			// Generate diagram immediately
 			const diagramData = await CodeParserService.parseWorkspace(
 				this.workspacePath,
-				config
-			);
+			enhancedConfig
+		);
 
-			// Update last generated timestamp
-			await ViewManager.updateLastGenerated(this.workspacePath, view.id);
-
-			// Generate markdown for AI to consume
+		// Update last generated timestamp
 			const markdown = MarkdownExporter.toMarkdown(diagramData, view.name);
 
 			// Track MCP usage
 			TelemetryService.trackMcpCreateDiagram(
 				diagramData.classes.length,
 				diagramData.relationships.length,
-				config.selectedFolders?.length || 0
+				enhancedConfig.selectedFolders?.length || 0
 			);
 
 			// Return markdown directly (AI can analyze it immediately)
