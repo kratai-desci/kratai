@@ -10,7 +10,8 @@ interface ExtensionConfig {
 
 function loadConfig(): ExtensionConfig {
 	try {
-		const configPath = path.join(__dirname, '..', '..', 'config.json');
+		// Go up 3 levels from out/services/telemetry/ to reach project root
+		const configPath = path.join(__dirname, '..', '..', '..', 'config.json');
 		if (fs.existsSync(configPath)) {
 			return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
 		}

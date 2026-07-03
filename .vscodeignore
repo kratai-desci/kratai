@@ -19,3 +19,6 @@ node_modules/**/.bin/**
 **/*.md.backup
 **/.DS_Store
 coverage/**
+
+# Explicitly include config.json in the package (even though it's in .gitignore)
+!config.json
