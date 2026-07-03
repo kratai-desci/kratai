@@ -240,6 +240,18 @@ export class KrataiMCPServer {
 			const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
 			const name = `overview-${timestamp}`;
 
+			// Delete old overview diagrams (keep only the latest)
+			const existingViews = await ViewManager.listViews(this.workspacePath);
+			const oldOverviews = existingViews.filter(v => v.id.startsWith('overview-'));
+			
+			if (oldOverviews.length > 0) {
+				console.log(`🗑️  Cleaning up ${oldOverviews.length} old overview diagram(s)...`);
+				for (const oldView of oldOverviews) {
+					await ViewManager.deleteView(this.workspacePath, oldView.id);
+					console.log(`   Deleted: ${oldView.name}`);
+				}
+			}
+
 			// Use smart defaults - auto-detect folders and languages
 			const config = ConfigService.generateSmartDefaults(this.workspacePath);
 
