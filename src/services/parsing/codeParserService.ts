@@ -15,12 +15,11 @@ export class CodeParserService {
 	static async parseWorkspace(workspacePath: string, config?: KrataiConfig): Promise<DiagramData> {
 		const classes: ClassInfo[] = [];
 
-		if (!config) {
-			config = await ConfigService.loadConfig(workspacePath);
-		}
+		// Load config if not provided - use local const for type safety
+		const resolvedConfig = config || await ConfigService.loadConfig(workspacePath);
 
 		// Get files to parse - all filtering handled by WorkspaceScanner
-		const files = WorkspaceScanner.getFilesToParse(workspacePath, config);
+		const files = WorkspaceScanner.getFilesToParse(workspacePath, resolvedConfig);
 
 		if (files.length === 0) {
 			throw new Error('No files found to parse. Check your configuration.');
@@ -74,7 +73,7 @@ export class CodeParserService {
 
 		// === SECOND PASS: HTTP Parser (Cross-Language Analysis) ===
 		// Run after language parsers to detect HTTP patterns across all files
-		if (config.detectHttpCalls !== false) {
+		if (resolvedConfig.detectHttpCalls !== false) {
 			try {
 				console.log('🌐 Running HTTP parser (second pass)...');
 				const httpParser = parserFactory.getHttpParser();
@@ -110,7 +109,7 @@ export class CodeParserService {
 
 		// Legacy HTTP detector (keeping for backward compatibility)
 		// TODO: Remove after HTTPParser is fully tested
-		if (config.detectHttpCalls !== false) {
+		if (resolvedConfig.detectHttpCalls !== false) {
 			try {
 				const httpDetector = new HttpCallDetector();
 				const routeMap = httpDetector.buildRouteMap(classes);
@@ -150,7 +149,7 @@ export class CodeParserService {
 
 		// === THIRD PASS: Framework Enrichers ===
 		// Run after language parsers and HTTP parser to add framework-specific knowledge
-		if (config.frameworkEnrichment !== false) {
+		if (resolvedConfig.frameworkEnrichment !== false) {
 			try {
 				console.log('🎨 Running framework enrichers (third pass)...');
 				const enricherRegistry = new EnricherRegistry();
