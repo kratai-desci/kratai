@@ -898,7 +898,10 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
 
 function renderFolderTree(node: any, level: number = 0): string {
 	const hasChildren = node.children && node.children.length > 0;
-	const toggleIcon = hasChildren ? '▼' : ' '; // Changed to ▼ (expanded by default)
+	
+	// Check if this node or any descendants are selected
+	const shouldExpand = hasSelectedDescendants(node);
+	const toggleIcon = hasChildren ? (shouldExpand ? '▼' : '▶') : ' ';
 	const indent = level * 20;
 	
 	let html = `
@@ -911,8 +914,9 @@ function renderFolderTree(node: any, level: number = 0): string {
 	`;
 
 	if (hasChildren) {
-		// Add 'expanded' class by default (removed - now default is expanded)
-		html += `<div class="folder-children">`;
+		// Collapse by default unless this branch has selected folders
+		const collapsedClass = shouldExpand ? '' : ' collapsed';
+		html += `<div class="folder-children${collapsedClass}">`;
 		for (const child of node.children) {
 			html += renderFolderTree(child, level + 1);
 		}
@@ -920,4 +924,19 @@ function renderFolderTree(node: any, level: number = 0): string {
 	}
 
 	return html;
+}
+
+/**
+ * Check if node or any of its descendants are selected
+ */
+function hasSelectedDescendants(node: any): boolean {
+	if (node.selected) {
+		return true;
+	}
+	
+	if (node.children && node.children.length > 0) {
+		return node.children.some((child: any) => hasSelectedDescendants(child));
+	}
+	
+	return false;
 }
