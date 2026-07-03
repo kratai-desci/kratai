@@ -25,8 +25,8 @@ export class ConfigService {
 		// Use unified folder selection logic from WorkspaceScanner
 		const selectedFolders = WorkspaceScanner.selectFolders(workspacePath);
 
-		// Detect file types in the project
-		const extensions = this.detectFileExtensions(workspacePath);
+		// Detect project type and appropriate extensions
+		const extensions = this.detectProjectExtensions(workspacePath);
 
 		return {
 			selectedFolders,
@@ -38,7 +38,11 @@ export class ConfigService {
 		};
 	}
 
-	private static detectFileExtensions(workspacePath: string): string[] {
+	/**
+	 * Detect project type and return appropriate file extensions to parse
+	 * Analyzes project files (package.json, composer.json, etc.) to determine language
+	 */
+	private static detectProjectExtensions(workspacePath: string): string[] {
 		// Default to TypeScript
 		let detectedExtensions: string[] = ['.ts', '.tsx'];
 
@@ -161,35 +165,6 @@ export class ConfigService {
 		};
 
 		fs.writeFileSync(configPath, JSON.stringify(configWithTimestamp, null, 2), 'utf-8');
-	}
-
-	static shouldIncludeFolder(folderPath: string, config: KrataiConfig): boolean {
-		// Default exclusions
-		const defaultExclusions = ['node_modules', 'dist', 'build', 'out', '.git'];
-		
-		const relativePath = folderPath.replace(/\\/g, '/');
-		
-		// Check default exclusions
-		for (const exclusion of defaultExclusions) {
-			if (relativePath.includes(`/${exclusion}/`) || relativePath.endsWith(`/${exclusion}`) || relativePath === exclusion) {
-				return false;
-			}
-		}
-
-		// If no folders selected, include everything (except defaults)
-		if (config.selectedFolders.length === 0) {
-			return true;
-		}
-
-		// NEW LOGIC: Only include folders that are EXPLICITLY checked
-		// This prevents automatic inclusion of subdirectories
-		// User must check each folder they want to scan
-		return config.selectedFolders.includes(relativePath);
-	}
-
-	static shouldIncludeFile(filePath: string, config: KrataiConfig): boolean {
-		const ext = path.extname(filePath);
-		return config.selectedExtensions.includes(ext);
 	}
 
 }

@@ -3,6 +3,7 @@ import * as path from 'path';
 import { ClassInfo, DiagramData, ClassRelationship } from '../../types/domain';
 import { KrataiConfig } from '../../types/config';
 import { ConfigService } from '../util/configService';
+import { WorkspaceScanner } from './workspaceScanner';
 import { ParserFactory } from './languages/ParserFactory';
 import { HttpCallDetector } from './httpCallDetector';
 import { EnricherRegistry } from '../enrichment/EnricherRegistry';
@@ -18,7 +19,8 @@ export class CodeParserService {
 			config = await ConfigService.loadConfig(workspacePath);
 		}
 
-		const files = this.findFilesWithConfig(workspacePath, config);
+		// Get files to parse - all filtering handled by WorkspaceScanner
+		const files = WorkspaceScanner.getFilesToParse(workspacePath, config);
 
 		if (files.length === 0) {
 			throw new Error('No files found to parse. Check your configuration.');
@@ -174,48 +176,6 @@ export class CodeParserService {
 		}
 
 		return { classes, relationships };
-	}
-
-	private static findFilesWithConfig(workspacePath: string, config: KrataiConfig): string[] {
-		const files: string[] = [];
-		
-		const foldersToScan = config.selectedFolders.length > 0 
-			? config.selectedFolders 
-			: [''];
-
-		for (const folder of foldersToScan) {
-			const fullPath = path.join(workspacePath, folder);
-			if (fs.existsSync(fullPath)) {
-				this.scanDirectory(fullPath, workspacePath, config, files);
-			}
-		}
-
-		return files;
-	}
-
-	private static scanDirectory(
-		dir: string,
-		workspacePath: string,
-		config: KrataiConfig,
-		files: string[]
-	): void {
-		const items = fs.readdirSync(dir);
-		
-		for (const item of items) {
-			const fullPath = path.join(dir, item);
-			const stat = fs.statSync(fullPath);
-			const relativePath = path.relative(workspacePath, fullPath);
-
-			if (stat.isDirectory()) {
-				if (ConfigService.shouldIncludeFolder(relativePath, config)) {
-					this.scanDirectory(fullPath, workspacePath, config, files);
-				}
-			} else {
-				if (ConfigService.shouldIncludeFile(fullPath, config)) {
-					files.push(fullPath);
-				}
-			}
-		}
 	}
 
 	/**

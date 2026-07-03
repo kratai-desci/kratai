@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { ConfigFolderNode, ExtensionInfo } from '../../types/view';
+import { KrataiConfig } from '../../types/config';
 
 export class WorkspaceScanner {
 	private static readonly DEFAULT_EXCLUSIONS = [
@@ -66,36 +67,14 @@ export class WorkspaceScanner {
 
 	/**
 	 * Select folders from workspace (flat array for config)
-	 * Used by both UI and MCP for generating default folder selections
+	 * Scans entire workspace and returns all non-excluded folders
 	 * 
 	 * @param workspacePath - Absolute path to workspace
-	 * @param targetFolders - Optional specific folders to expand (for MCP)
 	 * @returns Array of relative folder paths
 	 */
-	static selectFolders(
-		workspacePath: string,
-		targetFolders?: string[]
-	): string[] {
+	static selectFolders(workspacePath: string): string[] {
 		const folders: string[] = [];
-
-		// If specific folders requested, expand those
-		if (targetFolders && targetFolders.length > 0) {
-			for (const folder of targetFolders) {
-				const cleanFolder = folder.replace(/\/$/, '');
-				
-				// Handle workspace root
-				if (cleanFolder === '.' || cleanFolder === '') {
-					this.collectFolders(workspacePath, '', folders);
-				} else {
-					// Scan specific folder
-					this.collectFolders(workspacePath, cleanFolder, folders);
-				}
-			}
-		} else {
-			// No specific folders - scan entire workspace
-			this.collectFolders(workspacePath, '', folders);
-		}
-
+		this.collectFolders(workspacePath, '', folders);
 		return folders.length > 0 ? folders : ['.'];
 	}
 
@@ -148,7 +127,11 @@ export class WorkspaceScanner {
 		}
 	}
 
-	static discoverExtensions(workspacePath: string): ExtensionInfo[] {
+	/**
+	 * Scan workspace and count file extensions
+	 * Used by UI to display extension statistics
+	 */
+	static scanExtensionCounts(workspacePath: string): ExtensionInfo[] {
 		const extensionMap = new Map<string, number>();
 		
 		this.scanExtensions(workspacePath, '', extensionMap);
@@ -194,5 +177,84 @@ export class WorkspaceScanner {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Get list of files to parse based on config
+	 * All inclusion/exclusion logic is handled internally
+	 * 
+	 * @param workspacePath - Absolute path to workspace
+	 * @param config - Configuration with selected folders and extensions
+	 * @returns Array of absolute file paths ready to parse
+	 */
+	static getFilesToParse(workspacePath: string, config: KrataiConfig): string[] {
+		const files: string[] = [];
+		this.scanForFiles(workspacePath, workspacePath, config, files);
+		return files;
+	}
+
+	/**
+	 * Recursively scan directory for files matching config
+	 * Private - callers should use getFilesToParse()
+	 */
+	private static scanForFiles(
+		dir: string,
+		workspacePath: string,
+		config: KrataiConfig,
+		files: string[]
+	): void {
+		try {
+			const items = fs.readdirSync(dir);
+			
+			for (const item of items) {
+				const fullPath = path.join(dir, item);
+				const stat = fs.statSync(fullPath);
+				const relativePath = path.relative(workspacePath, fullPath);
+
+				if (stat.isDirectory()) {
+					if (this.shouldIncludeFolder(relativePath, config.selectedFolders)) {
+						this.scanForFiles(fullPath, workspacePath, config, files);
+					}
+				} else {
+					if (this.shouldIncludeFile(fullPath, config.selectedExtensions)) {
+						files.push(fullPath);
+					}
+				}
+			}
+		} catch (error) {
+			// Skip directories we can't read
+		}
+	}
+
+	/**
+	 * Check if a folder should be included based on config
+	 * Private - inclusion logic is internal to WorkspaceScanner
+	 */
+	private static shouldIncludeFolder(folderPath: string, selectedFolders: string[]): boolean {
+		const relativePath = folderPath.replace(/\\/g, '/');
+		
+		// Check default exclusions
+		for (const exclusion of this.DEFAULT_EXCLUSIONS) {
+			if (relativePath.includes(`/${exclusion}/`) || relativePath.endsWith(`/${exclusion}`) || relativePath === exclusion) {
+				return false;
+			}
+		}
+
+		// If no folders selected, include everything (except defaults)
+		if (selectedFolders.length === 0) {
+			return true;
+		}
+
+		// Only include folders that are EXPLICITLY selected
+		return selectedFolders.includes(relativePath);
+	}
+
+	/**
+	 * Check if a file should be included based on extension
+	 * Private - inclusion logic is internal to WorkspaceScanner
+	 */
+	private static shouldIncludeFile(filePath: string, selectedExtensions: string[]): boolean {
+		const ext = path.extname(filePath);
+		return selectedExtensions.includes(ext);
 	}
 }

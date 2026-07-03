@@ -170,7 +170,7 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 
 	// Scan workspace
 	const folderTree = WorkspaceScanner.scanFolders(workspacePath, config.selectedFolders);
-	const extensions = WorkspaceScanner.discoverExtensions(workspacePath);
+	const extensions = WorkspaceScanner.scanExtensionCounts(workspacePath);
 
 	// Update selection state from config
 	extensions.forEach(ext => {
