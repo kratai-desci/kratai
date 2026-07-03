@@ -258,7 +258,8 @@ export class KrataiMCPServer {
 					'routes-to': true
 				},
 				gitDiff: {
-					enabled: false
+					enabled: true,
+					baseCommit: 'HEAD'  // Shows uncommitted changes (working directory vs HEAD)
 				}
 			};
 
@@ -272,10 +273,13 @@ export class KrataiMCPServer {
 			// Generate diagram immediately
 			const diagramData = await CodeParserService.parseWorkspace(
 				this.workspacePath,
-			enhancedConfig
-		);
+				enhancedConfig
+			);
 
-		// Update last generated timestamp
+			// Update last generated timestamp
+			await ViewManager.updateLastGenerated(this.workspacePath, view.id);
+
+			// Generate markdown for AI to consume
 			const markdown = MarkdownExporter.toMarkdown(diagramData, view.name);
 
 			// Track MCP usage
