@@ -4,7 +4,6 @@
     "src/commands",
     "src/mcp",
     "src/services",
-    "src/services/config",
     "src/services/diagram",
     "src/services/enrichment",
     "src/services/enrichment/frameworks",
@@ -14,6 +13,7 @@
     "src/services/parsing/frameworks",
     "src/services/parsing/languages",
     "src/services/telemetry",
+    "src/services/util",
     "src/services/view",
     "src/types",
     "src/types/config",
@@ -68,5 +68,5 @@
     "enabled": true,
     "baseCommit": "HEAD~1"
   },
-  "lastUpdated": "2026-07-02T02:09:54.051Z"
+  "lastUpdated": "2026-07-03T02:15:51.920Z"
 }

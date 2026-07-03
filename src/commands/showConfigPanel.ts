@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { WorkspaceScanner } from '../services/parsing/workspaceScanner';
-import { ConfigService } from '../services/config/configService';
+import { ConfigService } from '../services/util/configService';
 import { CodeParserService } from '../services/parsing/codeParserService';
 import { KrataiConfig } from '../types/config';
 import { ViewManager } from '../services/view';

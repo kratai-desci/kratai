@@ -10,7 +10,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { ViewManager } from '../services/view/index.js';
 import { DiagramView } from '../types/view/DiagramView.js';
-import { ConfigService } from '../services/config/configService.js';
+import { ConfigService } from '../services/util/configService.js';
+import { FolderSelectionService } from '../services/util/folderSelectionService.js';
 import { CodeParserService } from '../services/parsing/codeParserService.js';
 import { GitDiffEnricher } from '../services/git/gitDiffEnricher.js';
 import { MarkdownExporter } from '../services/export/MarkdownExporter.js';
@@ -246,115 +247,6 @@ export class KrataiMCPServer {
 	}
 
 	/**
-	 * Recursively scan directories to get all subdirectories
-	 */
-	private scanDirectoriesRecursively(
-		basePath: string, 
-		relativePath: string = '', 
-		isRootScan: boolean = false
-	): string[] {
-		const folders: string[] = [];
-		const fullPath = path.join(basePath, relativePath);
-
-		// Check if path exists and is accessible
-		if (!fs.existsSync(fullPath)) {
-			return folders;
-		}
-
-		try {
-			const stats = fs.statSync(fullPath);
-			if (!stats.isDirectory()) {
-				return folders;
-			}
-
-			// Add current directory if not empty string
-			if (relativePath) {
-				folders.push(relativePath);
-			}
-
-			// Scan subdirectories
-			const entries = fs.readdirSync(fullPath, { withFileTypes: true });
-			for (const entry of entries) {
-				if (entry.isDirectory()) {
-					// Always skip these directories at any level
-					const alwaysSkip = [
-						'node_modules',
-						'.git',
-						'__pycache__',
-						'.pytest_cache',
-						'.mypy_cache',
-						'.tox',
-						'.eggs',
-						'venv',
-						'.venv',
-						'env',
-						'.env',
-						// Skip test and fixture directories (avoid circular test data)
-						'test',
-						'tests',
-						'__tests__',
-						'spec',
-						'specs',
-						'fixture',
-						'fixtures',
-						'mock',
-						'mocks',
-						'__mocks__'
-					];
-					
-					// Additional folders to skip when scanning from root (for MCP)
-					const rootLevelSkip = [
-						'dist',
-						'build',
-						'out',
-						'coverage',
-						'.coverage',
-						'htmlcov',
-						'.nyc_output',
-						'target',
-						'bin',
-						'obj',
-						'.next',
-						'.nuxt',
-						'.output',
-						'.vercel',
-						'public',
-						'static',
-						'assets',
-						'tmp',
-						'temp',
-						'logs',
-						'vendor'
-					];
-
-					// Skip hidden folders (starting with .) when at root level
-					if (isRootScan && !relativePath && entry.name.startsWith('.')) {
-						continue;
-					}
-
-					// Check skip lists
-					if (alwaysSkip.includes(entry.name)) {
-						continue;
-					}
-
-					// Apply root-level skip list only when we're actually at root
-					if (isRootScan && !relativePath && rootLevelSkip.includes(entry.name)) {
-						continue;
-					}
-
-					const subPath = relativePath ? path.join(relativePath, entry.name) : entry.name;
-					// Stop propagating isRootScan after first level
-					folders.push(...this.scanDirectoriesRecursively(basePath, subPath, false));
-				}
-			}
-		} catch (error) {
-			// Skip directories we can't read
-		}
-
-		return folders;
-	}
-
-	/**
 	 * Create a new diagram
 	 */
 	private async createDiagram(args: {
@@ -386,35 +278,11 @@ export class KrataiMCPServer {
 				extensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.php'];
 			}
 
-			// Expand target folders to include all subdirectories (like UI does)
-			let expandedFolders: string[] = [];
-			if (args.targetFolders && args.targetFolders.length > 0) {
-				for (const folder of args.targetFolders) {
-					// Remove trailing slash if present
-					const cleanFolder = folder.replace(/\/$/, '');
-					
-					// Check if requesting workspace root
-					if (cleanFolder === '.' || cleanFolder === '') {
-						// Scan workspace root with aggressive filtering (isRootScan=true)
-						expandedFolders = this.scanDirectoriesRecursively(this.workspacePath, '', true);
-					} else {
-						// Scan specific folder without root filtering
-						const scanned = this.scanDirectoriesRecursively(this.workspacePath, cleanFolder, false);
-						if (scanned.length > 0) {
-							expandedFolders.push(...scanned);
-						} else {
-							// If scan returned nothing, add the folder itself
-							expandedFolders.push(cleanFolder);
-						}
-					}
-				}
-			} else {
-				// No folders specified - scan workspace root with aggressive filtering
-				expandedFolders = this.scanDirectoriesRecursively(this.workspacePath, '', true);
-				if (expandedFolders.length === 0) {
-					expandedFolders = ['.'];
-				}
-			}
+			// Use unified folder selection logic
+			const expandedFolders = FolderSelectionService.selectFolders(
+				this.workspacePath,
+				args.targetFolders
+			);
 
 			// Create config using correct KrataiConfig structure
 			const config: any = {

@@ -4,7 +4,7 @@ import * as path from 'path';
 import { CodeParserService } from '../services/parsing/codeParserService';
 import { DiagramGeneratorService } from '../services/diagram/diagramGeneratorService';
 import { ClassDiagramView } from '../views/classDiagramView';
-import { ConfigService } from '../services/config/configService';
+import { ConfigService } from '../services/util/configService';
 import { GitDiffEnricher } from '../services/git/gitDiffEnricher';
 import { TelemetryService } from '../services/telemetry/telemetryService';
 import { KrataiConfig } from '../types/config';
