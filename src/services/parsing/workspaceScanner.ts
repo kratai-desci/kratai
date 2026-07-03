@@ -305,7 +305,7 @@ export class WorkspaceScanner {
 
 	/**
 	 * Get list of files to parse based on config
-	 * All inclusion/exclusion logic is handled internally
+	 * Starts parsing from selected folders directly, includes all subdirectories
 	 * 
 	 * @param workspacePath - Absolute path to workspace
 	 * @param config - Configuration with selected folders and extensions
@@ -313,12 +313,27 @@ export class WorkspaceScanner {
 	 */
 	static getFilesToParse(workspacePath: string, config: KrataiConfig): string[] {
 		const files: string[] = [];
-		this.scanForFiles(workspacePath, workspacePath, config, files);
+		
+		// If no folders selected, parse entire workspace
+		if (config.selectedFolders.length === 0) {
+			this.scanForFiles(workspacePath, workspacePath, config, files);
+			return files;
+		}
+		
+		// Parse each selected folder + all subdirectories
+		for (const folder of config.selectedFolders) {
+			const folderPath = path.join(workspacePath, folder);
+			if (fs.existsSync(folderPath)) {
+				this.scanForFiles(folderPath, workspacePath, config, files);
+			}
+		}
+		
 		return files;
 	}
 
 	/**
 	 * Recursively scan directory for files matching config
+	 * Parses everything in the given directory + all subdirectories (except exclusions)
 	 * Private - callers should use getFilesToParse()
 	 */
 	private static scanForFiles(
@@ -333,10 +348,10 @@ export class WorkspaceScanner {
 			for (const item of items) {
 				const fullPath = path.join(dir, item);
 				const stat = fs.statSync(fullPath);
-				const relativePath = path.relative(workspacePath, fullPath);
 
 				if (stat.isDirectory()) {
-					if (this.shouldIncludeFolder(relativePath, config.selectedFolders)) {
+					// Skip excluded folders only (tests, node_modules, etc.)
+					if (!this.isExcludedFolder(item)) {
 						this.scanForFiles(fullPath, workspacePath, config, files);
 					}
 				} else {
@@ -351,26 +366,17 @@ export class WorkspaceScanner {
 	}
 
 	/**
-	 * Check if a folder should be included based on config
-	 * Private - inclusion logic is internal to WorkspaceScanner
+	 * Check if a folder should be excluded from parsing
+	 * Combines DEFAULT_EXCLUSIONS and comprehensive exclusions
 	 */
-	private static shouldIncludeFolder(folderPath: string, selectedFolders: string[]): boolean {
-		const relativePath = folderPath.replace(/\\/g, '/');
-		
-		// Check default exclusions
-		for (const exclusion of this.DEFAULT_EXCLUSIONS) {
-			if (relativePath.includes(`/${exclusion}/`) || relativePath.endsWith(`/${exclusion}`) || relativePath === exclusion) {
-				return false;
-			}
-		}
-
-		// If no folders selected, include everything (except defaults)
-		if (selectedFolders.length === 0) {
+	private static isExcludedFolder(folderName: string): boolean {
+		// Check DEFAULT_EXCLUSIONS (node_modules, dist, .git, etc.)
+		if (this.DEFAULT_EXCLUSIONS.includes(folderName)) {
 			return true;
 		}
-
-		// Only include folders that are EXPLICITLY selected
-		return selectedFolders.includes(relativePath);
+		
+		// Check comprehensive exclusions (tests, docs, etc.)
+		return this.shouldExcludeFolder(folderName);
 	}
 
 	/**
