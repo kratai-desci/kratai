@@ -67,21 +67,98 @@ export class WorkspaceScanner {
 
 	/**
 	 * Select folders from workspace (flat array for config)
-	 * Scans entire workspace and returns all non-excluded folders
+	 * Smart selection: Prioritizes standard source folders, excludes non-code folders
 	 * 
 	 * @param workspacePath - Absolute path to workspace
-	 * @returns Array of relative folder paths
+	 * @returns Array of relative folder paths containing source code
 	 */
 	static selectFolders(workspacePath: string): string[] {
+		// Phase 1: Try standard source patterns first (highest priority)
+		const standardFolders = this.detectStandardSourceFolders(workspacePath);
+		if (standardFolders.length > 0) {
+			return standardFolders;
+		}
+		
+		// Phase 2: Smart scan with content verification (no depth limit)
 		const folders: string[] = [];
-		this.collectFolders(workspacePath, '', folders);
+		this.collectCodeFolders(workspacePath, '', folders);
 		return folders.length > 0 ? folders : ['.'];
 	}
 
 	/**
-	 * Recursively collect folders into flat array
+	 * Detect standard source folder patterns
+	 * Returns folders only if they exist and contain parseable files
 	 */
-	private static collectFolders(
+	private static detectStandardSourceFolders(workspacePath: string): string[] {
+		const candidates = [
+			// Universal patterns
+			'src',
+			'lib', 
+			'app',
+			'mcp',  // MCP server development
+			
+			// Language-specific
+			'src/main/java',     // Java/Spring
+			'src/main/kotlin',   // Kotlin
+			'pkg',               // Go
+			'internal',          // Go
+			
+			// Framework-specific  
+			'pages',             // Next.js
+			'routes',            // SvelteKit/Remix
+		];
+		
+		const found: string[] = [];
+		
+		for (const candidate of candidates) {
+			const fullPath = path.join(workspacePath, candidate);
+			if (fs.existsSync(fullPath) && this.hasParseableFiles(fullPath)) {
+				found.push(candidate);
+				// Recursively include all subfolders with code
+				found.push(...this.getCodeSubfolders(workspacePath, candidate));
+			}
+		}
+		
+		return found;
+	}
+
+	/**
+	 * Get all subfolders containing code (recursive, no depth limit)
+	 */
+	private static getCodeSubfolders(
+		workspacePath: string, 
+		parentPath: string
+	): string[] {
+		const subfolders: string[] = [];
+		const fullPath = path.join(workspacePath, parentPath);
+		
+		try {
+			const entries = fs.readdirSync(fullPath, { withFileTypes: true });
+			
+			for (const entry of entries) {
+				if (!entry.isDirectory()) continue;
+				if (this.shouldExcludeFolder(entry.name)) continue;
+				
+				const childPath = `${parentPath}/${entry.name}`;
+				const childFullPath = path.join(workspacePath, childPath);
+				
+				if (this.hasParseableFiles(childFullPath)) {
+					subfolders.push(childPath);
+					// Recurse into child folders
+					subfolders.push(...this.getCodeSubfolders(workspacePath, childPath));
+				}
+			}
+		} catch (error) {
+			// Can't read folder
+		}
+		
+		return subfolders;
+	}
+
+	/**
+	 * Recursively collect folders with source code (content-aware, no depth limit)
+	 */
+	private static collectCodeFolders(
 		workspacePath: string,
 		relativePath: string,
 		folders: string[]
@@ -98,19 +175,14 @@ export class WorkspaceScanner {
 				return;
 			}
 
-			// Add current folder (if not root)
-			if (relativePath) {
-				folders.push(relativePath);
-			}
-
 			// Scan subdirectories
 			const entries = fs.readdirSync(fullPath, { withFileTypes: true });
 
 			for (const entry of entries) {
 				if (!entry.isDirectory()) continue;
 
-				// Skip default exclusions
-				if (this.DEFAULT_EXCLUSIONS.includes(entry.name)) {
+				// Skip excluded folders (tests, docs, etc.)
+				if (this.shouldExcludeFolder(entry.name)) {
 					continue;
 				}
 
@@ -119,12 +191,85 @@ export class WorkspaceScanner {
 					? `${relativePath}/${entry.name}`
 					: entry.name;
 
-				// Recursively collect
-				this.collectFolders(workspacePath, childPath, folders);
+				const childFullPath = path.join(workspacePath, childPath);
+
+				// Only include if it contains parseable source files
+				if (this.hasParseableFiles(childFullPath)) {
+					folders.push(childPath);
+					// Recurse into child folders (no depth limit)
+					this.collectCodeFolders(workspacePath, childPath, folders);
+				}
 			}
 		} catch (error) {
 			// Skip folders we can't read
 		}
+	}
+
+	/**
+	 * Check if folder should be excluded (non-source folders)
+	 */
+	private static shouldExcludeFolder(name: string): boolean {
+		const lowerName = name.toLowerCase();
+		
+		const exclusions = [
+			// Build/Dependencies (from DEFAULT_EXCLUSIONS)
+			'node_modules', 'dist', 'build', 'out', 'vendor',
+			'venv', '.venv', 'env', '__pycache__', 'site-packages',
+			'.tox', '.pytest_cache',
+			
+			// VCS/IDE
+			'.git', '.vscode', '.idea', '.ds_store', '.next', '.nuxt', '.cache',
+			
+			// Non-source folders
+			'test', 'tests', '__tests__', 'spec', 'specs', 'e2e',
+			'doc', 'docs', 'documentation',
+			'example', 'examples', 'demo', 'demos', 'sample', 'samples',
+			'script', 'scripts', 'tool', 'tools', 'util', 'utilities',
+			'config', 'configs', 'configuration',
+			'public', 'static', 'assets', 'resources', 'images',
+			'coverage', 'reports',
+			
+			// Framework-specific non-source
+			'migrations', 'seeds', 'fixtures', 'locales', 'i18n',
+		];
+		
+		return exclusions.includes(lowerName);
+	}
+
+	/**
+	 * Check if folder contains parseable source files
+	 */
+	private static hasParseableFiles(
+		folderPath: string,
+		maxCheck: number = 50  // Don't scan thousands of files
+	): boolean {
+		const PARSEABLE_EXTENSIONS = [
+			'.ts', '.tsx', '.js', '.jsx', 
+			'.py', '.php', '.java', '.kt', 
+			'.html', '.jsp', '.go', '.rs',
+			'.c', '.cpp', '.h', '.hpp',
+			'.cs', '.rb', '.swift', '.scala'
+		];
+		
+		try {
+			const entries = fs.readdirSync(folderPath, { withFileTypes: true });
+			let checked = 0;
+			
+			for (const entry of entries) {
+				if (checked++ > maxCheck) break;
+				
+				if (entry.isFile()) {
+					const ext = path.extname(entry.name).toLowerCase();
+					if (PARSEABLE_EXTENSIONS.includes(ext)) {
+						return true;
+					}
+				}
+			}
+		} catch (error) {
+			// Can't read folder
+		}
+		
+		return false;
 	}
 
 	/**
