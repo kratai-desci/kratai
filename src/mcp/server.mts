@@ -14,6 +14,7 @@ import { ConfigService } from '../services/config/configService.js';
 import { CodeParserService } from '../services/parsing/codeParserService.js';
 import { GitDiffEnricher } from '../services/git/gitDiffEnricher.js';
 import { MarkdownExporter } from '../services/export/MarkdownExporter.js';
+import { TelemetryService } from '../services/telemetry/telemetryService.js';
 
 /**
  * Kratai MCP Server
@@ -36,6 +37,9 @@ export class KrataiMCPServer {
 				},
 			}
 		);
+
+		// Initialize telemetry for MCP usage tracking
+		TelemetryService.initialize();
 
 		this.setupHandlers();
 	}
@@ -133,6 +137,9 @@ export class KrataiMCPServer {
 				lastGenerated: view.lastGenerated || 'Never',
 			}));
 
+			// Track MCP usage
+			TelemetryService.trackMcpListDiagrams(diagrams.length);
+
 			return {
 				content: [
 					{
@@ -210,6 +217,12 @@ export class KrataiMCPServer {
 
 			// Generate markdown
 			const markdown = MarkdownExporter.toMarkdown(diagramData, view.name);
+
+			// Track MCP usage
+			TelemetryService.trackMcpGetDiagram(
+				diagramData.classes.length,
+				diagramData.relationships.length
+			);
 
 			return {
 				content: [
@@ -445,6 +458,13 @@ export class KrataiMCPServer {
 
 			// Generate markdown for AI to consume
 			const markdown = MarkdownExporter.toMarkdown(diagramData, view.name);
+
+			// Track MCP usage
+			TelemetryService.trackMcpCreateDiagram(
+				diagramData.classes.length,
+				diagramData.relationships.length,
+				config.selectedFolders?.length || 0
+			);
 
 			// Return markdown directly (AI can analyze it immediately)
 			return {

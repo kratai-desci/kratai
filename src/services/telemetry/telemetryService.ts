@@ -66,6 +66,28 @@ export class TelemetryService {
 		reporter?.sendTelemetryEvent('openSettings');
 	}
 
+	// MCP Server usage events
+	static trackMcpListDiagrams(diagramCount: number): void {
+		reporter?.sendTelemetryEvent('mcpListDiagrams', {}, {
+			diagramCount
+		});
+	}
+
+	static trackMcpGetDiagram(classCount: number, relationshipCount: number): void {
+		reporter?.sendTelemetryEvent('mcpGetDiagram', {}, {
+			classCount,
+			relationshipCount
+		});
+	}
+
+	static trackMcpCreateDiagram(classCount: number, relationshipCount: number, folderCount: number): void {
+		reporter?.sendTelemetryEvent('mcpCreateDiagram', {}, {
+			classCount,
+			relationshipCount,
+			folderCount
+		});
+	}
+
 	static trackError(command: string, error: string): void {
 		reporter?.sendTelemetryErrorEvent('error', { command, error });
 	}
