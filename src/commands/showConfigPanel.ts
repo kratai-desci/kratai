@@ -128,6 +128,63 @@ function getRelTypeDescription(type: string): string {
 	return descriptions[type] || '';
 }
 
+/**
+ * Build folder tree for UI display
+ * Helper function for config panel - builds tree structure from file system
+ */
+function buildFolderTree(workspacePath: string, selectedFolders: string[]): import('../types/view').ConfigFolderNode {
+	const DEFAULT_EXCLUSIONS = [
+		'node_modules', 'dist', 'build', 'out', '.git', '.vscode',
+		'venv', '.venv', 'env', '__pycache__', 'site-packages', '.tox', '.pytest_cache',
+		'vendor',
+		'.idea', '.DS_Store', 'coverage', '.next', '.nuxt'
+	];
+
+	const rootNode: import('../types/view').ConfigFolderNode = {
+		path: '',
+		name: path.basename(workspacePath),
+		selected: selectedFolders.length === 0,
+		children: []
+	};
+
+	function buildTreeRecursive(
+		relativePath: string,
+		node: import('../types/view').ConfigFolderNode
+	): void {
+		const fullPath = path.join(workspacePath, relativePath);
+		
+		if (!fs.existsSync(fullPath)) {
+			return;
+		}
+
+		const entries = fs.readdirSync(fullPath, { withFileTypes: true });
+
+		for (const entry of entries) {
+			if (!entry.isDirectory()) continue;
+			
+			if (DEFAULT_EXCLUSIONS.includes(entry.name)) {
+				continue;
+			}
+
+			const childRelativePath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+			const isSelected = selectedFolders.length === 0 || selectedFolders.includes(childRelativePath);
+
+			const childNode: import('../types/view').ConfigFolderNode = {
+				path: childRelativePath,
+				name: entry.name,
+				selected: isSelected,
+				children: []
+			};
+
+			buildTreeRecursive(childRelativePath, childNode);
+			node.children.push(childNode);
+		}
+	}
+
+	buildTreeRecursive('', rootNode);
+	return rootNode;
+}
+
 export async function showConfigPanel(context: vscode.ExtensionContext, options?: ConfigPanelOptions): Promise<void> {
 	if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
 		vscode.window.showErrorMessage('No workspace folder is open!');
@@ -169,7 +226,7 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 	}
 
 	// Scan workspace
-	const folderTree = WorkspaceScanner.scanFolders(workspacePath, config.selectedFolders);
+	const folderTree = buildFolderTree(workspacePath, config.selectedFolders);
 	const extensions = WorkspaceScanner.scanExtensionCounts(workspacePath);
 
 	// Update selection state from config
