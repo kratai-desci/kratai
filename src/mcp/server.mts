@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import { ViewManager } from '../services/view/index.js';
 import { DiagramView } from '../types/view/DiagramView.js';
 import { ConfigService } from '../services/util/configService.js';
-import { FolderSelectionService } from '../services/util/folderSelectionService.js';
+import { WorkspaceScanner } from '../services/parsing/workspaceScanner.js';
 import { CodeParserService } from '../services/parsing/codeParserService.js';
 import { GitDiffEnricher } from '../services/git/gitDiffEnricher.js';
 import { MarkdownExporter } from '../services/export/MarkdownExporter.js';
@@ -278,8 +278,8 @@ export class KrataiMCPServer {
 				extensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.php'];
 			}
 
-			// Use unified folder selection logic
-			const expandedFolders = FolderSelectionService.selectFolders(
+			// Use unified folder selection logic from WorkspaceScanner
+			const expandedFolders = WorkspaceScanner.selectFolders(
 				this.workspacePath,
 				args.targetFolders
 			);

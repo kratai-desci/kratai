@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { KrataiConfig } from '../../types/config';
-import { FolderSelectionService } from './folderSelectionService';
+import { WorkspaceScanner } from '../parsing/workspaceScanner';
 
 export class ConfigService {
 	private static readonly CONFIG_FILE = '.vscode/kratai.json';
@@ -22,8 +22,8 @@ export class ConfigService {
 	}
 
 	static generateSmartDefaults(workspacePath: string): KrataiConfig {
-		// Use unified folder selection logic
-		const selectedFolders = FolderSelectionService.selectFolders(workspacePath);
+		// Use unified folder selection logic from WorkspaceScanner
+		const selectedFolders = WorkspaceScanner.selectFolders(workspacePath);
 
 		// Detect file types in the project
 		const extensions = this.detectFileExtensions(workspacePath);
