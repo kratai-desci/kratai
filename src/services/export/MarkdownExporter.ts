@@ -6,12 +6,12 @@ export class MarkdownExporter {
 	 */
 	static toMarkdown(data: DiagramData, diagramName: string): string {
 		let md = `# ${diagramName}\n\n`;
-		md += `**Generated:** ${new Date().toLocaleString()}\n\n`;
-		md += `**Total:** ${data.classes.length} classes, ${data.relationships.length} relationships\n\n`;
+		md += `Generated: ${new Date().toLocaleString()}\n`;
+		md += `Total: ${data.classes.length} classes, ${data.relationships.length} relationships\n\n`;
 		md += `---\n\n`;
 		
 		// Folder structure
-		md += `## 📂 Project Structure\n\n`;
+		md += `## Project Structure\n\n`;
 		md += this.generateFolderTree(data);
 		md += `\n---\n\n`;
 		
@@ -36,77 +36,73 @@ export class MarkdownExporter {
 		}
 		
 		// Classes section
-		md += `## 📦 Classes (${data.classes.length})\n\n`;
+		md += `## Classes (${data.classes.length})\n\n`;
 	
-		for (const cls of data.classes) {
+			for (const cls of data.classes) {
 			const classId = `${cls.filePath}__${cls.name}`;
 			
 			// Class header - just name with type
-			md += `**${cls.name}**`;
+			md += `${cls.name}`;
 			if (cls.classType && cls.classType !== 'class') {
-				md += ` _(${cls.classType})_`;
+				md += ` (${cls.classType})`;
 			}
 			md += `\n`;
 			
 			// Extends
 			if (cls.extends) {
-				md += `**Extends:** ${cls.extends}\n`;
+				md += `Extends: ${cls.extends}\n`;
 			}
 			
 			// Implements
 			if (cls.implements && cls.implements.length > 0) {
-				md += `**Implements:** ${cls.implements.join(', ')}\n`;
+				md += `Implements: ${cls.implements.join(', ')}\n`;
 			}
 			
 			// Properties
 			if (cls.properties && cls.properties.length > 0) {
-				md += `**Properties:**\n`;
+				md += `Properties:\n`;
 				for (const prop of cls.properties) {
 					const visibility = this.getVisibilitySymbol(prop.visibility);
-					const staticTag = prop.isStatic ? ' _[static]_' : '';
-					const readonlyTag = prop.isReadonly ? ' _[readonly]_' : '';
+					const staticTag = prop.isStatic ? ' [static]' : '';
+					const readonlyTag = prop.isReadonly ? ' [readonly]' : '';
 					const changeStatus = this.getChangeStatusTag(prop.changeStatus);
 					md += `- ${visibility} ${prop.name}: ${prop.type}${staticTag}${readonlyTag}${changeStatus}\n`;
 				}
-				md += `\n`;
 			}
 			
 			// Methods
 			if (cls.methods && cls.methods.length > 0) {
-				md += `**Methods:**\n`;
+				md += `Methods:\n`;
 				for (const method of cls.methods) {
 					const visibility = this.getVisibilitySymbol(method.visibility);
-					const staticTag = method.isStatic ? ' _[static]_' : '';
-					const asyncTag = method.isAsync ? ' _[async]_' : '';
+					const staticTag = method.isStatic ? ' [static]' : '';
+					const asyncTag = method.isAsync ? ' [async]' : '';
 					const params = method.parameters.map(p => `${p.name}: ${p.type}`).join(', ');
 					const changeStatus = this.getChangeStatusTag(method.changeStatus);
 					md += `- ${visibility} ${method.name}(${params}): ${method.returnType}${staticTag}${asyncTag}${changeStatus}\n`;
 				}
-				md += `\n`;
 			}
 			
 			// Uses (outgoing relationships)
 			const uses = usesMap.get(classId);
 			if (uses && uses.length > 0) {
-				md += `**Uses:**\n`;
+				md += `Uses:\n`;
 				for (const {to, type} of uses) {
 					// Extract just the class name from the ID (remove path__)
 					const toName = to.includes('__') ? to.split('__').pop()! : to;
-					md += `- ${toName} _(${type.join(', ')})_\n`;
+					md += `- ${toName} (${type.join(', ')})\n`;
 				}
-				md += `\n`;
 			}
 			
 			// Used By (incoming relationships)
 			const usedBy = usedByMap.get(classId);
 			if (usedBy && usedBy.length > 0) {
-				md += `**Used By:**\n`;
+				md += `Used By:\n`;
 				for (const {from, type} of usedBy) {
 					// Extract just the class name from the ID (remove path__)
 					const fromName = from.includes('__') ? from.split('__').pop()! : from;
-					md += `- ${fromName} _(${type.join(', ')})_\n`;
+					md += `- ${fromName} (${type.join(', ')})\n`;
 				}
-				md += `\n`;
 			}
 			
 			md += `---\n\n`;
@@ -173,9 +169,9 @@ export class MarkdownExporter {
 	 */
 	private static getChangeStatusTag(status?: string): string {
 		switch (status) {
-			case 'added': return ' **[+ ADDED]**';
-			case 'deleted': return ' **[- DELETED]**';
-			case 'modified': return ' **[~ MODIFIED]**';
+			case 'added': return ' [ADDED]';
+			case 'deleted': return ' [DELETED]';
+			case 'modified': return ' [MODIFIED]';
 			default: return '';
 		}
 	}
