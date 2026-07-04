@@ -129,31 +129,13 @@ export class CodeParserService {
 			}
 		}
 
-		// === DEDUPLICATION ===
-		// Deduplicate classes BEFORE enrichment to prevent orphaned relationships
-		// (Config with overlapping folder paths can cause the same file to be parsed multiple times)
-		const originalClassCount = classes.length;
-		const classMap = new Map<string, ClassInfo>();
-		classes.forEach(classInfo => {
-			const key = `${classInfo.filePath}:${classInfo.name}`;
-			if (!classMap.has(key)) {
-				classMap.set(key, classInfo);
-			}
-		});
-		classes.length = 0;
-		classes.push(...Array.from(classMap.values()));
-		
-		if (originalClassCount > classes.length) {
-			console.log(`🔧 Deduplicated: ${originalClassCount} → ${classes.length} classes (removed ${originalClassCount - classes.length} duplicates)`);
-		}
-
 		// === THIRD PASS: Framework Enrichers ===
 		// Run after language parsers and HTTP parser to add framework-specific knowledge
 		if (resolvedConfig.frameworkEnrichment !== false) {
 			try {
 				console.log('🎨 Running framework enrichers (third pass)...');
 				const enricherRegistry = new EnricherRegistry();
-				
+			
 				const enrichedContext = await enricherRegistry.enrichAll({
 					workspacePath,
 					classes,
@@ -172,6 +154,74 @@ export class CodeParserService {
 				console.error('Stack trace:', error instanceof Error ? error.stack : error);
 				// Don't fail diagram generation if enrichment fails - just skip it
 			}
+		}
+
+		// === FINAL DEDUPLICATION ===
+		// Deduplicate classes and relationships AFTER all sources (parsers, HTTP, enrichers) have contributed
+		// This catches duplicates from ALL sources, including framework enrichers
+		const originalClassCount = classes.length;
+		const classMap = new Map<string, ClassInfo>();
+		classes.forEach(classInfo => {
+			const key = `${classInfo.filePath}:${classInfo.name}`;
+			if (!classMap.has(key)) {
+				classMap.set(key, classInfo);
+			}
+		});
+		classes.length = 0;
+		classes.push(...Array.from(classMap.values()));
+		
+		if (originalClassCount > classes.length) {
+			console.log(`🔧 Deduplicated: ${originalClassCount} → ${classes.length} classes (removed ${originalClassCount - classes.length} duplicates)`);
+		}
+
+		// === RELATIONSHIP DEDUPLICATION ===
+		// Collapse relationships with same from/to but different types into single relationship with type array
+		const originalRelCount = relationships.length;
+		const relMap = new Map<string, ClassRelationship>();
+		
+		relationships.forEach(rel => {
+			const key = `${rel.from}::${rel.to}`; // Key by from/to only, ignoring type
+			
+			if (!relMap.has(key)) {
+				// First occurrence - normalize type to array AND deduplicate types
+				const types = Array.isArray(rel.type) ? rel.type : [rel.type as string];
+				const uniqueTypes = [...new Set(types)]; // Remove duplicate types within array
+				
+				relMap.set(key, {
+					...rel,
+					type: uniqueTypes
+				});
+			} else {
+				// Merge types into existing relationship
+				const existing = relMap.get(key)!;
+				const existingTypes = Array.isArray(existing.type) ? existing.type : [existing.type as string];
+				const newTypes = Array.isArray(rel.type) ? rel.type : [rel.type as string];
+				
+				// Add new types that don't already exist
+				for (const newType of newTypes) {
+					if (!existingTypes.includes(newType)) {
+						existingTypes.push(newType);
+					}
+				}
+				
+				existing.type = existingTypes;
+				
+				// Merge metadata
+				if (rel.metadata) {
+					existing.metadata = {
+						...existing.metadata,
+						...rel.metadata
+					};
+				}
+			}
+		});
+		
+		relationships.length = 0;
+		relationships.push(...Array.from(relMap.values()));
+		
+		if (originalRelCount > relationships.length) {
+			console.log(`🔧 Deduplicated relationships: ${originalRelCount} → ${relationships.length} ` +
+				`(collapsed ${originalRelCount - relationships.length} duplicate edges)`);
 		}
 
 		return { classes, relationships };

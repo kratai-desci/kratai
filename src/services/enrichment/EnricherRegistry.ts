@@ -2,7 +2,6 @@ import { AbstractEnricher, EnrichmentContext } from './AbstractEnricher';
 import { NextJSEnricher } from './frameworks/NextJSEnricher';
 import { DjangoEnricher } from './frameworks/DjangoEnricher';
 import { SpringBootEnricher } from './frameworks/SpringBootEnricher';
-import { ClassRelationship } from '../../types/domain/ClassRelationship';
 
 /**
  * EnricherRegistry - Registry + Factory + Orchestrator Pattern
@@ -106,56 +105,6 @@ export class EnricherRegistry {
             
             console.log(`🎨 Enrichment complete. Total classes: ${currentContext.classes.length}, ` +
                 `Total relationships: ${currentContext.relationships.length}`);
-        }
-        
-        // === RELATIONSHIP DEDUPLICATION ===
-        // Collapse relationships with same from/to but different types into single relationship with type array
-        // This prevents diagram bloat from multiple relationship types between same two classes
-        const originalRelCount = currentContext.relationships.length;
-        const relMap = new Map<string, ClassRelationship>();
-        
-        currentContext.relationships.forEach(rel => {
-            const key = `${rel.from}::${rel.to}`; // Key by from/to only, ignoring type
-            
-            if (!relMap.has(key)) {
-                // First occurrence - normalize type to array AND deduplicate types
-                const types = Array.isArray(rel.type) ? rel.type : [rel.type as string];
-                const uniqueTypes = [...new Set(types)]; // Remove duplicate types within array
-                
-                relMap.set(key, {
-                    ...rel,
-                    type: uniqueTypes
-                });
-            } else {
-                // Merge types into existing relationship
-                const existing = relMap.get(key)!;
-                const existingTypes = Array.isArray(existing.type) ? existing.type : [existing.type as string];
-                const newTypes = Array.isArray(rel.type) ? rel.type : [rel.type as string];
-                
-                // Add new types that don't already exist
-                for (const newType of newTypes) {
-                    if (!existingTypes.includes(newType)) {
-                        existingTypes.push(newType);
-                    }
-                }
-                
-                existing.type = existingTypes;
-                
-                // Merge metadata
-                if (rel.metadata) {
-                    existing.metadata = {
-                        ...existing.metadata,
-                        ...rel.metadata
-                    };
-                }
-            }
-        });
-        
-        currentContext.relationships = Array.from(relMap.values());
-        
-        if (originalRelCount > currentContext.relationships.length) {
-            console.log(`🔧 Deduplicated relationships: ${originalRelCount} → ${currentContext.relationships.length} ` +
-                `(collapsed ${originalRelCount - currentContext.relationships.length} duplicate edges)`);
         }
         
         return currentContext;
