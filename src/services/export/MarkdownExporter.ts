@@ -10,6 +10,11 @@ export class MarkdownExporter {
 		md += `**Total:** ${data.classes.length} classes, ${data.relationships.length} relationships\n\n`;
 		md += `---\n\n`;
 		
+		// Folder structure
+		md += `## 📂 Project Structure\n\n`;
+		md += this.generateFolderTree(data);
+		md += `\n---\n\n`;
+		
 		// Build relationship maps for each class
 		const usesMap = new Map<string, Array<{to: string, type: string[]}>>();
 		const usedByMap = new Map<string, Array<{from: string, type: string[]}>>();
@@ -108,6 +113,59 @@ export class MarkdownExporter {
 		}
 		
 		return md;
+	}
+	
+	/**
+	 * Generate a compact folder tree structure
+	 */
+	private static generateFolderTree(data: DiagramData): string {
+		// Extract unique file paths
+		const filePaths = [...new Set(data.classes.map(c => c.filePath))].sort();
+		
+		// Build tree structure
+		interface TreeNode {
+			[key: string]: TreeNode | null;
+		}
+		const tree: TreeNode = {};
+		
+		for (const filePath of filePaths) {
+			const parts = filePath.split('/');
+			let current = tree;
+			
+			for (let i = 0; i < parts.length; i++) {
+				const part = parts[i];
+				if (!current[part]) {
+					current[part] = i === parts.length - 1 ? null : {};
+				}
+				if (current[part] !== null) {
+					current = current[part] as TreeNode;
+				}
+			}
+		}
+		
+		// Render tree
+		let result = '```\n';
+		
+		const renderNode = (node: TreeNode, prefix: string = '', isLast: boolean = true) => {
+			const entries = Object.entries(node);
+			entries.forEach(([key, value], index) => {
+				const isLastEntry = index === entries.length - 1;
+				const connector = isLastEntry ? '└── ' : '├── ';
+				const extension = prefix + connector + key;
+				
+				result += extension + '\n';
+				
+				if (value !== null) {
+					const newPrefix = prefix + (isLastEntry ? '    ' : '│   ');
+					renderNode(value, newPrefix, isLastEntry);
+				}
+			});
+		};
+		
+		renderNode(tree);
+		result += '```';
+		
+		return result;
 	}
 	
 	/**
