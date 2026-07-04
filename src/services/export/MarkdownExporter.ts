@@ -86,23 +86,23 @@ export class MarkdownExporter {
 			// Uses (outgoing relationships)
 			const uses = usesMap.get(classId);
 			if (uses && uses.length > 0) {
-				md += `Uses:\n`;
-				for (const {to, type} of uses) {
-					// Extract just the class name from the ID (remove path__)
+				md += `Uses: `;
+				const usesList = uses.map(({to, type}) => {
 					const toName = to.includes('__') ? to.split('__').pop()! : to;
-					md += `- ${toName} (${type.join(', ')})\n`;
-				}
+					return `${toName} (${type.join(', ')})`;
+				});
+				md += usesList.join(', ') + `\n`;
 			}
 			
 			// Used By (incoming relationships)
 			const usedBy = usedByMap.get(classId);
 			if (usedBy && usedBy.length > 0) {
-				md += `Used By:\n`;
-				for (const {from, type} of usedBy) {
-					// Extract just the class name from the ID (remove path__)
+				md += `Used By: `;
+				const usedByList = usedBy.map(({from, type}) => {
 					const fromName = from.includes('__') ? from.split('__').pop()! : from;
-					md += `- ${fromName} (${type.join(', ')})\n`;
-				}
+					return `${fromName} (${type.join(', ')})`;
+				});
+				md += usedByList.join(', ') + `\n`;
 			}
 			
 			md += `---\n\n`;
