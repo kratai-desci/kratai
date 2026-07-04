@@ -7,66 +7,19 @@ export class MarkdownExporter {
 	static toMarkdown(data: DiagramData, diagramName: string): string {
 		let md = `# ${diagramName}\n\n`;
 		md += `**Generated:** ${new Date().toLocaleString()}\n\n`;
-		
-		// Enhanced summary stats
-		const classTypeStats = this.getClassTypeStats(data);
-		const relationshipStats = this.getRelationshipStats(data);
-		
-		md += `## 📊 Summary\n\n`;
-		md += `- **Total Classes:** ${data.classes.length}\n`;
-		md += `- **Total Relationships:** ${data.relationships.length}\n\n`;
-		
-		if (Object.keys(classTypeStats).length > 0) {
-			md += `**Class Types:**\n`;
-			for (const [type, count] of Object.entries(classTypeStats)) {
-				md += `- ${this.getTypeEmoji(type)} ${type}: ${count}\n`;
-			}
-			md += `\n`;
-		}
-		
-		if (Object.keys(relationshipStats).length > 0) {
-			md += `**Relationship Types:**\n`;
-			for (const [type, count] of Object.entries(relationshipStats)) {
-				md += `- ${type}: ${count}\n`;
-			}
-			md += `\n`;
-		}
-		
+		md += `**Total:** ${data.classes.length} classes, ${data.relationships.length} relationships\n\n`;
 		md += `---\n\n`;
 		
-	// Legend section
-	md += `## 📖 Symbol Legend\n\n`;
-	md += `**Visibility (UML Standard):**\n`;
-	md += `- \`+\` = public\n`;
-	md += `- \`-\` = private\n`;
-	md += `- \`#\` = protected\n\n`;
-	md += `**Git Status:**\n`;
-	md += `- **[+ ADDED]** = newly added code\n`;
-	md += `- **[- DELETED]** = removed code\n`;
-	md += `- **[~ MODIFIED]** = changed code\n\n`;
-	md += `---\n\n`;
-	
-	// Classes section
-	md += `## 📦 Classes (${data.classes.length})\n\n`;
+		// Classes section
+		md += `## 📦 Classes (${data.classes.length})\n\n`;
 	
 	for (const cls of data.classes) {
-		// Class header with type indicator
-			md += `**File:** \`${cls.filePath}\`\n\n`;
-			
-			// Class type and flags
+			// Compact class header with type suffix
+			md += `**File:** \`${cls.filePath}\``;
 			if (cls.classType && cls.classType !== 'class') {
-				md += `**Type:** ${cls.classType}\n`;
+				md += ` _(${cls.classType})_`;
 			}
-			if (cls.isInterface) {
-				md += `**Interface:** ✅\n`;
-			}
-			if (cls.isAbstract) {
-				md += `**Abstract:** ✅\n`;
-			}
-			if (cls.isModule) {
-				md += `**Module:** ✅\n`;
-			}
-			md += `\n`;
+			md += `\n\n`;
 			
 			// Extends
 			if (cls.extends) {
@@ -110,78 +63,35 @@ export class MarkdownExporter {
 			md += `---\n\n`;
 		}
 		
-		// Relationships section
+		// Relationships section - grouped by source for compactness
 		md += `## 🔗 Relationships (${data.relationships.length})\n\n`;
 		
 		if (data.relationships.length === 0) {
 			md += `_No relationships found._\n\n`;
 		} else {
-			// Group relationships by type
-			// For multi-type relationships, show them under each type
-			const byType = new Map<string, typeof data.relationships>();
+			// Group relationships by source (from)
+			const bySource = new Map<string, Array<{to: string, type: string[]}>>();
+			
 			for (const rel of data.relationships) {
-				const types: string[] = Array.isArray(rel.type) ? rel.type : [rel.type as string];
+				const types = Array.isArray(rel.type) ? rel.type : [rel.type as string];
 				
-				for (const type of types) {
-					if (!byType.has(type)) {
-						byType.set(type, []);
-					}
-					byType.get(type)!.push(rel);
+				if (!bySource.has(rel.from)) {
+					bySource.set(rel.from, []);
 				}
+				bySource.get(rel.from)!.push({ to: rel.to, type: types });
 			}
 			
-			// Output by type with better formatting
-			for (const [type, rels] of byType) {
-				md += `### ${type} (${rels.length})\n\n`;
-				for (const rel of rels) {
-					const relTypes = Array.isArray(rel.type) ? rel.type.join(', ') : rel.type;
-					md += `- **${rel.from}** → **${rel.to}** _(${relTypes})_`;
-					
-					// Format metadata more clearly
-					if (rel.metadata) {
-						const metaEntries = Object.entries(rel.metadata);
-						if (metaEntries.length > 0) {
-							md += `\n  - `;
-							md += metaEntries
-								.map(([k, v]) => `_${k}: ${v}_`)
-								.join(', ');
-						}
-					}
-					md += `\n`;
+			// Output grouped by source
+			for (const [from, targets] of bySource) {
+				md += `**${from}** →\n`;
+				for (const {to, type} of targets) {
+					md += `  - ${to} _(${type.join(', ')})_\n`;
 				}
 				md += `\n`;
 			}
 		}
 		
 		return md;
-	}
-	
-	/**
-	 * Get class type statistics
-	 */
-	private static getClassTypeStats(data: DiagramData): Record<string, number> {
-		const stats: Record<string, number> = {};
-		for (const cls of data.classes) {
-			const type = cls.classType || 'class';
-			stats[type] = (stats[type] || 0) + 1;
-		}
-		return stats;
-	}
-	
-	/**
-	 * Get relationship type statistics
-	 */
-	private static getRelationshipStats(data: DiagramData): Record<string, number> {
-		const stats: Record<string, number> = {};
-		for (const rel of data.relationships) {
-			// Handle both single type and array of types
-			const types: string[] = Array.isArray(rel.type) ? rel.type : [rel.type as string];
-			
-			for (const type of types) {
-				stats[type] = (stats[type] || 0) + 1;
-			}
-		}
-		return stats;
 	}
 	
 	/**
@@ -194,31 +104,6 @@ export class MarkdownExporter {
 			case 'modified': return ' **[~ MODIFIED]**';
 			default: return '';
 		}
-	}
-	
-	/**
-	 * Get emoji for class type
-	 */
-	private static getTypeEmoji(type: string): string {
-		const emojiMap: { [key: string]: string } = {
-			'class': '📦',
-			'interface': '🔷',
-			'abstract': '🔶',
-			'module': '📁',
-			'enum': '🔢',
-			'function': '⚡',
-			'route': '🌐',
-			'template': '📄',
-			'middleware': '🛡️',
-			'layout': '🎨',
-			'page': '📃',
-			'server-action': '⚙️',
-			'model': '💾',
-			'view': '👁️',
-			'viewset': '📊',
-			'serializer': '📋'
-		};
-		return emojiMap[type] || '📦';
 	}
 	
 	/**
