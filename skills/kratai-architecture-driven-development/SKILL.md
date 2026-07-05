@@ -6,7 +6,6 @@ description: |
   ACTIVE on ANY coding task: create, refactor, fix, review. Before coding: understand architecture (fetch diagram ONCE). While coding: match patterns, avoid duplication. After: verify integrity.
   
   Use when: ANY coding request. Do NOT use for: questions, docs, non-code tasks.
-argument-hint: [file or folder]
 user-invocable: true
 applyTo:
   - "**/*.ts"
@@ -53,6 +52,9 @@ kratai_get_diagram({diagramId: "..."})  // or kratai_create_overview_diagram() i
 **Cache in memory:**
 - Architecture pattern (layered/hexagonal/clean)
 - Folder structure (controllers/services/repositories)
+- Folder responsibilities (what each folder handles)
+- Class responsibilities (what each class does in one sentence)
+- File responsibilities (purpose of each file)
 - Naming conventions (UserService vs User_Service)
 - Dependency direction (don't reverse arrows)
 - Existing classes (avoid duplication)
