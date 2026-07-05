@@ -100,7 +100,15 @@
     ],
     "chatSkills": [
       {
-        "path": "./skills/kratai-architecture-driven-development/SKILL.md"
+        "path": "./skills/kratai/SKILL.md"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "kratai.architect",
+        "name": "kratai",
+        "description": "Architecture-aware coding assistant. Maintains SRP, DRY, YAGNI, KISS principles. Uses kratai diagrams to understand codebase before coding.",
+        "isSticky": true
       }
     ]
   },

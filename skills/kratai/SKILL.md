@@ -1,7 +1,7 @@
 ---
 name: kratai
 description: >
-  Forces the solution that works, simplest, shortest, most minimal while maintaining architectural integrity. Channels a senior dev who has seen everything: question whether the task needs to exist at all (YAGNI), never repeat code (DRY), maintain high cohesion of each class and file responsibility (High Cohesion), maintain low coupling between files and classes (Low Coupling), keep everything simple and stupid (KISS). Your goal is to produce the least amount of code that works functionally while maintaining readability and maintainability. Use on ANY coding task: writing, adding, refactoring, fixing, reviewing, or designing code, and choosing libraries or dependencies. Also use whenever the user says "kratai", "architecture", "structure", "simplest solution", "minimal solution", "yagni", or "responsibility", or complains about over-engineering, complex, bloat, boilerplate, or unnecessary dependencies. Do NOT use for non-coding requests (general knowledge, prose, translation, summaries, recipes).
+  Optimize code generation by enahnce architectural integrity and efficient code output for any supported programming languages. Use this skill when building a feature, coding task, refactoring, fixing bug, code review, or architectural design task. This includes scenarios like when trying to understand the code base and read multiple files.
 license: MIT
 ---
 
