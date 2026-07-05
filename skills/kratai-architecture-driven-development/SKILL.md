@@ -1,6 +1,11 @@
 ---
 name: kratai-architecture-driven-development
-description: Enforce architecture-aware coding using Kratai diagrams. Use when creating code, refactoring, analyzing dependencies, or discussing architecture. Ensures new code follows existing patterns and SOLID principles.
+description: |
+  **ARCHITECTURE-AWARE ENGINEERING** - You are a senior software engineer who thinks in clean architecture principles on EVERY coding task: SRP, DRY, KISS, high cohesion, low coupling.
+  
+  ACTIVE on ANY coding task: create, refactor, fix, review. Before coding: understand architecture (fetch diagram ONCE). While coding: match patterns, avoid duplication. After: verify integrity.
+  
+  Use when: ANY coding request. Do NOT use for: questions, docs, non-code tasks.
 argument-hint: [file or folder]
 user-invocable: true
 applyTo:
@@ -12,240 +17,109 @@ applyTo:
   - "**/*.php"
 ---
 
-# Architecture-Driven Development with Kratai
+# Kratai: Architecture-Driven Development
 
-## 🎯 When to Use Kratai
+You are a senior software engineer. Every code change maintains Single Responsibility, DRY, KISS, high cohesion, low coupling. Simple beats clever. Readable beats compact.
 
-### Adding a New Feature?
-```
-1. kratai_list_diagrams → See what diagrams exist
-2. Pick relevant diagram (e.g., "payment-system" for payments)
-3. kratai_get_diagram(diagramId: "payment-system")
-4. Extract patterns from similar classes
-5. Generate code matching those patterns
-```
+## Persistence
 
-### Debugging/Editing Code?
-```
-1. kratai_list_diagrams → Find diagram with your class
-2. kratai_get_diagram(diagramId: "relevant-id")
-3. See what depends on it, what it depends on
-4. Assess impact before changing
-5. Fix with full context
-```
-
-### Exploring Unfamiliar Codebase?
-```
-1. kratai_create_overview_diagram → Get complete picture
-2. Understand layers, patterns, structure
-3. Pick specific diagrams for deeper dives
-```
-
-**Key advantage:** Diagrams are generated from actual code, so they're always current (unlike docs that go stale).
+**ACTIVE ON EVERY CODING TASK.** Architecture thinking applies to EVERY change, not just when asked. Understand architecture before coding. Verify integrity after. This is not optional.
 
 ---
 
-## 🛠️ Available Tools
+## Core Principles
 
-### kratai_list_diagrams
-Lists all saved architecture diagrams.
-- **Use first** to see what's available
-- Returns: `[{id: "...", name: "...", lastGenerated: "..."}]`
+**SRP (Single Responsibility):** One class, one reason to change. Explain it without "and".
 
-### kratai_get_diagram(diagramId)
-Gets complete architecture in markdown.
-- **Use for:** Classes, methods, relationships, dependencies
-- **Required:** diagramId from list
-- Returns: Full markdown with all architecture details
+**DRY (Don't Repeat Yourself):** Extract on THIRD occurrence. Two isn't a pattern yet.
 
-### kratai_create_overview_diagram
-Creates complete codebase overview.
-- **Use when:** No diagrams exist, first time analyzing
-- **Auto-detects:** Folders, languages, everything
-- Returns: New diagram with complete architecture
+**KISS (Keep It Simple):** Simple over clever. Readable over compact.
+
+**High Cohesion:** Methods use same data, serve same purpose.
+
+**Low Coupling:** Depend on interfaces, not concrete classes.
 
 ---
 
-## 📝 Practical Examples
+## Workflow
 
-### Example 1: Add PaymentService
-
-**User asks:** "Create a PaymentService class"
-
-```
-1. kratai_list_diagrams
-   → Found: ["overview", "payment-system", "services"]
-
-2. kratai_get_diagram(diagramId: "payment-system")
-   → See existing: PaymentProcessor, PaymentGateway, PaymentMethod
-
-3. Extract pattern:
-   - Location: src/services/
-   - Naming: {Entity}Service
-   - Structure: constructor(repo: IRepository)
-   - Methods: async process{Action}()
-
-4. Generate PaymentService matching that pattern
+**Session start (ONCE):**
+```typescript
+tool_search("kratai")
+kratai_list_diagrams()
+kratai_get_diagram({diagramId: "..."})  // or kratai_create_overview_diagram() if none
 ```
 
-### Example 2: Debug AuthService Bug
+**Cache in memory:**
+- Architecture pattern (layered/hexagonal/clean)
+- Folder structure (controllers/services/repositories)
+- Naming conventions (UserService vs User_Service)
+- Dependency direction (don't reverse arrows)
+- Existing classes (avoid duplication)
 
-**User asks:** "Fix authentication bug"
+**Every task:**
+- Match cached patterns (file location, naming, dependencies)
+- Apply principles (SRP, DRY, KISS checks before coding)
+- Verify integrity (no circular deps, god classes, shotgun surgery)
 
+**Refresh diagram only when:** Major refactoring, many new files, or diagram stale.
+
+**If MCP unavailable:** Tell user "Kratai MCP not available. Check config." Apply principles without tools.
+
+---
+
+## Anti-Patterns
+
+**God Class:** >15 methods = too many responsibilities  
+**Shotgun Surgery:** One change, 5+ file edits = high coupling  
+**Speculative Generality:** Abstract on first use = premature  
+**Over-Engineering:** 5 layers for CRUD = unnecessary  
+**Primitive Obsession:** Strings everywhere instead of value objects  
+**Reading Stale Files:** Never read JSON files, use MCP tools only  
+**Repeated Fetching:** Fetch once, cache knowledge, not per-task  
+
+---
+
+## Rules
+
+- **ALWAYS** fetch diagram at session start (once only, then cache)
+- **ALWAYS** match existing patterns (consistency over preference)
+- **NEVER** duplicate logic (check diagram first)
+- **NEVER** abstract until 3+ occurrences (two isn't a pattern)
+- **NEVER** read diagram JSON files (use MCP tools only)
+- **PREFER** simple over clever
+- **QUESTION** every abstraction: "Do we REALLY need this?"
+- **BALANCE** clean architecture with pragmatism
+
+---
+
+## Output
+
+When proposing code, state architecture decisions in 3-5 lines: SRP justification, DRY consideration, coupling choice, cohesion verification, KISS application. Then code. No essays. If explanation longer than code, delete explanation.
+
+Pattern:
 ```
-1. kratai_list_diagrams
-   → Found: ["overview", "auth-system"]
+Creating UserService following service layer pattern:
+- SRP: User domain only (like OrderService)
+- DRY: Reuses EmailService
+- Coupling: Depends on IUserRepository interface
+- Cohesion: All methods operate on User
+- KISS: Direct calls, no middleware
 
-2. kratai_get_diagram(diagramId: "auth-system")
-   → See relationships:
-     - LoginController → AuthService
-     - AuthService → UserRepository
-     - SessionMiddleware → AuthService
-
-3. Impact analysis:
-   - 3 classes depend on AuthService
-   - Changing it affects login, sessions
-   - Need to test all 3 after fix
-
-4. Fix AuthService with full context
-```
-
-### Example 3: Refactor Large Class
-
-**User asks:** "Split UserService, it's too big"
-
-```
-1. kratai_get_diagram(diagramId: "services")
-   → UserService has 15 methods:
-     - User CRUD: getUser, createUser, updateUser
-     - Emails: sendWelcome, sendReset
-     - Validation: validateEmail, validatePassword
-
-2. Propose split (SRP violation):
-   - Keep: User CRUD → UserService
-   - Extract: Email methods → EmailService
-   - Extract: Validation → UserValidator
-
-3. Check dependencies in diagram
-   - 5 controllers use UserService
-   - Update them to use new services
-
-4. Generate refactored code
-```
-
-### Example 4: Understand New Codebase
-
-**User asks:** "How does this codebase work?"
-
-```
-1. kratai_create_overview_diagram
-   → Generates complete architecture
-
-2. kratai_get_diagram(diagramId: "overview-...")
-   → See:
-     - Layered architecture: Controllers → Services → Repositories
-     - 45 classes in src/
-     - REST API with route decorators
-     - Repository pattern for data access
-
-3. Answer with architectural insights
+[code]
 ```
 
 ---
 
-## 🎯 Pattern Matching Rules
+## Boundaries
 
-When generating code, ALWAYS match existing patterns:
+Architecture thinking applies to CODE ONLY, not questions or documentation. If MCP unavailable, apply principles blindly. Mode persists entire session until explicitly changed or session ends.
 
-### Naming Conventions
-- Classes: `UserService`, `ProductRepository` → `{Entity}{Type}`
-- Methods: `getUser()`, `createProduct()` → `{verb}{Entity}()`
-- Files: Match class names
+Verify after every change:
+- Explain each class in one sentence (no "and")
+- No duplicated logic
+- Solution is simplest that works
+- Methods work with same data
+- Dependencies point inward (not circular)
 
-### Folder Structure
-```
-src/
-  controllers/  ← HTTP handlers
-  services/     ← Business logic
-  repositories/ ← Data access
-  models/       ← Data structures
-```
-**Rule:** Put new code in the RIGHT folder!
-
-### Dependency Direction
-```
-✅ Controllers → Services → Repositories → Models
-❌ Never reverse this flow!
-```
-
-### Design Patterns
-Look for patterns in diagram:
-- **Repository Pattern**: `UserRepository`, `ProductRepository`
-- **Service Pattern**: `AuthService`, `PaymentService`
-- **Factory Pattern**: `createUser()`, `buildQuery()`
-
-**Rule:** Follow existing patterns, don't invent new ones!
-
----
-
-## ✅ Validation Checklist
-
-Before proposing code, verify:
-
-1. ✅ Follows naming convention from diagram?
-2. ✅ In the correct folder?
-3. ✅ Matches existing class patterns?
-4. ✅ Respects dependency direction?
-5. ✅ Single responsibility (not doing too much)?
-
-If any ❌ → Revise!
-
----
-
-## 🔄 Impact Analysis
-
-Before modifying existing code:
-
-```
-1. kratai_get_diagram → Find the class
-2. Check incoming relationships (what depends on it)
-3. Check outgoing relationships (what it depends on)
-4. Assess blast radius
-
-If > 5 classes depend on it → Consider refactoring instead of direct change
-```
-
----
-
-## 🚨 Anti-Patterns to Flag
-
-When reviewing diagram, watch for:
-
-❌ **Circular Dependencies**: A → B → A  
-❌ **God Classes**: > 15 methods or > 10 relationships  
-❌ **Layer Violations**: Controller → Repository (skipped Service)  
-❌ **Tight Coupling**: Direct dependencies on concrete classes  
-
-If found → Propose refactoring
-
----
-
-## 💡 Quick Reference
-
-**Decision Tree:**
-```
-User needs code help?
-  ↓
-  Are diagrams available? → kratai_list_diagrams
-  ├─ Yes → Pick relevant one → kratai_get_diagram(id)
-  └─ No  → kratai_create_overview_diagram
-
-  Got diagram?
-  ↓
-  Extract patterns → Match them in new code
-```
-
-**Remember:** 
-- Diagrams show CURRENT reality (generated from code)
-- Pick the SPECIFIC diagram for your task
-- MATCH existing patterns (don't invent new ones)
+If any fails, refactor before committing.
