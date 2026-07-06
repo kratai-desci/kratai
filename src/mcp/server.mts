@@ -8,6 +8,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import * as path from 'path';
 import * as fs from 'fs';
+import { fileURLToPath } from 'url';
 import { ViewManager } from '../services/view/index.js';
 import { DiagramView } from '../types/view/DiagramView.js';
 import { ConfigService } from '../services/util/configService.js';
@@ -41,8 +42,7 @@ export class KrataiMCPServer {
 			}
 		);
 
-		// Initialize telemetry for MCP usage tracking
-		TelemetryService.initialize();
+		// Initialize telemetry for MCP usage tracking		// Note: initialize() is async but returns immediately in non-VS Code contexts		TelemetryService.initialize();
 
 		this.setupHandlers();
 	}
@@ -442,6 +442,13 @@ async function main() {
 	// Get workspace path from command line args
 	const workspacePath = process.argv[2] || process.cwd();
 
+	// Debug logging to stderr (won't interfere with MCP protocol on stdout)
+	console.error(`[Kratai MCP] argv[0]: ${process.argv[0]}`);
+	console.error(`[Kratai MCP] argv[1]: ${process.argv[1]}`);
+	console.error(`[Kratai MCP] argv[2]: ${process.argv[2]}`);
+	console.error(`[Kratai MCP] import.meta.url: ${import.meta.url}`);
+	console.error(`[Kratai MCP] Resolved workspace: ${workspacePath}`);
+
 	if (!fs.existsSync(workspacePath)) {
 		console.error(`Workspace path does not exist: ${workspacePath}`);
 		process.exit(1);
@@ -454,8 +461,15 @@ async function main() {
 }
 
 // Run if called directly
-const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'));
-if (isMain) {
+// Support multiple invocation patterns: direct execution, node server.mjs, and VS Code MCP
+const currentFile = fileURLToPath(import.meta.url);
+const isDirectExecution = process.argv[1] && (
+	process.argv[1] === currentFile ||
+	process.argv[1].endsWith('/mcp/server.mjs') ||
+	process.argv[1].endsWith('/mcp/server.mts')
+);
+
+if (isDirectExecution) {
 	main().catch((error) => {
 		console.error('[Kratai MCP] Fatal error:', error);
 		process.exit(1);

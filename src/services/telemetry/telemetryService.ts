@@ -1,4 +1,3 @@
-import { TelemetryReporter } from '@vscode/extension-telemetry';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -24,14 +23,32 @@ function loadConfig(): ExtensionConfig {
 const config = loadConfig();
 const CONNECTION_STRING = config.telemetry?.connectionString || '';
 
-let reporter: TelemetryReporter | undefined;
+let reporter: any | undefined;
+let isVSCodeContext = false;
+
+// Detect if we're running in VS Code context
+try {
+	require.resolve('vscode');
+	isVSCodeContext = true;
+} catch {
+	// Not in VS Code context (e.g., standalone Node.js / MCP server)
+	isVSCodeContext = false;
+}
 
 export class TelemetryService {
 
-	static initialize(connectionString?: string): void {
+	static async initialize(connectionString?: string): Promise<void> {
 		try {
+			// Skip telemetry if not in VS Code context (e.g., MCP server)
+			if (!isVSCodeContext) {
+				return;
+			}
+
 			const key = connectionString || CONNECTION_STRING;
 			if (!key) { return; } // No connection string — telemetry disabled silently
+			
+			// Dynamic import to avoid loading vscode module in Node.js context
+			const { TelemetryReporter } = await import('@vscode/extension-telemetry');
 			reporter = new TelemetryReporter(key);
 		} catch (e) {
 			// Telemetry init failure should never crash the extension

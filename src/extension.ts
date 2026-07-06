@@ -13,6 +13,7 @@ export function activate(context: vscode.ExtensionContext) {
 	console.log('🐰 Kratai extension is now activating...');
 
 	// Initialize telemetry (respects VS Code's telemetry.telemetryLevel setting automatically)
+	// Note: initialize() is async but we don't await to avoid blocking activation
 	TelemetryService.initialize();
 	context.subscriptions.push({ dispose: () => TelemetryService.dispose() });
 
