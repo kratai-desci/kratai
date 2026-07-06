@@ -1,6 +1,6 @@
 # Kratai Contributor License Agreement
 
-Thank you for your interest in contributing to the Kratai project ("the Project"), which is developed and maintained by **Collective Science, Inc** ("the Company").
+Thank you for your interest in contributing to the Kratai project ("the Project"), which is developed and maintained by **Decentralized Science, Inc** ("the Company").
 
 This Contributor License Agreement ("Agreement") sets out the terms governing any contributions that you make to the Project.
 
