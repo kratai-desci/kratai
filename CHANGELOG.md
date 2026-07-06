@@ -2,6 +2,16 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.9.4] - 2026-07-06
+
+### Fixed
+- **MCP Server Workspace Resolution** — Fixed `${workspaceFolder}` being passed as literal string instead of resolved path, which caused "Workspace path does not exist" error on MCP server startup
+- **Chat Participant Registration** — Fixed `@kratai` chat participant not being available in VS Code Chat by adding missing registration call in extension activation
+- **Multi-Workspace Support** — MCP server now properly handles multiple workspace folders, creating separate server instances for each
+
+### Changed
+- **MCP Server Naming** — Changed server display name from "Kratai" to "kratai" (lowercase) for consistency across all MCP tooling
+
 ## [1.9.3] - 2026-07-06
 
 ### Fixed

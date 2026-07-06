@@ -2,7 +2,7 @@
   "name": "kratai",
   "displayName": "kratai",
   "description": "Architecture as source of truth. Generate diagrams from your codebase, maintain architectural oversight while AI agents code, and eliminate expensive context dumps.",
-  "version": "1.9.3",
+  "version": "1.9.4",
   "publisher": "kratai-core",
   "icon": "icon_white.png",
   "license": "MIT",
