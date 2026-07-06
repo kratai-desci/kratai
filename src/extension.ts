@@ -5,6 +5,7 @@ import * as path from 'path';
 import { showGitChanges, generateClassDiagram, generateClassDiagramDirect, showConfigPanel, generateDiagramFromView } from './commands';
 import { KrataiTreeProvider } from './views/krataiTreeProvider';
 import { TelemetryService } from './services/telemetry/telemetryService';
+import { registerKrataiChatParticipant } from './chat';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -16,6 +17,9 @@ export function activate(context: vscode.ExtensionContext) {
 	// Note: initialize() is async but we don't await to avoid blocking activation
 	TelemetryService.initialize();
 	context.subscriptions.push({ dispose: () => TelemetryService.dispose() });
+
+	// Register chat participant (@kratai)
+	registerKrataiChatParticipant(context);
 
 	// Register sidebar view
 	console.log('🐰 Registering tree data provider for kratai-actions...');
@@ -70,15 +74,28 @@ export function activate(context: vscode.ExtensionContext) {
 					'server.mjs'
 				);
 
-				return [
-					new vscode.McpStdioServerDefinition(
-						'Kratai',
+				// Return one server definition per workspace folder
+				const workspaceFolders = vscode.workspace.workspaceFolders || [];
+				
+				if (workspaceFolders.length === 0) {
+					// No workspace open - return empty array
+					return [];
+				}
+
+				// Create a server definition for each workspace folder
+				return workspaceFolders.map((folder, index) => {
+					const serverName = workspaceFolders.length === 1 
+						? 'kratai'  // Single workspace: just "kratai"
+						: `kratai (${folder.name})`; // Multi-workspace: "kratai (folder-name)"
+					
+					return new vscode.McpStdioServerDefinition(
+						serverName,
 						'node',
-						[serverScript, '${workspaceFolder}'],
+						[serverScript, folder.uri.fsPath],
 						undefined,
 						context.extension.packageJSON.version
-					),
-				];
+					);
+				});
 			},
 		})
 	);

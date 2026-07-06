@@ -100,7 +100,11 @@ Choose exactly what to show — select folders, filter relationship types, and c
 
 ## 📝 Release Notes
 
-### Latest: v1.9.2 (2026-07-03)
+### Latest: v1.9.3 (2026-07-06)
+- 🔧 **Build Fixes** — Resolved TypeScript compilation errors and import path issues
+- ✅ **Stable Release** — All modules now compile and package correctly
+
+### v1.9.2 (2026-07-03)
 - ☕ **Java & Spring Boot Support** — Full language and framework support with MVC, JPA, REST, and dependency injection detection
 - 🎯 **Spring Boot Patterns** — Automatic detection of controllers, services, repositories, and view rendering
 - 🔗 **JPA Relationships** — Maps @OneToMany, @ManyToOne, @ManyToMany, @OneToOne entity relationships

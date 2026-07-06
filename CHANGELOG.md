@@ -2,6 +2,16 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.9.3] - 2026-07-06
+
+### Fixed
+- **Import Path Resolution** — Fixed TypeScript module import paths in command files to correctly resolve configService
+- **Build Errors** — Resolved compilation issues preventing successful extension packaging
+
+### Technical
+- Updated import paths to match actual service file structure
+- Ensured all TypeScript modules compile without errors
+
 ## [1.9.2] - 2026-07-03
 
 ### Added
