@@ -41,6 +41,25 @@ async function detectAvailableTypes(workspacePath: string): Promise<string[]> {
 	}
 }
 
+async function countRelationshipsByType(workspacePath: string, config: KrataiConfig): Promise<Record<string, number>> {
+	try {
+		const diagramData = await CodeParserService.parseWorkspace(workspacePath, config);
+		const counts: Record<string, number> = {};
+		
+		diagramData.relationships.forEach(rel => {
+			const types = Array.isArray(rel.type) ? rel.type : [rel.type];
+			types.forEach(type => {
+				counts[type] = (counts[type] || 0) + 1;
+			});
+		});
+		
+		return counts;
+	} catch (error) {
+		console.error('Error counting relationships:', error);
+		return {};
+	}
+}
+
 function getTypeLabel(type: string): string {
 	const labels: { [key: string]: string } = {
 		'class': '📦 Classes',
@@ -255,6 +274,12 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 		'middleware', 'layout-wraps', 'server-action'
 	];
 
+	// Count relationships in edit mode
+	let relationshipCounts: Record<string, number> = {};
+	if (mode === 'edit') {
+		relationshipCounts = await countRelationshipsByType(workspacePath, config);
+	}
+
 	// Create webview panel
 	const panel = vscode.window.createWebviewPanel(
 		'krataiConfig',
@@ -265,7 +290,7 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 		}
 	);
 
-	panel.webview.html = generateConfigHTML(folderTree, extensions, config, availableTypes, availableRelTypes, diagramName, mode);
+	panel.webview.html = generateConfigHTML(folderTree, extensions, config, availableTypes, availableRelTypes, diagramName, mode, relationshipCounts);
 
 	// Handle messages from webview
 	panel.webview.onDidReceiveMessage(
@@ -377,7 +402,7 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 	);
 }
 
-function generateConfigHTML(folderTree: any, extensions: any[], config: any, availableTypes: string[], availableRelTypes: string[], diagramName: string, mode: string): string {
+function generateConfigHTML(folderTree: any, extensions: any[], config: any, availableTypes: string[], availableRelTypes: string[], diagramName: string, mode: string, relationshipCounts?: Record<string, number>): string {
 	const infoMessage = mode === 'edit'
 		? `<div class="info-box">
 			✏️ <strong>Editing diagram settings</strong><br/>
@@ -726,20 +751,23 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
 				<thead>
 					<tr style="background: var(--vscode-editorWidget-background);">
 						<th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--vscode-panel-border); width: 25%;">Type</th>
-						<th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--vscode-panel-border); width: 60%;">Description</th>
-						<th style="padding: 8px; text-align: center; border-bottom: 1px solid var(--vscode-panel-border); width: 15%;">Show</th>
+						<th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--vscode-panel-border); width: 50%;">Description</th>
+						${mode === 'edit' ? '<th style="padding: 8px; text-align: center; border-bottom: 1px solid var(--vscode-panel-border); width: 10%;">Count</th>' : ''}
+						<th style="padding: 8px; text-align: center; border-bottom: 1px solid var(--vscode-panel-border); width: ${mode === 'edit' ? '15%' : '25%'};">Show</th>
 					</tr>
 				</thead>
 				<tbody>
 					${availableRelTypes.map((type, index) => {
 						const isChecked = config.relationshipTypeFilters?.[type] !== false;
+						const count = relationshipCounts?.[type] || 0;
 						// Add visual separators between categories
 						const addSeparator = index === 4 || index === 8 || index === 11 || index === 13 || index === 15 || index === 18 || index === 21;
 						return `
-							${addSeparator ? '<tr style="height: 10px; background: transparent;"><td colspan="3"></td></tr>' : ''}
+							${addSeparator ? `<tr style="height: 10px; background: transparent;"><td colspan="${mode === 'edit' ? '4' : '3'}"></td></tr>` : ''}
 							<tr style="border-bottom: 1px solid var(--vscode-panel-border);">
 								<td style="padding: 8px;">${getRelTypeLabel(type)}</td>
 								<td style="padding: 8px; color: var(--vscode-descriptionForeground);">${getRelTypeDescription(type)}</td>
+								${mode === 'edit' ? `<td style="padding: 8px; text-align: center; font-weight: 600; color: ${count > 0 ? 'var(--vscode-textLink-foreground)' : 'var(--vscode-descriptionForeground)'};">${count}</td>` : ''}
 								<td style="padding: 8px; text-align: center;">
 									<input type="checkbox" id="rel-${type}" data-reltype="${type}" ${isChecked ? 'checked' : ''} style="cursor: pointer;">
 								</td>
