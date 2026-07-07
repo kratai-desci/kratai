@@ -245,7 +245,8 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 	}
 
 	// Scan workspace
-	const folderTree = buildFolderTree(workspacePath, config.selectedFolders);
+	const selectedFolders = ConfigService.getSelectedFolders(config);
+	const folderTree = buildFolderTree(workspacePath, selectedFolders);
 	const extensions = WorkspaceScanner.scanExtensionCounts(workspacePath);
 
 	// Update selection state from config
@@ -301,6 +302,7 @@ export async function showConfigPanel(context: vscode.ExtensionContext, options?
 					
 					const newConfig: KrataiConfig = {
 						selectedFolders: message.selectedFolders,
+						folders: message.folders,  // NEW: Save folder order data
 						selectedExtensions: message.selectedExtensions,
 						respectGitignore: config.respectGitignore,
 						followSymlinks: config.followSymlinks,
@@ -630,6 +632,105 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
             font-size: 13px;
             line-height: 1.6;
         }
+        
+        /* Folder Order Tab Styles */
+        .folder-order-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 15px;
+        }
+        
+        .folder-order-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--vscode-editor-inactiveSelectionBackground);
+            border-radius: 4px;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .folder-order-item.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        
+        .folder-order-item.drag-over {
+            border-color: var(--vscode-textLink-foreground);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .drag-handle {
+            cursor: grab;
+            user-select: none;
+            font-size: 16px;
+            color: var(--vscode-descriptionForeground);
+            padding: 4px;
+        }
+        
+        .drag-handle:hover {
+            color: var(--vscode-textLink-foreground);
+        }
+        
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        
+        .folder-order-checkbox {
+            cursor: pointer;
+        }
+        
+        .folder-order-name {
+            flex: 1;
+            font-family: var(--vscode-editor-font-family);
+            font-size: 13px;
+        }
+        
+        .folder-order-number {
+            font-weight: 600;
+            color: var(--vscode-textLink-foreground);
+            font-size: 12px;
+            min-width: 30px;
+            text-align: center;
+        }
+        
+        .folder-order-buttons {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .folder-order-buttons button {
+            padding: 4px 8px;
+            font-size: 12px;
+            min-width: 28px;
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+        }
+        
+        .folder-order-buttons button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        
+        .folder-order-buttons button:not(:disabled):hover {
+            background: var(--vscode-button-secondaryHoverBackground);
+        }
+        
+        .folder-order-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--vscode-descriptionForeground);
+            font-size: 14px;
+        }
+        
+        .folder-order-reset {
+            margin-top: 15px;
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+        }
     </style>
 </head>
 <body>
@@ -658,6 +759,7 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
         <button class="tab active" onclick="switchTab('folders')">📁 Folders</button>
         <button class="tab" onclick="switchTab('extensions')">📄 File Types</button>
         <button class="tab" onclick="switchTab('filters')">🔍 Display Filters</button>
+        <button class="tab" onclick="switchTab('folderOrder')">📊 Folder Order</button>
         ${mode === 'edit' ? `<button class="tab" onclick="switchTab('danger')">⚠️ Danger Zone</button>` : ''}
     </div>
 
@@ -779,6 +881,20 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
 		</div>
     </div>
 
+    <div id="folderOrder-tab" class="tab-content">
+        <h3>Folder Display Order</h3>
+        
+        <div class="info-box">
+            📊 Customize the order in which folders appear in the diagram. Drag folders to reorder, or use arrow buttons for precise control.
+        </div>
+        
+        <div id="folder-order-container">
+            <!-- Populated by JavaScript -->
+        </div>
+        
+        <button onclick="resetFolderOrder()" class="folder-order-reset">↻ Reset to Alphabetical</button>
+    </div>
+
     ${mode === 'edit' ? `
     <div id="danger-tab" class="tab-content">
         <div class="danger-zone">
@@ -804,6 +920,43 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
 
     <script>
         const vscode = acquireVsCodeApi();
+        
+        // Store folder order state
+        let folderOrderData = [];
+        
+        // Initialize folder order data from saved config (if available)
+        const initialFolderConfig = ${JSON.stringify(config.folders || {})};
+        
+        // Load initial folder order from config
+        if (Object.keys(initialFolderConfig).length > 0) {
+            // Convert folder config to array and sort by order
+            const foldersArray = Object.entries(initialFolderConfig)
+                .filter(([path, cfg]) => cfg.selected)
+                .map(([path, cfg]) => ({
+                    path: path,
+                    selected: cfg.selected,
+                    order: cfg.order
+                }));
+            
+            // Sort by order (nulls at the end, then alphabetically)
+            foldersArray.sort((a, b) => {
+                if (a.order === null && b.order === null) {
+                    return a.path.localeCompare(b.path);
+                }
+                if (a.order === null) return 1;
+                if (b.order === null) return -1;
+                return a.order - b.order;
+            });
+            
+            // Renumber to ensure sequential ordering
+            foldersArray.forEach((folder, idx) => {
+                if (folder.order !== null) {
+                    folder.order = idx + 1;
+                }
+            });
+            
+            folderOrderData = foldersArray;
+        }
 
         function deleteDiagram() {
             vscode.postMessage({
@@ -818,6 +971,217 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
             
             event.target.classList.add('active');
             document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Initialize folder order list when switching to that tab
+            if (tabName === 'folderOrder') {
+                initializeFolderOrder();
+            }
+        }
+
+        /**
+         * Initialize folder order list from current folder selections
+         */
+        function initializeFolderOrder() {
+            // Get all selected folders from the folders tab
+            const selectedFolders = [];
+            document.querySelectorAll('.folder-item input[type="checkbox"]').forEach(cb => {
+                if (cb.checked && !cb.indeterminate && cb.value) {
+                    selectedFolders.push(cb.value);
+                }
+            });
+            
+            // Sort alphabetically by default (will be overridden by saved order)
+            selectedFolders.sort();
+            
+            // Initialize folder order data with order numbers
+            folderOrderData = selectedFolders.map((folder, index) => ({
+                path: folder,
+                selected: true,
+                order: index + 1
+            }));
+            
+            renderFolderOrderList();
+        }
+
+        /**
+         * Render the folder order list UI
+         */
+        function renderFolderOrderList() {
+            const container = document.getElementById('folder-order-container');
+            
+            if (folderOrderData.length === 0) {
+                container.innerHTML = '<div class="folder-order-empty">No folders selected. Go to the Folders tab to select folders.</div>';
+                return;
+            }
+            
+            const html = '<div class="folder-order-list">' + 
+                folderOrderData.map((folder, index) => {
+                    const isFirst = index === 0;
+                    const isLast = index === folderOrderData.length - 1;
+                    
+                    return \`
+                        <div class="folder-order-item" 
+                             draggable="true" 
+                             data-index="\${index}"
+                             ondragstart="handleDragStart(event)"
+                             ondragover="handleDragOver(event)"
+                             ondrop="handleDrop(event)"
+                             ondragend="handleDragEnd(event)"
+                             ondragleave="handleDragLeave(event)">
+                            <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
+                            <input type="checkbox" 
+                                   class="folder-order-checkbox" 
+                                   checked 
+                                   disabled 
+                                   title="Folder is selected">
+                            <span class="folder-order-name">\${folder.path}</span>
+                            <span class="folder-order-number">#\${folder.order}</span>
+                            <div class="folder-order-buttons">
+                                <button onclick="moveFolderUp(\${index})" 
+                                        \${isFirst ? 'disabled' : ''} 
+                                        title="Move up">↑</button>
+                                <button onclick="moveFolderDown(\${index})" 
+                                        \${isLast ? 'disabled' : ''} 
+                                        title="Move down">↓</button>
+                            </div>
+                        </div>
+                    \`;
+                }).join('') + 
+                '</div>';
+            
+            container.innerHTML = html;
+        }
+
+        /**
+         * Move folder up in the order
+         */
+        function moveFolderUp(index) {
+            if (index === 0) return;
+            
+            // Swap with previous item
+            const temp = folderOrderData[index];
+            folderOrderData[index] = folderOrderData[index - 1];
+            folderOrderData[index - 1] = temp;
+            
+            // Renumber
+            folderOrderData.forEach((folder, idx) => {
+                folder.order = idx + 1;
+            });
+            
+            renderFolderOrderList();
+        }
+
+        /**
+         * Move folder down in the order
+         */
+        function moveFolderDown(index) {
+            if (index === folderOrderData.length - 1) return;
+            
+            // Swap with next item
+            const temp = folderOrderData[index];
+            folderOrderData[index] = folderOrderData[index + 1];
+            folderOrderData[index + 1] = temp;
+            
+            // Renumber
+            folderOrderData.forEach((folder, idx) => {
+                folder.order = idx + 1;
+            });
+            
+            renderFolderOrderList();
+        }
+
+        /**
+         * Reset folder order to alphabetical (set all orders to null)
+         */
+        function resetFolderOrder() {
+            // Sort alphabetically
+            folderOrderData.sort((a, b) => a.path.localeCompare(b.path));
+            
+            // Set all orders to null (will be saved as null in config)
+            folderOrderData.forEach(folder => {
+                folder.order = null;
+            });
+            
+            renderFolderOrderList();
+        }
+
+        // ===== Drag and Drop Handlers =====
+        
+        let draggedIndex = null;
+
+        /**
+         * Handle drag start event
+         */
+        function handleDragStart(event) {
+            draggedIndex = parseInt(event.currentTarget.getAttribute('data-index'));
+            event.currentTarget.classList.add('dragging');
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/html', event.currentTarget.innerHTML);
+        }
+
+        /**
+         * Handle drag over event (allows dropping)
+         */
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            
+            const targetElement = event.currentTarget;
+            if (targetElement.classList.contains('folder-order-item') && 
+                !targetElement.classList.contains('dragging')) {
+                targetElement.classList.add('drag-over');
+            }
+            
+            return false;
+        }
+
+        /**
+         * Handle drag leave event
+         */
+        function handleDragLeave(event) {
+            event.currentTarget.classList.remove('drag-over');
+        }
+
+        /**
+         * Handle drop event
+         */
+        function handleDrop(event) {
+            event.stopPropagation();
+            event.preventDefault();
+            
+            const targetIndex = parseInt(event.currentTarget.getAttribute('data-index'));
+            
+            if (draggedIndex !== null && draggedIndex !== targetIndex) {
+                // Remove item from old position
+                const draggedItem = folderOrderData[draggedIndex];
+                folderOrderData.splice(draggedIndex, 1);
+                
+                // Insert at new position
+                const newIndex = draggedIndex < targetIndex ? targetIndex : targetIndex;
+                folderOrderData.splice(newIndex, 0, draggedItem);
+                
+                // Renumber all items
+                folderOrderData.forEach((folder, idx) => {
+                    folder.order = idx + 1;
+                });
+                
+                renderFolderOrderList();
+            }
+            
+            return false;
+        }
+
+        /**
+         * Handle drag end event (cleanup)
+         */
+        function handleDragEnd(event) {
+            // Remove all drag-related classes
+            document.querySelectorAll('.folder-order-item').forEach(item => {
+                item.classList.remove('dragging');
+                item.classList.remove('drag-over');
+            });
+            
+            draggedIndex = null;
         }
 
         function toggleFolderExpand(element) {
@@ -904,11 +1268,35 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
 
             // Collect git diff settings
             const gitDiffEnabled = document.getElementById('git-diff-enabled').checked;
+            
+            // Build folders record with order information
+            const folders = {};
+            
+            // If folder order data exists, use it to build the folders record
+            if (folderOrderData.length > 0) {
+                folderOrderData.forEach(folder => {
+                    folders[folder.path] = {
+                        selected: true,
+                        expanded: true,
+                        order: folder.order  // Can be a number or null
+                    };
+                });
+            } else {
+                // Fallback: build from selected folders (no order)
+                selectedFolders.forEach(folderPath => {
+                    folders[folderPath] = {
+                        selected: true,
+                        expanded: true,
+                        order: null  // No custom order
+                    };
+                });
+            }
 
             vscode.postMessage({
                 command: 'save',
                 diagramName: diagramName,
-                selectedFolders,
+                selectedFolders,  // Keep for backwards compatibility
+                folders,  // NEW: folder config with order
                 selectedExtensions,
                 classTypeFilters,
                 relationshipTypeFilters,

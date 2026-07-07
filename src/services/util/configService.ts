@@ -118,13 +118,33 @@ export class ConfigService {
 	}
 
 	static getProjectInfo(config: KrataiConfig): string {
-		if (config.selectedFolders.length === 0) {
+		const selectedFolders = this.getSelectedFolders(config);
+		
+		if (selectedFolders.length === 0) {
 			return '📂 Scanning all folders (except node_modules, dist, build, out, .git)';
 		}
 
-		const folderList = config.selectedFolders.join(', ');
+		const folderList = selectedFolders.join(', ');
 		const extList = config.selectedExtensions.join(', ');
 		return `📂 Folders: ${folderList}\n📄 Extensions: ${extList}`;
+	}
+	
+	/**
+	 * Get selected folders from config, supporting both old and new format
+	 * Old format: selectedFolders: string[]
+	 * New format: folders: Record<string, FolderConfig>
+	 */
+	static getSelectedFolders(config: KrataiConfig): string[] {
+		// If new format exists and has data, use it
+		if (config.folders && Object.keys(config.folders).length > 0) {
+			return Object.entries(config.folders)
+				.filter(([_, folderConfig]) => folderConfig.selected)
+				.map(([path, _]) => path)
+				.sort();
+		}
+		
+		// Fall back to old format
+		return config.selectedFolders || [];
 	}
 
 	static async loadConfig(workspacePath: string): Promise<KrataiConfig> {

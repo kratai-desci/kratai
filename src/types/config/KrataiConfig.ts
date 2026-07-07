@@ -1,5 +1,15 @@
+/**
+ * Configuration for individual folders in the diagram
+ */
+export interface FolderConfig {
+	selected: boolean;              // Whether folder is included in diagram
+	expanded?: boolean;             // UI state: whether folder is expanded in tree view
+	order?: number | null;          // Custom order (1, 2, 3...), null = alphabetical
+}
+
 export interface KrataiConfig {
-	selectedFolders: string[];      // Relative paths from workspace root
+	selectedFolders: string[];      // Relative paths from workspace root (deprecated, use folders)
+	folders?: Record<string, FolderConfig>;  // NEW: Folder configuration with order support
 	selectedExtensions: string[];   // [".ts", ".tsx", etc.]
 	respectGitignore?: boolean;     // Default: true
 	followSymlinks?: boolean;       // Default: false

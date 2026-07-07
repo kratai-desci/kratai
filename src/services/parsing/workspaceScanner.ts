@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ExtensionInfo } from '../../types/view';
 import { KrataiConfig } from '../../types/config';
+import { ConfigService } from '../util/configService';
 
 export class WorkspaceScanner {
 	private static readonly DEFAULT_EXCLUSIONS = [
@@ -263,14 +264,17 @@ export class WorkspaceScanner {
 	static getFilesToParse(workspacePath: string, config: KrataiConfig): string[] {
 		const files: string[] = [];
 		
+		// Get selected folders using helper (supports both old and new format)
+		const selectedFolders = ConfigService.getSelectedFolders(config);
+		
 		// If no folders selected, parse entire workspace
-		if (config.selectedFolders.length === 0) {
+		if (selectedFolders.length === 0) {
 			this.scanForFiles(workspacePath, workspacePath, config, files);
 			return files;
 		}
 		
 		// Parse each selected folder + all subdirectories
-		for (const folder of config.selectedFolders) {
+		for (const folder of selectedFolders) {
 			const folderPath = path.join(workspacePath, folder);
 			if (fs.existsSync(folderPath)) {
 				this.scanForFiles(folderPath, workspacePath, config, files);
