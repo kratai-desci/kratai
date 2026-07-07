@@ -1,8 +1,18 @@
-# kratai 
+# kratai
 
-> Architecture as source of truth
+> The architectural oversight layer for AI-native development.  
+> You focus on design. AI writes the code like a real software engineer.
 
-kratai generates architecture diagrams that serve as the single source of truth for your system structure. Maintain architectural oversight while AI agents code, and eliminate expensive context dumps by giving AI access to structured diagrams instead of raw files.
+kratai turns your codebase into **living architecture diagrams** — the single source of truth.  
+Maintain architectural control while AI agents code, and **dramatically reduce token usage** by giving them structured, accurate system information instead of expensive raw file dumps.
+
+**Early benchmarks** with AI agents using kratai’s architecture context (via MCP + SKILL) showed:
+- **~49% fewer output tokens**
+- **~66% reduction in total input tokens**
+- **~58% lower billing units**
+- **~70% faster completion time**
+
+*Results from preliminary internal testing (kratai v.1.9.4 vs no skill baseline). Actual results may vary depending on task complexity and agent behavior.*
 
 ![kratai in Action](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo.gif)
 
@@ -10,16 +20,17 @@ kratai generates architecture diagrams that serve as the single source of truth 
 
 ## ✨ Key Features
 
+### 🤖 **AI Integration via SKILL & Local MCP Server**
+
+- **Architecture-Aware SKILL** — Pre-configured skill teaches AI to analyze existing patterns and follow your design principles automatically. No manual prompting required.
+- **Local MCP Server** — Built-in Model Context Protocol server gives AI agents direct access to your architecture diagrams. AI can query your system structure before generating code, understanding the full context.
+- **Fundamental Software Engineering Principles** — Ensure coding AIs consider foundational software engineering principles (KISS, DRY, SRP, high cohesion, low coupling) to produce minimal lines of code and maintain architectural integrity.
+
 ### 📊 **Architecture Intelligence**
 
 - **Deterministic Analysis** — Generate interactive architecture diagrams directly from your codebase using static analysis. No LLM tokens required, no hallucinations, always reflects the actual code structure.
 - **Single Source of Truth** — Diagrams represent the real state of your system, making it easy for developers to understand the overall architecture and reducing token costs when AI agents need context.
 - **Developer-Friendly Navigation** — Git diff highlighting shows uncommitted changes at a glance. Click any element to jump directly to the code.
-
-### 🤖 **AI Integration via SKILL & MCP Server**
-
-- **MCP Server** — Built-in Model Context Protocol server gives AI agents direct access to your architecture diagrams. AI can query your system structure before generating code, understanding the full context.
-- **Architecture-Aware SKILL** — Pre-configured skill teaches AI to analyze existing patterns and follow your design principles automatically. No manual prompting required.
 
 ---
 
@@ -41,27 +52,22 @@ kratai contributes to this approach by giving developers clear **visibility and 
 
 ## 📸 Visual Tour
 
-### 1. Architecture as Single Source of Truth
-Architecture diagrams generated from your actual codebase — not representations, but the definitive source of truth. Git diff highlighting shows exactly what changed at a glance.
+### 1. Built-in Coding Agent & SKILL
+Pre-configured SKILL teaches AI to follow your design principles automatically. Local MCP server provides direct access to architecture data — no manual setup required.
+
+<img src="https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_4.png" alt="AI uses kratai skill" width="50%">
+
+### 2. AI Understands Your Architecture
+AI agents query your architecture before generating code. No expensive context dumps — AI gets structured, accurate system information through MCP server.
 
 ![Screenshot 1 - Class Diagram](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_1.png)
 
-### 2. Multiple Perspectives for Different Needs
+### 3. Architecture as Single Source of Truth
 Create and save different architectural views — focus on domains, API layers, or specific features. Each diagram is a lens into your system structure.
 
 <img src="https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_2.png" alt="Multiple Diagrams" width="33%">
 
-### 3. AI Understands Your Architecture
-AI agents query your architecture before generating code. No expensive context dumps — AI gets structured, accurate system information through MCP server.
-
-<img src="https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_3.png" alt="AI understands architecture" width="50%">
-
-### 4. Built-in SKILL & MCP Server
-Pre-configured SKILL teaches AI to follow your design principles automatically. MCP server provides direct access to architecture data — no manual setup required.
-
-<img src="https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_4.png" alt="AI uses kratai skill" width="50%">
-
-### 5. Fine-Grained Control Over Your Views
+### 4. Fine-Grained Control Over Your Views
 Choose exactly what to show — select folders, filter relationship types, and control class types. Tailor each diagram to your specific needs.
 
 ![Screenshot 5 - Configuration Panel](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_5.png)
