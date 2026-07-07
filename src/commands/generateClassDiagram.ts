@@ -136,7 +136,7 @@ export async function generateClassDiagramDirect(context: vscode.ExtensionContex
 			);
 
 			const iconUri = panel.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'icon.png'));
-			panel.webview.html = ClassDiagramView.generate(nodes, edges, viewName, iconUri.toString());
+			panel.webview.html = ClassDiagramView.generate(nodes, edges, viewName, config, iconUri.toString());
 
 			TelemetryService.trackGenerateClassDiagram(
 				diagramData.classes.length,

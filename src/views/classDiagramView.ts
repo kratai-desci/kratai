@@ -1,22 +1,23 @@
 import { ReactFlowNode, ReactFlowEdge } from '../types/view';
 import { FolderStructureBuilder } from '../services/diagram/folderStructure';
 import { FolderBoxRenderer } from './components/folderBoxRenderer';
+import { KrataiConfig } from '../types/config/KrataiConfig';
 
 export class ClassDiagramView {
 	
-	static generate(nodes: ReactFlowNode[], edges: ReactFlowEdge[], workspaceName: string, iconUri?: string): string {
+	static generate(nodes: ReactFlowNode[], edges: ReactFlowEdge[], workspaceName: string, config: KrataiConfig, iconUri?: string): string {
 		// Step 1: Build folder structure
 		const root = FolderStructureBuilder.build(nodes);
-		console.log('=== Folder Structure (CSS Grid Layout) ===');
+		console.log('=== Folder Structure (Flat Layout with Custom Order) ===');
 		FolderStructureBuilder.logStructure(root);
 		console.log(`\n📊 Total: ${nodes.length} classes, ${FolderStructureBuilder.countFolders(root)} folders`);
 
-		// Step 2: Render with CSS Grid layout
-		const folderRenderer = new FolderBoxRenderer();
+		// Step 2: Render with flat layout and custom folder ordering
+		const folderRenderer = new FolderBoxRenderer(config);
 		const folderHTML = folderRenderer.renderAll(root);
 
-		console.log(`\n✅ Generated HTML with CSS Grid layout`);
-		console.log(`📝 All ${nodes.length} classes rendered in CSS Grid containers`);
+		console.log(`\n✅ Generated HTML with flat folder layout`);
+		console.log(`📝 All ${nodes.length} classes rendered in ordered flat containers`);
 		console.log(`🔗 ${edges.length} relationships will be drawn as lines`);
 		
 		// Step 3: Generate final HTML with relationship data
