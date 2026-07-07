@@ -2,6 +2,17 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.9.5] - 2026-07-07
+
+### Fixed
+- **SKILL Invocation** — Fixed bug where kratai skill and agent were not being invoked during coding tasks. Improved trigger patterns in SKILL.md to ensure consistent activation on code generation, refactoring, bug fixes, and architectural tasks
+
+### Added
+- **Relationship Type Counts** — Added count column in relationship filter table when editing diagrams. Shows the number of each relationship type present in the current diagram for better visibility and decision-making
+
+### Improved
+- **Filter View UX** — Enhanced diagram editing experience with real-time relationship statistics, making it easier to understand which relationship types are most prevalent in your codebase
+
 ## [1.9.4] - 2026-07-06
 
 ### Fixed
