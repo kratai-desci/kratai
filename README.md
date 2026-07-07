@@ -106,40 +106,16 @@ Choose exactly what to show — select folders, filter relationship types, and c
 
 ## 📝 Release Notes
 
-### Latest: v1.9.5 (2026-07-07)
+### Latest: v1.9.6 (2026-07-07)
+- 🤖 **Update project description** — Update project's description for VS Code marketplace
+
+### v1.9.5 (2026-07-07)
 - 🤖 **SKILL Invocation Fix** — Fixed agent and skill not being invoked during coding tasks by improving trigger patterns
 - 📊 **Relationship Count Display** — Added relationship type counts in filter view when editing diagrams for better visibility
 
 ### v1.9.4 (2026-07-06)
 - 🔧 **MCP Server Fixes** — Fixed workspace resolution and chat participant registration issues
 - 🔧 **Multi-Workspace Support** — MCP server now properly handles multiple workspace folders
-
-### v1.9.3 (2026-07-06)
-- 🔧 **Build Fixes** — Resolved TypeScript compilation errors and import path issues
-- ✅ **Stable Release** — All modules now compile and package correctly
-
-### v1.9.2 (2026-07-03)
-- ☕ **Java & Spring Boot Support** — Full language and framework support with MVC, JPA, REST, and dependency injection detection
-- 🎯 **Spring Boot Patterns** — Automatic detection of controllers, services, repositories, and view rendering
-- 🔗 **JPA Relationships** — Maps @OneToMany, @ManyToOne, @ManyToMany, @OneToOne entity relationships
-
-### v1.9.1 (2026-06-28)
-- 🔧 **Intelligent Relationship Deduplication** — Reduces edge count by 60-75% by collapsing duplicate relationships into multi-type edges
-- 🎨 **Multi-Type Edge Labels** — See all relationship types in one edge (e.g., "renders, uses")
-- ⚡ **Improved Performance** — Faster rendering with cleaner, more readable diagrams
-
-### v1.9.0 (2026-06-27)
-- ✨ **Enhanced Key Features** — Restructured into scannable bullet points highlighting deterministic analysis, single source of truth, and AI integration
-
-### v1.8.4
-- 🏷️ **Custom Diagram Headers** — Your diagram name now appears as the main title
-- 📖 **Enhanced Documentation** — README restructured for better clarity
-- 🎯 **Clearer Messaging** — Visual tour emphasizing tailored views
-
-### v1.8.3
-- 🎯 **Complete Relationship Filters** — All 24 types with descriptions
-- 📊 **Table-Based UI** — Scannable relationship filter table
-- ✅ **Accurate Filtering** — Fixed opt-in logic for relationships
 
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 

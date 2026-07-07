@@ -2,6 +2,9 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.9.6] - 2026-07-07
+- 🤖 **Update project description** — Update project's description for VS Code marketplace
+
 ## [1.9.5] - 2026-07-07
 
 ### Fixed

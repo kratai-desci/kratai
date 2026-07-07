@@ -1,8 +1,8 @@
 {
   "name": "kratai",
   "displayName": "kratai",
-  "description": "Architecture as source of truth. Generate diagrams from your codebase, maintain architectural oversight while AI agents code, and eliminate expensive context dumps.",
-  "version": "1.9.5",
+  "description": "The architectural oversight layer for AI-native development. You focus on design. AI writes the code like a real software engineer and eliminate expensive context dumps.",
+  "version": "1.9.6",
   "publisher": "kratai-core",
   "icon": "icon_white.png",
   "license": "MIT",
@@ -15,18 +15,22 @@
     "url": "https://github.com/kratai-desci/kratai/issues"
   },
   "keywords": [
-    "class diagram",
-    "sequence diagram",
-    "uml",
-    "visualization",
-    "typescript",
-    "javascript",
-    "python",
-    "php",
-    "git diff",
-    "code analysis",
-    "multi-language"
-  ],
+  "architecture",
+  "ai development",
+  "mcp server",
+  "spec-driven development",
+  "code intelligence",
+  "architectural oversight",
+  "typescript",
+  "javascript",
+  "python",
+  "php",
+  "django",
+  "nextjs",
+  "git diff",
+  "copilot",
+  "ai assistant"
+],
   "galleryBanner": {
     "color": "#333333",
     "theme": "dark"
@@ -35,7 +39,7 @@
     "vscode": "^1.120.0"
   },
   "categories": [
-    "Visualization",
+    "AI",
     "Programming Languages"
   ],
   "activationEvents": [
