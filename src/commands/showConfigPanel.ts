@@ -1348,10 +1348,11 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
         }
 
         function toggleFolder(checkbox, path) {
-            // Toggle all children checkboxes when parent is toggled
+            // Smart cascading: parent changes cascade to children
             const folderItem = checkbox.closest('.folder-item');
             const nextSibling = folderItem.nextElementSibling;
             
+            // 1. Cascade parent state to all children
             if (nextSibling && nextSibling.classList.contains('folder-children')) {
                 const childCheckboxes = nextSibling.querySelectorAll('input[type="checkbox"]');
                 childCheckboxes.forEach(cb => {
@@ -1360,7 +1361,65 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
                 });
             }
             
-            // Checkboxes are now independent - no automatic parent updates
+            // 2. Update parent states up the tree
+            updateParentStates(folderItem);
+        }
+        
+        /**
+         * Update parent checkbox states based on children
+         * Sets parent to: checked (all children checked), unchecked (no children checked), 
+         * or indeterminate (some children checked)
+         */
+        function updateParentStates(startingItem) {
+            let currentItem = startingItem;
+            
+            // Walk up the tree
+            while (currentItem) {
+                // Find parent by going up: folder-children -> folder-item
+                const parentChildren = currentItem.parentElement;
+                if (!parentChildren || !parentChildren.classList.contains('folder-children')) {
+                    break;
+                }
+                
+                const parentItem = parentChildren.previousElementSibling;
+                if (!parentItem || !parentItem.classList.contains('folder-item')) {
+                    break;
+                }
+                
+                const parentCheckbox = parentItem.querySelector('input[type="checkbox"]');
+                if (!parentCheckbox) {
+                    break;
+                }
+                
+                // Count checked children
+                const childCheckboxes = parentChildren.querySelectorAll('.folder-item > input[type="checkbox"]');
+                let checkedCount = 0;
+                let totalCount = 0;
+                
+                childCheckboxes.forEach(cb => {
+                    totalCount++;
+                    if (cb.checked && !cb.indeterminate) {
+                        checkedCount++;
+                    } else if (cb.indeterminate) {
+                        checkedCount += 0.5; // Indeterminate counts as partial
+                    }
+                });
+                
+                // Update parent state
+                if (checkedCount === 0) {
+                    parentCheckbox.checked = false;
+                    parentCheckbox.indeterminate = false;
+                } else if (checkedCount === totalCount) {
+                    parentCheckbox.checked = true;
+                    parentCheckbox.indeterminate = false;
+                } else {
+                    parentCheckbox.checked = false;
+                    parentCheckbox.indeterminate = true;
+                }
+                
+                // Move up to parent
+                currentItem = parentItem;
+            }
         }
 
         function selectAllRels() {
@@ -1382,6 +1441,21 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
                 cb.addEventListener('change', () => {
                     toggleFolder(cb, cb.value);
                 });
+            });
+            
+            // Initialize parent states based on loaded config
+            // Process from deepest to shallowest to ensure correct state
+            const allFolderItems = Array.from(document.querySelectorAll('.folder-item'));
+            // Reverse to process children before parents
+            allFolderItems.reverse().forEach(item => {
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                if (checkbox) {
+                    const folderChildren = item.nextElementSibling;
+                    if (folderChildren && folderChildren.classList.contains('folder-children')) {
+                        // This is a parent - update its state based on children
+                        updateParentStates(item);
+                    }
+                }
             });
         });
 
