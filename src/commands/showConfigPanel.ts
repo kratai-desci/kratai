@@ -920,7 +920,17 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
     ` : ''}
 
     <script>
-        const vscode = acquireVsCodeApi();
+        console.log('='.repeat(80));
+        console.log('🚀 SCRIPT BLOCK STARTED - Timestamp:', new Date().toISOString());
+        console.log('='.repeat(80));
+        
+        let vscode;
+        try {
+            vscode = acquireVsCodeApi();
+            console.log('✅ VS Code API acquired successfully');
+        } catch (error) {
+            console.error('❌ Failed to acquire VS Code API:', error);
+        }
         
         // Smart default layer weights (same as folderBoxRenderer.ts)
         const LAYER_WEIGHTS = {
@@ -991,19 +1001,24 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
          * Check if this is a virtual box (API routes, webhooks, etc.)
          */
         function isVirtualBox(fullPath, folderName) {
+            console.log('[isVirtualBox] Called with:', {fullPath, folderName});
+            
             // Empty or blank = virtual
             if (!fullPath || fullPath.trim() === '') {
+                console.log('[isVirtualBox] Empty path, returning true');
                 return true;
             }
             
             // Check for specific API route patterns
             const virtualPatterns = [
-                /^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s/i,  // HTTP methods
-                /^API\s+\//i,                                      // "API /" prefix
-                /:\.\.\.(all|any)/i                                // Dynamic route params
+                /^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\\s/i,  // HTTP methods
+                /^API\\s+\\//i,                                      // "API /" prefix
+                /:\\.\\.\\.\\(all\\|any\\)/i                                // Dynamic route params
             ];
             
-            return virtualPatterns.some(pattern => pattern.test(fullPath));
+            const result = virtualPatterns.some(pattern => pattern.test(fullPath));
+            console.log('[isVirtualBox] Result:', result);
+            return result;
         }
         
         /**
@@ -1048,8 +1063,13 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
         // Store folder order state
         let folderOrderData = [];
         
+        console.log('[INIT] Starting folder order initialization');
+        
         // Initialize folder order data from saved config (if available)
         const initialFolderConfig = ${JSON.stringify(config.folders || {})};
+        
+        console.log('[INIT] initialFolderConfig:', initialFolderConfig);
+        console.log('[INIT] initialFolderConfig keys:', Object.keys(initialFolderConfig));
         
         // Load initial folder order from config
         if (Object.keys(initialFolderConfig).length > 0) {
@@ -1091,6 +1111,10 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
             });
             
             folderOrderData = foldersArray;
+            console.log('[INIT] Loaded folderOrderData from config:', folderOrderData);
+            console.log('[INIT] folderOrderData.length:', folderOrderData.length);
+        } else {
+            console.log('[INIT] No initial folder config, folderOrderData is empty');
         }
 
         function deleteDiagram() {
@@ -1101,14 +1125,37 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
         }
 
         function switchTab(tabName) {
+            console.log('[switchTab] Called with tabName:', tabName);
+            
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             
-            event.target.classList.add('active');
-            document.getElementById(tabName + '-tab').classList.add('active');
+            // Find and activate the correct tab button
+            let foundTab = false;
+            document.querySelectorAll('.tab').forEach(tab => {
+                const onclick = tab.getAttribute('onclick');
+                if (onclick && onclick.includes("'" + tabName + "'")) {
+                    tab.classList.add('active');
+                    foundTab = true;
+                    console.log('[switchTab] Activated tab button:', tab.textContent);
+                }
+            });
+            
+            if (!foundTab) {
+                console.warn('[switchTab] Could not find tab button for:', tabName);
+            }
+            
+            const tabContent = document.getElementById(tabName + '-tab');
+            if (tabContent) {
+                tabContent.classList.add('active');
+                console.log('[switchTab] Activated tab content:', tabName + '-tab');
+            } else {
+                console.error('[switchTab] Tab content not found:', tabName + '-tab');
+            }
             
             // Initialize folder order list when switching to that tab
             if (tabName === 'folderOrder') {
+                console.log('[switchTab] Calling initializeFolderOrder()');
                 initializeFolderOrder();
             }
         }
@@ -1117,13 +1164,37 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
          * Initialize folder order list from current folder selections
          */
         function initializeFolderOrder() {
+            console.log('[initializeFolderOrder] START');
+            console.log('[initializeFolderOrder] Current folderOrderData before:', folderOrderData);
+            
             // Get all selected folders from the folders tab
             const selectedFolders = [];
-            document.querySelectorAll('.folder-item input[type="checkbox"]').forEach(cb => {
+            
+            // Check if folders-tab exists
+            const foldersTab = document.getElementById('folders-tab');
+            console.log('[initializeFolderOrder] folders-tab exists?', !!foldersTab);
+            if (foldersTab) {
+                console.log('[initializeFolderOrder] folders-tab display:', window.getComputedStyle(foldersTab).display);
+            }
+            
+            const allCheckboxes = document.querySelectorAll('#folders-tab .folder-item input[type="checkbox"]');
+            console.log('[initializeFolderOrder] Found checkboxes:', allCheckboxes.length);
+            console.log('[initializeFolderOrder] Selector used:', '#folders-tab .folder-item input[type="checkbox"]');
+            
+            allCheckboxes.forEach(cb => {
+                console.log('[Folder Order] Checkbox:', {
+                    id: cb.id,
+                    value: cb.value,
+                    checked: cb.checked,
+                    indeterminate: cb.indeterminate
+                });
+                
                 if (cb.checked && !cb.indeterminate && cb.value) {
                     selectedFolders.push(cb.value);
                 }
             });
+            
+            console.log('[Folder Order] Selected folders:', selectedFolders);
             
             // Sort by smart layer weights (not alphabetically)
             selectedFolders.sort((a, b) => {
@@ -1144,6 +1215,8 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
                 order: index + 1
             }));
             
+            console.log('[Folder Order] Final folderOrderData:', folderOrderData);
+            
             renderFolderOrderList();
         }
 
@@ -1151,9 +1224,20 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
          * Render the folder order list UI
          */
         function renderFolderOrderList() {
+            console.log('[renderFolderOrderList] START');
+            console.log('[renderFolderOrderList] folderOrderData:', folderOrderData);
+            console.log('[renderFolderOrderList] folderOrderData.length:', folderOrderData.length);
+            
             const container = document.getElementById('folder-order-container');
+            console.log('[renderFolderOrderList] Container exists?', !!container);
+            
+            if (!container) {
+                console.error('[renderFolderOrderList] Container not found!');
+                return;
+            }
             
             if (folderOrderData.length === 0) {
+                console.log('[renderFolderOrderList] No folders, showing empty message');
                 container.innerHTML = '<div class="folder-order-empty">No folders selected. Go to the Folders tab to select folders.</div>';
                 return;
             }
@@ -1193,7 +1277,11 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
                 }).join('') + 
                 '</div>';
             
+            console.log('[renderFolderOrderList] Generated HTML length:', html.length);
+            console.log('[renderFolderOrderList] HTML preview:', html.substring(0, 500));
             container.innerHTML = html;
+            console.log('[renderFolderOrderList] HTML set to container');
+            console.log('[renderFolderOrderList] Container children count:', container.children.length);
         }
 
         /**
@@ -1435,8 +1523,14 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
         }
 
         // Initialize checkbox event listeners
-        document.addEventListener('DOMContentLoaded', () => {
+        console.log('[DOM] Setting up event listeners and initialization');
+        console.log('[DOM] document.readyState:', document.readyState);
+        
+        function initializeCheckboxListeners() {
+            console.log('[DOM] initializeCheckboxListeners() called');
             const allCheckboxes = document.querySelectorAll('.folder-item input[type="checkbox"]');
+            console.log('[DOM] Found', allCheckboxes.length, 'checkboxes to initialize');
+            
             allCheckboxes.forEach(cb => {
                 cb.addEventListener('change', () => {
                     toggleFolder(cb, cb.value);
@@ -1446,6 +1540,8 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
             // Initialize parent states based on loaded config
             // Process from deepest to shallowest to ensure correct state
             const allFolderItems = Array.from(document.querySelectorAll('.folder-item'));
+            console.log('[DOM] Found', allFolderItems.length, 'folder items');
+            
             // Reverse to process children before parents
             allFolderItems.reverse().forEach(item => {
                 const checkbox = item.querySelector('input[type="checkbox"]');
@@ -1457,7 +1553,18 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
                     }
                 }
             });
-        });
+            
+            console.log('[DOM] Checkbox initialization complete');
+        }
+        
+        // Run immediately if DOM is already loaded, otherwise wait for DOMContentLoaded
+        if (document.readyState === 'loading') {
+            console.log('[DOM] DOM still loading, waiting for DOMContentLoaded event');
+            document.addEventListener('DOMContentLoaded', initializeCheckboxListeners);
+        } else {
+            console.log('[DOM] DOM already loaded, initializing immediately');
+            initializeCheckboxListeners();
+        }
 
         function saveConfig(generateDiagram) {
             // Get diagram name from input
@@ -1470,8 +1577,8 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
             
             const selectedFolders = [];
             // Only include fully checked folders (not indeterminate)
-            document.querySelectorAll('.folder-item input[type="checkbox"]').forEach(cb => {
-                if (cb.checked && !cb.indeterminate) {
+            document.querySelectorAll('#folders-tab .folder-item input[type="checkbox"]').forEach(cb => {
+                if (cb.checked && !cb.indeterminate && cb.value) {
                     selectedFolders.push(cb.value);
                 }
             });
