@@ -885,14 +885,15 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
         <h3>Folder Display Order</h3>
         
         <div class="info-box">
-            📊 Customize the order in which folders appear in the diagram. Drag folders to reorder, or use arrow buttons for precise control.
+            📊 Customize the order in which folders appear in the diagram. Drag folders to reorder, or use arrow buttons for precise control.<br><br>
+            💡 <strong>Smart Defaults:</strong> Folders without custom order use intelligent layer-based sorting (API → Middleware → Controllers → Services → Models → Templates → Utils → Tests).
         </div>
         
         <div id="folder-order-container">
             <!-- Populated by JavaScript -->
         </div>
         
-        <button onclick="resetFolderOrder()" class="folder-order-reset">↻ Reset to Alphabetical</button>
+        <button onclick="resetFolderOrder()" class="folder-order-reset">↻ Reset to Smart Defaults</button>
     </div>
 
     ${mode === 'edit' ? `
@@ -921,6 +922,129 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
     <script>
         const vscode = acquireVsCodeApi();
         
+        // Smart default layer weights (same as folderBoxRenderer.ts)
+        const LAYER_WEIGHTS = {
+            "api": 100, "apis": 100,
+            // HTTP Methods (for virtual API boxes)
+            "get": 100, "post": 100, "put": 100, "patch": 100, "delete": 100,
+            "head": 100, "options": 100,
+            // WebSocket/Events
+            "websocket": 100, "ws": 100, "webhook": 100, "webhooks": 100,
+            // API-related
+            "endpoints": 105, "endpoint": 105, "graphql": 110, "mutation": 110, "subscription": 110,
+            "middleware": 200, "middlewares": 200, "interceptors": 205, "interceptor": 205,
+            "guards": 210, "guard": 210, "filters": 215, "filter": 215,
+            "routes": 300, "route": 300, "routing": 300, "urls": 305, "url": 305,
+            "controllers": 400, "controller": 400, "handlers": 405, "handler": 405,
+            "views": 400, "view": 400, "pages": 400, "page": 400,
+            "screens": 400, "screen": 400,
+            "services": 500, "service": 500, "usecases": 505, "use-cases": 505, "usecase": 505,
+            "business": 510, "domain": 515, "domains": 515, "core": 520,
+            "providers": 520, "provider": 520, "store": 520, "stores": 520,
+            "commands": 525, "command": 525, "actions": 525, "action": 525,
+            "reducers": 528, "reducer": 528, "queries": 530, "query": 530,
+            "processors": 535, "processor": 535, "workflows": 540, "workflow": 540,
+            "config": 600, "configuration": 600, "settings": 605,
+            "utils": 610, "util": 610, "utilities": 610, "helpers": 615, "helper": 615,
+            "hooks": 618, "hook": 618,
+            "common": 620, "shared": 625, "lib": 630, "libs": 630, "library": 630,
+            "types": 635, "type": 635, "interfaces": 640, "interface": 640,
+            "constants": 645, "constant": 645, "enums": 650, "enum": 650,
+            "adapters": 655, "adapter": 655, "clients": 660, "client": 660,
+            "external": 665, "integrations": 670, "integration": 670,
+            "features": 675, "feature": 675, "modules": 680, "module": 680,
+            "repositories": 700, "repository": 700, "repos": 700, "repo": 700,
+            "dal": 705, "dataaccess": 705, "data-access": 705, "persistence": 710,
+            "models": 800, "model": 800, "dto": 805, "dtos": 805,
+            "entities": 805, "entity": 805, "schemas": 808, "schema": 808,
+            "database": 810, "db": 810, "storage": 815, "data": 820,
+            "templates": 900, "template": 900, "layouts": 900, "layout": 900,
+            "presenters": 905, "presenter": 905,
+            "serializers": 910, "serializer": 910, "responses": 915, "response": 915,
+            "formatters": 920, "formatter": 920,
+            "components": 925, "component": 925, "ui": 925,
+            "tests": 990, "test": 990, "__tests__": 990, "specs": 992, "spec": 992,
+            "__specs__": 992, "e2e": 994, "unit": 996,
+            "docs": 998, "documentation": 998, "examples": 999, "example": 999
+        };
+        
+        /**
+         * Get smart layer weight for a folder
+         * Virtual boxes (API routes) float to top, others use layer-based weights
+         */
+        function getSmartLayerWeight(fullPath) {
+            const folderName = fullPath.split('/').pop() || '';
+            
+            // Check if this is a virtual box
+            if (isVirtualBox(fullPath, folderName)) {
+                return 0; // Float to top
+            }
+            
+            // Regular folders: analyze both path and name, take the better (lower) weight
+            const pathWeight = analyzeForKeywords(fullPath);
+            const nameWeight = analyzeForKeywords(folderName);
+            
+            return Math.min(pathWeight, nameWeight);
+        }
+        
+        /**
+         * Check if this is a virtual box (API routes, webhooks, etc.)
+         */
+        function isVirtualBox(fullPath, folderName) {
+            // Empty or blank = virtual
+            if (!fullPath || fullPath.trim() === '') {
+                return true;
+            }
+            
+            // Check for specific API route patterns
+            const virtualPatterns = [
+                /^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s/i,  // HTTP methods
+                /^API\s+\//i,                                      // "API /" prefix
+                /:\.\.\.(all|any)/i                                // Dynamic route params
+            ];
+            
+            return virtualPatterns.some(pattern => pattern.test(fullPath));
+        }
+        
+        /**
+         * Analyze a string (path or name) for layer keywords
+         */
+        function analyzeForKeywords(text) {
+            // Split by / and spaces, normalize each token
+            const tokens = text.toLowerCase()
+                .split(/[\/\s]+/)
+                .map(t => t.replace(/[-_]/g, ''));
+            
+            let bestMatch = null;
+            let bestLength = 0;
+            
+            // Check each token for exact match or contains match
+            for (const token of tokens) {
+                // 1. Check exact match
+                if (LAYER_WEIGHTS[token] !== undefined) {
+                    const weight = LAYER_WEIGHTS[token];
+                    if (bestMatch === null || weight < bestMatch) {
+                        bestMatch = weight;
+                        bestLength = token.length;
+                    }
+                    continue;
+                }
+                
+                // 2. Check if token contains any known keyword (longest match wins)
+                for (const [keyword, weight] of Object.entries(LAYER_WEIGHTS)) {
+                    if (token.includes(keyword) && keyword.length > bestLength) {
+                        if (bestMatch === null || weight < bestMatch) {
+                            bestMatch = weight;
+                            bestLength = keyword.length;
+                        }
+                    }
+                }
+            }
+            
+            // Default weight for unknown
+            return bestMatch !== null ? bestMatch : 9999;
+        }
+        
         // Store folder order state
         let folderOrderData = [];
         
@@ -938,14 +1062,25 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
                     order: cfg.order
                 }));
             
-            // Sort by order (nulls at the end, then alphabetically)
+            // Sort by order (custom order first, then smart defaults, then alphabetical)
             foldersArray.sort((a, b) => {
-                if (a.order === null && b.order === null) {
-                    return a.path.localeCompare(b.path);
+                // Custom order takes precedence
+                if (a.order !== null && b.order !== null) {
+                    return a.order - b.order;
                 }
-                if (a.order === null) return 1;
-                if (b.order === null) return -1;
-                return a.order - b.order;
+                if (a.order !== null) return -1;
+                if (b.order !== null) return 1;
+                
+                // Both have null order - use smart layer weights
+                const weightA = getSmartLayerWeight(a.path);
+                const weightB = getSmartLayerWeight(b.path);
+                
+                if (weightA !== weightB) {
+                    return weightA - weightB;
+                }
+                
+                // Alphabetical tiebreaker
+                return a.path.localeCompare(b.path);
             });
             
             // Renumber to ensure sequential ordering
@@ -990,10 +1125,19 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
                 }
             });
             
-            // Sort alphabetically by default (will be overridden by saved order)
-            selectedFolders.sort();
+            // Sort by smart layer weights (not alphabetically)
+            selectedFolders.sort((a, b) => {
+                const weightA = getSmartLayerWeight(a);
+                const weightB = getSmartLayerWeight(b);
+                
+                if (weightA !== weightB) {
+                    return weightA - weightB;
+                }
+                
+                return a.localeCompare(b);
+            });
             
-            // Initialize folder order data with order numbers
+            // Initialize folder order data with sequential order numbers
             folderOrderData = selectedFolders.map((folder, index) => ({
                 path: folder,
                 selected: true,
@@ -1091,15 +1235,26 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
         }
 
         /**
-         * Reset folder order to alphabetical (set all orders to null)
+         * Reset folder order to smart defaults (set all orders to null)
+         * Folders will be sorted by layer weights (API → Middleware → Controllers → Services, etc.)
          */
         function resetFolderOrder() {
-            // Sort alphabetically
-            folderOrderData.sort((a, b) => a.path.localeCompare(b.path));
-            
-            // Set all orders to null (will be saved as null in config)
+            // Set all orders to null (will use smart layer-based defaults)
             folderOrderData.forEach(folder => {
                 folder.order = null;
+            });
+            
+            // Sort by smart defaults (same logic as diagram rendering)
+            folderOrderData.sort((a, b) => {
+                const weightA = getSmartLayerWeight(a.path);
+                const weightB = getSmartLayerWeight(b.path);
+                
+                if (weightA !== weightB) {
+                    return weightA - weightB;
+                }
+                
+                // Alphabetical tiebreaker
+                return a.path.localeCompare(b.path);
             });
             
             renderFolderOrderList();

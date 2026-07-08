@@ -24,8 +24,65 @@ export class WorkspaceScanner {
 	 */
 	static selectFolders(workspacePath: string): string[] {
 		// Detect standard top-level source folders
-		const folders = this.detectTopLevelSourceFolders(workspacePath);
-		return folders.length > 0 ? folders : ['.'];
+		const topLevelFolders = this.detectTopLevelSourceFolders(workspacePath);
+		
+		if (topLevelFolders.length === 0) {
+			return ['.'];
+		}
+		
+		// Expand each top-level folder to include all subdirectories
+		const allFolders: string[] = [];
+		for (const folder of topLevelFolders) {
+			allFolders.push(folder);
+			const subdirs = this.collectAllSubdirectories(workspacePath, folder);
+			allFolders.push(...subdirs);
+		}
+		
+		return allFolders;
+	}
+	
+	/**
+	 * Recursively collect all subdirectories under a folder
+	 * Returns relative paths from workspace root
+	 */
+	private static collectAllSubdirectories(
+		workspacePath: string,
+		relativePath: string,
+		maxDepth: number = 10,
+		currentDepth: number = 0
+	): string[] {
+		// Prevent infinite recursion
+		if (currentDepth > maxDepth) return [];
+		
+		const subdirs: string[] = [];
+		const fullPath = path.join(workspacePath, relativePath);
+		
+		try {
+			const entries = fs.readdirSync(fullPath, { withFileTypes: true });
+			
+			for (const entry of entries) {
+				if (!entry.isDirectory()) continue;
+				
+				// Skip excluded folders
+				if (this.shouldExcludeFolder(entry.name)) continue;
+				
+				const childRelativePath = `${relativePath}/${entry.name}`;
+				subdirs.push(childRelativePath);
+				
+				// Recurse into subdirectory
+				const deeperSubdirs = this.collectAllSubdirectories(
+					workspacePath,
+					childRelativePath,
+					maxDepth,
+					currentDepth + 1
+				);
+				subdirs.push(...deeperSubdirs);
+			}
+		} catch (error) {
+			// Ignore errors (permission denied, etc.)
+		}
+		
+		return subdirs;
 	}
 
 	/**
