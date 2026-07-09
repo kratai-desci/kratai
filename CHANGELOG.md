@@ -2,6 +2,25 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.9.7] - 2026-07-09
+
+### Fixed
+- **Config Panel Folder Order Tab** — Fixed Folder Order tab showing "No folders selected" despite folders being checked in Folders tab. Root cause: DOMContentLoaded event listener was set up too late, preventing checkbox state initialization
+- **JavaScript Regex Escaping** — Fixed `ReferenceError: i is not defined` error in config panel by properly escaping regex patterns in template strings (`\s`, `\.`, `\(`, `\)`)
+- **Folder Selection Persistence** — Fixed critical bug where folder selections would revert to previous state when saving without visiting Folder Order tab. Save logic now always uses current checkbox state as source of truth
+- **Tab Switching Logic** — Fixed `event.target` undefined error in `switchTab()` function that prevented proper tab activation
+
+### Improved
+- **Config Panel Debugging** — Added extensive console logging throughout folder selection, tab switching, and save workflows for easier troubleshooting
+- **Folder Order Initialization** — Improved logic to properly handle both page load initialization and dynamic folder selection changes
+- **Save Logic** — Enhanced folder save logic to preserve custom order while always respecting current checkbox selections
+
+### Technical
+- Fixed DOMContentLoaded timing issues by checking `document.readyState` and initializing immediately if DOM already loaded
+- Corrected regex pattern escaping for JavaScript template strings (e.g., `/:\.\.\.(all\|any)/i` → `/:\.\.\.\(all\|any\)/i`)
+- Refactored folder save logic to use `selectedFolders` (current UI state) as primary source, with `folderOrderData` only providing order information
+- Enhanced `switchTab()` to find and activate tab buttons without relying on event parameter
+
 ## [1.9.6] - 2026-07-07
 - 🤖 **Update project description** — Update project's description for VS Code marketplace
 

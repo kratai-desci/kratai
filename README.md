@@ -106,16 +106,16 @@ Choose exactly what to show — select folders, filter relationship types, and c
 
 ## 📝 Release Notes
 
-### Latest: v1.9.6 (2026-07-07)
+### Latest: v1.9.7 (2026-07-09)
+- 🎨 **Config Panel UX Improvements** — Fixed Folder Order tab not displaying selected folders, improved folder selection persistence
+- 🐛 **Critical Bug Fixes** — Resolved folder selection save issues and JavaScript errors in config panel webview
+
+### v1.9.6 (2026-07-07)
 - 🤖 **Update project description** — Update project's description for VS Code marketplace
 
 ### v1.9.5 (2026-07-07)
 - 🤖 **SKILL Invocation Fix** — Fixed agent and skill not being invoked during coding tasks by improving trigger patterns
 - 📊 **Relationship Count Display** — Added relationship type counts in filter view when editing diagrams for better visibility
-
-### v1.9.4 (2026-07-06)
-- 🔧 **MCP Server Fixes** — Fixed workspace resolution and chat participant registration issues
-- 🔧 **Multi-Workspace Support** — MCP server now properly handles multiple workspace folders
 
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
