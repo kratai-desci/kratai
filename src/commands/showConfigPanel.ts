@@ -1605,28 +1605,27 @@ function generateConfigHTML(folderTree: any, extensions: any[], config: any, ava
             // Collect git diff settings
             const gitDiffEnabled = document.getElementById('git-diff-enabled').checked;
             
+            console.log('[saveConfig] selectedFolders from checkboxes:', selectedFolders);
+            console.log('[saveConfig] folderOrderData:', folderOrderData);
+            
             // Build folders record with order information
             const folders = {};
             
-            // If folder order data exists, use it to build the folders record
-            if (folderOrderData.length > 0) {
-                folderOrderData.forEach(folder => {
-                    folders[folder.path] = {
-                        selected: true,
-                        expanded: true,
-                        order: folder.order  // Can be a number or null
-                    };
-                });
-            } else {
-                // Fallback: build from selected folders (no order)
-                selectedFolders.forEach(folderPath => {
-                    folders[folderPath] = {
-                        selected: true,
-                        expanded: true,
-                        order: null  // No custom order
-                    };
-                });
-            }
+            // ALWAYS use selectedFolders (current UI state) as source of truth
+            // Use folderOrderData only for ORDER information, not for selection state
+            selectedFolders.forEach(folderPath => {
+                // Check if this folder has custom order in folderOrderData
+                const existingOrder = folderOrderData.find(f => f.path === folderPath);
+                
+                folders[folderPath] = {
+                    selected: true,
+                    expanded: true,
+                    order: existingOrder ? existingOrder.order : null  // Preserve order if exists, otherwise null
+                };
+            });
+            
+            console.log('[saveConfig] Built folders object:', folders);
+            console.log('[saveConfig] Folder count:', Object.keys(folders).length);
 
             vscode.postMessage({
                 command: 'save',
