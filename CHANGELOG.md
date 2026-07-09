@@ -2,6 +2,11 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.9.8] - 2026-07-09
+
+### Fixed
+- **README Screenshot Display** — Fixed screenshot images not rendering properly in VS Code Marketplace. Updated image references to use proper raw GitHub URLs for consistent display across marketplace and repository
+
 ## [1.9.7] - 2026-07-09
 
 ### Fixed
