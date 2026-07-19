@@ -3,14 +3,19 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { KrataiConfig } from '../../types/config';
 import { WorkspaceScanner } from '../parsing/workspaceScanner';
+import { ParserFactory } from '../parsing/languages/ParserFactory';
 
 export class ConfigService {
 	private static readonly CONFIG_FILE = '.vscode/kratai.json';
 
 	static getDefaultConfig(): KrataiConfig {
+		// Parse all supported file types by default
+		const parserFactory = new ParserFactory();
+		const allSupportedExtensions = parserFactory.getSupportedExtensions();
+		
 		return {
 			selectedFolders: [],  // Empty = all folders except node_modules/dist
-			selectedExtensions: ['.ts', '.tsx', '.js', '.jsx', '.py', '.php', '.java', '.html', '.jsp'],
+			selectedExtensions: allSupportedExtensions,
 			respectGitignore: true,
 			followSymlinks: false,
 			gitDiff: {
@@ -39,82 +44,13 @@ export class ConfigService {
 	}
 
 	/**
-	 * Detect project type and return appropriate file extensions to parse
-	 * Analyzes project files (package.json, composer.json, etc.) to determine language
+	 * Get all supported file extensions from registered parsers
+	 * Parse everything we support - let users filter via config if needed
+	 * Build files (pom.xml, package.json, etc.) are only used for framework enrichment
 	 */
 	private static detectProjectExtensions(workspacePath: string): string[] {
-		// Default to TypeScript
-		let detectedExtensions: string[] = ['.ts', '.tsx'];
-
-		// Check for package.json (Node.js projects)
-		const packageJsonPath = path.join(workspacePath, 'package.json');
-		if (fs.existsSync(packageJsonPath)) {
-			try {
-				const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-				const deps = { ...packageJson.dependencies, ...packageJson.devDependencies };
-
-				// Check for TypeScript
-				const hasTypeScript = deps['typescript'] || deps['@types/node'];
-				// Check for JavaScript frameworks
-				const hasReact = deps['react'];
-				const hasVue = deps['vue'];
-				
-				if (hasTypeScript) {
-					detectedExtensions = hasReact ? ['.ts', '.tsx'] : ['.ts'];
-				} else {
-					detectedExtensions = hasReact ? ['.js', '.jsx'] : ['.js'];
-				}
-
-				// Add .vue if Vue detected
-				if (hasVue) {
-					detectedExtensions.push('.vue');
-				}
-			} catch (error) {
-				// Fallback to defaults
-			}
-			return detectedExtensions;
-		}
-
-		// Check for composer.json (PHP projects)
-		const composerJsonPath = path.join(workspacePath, 'composer.json');
-		if (fs.existsSync(composerJsonPath)) {
-			return ['.php'];
-		}
-
-		// Check for requirements.txt or setup.py (Python projects)
-		const requirementsTxtPath = path.join(workspacePath, 'requirements.txt');
-		const setupPyPath = path.join(workspacePath, 'setup.py');
-		const pyprojectTomlPath = path.join(workspacePath, 'pyproject.toml');
-		if (fs.existsSync(requirementsTxtPath) || fs.existsSync(setupPyPath) || fs.existsSync(pyprojectTomlPath)) {
-			return ['.py'];
-		}
-
-		// Check for Gemfile (Ruby projects)
-		const gemfilePath = path.join(workspacePath, 'Gemfile');
-		if (fs.existsSync(gemfilePath)) {
-			return ['.rb'];
-		}
-
-		// Check for go.mod (Go projects)
-		const goModPath = path.join(workspacePath, 'go.mod');
-		if (fs.existsSync(goModPath)) {
-			return ['.go'];
-		}
-
-		// Check for pom.xml or build.gradle (Java projects)
-		const pomXmlPath = path.join(workspacePath, 'pom.xml');
-		const buildGradlePath = path.join(workspacePath, 'build.gradle');
-		if (fs.existsSync(pomXmlPath) || fs.existsSync(buildGradlePath)) {
-			return ['.java', '.jsp', '.jspx', '.html'];
-		}
-
-		// Check for .csproj or .sln (C# projects)
-		const csprojFiles = fs.readdirSync(workspacePath).filter((f: string) => f.endsWith('.csproj') || f.endsWith('.sln'));
-		if (csprojFiles.length > 0) {
-			return ['.cs'];
-		}
-
-		return detectedExtensions;
+		const parserFactory = new ParserFactory();
+		return parserFactory.getSupportedExtensions();
 	}
 
 	static getProjectInfo(config: KrataiConfig): string {
