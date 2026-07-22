@@ -1,6 +1,5 @@
 {
   "selectedFolders": [
-    "src",
     "src/commands",
     "src/mcp",
     "src/services",
@@ -22,6 +21,108 @@
     "src/views",
     "src/views/components"
   ],
+  "folders": {
+    "src/commands": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/mcp": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/services": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/services/diagram": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/services/enrichment": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/services/enrichment/frameworks": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/services/export": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/services/git": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/services/parsing": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/services/parsing/frameworks": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/services/parsing/languages": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/services/telemetry": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/services/util": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/services/view": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/types": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/types/config": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/types/domain": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/types/view": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/views": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    },
+    "src/views/components": {
+      "selected": true,
+      "expanded": true,
+      "order": null
+    }
+  },
   "selectedExtensions": [
     ".ts",
     "on",
@@ -68,5 +169,5 @@
     "enabled": true,
     "baseCommit": "HEAD~1"
   },
-  "lastUpdated": "2026-07-03T02:15:51.920Z"
+  "lastUpdated": "2026-07-19T07:04:11.118Z"
 }

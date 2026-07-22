@@ -5,3 +5,4 @@ export * from './MethodInfo';
 export * from './ParameterInfo';
 export * from './ClassRelationship';
 export * from './DiagramData';
+export * from './UMLRelationshipType';

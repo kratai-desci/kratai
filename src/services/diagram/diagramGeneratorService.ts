@@ -1,5 +1,7 @@
 import { DiagramData, ClassInfo } from '../../types/domain';
 import { ReactFlowNode, ReactFlowEdge } from '../../types/view';
+import { UMLRelationshipType } from '../../types/domain/UMLRelationshipType';
+import { UMLMapper } from '../util';
 
 export class DiagramGeneratorService {
 	
@@ -47,7 +49,18 @@ export class DiagramGeneratorService {
 		const edges: ReactFlowEdge[] = [];
 
 		diagramData.relationships.forEach((rel, index) => {
-			const edgeStyle = this.getEdgeStyle(rel.type);
+			// Get detailed types from parsers (may be array after deduplication)
+			const detailedTypes = Array.isArray(rel.type) ? rel.type : [rel.type as string];
+			
+			// Map to UML categories
+			const umlTypes = detailedTypes.map(t => UMLMapper.mapToUMLType(t));
+			
+			// Remove duplicates (e.g., ["extends", "calls-super"] both map to their respective UML types)
+			const uniqueUMLTypes = [...new Set(umlTypes)];
+			
+			// Use primary UML type for styling
+			const primaryUMLType = uniqueUMLTypes[0];
+			const edgeStyle = this.getEdgeStyle(primaryUMLType);
 			
 			edges.push({
 				id: `${rel.from}-${rel.to}-${index}`,
@@ -56,66 +69,99 @@ export class DiagramGeneratorService {
 				type: edgeStyle.type,
 				label: edgeStyle.label,
 				animated: edgeStyle.animated,
-				style: edgeStyle.style
+				style: edgeStyle.style,
+				// Preserve detailed types in metadata for debugging/tooltips
+				metadata: {
+					umlType: primaryUMLType,
+					detailedTypes: detailedTypes
+				}
 			});
 		});
 
 		return edges;
 	}
 
-	private static getEdgeStyle(type: string | string[]): { type: string; label?: string; animated: boolean; style: Record<string, any> } {
-		// Normalize to array
-		const types = Array.isArray(type) ? type : [type];
-		
-		// If multiple types, create a combined style
-		if (types.length > 1) {
-			return {
-				type: 'smoothstep',
-				label: types.join(', '),
-				animated: false,
-				style: { 
-					stroke: '#3498db',  // Blue for multi-type relationships
-					strokeWidth: 2.5,
-					strokeDasharray: '4,2'
-				}
-			};
-		}
-		
-		// Single type - use existing type-specific styling
-		const singleType = types[0];
-		switch (singleType) {
-			case 'extends':
+	private static getEdgeStyle(umlType: UMLRelationshipType): { type: string; label?: string; animated: boolean; style: Record<string, any> } {
+		switch (umlType) {
+			// Inheritance: solid line, filled triangle marker
+			case 'inheritance':
 				return {
 					type: 'smoothstep',
-					label: 'extends',
+					label: UMLMapper.getUMLLabel(umlType),
 					animated: false,
-					style: { stroke: '#ff6b6b', strokeWidth: 2 }
+					style: { 
+						stroke: '#000000',
+						strokeWidth: 2
+					}
 				};
-			case 'implements':
+			
+			// Realization: dashed line, hollow triangle marker
+			case 'realization':
 				return {
 					type: 'smoothstep',
-					label: 'implements',
+					label: UMLMapper.getUMLLabel(umlType),
 					animated: false,
-					style: { stroke: '#4ecdc4', strokeWidth: 2, strokeDasharray: '5,5' }
+					style: { 
+						stroke: '#000000',
+						strokeWidth: 2,
+						strokeDasharray: '5,5'
+					}
 				};
-			case 'uses':
+			
+			// Dependency: dashed line, open arrow
+			case 'dependency':
 				return {
 					type: 'smoothstep',
-					animated: true,
-					style: { stroke: '#95a5a6', strokeWidth: 1 }
+					label: UMLMapper.getUMLLabel(umlType),
+					animated: false,
+					style: { 
+						stroke: '#000000',
+						strokeWidth: 2,
+						strokeDasharray: '5,5'
+					}
 				};
-			case 'calls':
+			
+			// Association: solid line, simple arrow
+			case 'association':
 				return {
 					type: 'smoothstep',
-					label: 'HTTP',
-					animated: true,
-					style: { stroke: '#9b59b6', strokeWidth: 2, strokeDasharray: '8,4' }
+					label: UMLMapper.getUMLLabel(umlType),
+					animated: false,
+					style: { 
+						stroke: '#000000',
+						strokeWidth: 2
+					}
 				};
+			
+			// Composition: solid line, filled diamond marker
+			case 'composition':
+				return {
+					type: 'smoothstep',
+					label: UMLMapper.getUMLLabel(umlType),
+					animated: false,
+					style: { 
+						stroke: '#000000',
+						strokeWidth: 2
+					}
+				};
+			
+			// Aggregation: solid line, hollow diamond marker
+			case 'aggregation':
+				return {
+					type: 'smoothstep',
+					label: UMLMapper.getUMLLabel(umlType),
+					animated: false,
+					style: { 
+						stroke: '#000000',
+						strokeWidth: 2
+					}
+				};
+			
 			default:
 				return {
 					type: 'default',
 					animated: false,
-					style: { stroke: '#000' }
+					style: { stroke: '#000000' }
 				};
 		}
 	}

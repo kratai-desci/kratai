@@ -373,6 +373,92 @@ export class ClassDiagramView {
             // Clear existing lines
             svg.innerHTML = '';
             
+            // ===== CREATE ALL MARKER DEFINITIONS FIRST =====
+            // Markers must exist before any lines reference them
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            
+            // UML standard markers with correct shapes
+            const markerConfigs = [
+                { type: 'extends', shape: 'hollow-triangle' },      // Inheritance
+                { type: 'implements', shape: 'hollow-triangle' },   // Realization
+                { type: 'uses', shape: 'open-arrow' },              // Dependency
+                { type: 'has', shape: 'open-arrow' },               // Association
+                { type: 'owns', shape: 'hollow-diamond' },          // Aggregation
+                { type: 'contains', shape: 'filled-diamond' },      // Composition
+                { type: 'highlight', shape: 'filled-triangle' }     // Focus state
+            ];
+            
+            markerConfigs.forEach(({ type, shape }) => {
+                const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+                marker.setAttribute('id', type === 'highlight' ? 'arrow-highlight' : 'arrow-' + type);
+                marker.setAttribute('markerWidth', '12');
+                marker.setAttribute('markerHeight', '12');
+                marker.setAttribute('orient', 'auto');
+                marker.setAttribute('markerUnits', 'strokeWidth');
+                
+                // Create shape based on type
+                if (shape === 'hollow-triangle') {
+                    // Hollow triangle for inheritance/realization (UML standard)
+                    // Inset to center the white fill within the stroke
+                    marker.setAttribute('refX', '10');
+                    marker.setAttribute('refY', '5');
+                    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    polygon.setAttribute('points', '1,1 1,9 9,5');
+                    polygon.setAttribute('fill', 'white');
+                    polygon.setAttribute('stroke', '#000000');
+                    polygon.setAttribute('stroke-width', '1.5');
+                    polygon.setAttribute('stroke-linejoin', 'miter');
+                    marker.appendChild(polygon);
+                } 
+                else if (shape === 'filled-triangle') {
+                    // Filled triangle for highlight state
+                    marker.setAttribute('refX', '10');
+                    marker.setAttribute('refY', '6');
+                    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    polygon.setAttribute('points', '0,0 0,12 10,6');
+                    polygon.setAttribute('fill', '#000000');
+                    marker.appendChild(polygon);
+                }
+                else if (shape === 'filled-diamond') {
+                    // Filled diamond for composition
+                    marker.setAttribute('refX', '9');
+                    marker.setAttribute('refY', '6');
+                    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    polygon.setAttribute('points', '0,6 4.5,0 9,6 4.5,12');
+                    polygon.setAttribute('fill', '#000000');
+                    marker.appendChild(polygon);
+                }
+                else if (shape === 'hollow-diamond') {
+                    // Hollow diamond for aggregation
+                    marker.setAttribute('refX', '9');
+                    marker.setAttribute('refY', '6');
+                    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    polygon.setAttribute('points', '0,6 4.5,0 9,6 4.5,12');
+                    polygon.setAttribute('fill', 'white');
+                    polygon.setAttribute('stroke', '#000000');
+                    polygon.setAttribute('stroke-width', '1.5');
+                    marker.appendChild(polygon);
+                }
+                else if (shape === 'open-arrow') {
+                    // Open arrow for dependency/association
+                    marker.setAttribute('refX', '9');
+                    marker.setAttribute('refY', '6');
+                    const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                    polyline.setAttribute('points', '0,0 9,6 0,12');
+                    polyline.setAttribute('fill', 'none');
+                    polyline.setAttribute('stroke', '#000000');
+                    polyline.setAttribute('stroke-width', '1.5');
+                    marker.appendChild(polyline);
+                }
+                
+                defs.appendChild(marker);
+            });
+            
+            svg.appendChild(defs);
+            // Force browser to recognize markers exist (trigger reflow)
+            svg.getBoundingClientRect();
+            // ===== END MARKER DEFINITIONS =====
+            
             console.log('🔍 Drawing', EDGES.length, 'relationships...');
             
             let drawnCount = 0;
@@ -450,12 +536,20 @@ export class ClassDiagramView {
                 const startPoint = getBoxEdgePoint(sourceRect, sourceCenterX, sourceCenterY, targetCenterX, targetCenterY, container.scrollLeft, container.scrollTop);
                 const endPoint = getBoxEdgePoint(targetRect, targetCenterX, targetCenterY, sourceCenterX, sourceCenterY, container.scrollLeft, container.scrollTop);
                 
-                // Determine line color based on relationship type
-                const type = edge.label || 'uses';
-                let color = '#95a5a6';  // default gray
-                if (type === 'extends') color = '#3498db';     // blue
-                if (type === 'implements') color = '#9b59b6';  // purple
-                if (type === 'composition') color = '#e74c3c'; // red
+                // Determine line style based on relationship type (UML standard)
+                // Handle multiple types (e.g., "extends, calls-super") - use primary type
+                const rawType = edge.label || 'uses';
+                const type = rawType.split(',')[0].trim();  // Extract first type for marker
+                
+                // UML standard: all lines are black, differentiated by style (solid/dashed)
+                const color = '#000000';
+                const strokeWidth = '2';
+                let dashArray = '';  // solid by default
+                
+                // Dashed lines for: implements, uses (dependency)
+                if (type === 'implements' || type === 'uses') {
+                    dashArray = '5,5';
+                }
                 
                 // Create line element
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -468,55 +562,14 @@ export class ClassDiagramView {
                 line.setAttribute('x2', endPoint.x);
                 line.setAttribute('y2', endPoint.y);
                 line.setAttribute('stroke', color);
-                line.setAttribute('stroke-width', '2.5');
-                line.setAttribute('stroke-opacity', '0.7');
+                line.setAttribute('stroke-width', strokeWidth);
+                if (dashArray) {
+                    line.setAttribute('stroke-dasharray', dashArray);
+                }
                 
-                // Add arrow marker (normal)
+                // Reference marker (already created upfront)
                 const markerId = 'arrow-' + type;
-                if (!document.getElementById(markerId)) {
-                    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-                    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-                    marker.setAttribute('id', markerId);
-                    marker.setAttribute('markerWidth', '10');
-                    marker.setAttribute('markerHeight', '10');
-                    marker.setAttribute('refX', '9');
-                    marker.setAttribute('refY', '3');
-                    marker.setAttribute('orient', 'auto');
-                    marker.setAttribute('markerUnits', 'strokeWidth');
-                    
-                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    path.setAttribute('d', 'M0,0 L0,6 L9,3 z');
-                    path.setAttribute('fill', color);
-                    
-                    marker.appendChild(path);
-                    defs.appendChild(marker);
-                    svg.appendChild(defs);
-                }
-                
-                // Add black arrow marker for highlighted state
-                const highlightMarkerId = 'arrow-highlight';
-                if (!document.getElementById(highlightMarkerId)) {
-                    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-                    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-                    marker.setAttribute('id', highlightMarkerId);
-                    marker.setAttribute('markerWidth', '10');
-                    marker.setAttribute('markerHeight', '10');
-                    marker.setAttribute('refX', '9');
-                    marker.setAttribute('refY', '3');
-                    marker.setAttribute('orient', 'auto');
-                    marker.setAttribute('markerUnits', 'strokeWidth');
-                    
-                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    path.setAttribute('d', 'M0,0 L0,6 L9,3 z');
-                    path.setAttribute('fill', '#000000');  // Black arrow for highlight
-                    
-                    marker.appendChild(path);
-                    defs.appendChild(marker);
-                    svg.appendChild(defs);
-                }
-                
                 line.setAttribute('marker-end', 'url(#' + markerId + ')');
-                line.setAttribute('data-original-marker', markerId);  // Store for reset
                 
                 svg.appendChild(line);
                 drawnCount++;
@@ -619,8 +672,7 @@ export class ClassDiagramView {
                 if (line) {
                     line.classList.remove('dimmed');
                     line.classList.add('highlighted');
-                    // Switch to black arrow marker
-                    line.setAttribute('marker-end', 'url(#arrow-highlight)');
+                    // Keep original UML marker shape - CSS handles highlighting
                 }
             });
             
@@ -668,11 +720,7 @@ export class ClassDiagramView {
             });
             allLines.forEach(line => {
                 line.classList.remove('dimmed', 'highlighted');
-                // Restore original arrow marker
-                const originalMarker = line.getAttribute('data-original-marker');
-                if (originalMarker) {
-                    line.setAttribute('marker-end', \`url(#\${originalMarker})\`);
-                }
+                // Markers stay as original UML shapes
             });
             
             hideFocusBadge();
