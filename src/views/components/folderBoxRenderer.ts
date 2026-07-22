@@ -1,5 +1,4 @@
 import { DiagramFolderNode, FolderStructureBuilder } from '../../services/diagram/folderStructure';
-import { FolderSize } from '../../services/diagram/layoutCalculator';
 import { KrataiConfig } from '../../types/config/KrataiConfig';
 
 /**
