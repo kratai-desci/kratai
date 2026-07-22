@@ -513,68 +513,172 @@ export class ClassDiagramView {
                 }
             }
             
+            // ===== Pass 1: Compute the raw straight-line coordinates for every edge =====
+            const rawLines = [];
+
             EDGES.forEach((edge, edgeIndex) => {
                 const sourceBox = document.querySelector('[data-class="' + CSS.escape(edge.source) + '"]');
                 const targetBox = document.querySelector('[data-class="' + CSS.escape(edge.target) + '"]');
-                
+
                 if (!sourceBox || !targetBox) {
                     skippedCount++;
                     return;
                 }
-                
+
                 // Get positions relative to viewport
                 const sourceRect = sourceBox.getBoundingClientRect();
                 const targetRect = targetBox.getBoundingClientRect();
-                
+
                 // Calculate center points in container-relative coordinates
                 const sourceCenterX = sourceRect.left - containerRect.left + sourceRect.width / 2 + container.scrollLeft;
                 const sourceCenterY = sourceRect.top - containerRect.top + sourceRect.height / 2 + container.scrollTop;
                 const targetCenterX = targetRect.left - containerRect.left + targetRect.width / 2 + container.scrollLeft;
                 const targetCenterY = targetRect.top - containerRect.top + targetRect.height / 2 + container.scrollTop;
-                
+
                 // Calculate edge intersection points
                 const startPoint = getBoxEdgePoint(sourceRect, sourceCenterX, sourceCenterY, targetCenterX, targetCenterY, container.scrollLeft, container.scrollTop);
                 const endPoint = getBoxEdgePoint(targetRect, targetCenterX, targetCenterY, sourceCenterX, sourceCenterY, container.scrollLeft, container.scrollTop);
-                
+
                 // Determine line style based on relationship type (UML standard)
                 // Handle multiple types (e.g., "extends, calls-super") - use primary type
                 const rawType = edge.label || 'uses';
                 const type = rawType.split(',')[0].trim();  // Extract first type for marker
-                
+
+                rawLines.push({
+                    edgeIndex,
+                    source: edge.source,
+                    target: edge.target,
+                    type,
+                    x1: startPoint.x,
+                    y1: startPoint.y,
+                    x2: endPoint.x,
+                    y2: endPoint.y
+                });
+            });
+
+            // ===== Pass 2: Detect lines that overlap and spread them apart =====
+            // Two segments are treated as overlapping when they sit on (nearly) the same
+            // infinite line AND their projections onto that line intersect - this covers
+            // exact duplicates (same source/target, different relationship types) as well
+            // as separate relationships that happen to line up in the same row/column.
+            // Works for horizontal, vertical, and diagonal lines alike since it reasons
+            // about the line's own direction rather than assuming a fixed axis.
+            const GAP_TOLERANCE = 20;   // px - segments within this gap still count as touching
+            const OFFSET_SPACING = 12;  // px - perpendicular distance between spread-out lines
+
+            const lineMeta = rawLines.map(rawLine => {
+                const dx = rawLine.x2 - rawLine.x1;
+                const dy = rawLine.y2 - rawLine.y1;
+
+                // Line equation A*x + B*y + C = 0, normalized to a unit normal (a, b)
+                let a = dy;
+                let b = -dx;
+                const len = Math.hypot(a, b) || 1;
+                a /= len;
+                b /= len;
+                let c = -(a * rawLine.x1 + b * rawLine.y1);
+
+                // Canonicalize sign so the same infinite line always produces the same key,
+                // regardless of which end of the segment (source/target) came first
+                if (a < 0 || (a === 0 && b < 0)) {
+                    a = -a; b = -b; c = -c;
+                }
+
+                const key = Math.round(a * 100) + ',' + Math.round(b * 100) + ',' + Math.round(c / 3);
+
+                // Direction along the line (perpendicular to the normal), used to project
+                // each endpoint onto the line so overlap can be measured as a 1D interval
+                const dirX = -b, dirY = a;
+                const t1 = rawLine.x1 * dirX + rawLine.y1 * dirY;
+                const t2 = rawLine.x2 * dirX + rawLine.y2 * dirY;
+
+                return { ...rawLine, a, b, key, tmin: Math.min(t1, t2), tmax: Math.max(t1, t2) };
+            });
+
+            // Group by infinite-line key, then union-find segments whose intervals overlap
+            const lineGroups = new Map();
+            lineMeta.forEach((lineInfo, i) => {
+                if (!lineGroups.has(lineInfo.key)) lineGroups.set(lineInfo.key, []);
+                lineGroups.get(lineInfo.key).push(i);
+            });
+
+            const parent = lineMeta.map((_, i) => i);
+            const find = (i) => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+            const union = (i, j) => {
+                const ri = find(i), rj = find(j);
+                if (ri !== rj) parent[ri] = rj;
+            };
+
+            lineGroups.forEach(indices => {
+                for (let i = 0; i < indices.length; i++) {
+                    for (let j = i + 1; j < indices.length; j++) {
+                        const li = lineMeta[indices[i]];
+                        const lj = lineMeta[indices[j]];
+                        if (li.tmin - GAP_TOLERANCE <= lj.tmax && lj.tmin - GAP_TOLERANCE <= li.tmax) {
+                            union(indices[i], indices[j]);
+                        }
+                    }
+                }
+            });
+
+            const overlapClusters = new Map();
+            lineMeta.forEach((lineInfo, i) => {
+                const root = find(i);
+                if (!overlapClusters.has(root)) overlapClusters.set(root, []);
+                overlapClusters.get(root).push(i);
+            });
+
+            overlapClusters.forEach(members => {
+                if (members.length <= 1) return; // No overlap - keep as a plain straight line
+
+                members.sort((x, y) => lineMeta[x].tmin - lineMeta[y].tmin || x - y);
+                const n = members.length;
+
+                members.forEach((memberIndex, order) => {
+                    const lineInfo = lineMeta[memberIndex];
+                    const offset = (order - (n - 1) / 2) * OFFSET_SPACING;
+                    lineInfo.x1 += lineInfo.a * offset;
+                    lineInfo.y1 += lineInfo.b * offset;
+                    lineInfo.x2 += lineInfo.a * offset;
+                    lineInfo.y2 += lineInfo.b * offset;
+                });
+            });
+
+            // ===== Pass 3: Draw the (possibly spread-out) straight lines =====
+            lineMeta.forEach(lineInfo => {
                 // UML standard: all lines are black, differentiated by style (solid/dashed)
                 const color = '#000000';
                 const strokeWidth = '2';
                 let dashArray = '';  // solid by default
-                
+
                 // Dashed lines for: implements, uses (dependency)
-                if (type === 'implements' || type === 'uses') {
+                if (lineInfo.type === 'implements' || lineInfo.type === 'uses') {
                     dashArray = '5,5';
                 }
-                
-                // Create line element
+
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 line.classList.add('relationship-line');
-                line.setAttribute('data-edge-id', \`edge-\${edgeIndex}\`);
-                line.setAttribute('data-source', edge.source);
-                line.setAttribute('data-target', edge.target);
-                line.setAttribute('x1', startPoint.x);
-                line.setAttribute('y1', startPoint.y);
-                line.setAttribute('x2', endPoint.x);
-                line.setAttribute('y2', endPoint.y);
+                line.setAttribute('data-edge-id', \`edge-\${lineInfo.edgeIndex}\`);
+                line.setAttribute('data-source', lineInfo.source);
+                line.setAttribute('data-target', lineInfo.target);
+                line.setAttribute('x1', lineInfo.x1);
+                line.setAttribute('y1', lineInfo.y1);
+                line.setAttribute('x2', lineInfo.x2);
+                line.setAttribute('y2', lineInfo.y2);
                 line.setAttribute('stroke', color);
                 line.setAttribute('stroke-width', strokeWidth);
                 if (dashArray) {
                     line.setAttribute('stroke-dasharray', dashArray);
                 }
-                
+
                 // Reference marker (already created upfront)
-                const markerId = 'arrow-' + type;
+                const markerId = 'arrow-' + lineInfo.type;
                 line.setAttribute('marker-end', 'url(#' + markerId + ')');
-                
+
                 svg.appendChild(line);
                 drawnCount++;
             });
-            
+
             console.log(\`✅ Drew \${drawnCount} lines, skipped \${skippedCount}\`);
         }
         
