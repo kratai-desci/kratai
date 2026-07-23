@@ -544,15 +544,23 @@ export class ClassDiagramView {
                 const rawType = edge.label || 'uses';
                 const type = rawType.split(',')[0].trim();  // Extract first type for marker
 
+                // Relationship data stores the owner as source/from and the part as target/to
+                // (e.g. a field's declaring class -> the field's type). UML puts the diamond
+                // on the "whole" (owner) side for composition/aggregation, but marker-end always
+                // renders at the line's second point - so for these two types only, draw the
+                // line from the part to the owner so the (unchanged) diamond marker lands on
+                // the owner's box instead of the part's.
+                const ownerIsEndpoint = type === 'contains' || type === 'owns';
+                const linePoints = ownerIsEndpoint
+                    ? { x1: endPoint.x, y1: endPoint.y, x2: startPoint.x, y2: startPoint.y }
+                    : { x1: startPoint.x, y1: startPoint.y, x2: endPoint.x, y2: endPoint.y };
+
                 rawLines.push({
                     edgeIndex,
                     source: edge.source,
                     target: edge.target,
                     type,
-                    x1: startPoint.x,
-                    y1: startPoint.y,
-                    x2: endPoint.x,
-                    y2: endPoint.y
+                    ...linePoints
                 });
             });
 
