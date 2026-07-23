@@ -14,7 +14,7 @@ Maintain architectural control while AI agents code, and **dramatically reduce t
 
 *Results from preliminary internal testing (kratai v.1.9.4 vs no skill baseline). Actual results may vary depending on task complexity and agent behavior.*
 
-![kratai in Action](https://kratai.com/screenshots/demo.gif)
+![kratai in Action](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo.gif)
 
 ---
 
@@ -55,22 +55,22 @@ kratai contributes to this approach by giving developers clear **visibility and 
 ### 1. Built-in Coding Agent & SKILL
 Pre-configured SKILL teaches AI to follow your design principles automatically. Local MCP server provides direct access to architecture data — no manual setup required.
 
-<img src="https://kratai.com/screenshots/demo_ss_4.png" alt="AI uses kratai skill" width="50%">
+<img src="https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_4.png" alt="AI uses kratai skill" width="50%">
 
 ### 2. AI Understands Your Architecture
 AI agents query your architecture before generating code. No expensive context dumps — AI gets structured, accurate system information through MCP server.
 
-![Screenshot 1 - Class Diagram](https://kratai.com/screenshots/demo_ss_1.png)
+![Screenshot 1 - Class Diagram](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_1.png)
 
 ### 3. Architecture as Single Source of Truth
 Create and save different architectural views — focus on domains, API layers, or specific features. Each diagram is a lens into your system structure.
 
-<img src="https://kratai.com/screenshots/demo_ss_2.png" alt="Multiple Diagrams" width="33%">
+<img src="https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_2.png" alt="Multiple Diagrams" width="33%">
 
 ### 4. Fine-Grained Control Over Your Views
 Choose exactly what to show — select folders, filter relationship types, and control class types. Tailor each diagram to your specific needs.
 
-![Screenshot 5 - Configuration Panel](https://kratai.com/screenshots/demo_ss_5.png)
+![Screenshot 5 - Configuration Panel](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_5.png)
 
 
 ---
