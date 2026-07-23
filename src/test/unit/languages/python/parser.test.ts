@@ -646,6 +646,60 @@ suite('Python Parser Test Suite', () => {
 		});
 	});
 
+	suite('Phase 8: Local Variable Scoping', () => {
+		// Reproduces the App/Person/Student bug report (originally found in JavaParser)
+		// for Python: local variables declared inside a method - plain or type-annotated -
+		// must never leak into the declaring class's `properties`.
+		test('should not treat local variables as class fields (single-line signature)', () => {
+			const fixturePath = path.join(fixturesPath, 'local_variable_scoping.py');
+			const classes = parser.parseFile(fixturePath);
+
+			const app = classes.find(c => c.name === 'App');
+			assert.ok(app, 'Should find App class');
+
+			const s1Field = app.properties.find(p => p.name === 's1');
+			const s2Field = app.properties.find(p => p.name === 's2');
+			assert.strictEqual(s1Field, undefined, 's1 is a local variable in main(), not a field of App');
+			assert.strictEqual(s2Field, undefined, 's2 (type-annotated) is a local variable in main(), not a field of App');
+		});
+
+		test('should not treat local variables as class fields (multi-line signature)', () => {
+			const fixturePath = path.join(fixturesPath, 'local_variable_scoping.py');
+			const classes = parser.parseFile(fixturePath);
+
+			const app = classes.find(c => c.name === 'MultiLineSignatureApp');
+			assert.ok(app, 'Should find MultiLineSignatureApp class');
+
+			const s1Field = app.properties.find(p => p.name === 's1');
+			const s2Field = app.properties.find(p => p.name === 's2');
+			assert.strictEqual(s1Field, undefined, 's1 is a local variable in main(), not a field of MultiLineSignatureApp');
+			assert.strictEqual(s2Field, undefined, 's2 (type-annotated) is a local variable in main(), not a field of MultiLineSignatureApp');
+		});
+
+		test('should not create a dependency relationship from leaked local variables', () => {
+			const fixturePath = path.join(fixturesPath, 'local_variable_scoping.py');
+			const classes = parser.parseFile(fixturePath);
+			const allNames = new Set(classes.map(c => c.name));
+			const relationships = parser.extractRelationships(classes, allNames, workspacePath);
+
+			const bogusUsesFromApp = relationships.find(r =>
+				r.from === `${fixturePath}__App` &&
+				r.to === `${fixturePath}__Student` &&
+				r.type === 'uses'
+			);
+			assert.strictEqual(bogusUsesFromApp, undefined,
+				'App does not own a Student field - s1/s2 only exist at runtime inside main()');
+
+			const bogusUsesFromMultiLine = relationships.find(r =>
+				r.from === `${fixturePath}__MultiLineSignatureApp` &&
+				r.to === `${fixturePath}__Student` &&
+				r.type === 'uses'
+			);
+			assert.strictEqual(bogusUsesFromMultiLine, undefined,
+				'MultiLineSignatureApp does not own a Student field either, regardless of the wrapped signature');
+		});
+	});
+
 	suite('Edge Cases', () => {
 		test('should handle non-existent files gracefully', () => {
 			const fixturePath = path.join(fixturesPath, 'nonexistent.py');

@@ -72,44 +72,62 @@ export class PythonParser extends AbstractParserStrategy {
 
 				// Method definition: def method_name(self, ...): or async def method_name(...):
 				// Support complex return types like Optional[Product], List[str], etc.
-				const methodMatch = trimmed.match(/^(async\s+)?def\s+(\w+)\s*\(([^)]*)\)\s*(?:->\s*([^:]+))?:/);
-				if (methodMatch && indent > currentIndent) {
-					const isAsync = !!methodMatch[1];
-					const methodName = methodMatch[2];
-					const paramsStr = methodMatch[3];
-					const returnType = methodMatch[4]?.trim() || 'None';
+				// Signatures can span multiple lines (e.g. formatted by Black) - keep pulling
+				// in continuation lines until the parameter parens balance out, so a wrapped
+				// signature doesn't silently fail to register as "inside a method".
+				const defStartMatch = trimmed.match(/^(async\s+)?def\s+(\w+)\s*\(/);
+				if (defStartMatch && indent > currentIndent) {
+					let signatureText = trimmed;
+					let signatureEndIndex = i;
+					let openParens = (signatureText.match(/\(/g) || []).length - (signatureText.match(/\)/g) || []).length;
 
-					// Parse parameters
-					const params = paramsStr
-						.split(',')
-						.map(p => p.trim())
-						.filter(p => p && p !== 'self')
-						.map(p => {
-							// Handle type hints: name: type = default
-							const paramMatch = p.match(/(\w+)(?:\s*:\s*([^=]+))?(?:\s*=\s*(.+))?/);
-							if (paramMatch) {
-								return {
-									name: paramMatch[1],
-									type: paramMatch[2]?.trim() || 'Any',
-									optional: !!paramMatch[3],
-								};
-							}
-							return { name: p, type: 'Any', optional: false };
-						});
+					while (openParens > 0 && signatureEndIndex + 1 < lines.length) {
+						signatureEndIndex++;
+						const continuationLine = lines[signatureEndIndex].trim();
+						signatureText += ' ' + continuationLine;
+						openParens += (continuationLine.match(/\(/g) || []).length - (continuationLine.match(/\)/g) || []).length;
+					}
 
-					currentMethod = {
-						name: methodName,
-						parameters: params,
-						returnType,
-						startLine: i + 1,
-						decorators: pendingDecorators, // Store method decorators
-						isAsync: isAsync, // Track if it's an async method
-					};
+					const methodMatch = signatureText.match(/^(async\s+)?def\s+(\w+)\s*\(([^)]*)\)\s*(?:->\s*([^:]+))?:/);
+					if (methodMatch) {
+						const isAsync = !!methodMatch[1];
+						const methodName = methodMatch[2];
+						const paramsStr = methodMatch[3];
+						const returnType = methodMatch[4]?.trim() || 'None';
 
-					currentClass.methods.push(currentMethod);
-					pendingDecorators = []; // Clear decorators after use
-					console.log(`    📌 Found method: ${methodName}() at line ${i + 1} -> ${returnType}${isAsync ? ' (async)' : ''}`);
-					continue;
+						// Parse parameters
+						const params = paramsStr
+							.split(',')
+							.map(p => p.trim())
+							.filter(p => p && p !== 'self')
+							.map(p => {
+								// Handle type hints: name: type = default
+								const paramMatch = p.match(/(\w+)(?:\s*:\s*([^=]+))?(?:\s*=\s*(.+))?/);
+								if (paramMatch) {
+									return {
+										name: paramMatch[1],
+										type: paramMatch[2]?.trim() || 'Any',
+										optional: !!paramMatch[3],
+									};
+								}
+								return { name: p, type: 'Any', optional: false };
+							});
+
+						currentMethod = {
+							name: methodName,
+							parameters: params,
+							returnType,
+							startLine: i + 1,
+							decorators: pendingDecorators, // Store method decorators
+							isAsync: isAsync, // Track if it's an async method
+						};
+
+						currentClass.methods.push(currentMethod);
+						pendingDecorators = []; // Clear decorators after use
+						console.log(`    📌 Found method: ${methodName}() at line ${i + 1} -> ${returnType}${isAsync ? ' (async)' : ''}`);
+						i = signatureEndIndex; // Skip the consumed continuation lines
+						continue;
+					}
 				}
 
 		// Property from type annotation: name: type = value
