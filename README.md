@@ -106,19 +106,18 @@ Choose exactly what to show — select folders, filter relationship types, and c
 
 ## 📝 Release Notes
 
-### Latest: v1.9.8 (2026-07-09)
+### Latest: v1.9.9 (2026-07-23)
+- 🎯 **UML Notation Fix** — Composition/aggregation diamonds now render on the correct (owner) side of the relationship, per standard UML notation
+- 🔀 **Overlapping Relationship Lines** — Lines that used to stack exactly on top of each other (duplicate relationships, same-row connections) now automatically spread apart, in any direction
+- 🐛 **Java & Python Parser Fixes** — Fixed local variables being misdetected as class fields (Java: methods with `throws` clauses; Python: multi-line method signatures), which was producing bogus relationships in diagrams
+- 🌐 **Full Workspace Parsing** — Removed single-language auto-detection; kratai now parses all supported file types by default, better supporting polyglot/monorepo projects
+
+### v1.9.8 (2026-07-09)
 - 📸 **Documentation Fix** — Fixed screenshot images not displaying properly in VS Code Marketplace README
 
 ### v1.9.7 (2026-07-09)
 - 🎨 **Config Panel UX Improvements** — Fixed Folder Order tab not displaying selected folders, improved folder selection persistence
 - 🐛 **Critical Bug Fixes** — Resolved folder selection save issues and JavaScript errors in config panel webview
-
-### v1.9.6 (2026-07-07)
-- 🤖 **Update project description** — Update project's description for VS Code marketplace
-
-### v1.9.5 (2026-07-07)
-- 🤖 **SKILL Invocation Fix** — Fixed agent and skill not being invoked during coding tasks by improving trigger patterns
-- 📊 **Relationship Count Display** — Added relationship type counts in filter view when editing diagrams for better visibility
 
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 

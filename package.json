@@ -2,7 +2,7 @@
   "name": "kratai",
   "displayName": "kratai",
   "description": "The architectural oversight layer for AI-native development. You focus on design. AI writes the code like a real software engineer and eliminate expensive context dumps.",
-  "version": "1.9.8",
+  "version": "1.9.9",
   "publisher": "kratai-core",
   "icon": "icon_white.png",
   "license": "MIT",

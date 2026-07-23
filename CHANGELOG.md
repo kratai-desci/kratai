@@ -2,6 +2,21 @@
 
 All notable changes to the Kratai extension will be documented in this file.
 
+## [1.9.9] - 2026-07-23
+
+### Fixed
+- **Composition/Aggregation Arrow Direction** — UML composition (filled diamond) and aggregation (hollow diamond) markers were rendering on the wrong end of the relationship line — at the "part" class instead of the "whole"/owner class — contradicting standard UML notation. Diagrams now correctly place the diamond next to the owning class.
+- **Overlapping Relationship Lines** — When multiple classes in the same row or column had several relationships between them, the connecting lines rendered exactly on top of each other and were indistinguishable. Overlapping lines — including duplicate relationships between the same two classes — are now automatically detected and spread apart, for lines running in any direction (horizontal, vertical, or diagonal).
+- **Java Parser: Local Variables Misdetected as Fields** — A method whose signature includes a `throws` clause (e.g. `public static void main(String[] args) throws Exception`) caused the parser's "am I inside a method body?" check to silently fail, so local variable declarations inside that method were incorrectly captured as class fields, producing bogus composition relationships in the diagram.
+- **Python Parser: Multi-line Method Signatures Break Scope Detection** — Method signatures spanning multiple lines (common with formatters like Black) weren't recognized as methods at all, causing type-annotated local variables inside them to leak into the class's field list, the same class of bug as the Java issue above.
+
+### Changed
+- **Full Workspace Parsing by Default** — Removed build-file-based project-type detection (`package.json`/`composer.json`/`requirements.txt`/etc.) that limited diagram generation to a single guessed language. kratai now parses all supported file extensions by default across the whole workspace, so polyglot and monorepo projects are fully represented. Narrow the scope anytime via the folder/extension filters in the config panel.
+
+### Technical
+- Removed unused legacy diagram-rendering code (`RelationshipRenderer`, `HierarchicalLayoutCalculator`) left over from an earlier rendering approach.
+- Added Java and Python unit tests covering local-variable/field scoping edge cases (`throws` clauses, multi-line signatures) to guard against regressions.
+
 ## [1.9.8] - 2026-07-09
 
 ### Fixed
