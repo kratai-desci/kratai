@@ -483,6 +483,53 @@ suite('Java Parser Test Suite', () => {
 		});
 	});
 
+	suite('Phase 12: Local Variable Scoping', () => {
+		// Reproduces the App/Person/Student bug report: a method signature with a
+		// "throws" clause breaks JavaParser's "are we inside a method body?" heuristic,
+		// so local variable declarations get misread as class fields.
+		test('should not treat local variables as class fields when the method has a throws clause', () => {
+			const fixturePath = path.join(fixturesPath, 'LocalVariableScoping.java');
+			const classes = parser.parseFile(fixturePath);
+
+			const app = classes.find(c => c.name === 'App');
+			assert.ok(app, 'Should find App class');
+
+			const s1Field = app.properties.find(p => p.name === 's1');
+			const s2Field = app.properties.find(p => p.name === 's2');
+			assert.strictEqual(s1Field, undefined, 's1 is a local variable in main(), not a field of App');
+			assert.strictEqual(s2Field, undefined, 's2 is a local variable in main(), not a field of App');
+		});
+
+		test('should not create a composition relationship from local variables', () => {
+			const fixturePath = path.join(fixturesPath, 'LocalVariableScoping.java');
+			const classes = parser.parseFile(fixturePath);
+			const allNames = new Set(classes.map(c => c.name));
+			const relationships = parser.extractRelationships(classes, allNames, workspacePath);
+
+			const bogusComposition = relationships.find(r =>
+				r.from === `${fixturePath}__App` &&
+				r.to === `${fixturePath}__Student` &&
+				r.type === 'composition'
+			);
+			assert.strictEqual(bogusComposition, undefined,
+				'App does not own a Student field - s1/s2 only exist at runtime inside main()');
+		});
+
+		test('should still detect App creating Student instances (creates, not composition)', () => {
+			const fixturePath = path.join(fixturesPath, 'LocalVariableScoping.java');
+			const classes = parser.parseFile(fixturePath);
+			const allNames = new Set(classes.map(c => c.name));
+			const relationships = parser.extractRelationships(classes, allNames, workspacePath);
+
+			const createsRel = relationships.find(r =>
+				r.from === `${fixturePath}__App` &&
+				r.to === `${fixturePath}__Student` &&
+				r.type === 'creates'
+			);
+			assert.ok(createsRel, 'App should have a "creates" relationship to Student from `new Student(...)`');
+		});
+	});
+
 	suite('Edge Cases', () => {
 		test('should handle empty file', () => {
 			const fixturePath = path.join(fixturesPath, 'Empty.java');

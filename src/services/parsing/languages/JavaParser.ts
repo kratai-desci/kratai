@@ -164,12 +164,45 @@ export class JavaParser extends AbstractParserStrategy {
 		return code.substring(startIndex, index - 1);
 	}
 
+	/**
+	 * Compute the brace-nesting depth at every character position in `code`.
+	 * depth[i] === 0 means index i sits directly inside the surrounding class body;
+	 * depth[i] > 0 means it's nested inside a method/constructor/initializer/inner-class
+	 * body. String and char literals are skipped so braces inside them (e.g. "{") don't
+	 * throw off the count.
+	 */
+	private computeBraceDepths(code: string): Int32Array {
+		const depths = new Int32Array(code.length);
+		let depth = 0;
+
+		for (let i = 0; i < code.length; i++) {
+			const ch = code[i];
+			depths[i] = depth;
+
+			if (ch === '"' || ch === '\'') {
+				const quote = ch;
+				i++;
+				while (i < code.length && code[i] !== quote) {
+					if (code[i] === '\\') i++; // skip escaped character
+					i++;
+				}
+			} else if (ch === '{') {
+				depth++;
+			} else if (ch === '}') {
+				depth--;
+			}
+		}
+
+		return depths;
+	}
+
 	private extractFields(classBody: string, className: string): PropertyInfo[] {
 		const fields: PropertyInfo[] = [];
-		
+
 		// Match field declarations with leading whitespace: visibility modifier type fieldName = value;
 		const fieldRegex = /\s*(public|private|protected)?\s+(static|final)?\s*(static|final)?\s*([\w<>\[\],\s]+?)\s+(\w+)\s*(=\s*[^;]+)?\s*;/g;
-		
+		const depths = this.computeBraceDepths(classBody);
+
 		let match;
 		while ((match = fieldRegex.exec(classBody)) !== null) {
 			const visibility = match[1] || 'package-private';
@@ -177,22 +210,18 @@ export class JavaParser extends AbstractParserStrategy {
 			const modifier2 = match[3];
 			let type = match[4].trim();
 			const name = match[5];
-			const matchText = match[0];
-			
-			// Skip if this looks like a local variable inside a method
-			// Check if there's a method signature before this match
-			const beforeMatch = classBody.substring(0, match.index);
-			const methodBeforeThis = beforeMatch.match(/\w+\s*\([^)]*\)\s*\{[^}]*$/);
-			if (methodBeforeThis) {
-				// This is inside a method, skip it
+
+			// Skip if this is nested inside a method/constructor/initializer/inner-class
+			// body (i.e. a local variable), rather than a direct member of this class.
+			if (depths[match.index] !== 0) {
 				continue;
 			}
-			
+
 			// Skip if type contains keywords that indicate this is not a field
 			if (type.match(/\b(if|for|while|return|new|throw|catch|try)\b/)) {
 				continue;
 			}
-			
+
 			fields.push({
 				name,
 				type,
@@ -203,7 +232,7 @@ export class JavaParser extends AbstractParserStrategy {
 				endLineNumber: 0
 			});
 		}
-		
+
 		return fields;
 	}
 
