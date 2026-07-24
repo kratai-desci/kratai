@@ -133,30 +133,6 @@ export class DiagramGeneratorService {
 					}
 				};
 			
-			// Composition: solid line, filled diamond marker
-			case 'composition':
-				return {
-					type: 'smoothstep',
-					label: UMLMapper.getUMLLabel(umlType),
-					animated: false,
-					style: { 
-						stroke: '#000000',
-						strokeWidth: 2
-					}
-				};
-			
-			// Aggregation: solid line, hollow diamond marker
-			case 'aggregation':
-				return {
-					type: 'smoothstep',
-					label: UMLMapper.getUMLLabel(umlType),
-					animated: false,
-					style: { 
-						stroke: '#000000',
-						strokeWidth: 2
-					}
-				};
-			
 			default:
 				return {
 					type: 'default',

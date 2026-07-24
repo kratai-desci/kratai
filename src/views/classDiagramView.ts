@@ -383,8 +383,6 @@ export class ClassDiagramView {
                 { type: 'implements', shape: 'hollow-triangle' },   // Realization
                 { type: 'uses', shape: 'open-arrow' },              // Dependency
                 { type: 'has', shape: 'open-arrow' },               // Association
-                { type: 'owns', shape: 'hollow-diamond' },          // Aggregation
-                { type: 'contains', shape: 'filled-diamond' },      // Composition
                 { type: 'highlight', shape: 'filled-triangle' }     // Focus state
             ];
             
@@ -417,26 +415,6 @@ export class ClassDiagramView {
                     const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
                     polygon.setAttribute('points', '0,0 0,12 10,6');
                     polygon.setAttribute('fill', '#000000');
-                    marker.appendChild(polygon);
-                }
-                else if (shape === 'filled-diamond') {
-                    // Filled diamond for composition
-                    marker.setAttribute('refX', '9');
-                    marker.setAttribute('refY', '6');
-                    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-                    polygon.setAttribute('points', '0,6 4.5,0 9,6 4.5,12');
-                    polygon.setAttribute('fill', '#000000');
-                    marker.appendChild(polygon);
-                }
-                else if (shape === 'hollow-diamond') {
-                    // Hollow diamond for aggregation
-                    marker.setAttribute('refX', '9');
-                    marker.setAttribute('refY', '6');
-                    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-                    polygon.setAttribute('points', '0,6 4.5,0 9,6 4.5,12');
-                    polygon.setAttribute('fill', 'white');
-                    polygon.setAttribute('stroke', '#000000');
-                    polygon.setAttribute('stroke-width', '1.5');
                     marker.appendChild(polygon);
                 }
                 else if (shape === 'open-arrow') {
@@ -544,23 +522,15 @@ export class ClassDiagramView {
                 const rawType = edge.label || 'uses';
                 const type = rawType.split(',')[0].trim();  // Extract first type for marker
 
-                // Relationship data stores the owner as source/from and the part as target/to
-                // (e.g. a field's declaring class -> the field's type). UML puts the diamond
-                // on the "whole" (owner) side for composition/aggregation, but marker-end always
-                // renders at the line's second point - so for these two types only, draw the
-                // line from the part to the owner so the (unchanged) diamond marker lands on
-                // the owner's box instead of the part's.
-                const ownerIsEndpoint = type === 'contains' || type === 'owns';
-                const linePoints = ownerIsEndpoint
-                    ? { x1: endPoint.x, y1: endPoint.y, x2: startPoint.x, y2: startPoint.y }
-                    : { x1: startPoint.x, y1: startPoint.y, x2: endPoint.x, y2: endPoint.y };
-
                 rawLines.push({
                     edgeIndex,
                     source: edge.source,
                     target: edge.target,
                     type,
-                    ...linePoints
+                    x1: startPoint.x,
+                    y1: startPoint.y,
+                    x2: endPoint.x,
+                    y2: endPoint.y
                 });
             });
 
