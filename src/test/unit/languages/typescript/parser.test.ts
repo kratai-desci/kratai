@@ -156,12 +156,13 @@ suite('TypeScript Parser Test Suite', () => {
 			const fixturePath = path.join(fixturesPath, 'functional.ts');
 			const classes = parser.parseFile(fixturePath);
 
-			// Functions should be represented as modules
+			// Standalone functions are bundled into a single companion module box for
+			// the file (see "Phase 6: File-Level Function Grouping" for full coverage)
 			const modules = classes.filter(c => c.isModule === true);
-			assert.ok(modules.length > 0, 'Should find function modules');
-			
-			const createUser = classes.find(c => c.name === 'createUser' && c.isModule);
-			assert.ok(createUser, 'Should find createUser function as module');
+			assert.strictEqual(modules.length, 1, 'Should find exactly one module box for the file');
+
+			const createUser = modules[0].methods.find(m => m.name === 'createUser');
+			assert.ok(createUser, 'Should find createUser as a method of the module box');
 		});
 
 		test('should detect function calls between functions', () => {
@@ -223,10 +224,72 @@ suite('TypeScript Parser Test Suite', () => {
 			const relationships = parser.extractRelationships(classes, allNames, workspacePath);
 
 			// Should have relationships from imports
-			const allModuleRels = relationships.filter(r => 
+			const allModuleRels = relationships.filter(r =>
 				r.type === 'imports' || r.type === 're-exports'
 			);
 			assert.ok(allModuleRels.length > 0, 'Should find module relationships');
+		});
+	});
+
+	suite('Phase 6: File-Level Function Grouping', () => {
+		// Design target (matches JavaScriptParser/PythonParser/PHPParser, which already
+		// do this): standalone top-level functions in a file should be bundled into ONE
+		// companion "[filename]" module box, not exploded into one box per function.
+		// A class defined in the same file keeps its own proper box, unaffected.
+		test('should bundle standalone functions in a functions-only file into a single module box', () => {
+			const fixturePath = path.join(fixturesPath, 'functional.ts');
+			const classes = parser.parseFile(fixturePath);
+
+			const moduleNodes = classes.filter(c => c.isModule === true);
+			assert.strictEqual(moduleNodes.length, 1,
+				`Expected exactly one module box for functional.ts, found ${moduleNodes.length}: ${moduleNodes.map(m => m.name).join(', ')}`);
+
+			const moduleNode = moduleNodes[0];
+			assert.strictEqual(moduleNode.name, '[functional]', 'Module box should be named after the file');
+
+			const methodNames = moduleNode.methods.map(m => m.name);
+			for (const expected of ['validateUser', 'saveUser', 'createUser', 'updateUser', 'findUser', 'processUser']) {
+				assert.ok(methodNames.includes(expected), `Module box should list ${expected} as a method`);
+			}
+
+			// The old one-box-per-function shape should be gone: no standalone
+			// top-level ClassInfo named after an individual function anymore.
+			const explodedCreateUser = classes.find(c => c.name === 'createUser' && c.isModule);
+			assert.strictEqual(explodedCreateUser, undefined,
+				'createUser should be a method inside the module box, not its own top-level box');
+		});
+
+		test('should keep a class in its own box while bundling sibling standalone functions into a companion module box', () => {
+			const fixturePath = path.join(fixturesPath, 'mixed-class-and-functions.ts');
+			const classes = parser.parseFile(fixturePath);
+
+			const userService = classes.find(c => c.name === 'UserService' && !c.isModule);
+			assert.ok(userService, 'UserService class should still get its own proper box');
+			assert.ok(userService.methods.some(m => m.name === 'getUser'), 'UserService should keep its own methods');
+
+			const moduleNodes = classes.filter(c => c.isModule === true);
+			assert.strictEqual(moduleNodes.length, 1,
+				`Expected exactly one companion module box, found ${moduleNodes.length}: ${moduleNodes.map(m => m.name).join(', ')}`);
+			assert.strictEqual(moduleNodes[0].name, '[mixed-class-and-functions]');
+
+			const methodNames = moduleNodes[0].methods.map(m => m.name);
+			for (const expected of ['formatUserName', 'logUserAccess', 'isValidUser', 'auditUserAccess']) {
+				assert.ok(methodNames.includes(expected), `Companion module box should list ${expected} as a method`);
+			}
+
+			// None of the standalone functions should have leaked out as their own top-level box
+			const explodedFormatUserName = classes.find(c => c.name === 'formatUserName');
+			assert.strictEqual(explodedFormatUserName, undefined,
+				'formatUserName should be a method inside the companion module box, not its own top-level box');
+		});
+
+		test('should not create a diagram node for a function nested inside another function', () => {
+			const fixturePath = path.join(fixturesPath, 'mixed-class-and-functions.ts');
+			const classes = parser.parseFile(fixturePath);
+
+			const nestedFunction = classes.find(c => c.name === 'buildAuditLine');
+			assert.strictEqual(nestedFunction, undefined,
+				'buildAuditLine is nested inside auditUserAccess() and must not become its own top-level diagram node');
 		});
 	});
 });

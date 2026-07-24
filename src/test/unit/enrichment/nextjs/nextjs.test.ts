@@ -760,20 +760,23 @@ suite('NextJSEnricher - Framework Enrichment', () => {
 			const parser = new TypeScriptParser();
 			
 			const classes = parser.parseFile(fixturePath);
-			const homePage = classes.find((c: any) => c.name === 'Home');
-			
-			console.log('🔍 Home properties:', homePage?.properties);
-			console.log('🔍 Home methods:', homePage?.methods?.map((m: any) => m.name));
-			
-			// REALITY: Parser extracts Home function but NOT type annotations
-			assert.ok(homePage, 'Home function should be extracted');
-			
+			// Home is a standalone top-level function, so it's bundled into the file's
+			// companion module box rather than being its own top-level entry.
+			const moduleBox = classes.find((c: any) => c.isModule === true);
+			const homeMethod = moduleBox?.methods?.find((m: any) => m.name === 'Home');
+
+			console.log('🔍 Home method found:', !!homeMethod);
+			console.log('🔍 Module box properties:', moduleBox?.properties);
+
+			// REALITY: Parser extracts Home as a method of the module box, but NOT type annotations
+			assert.ok(homeMethod, 'Home function should be extracted as a method of the module box');
+
 			// Type annotations like <PublicUserDTO> are NOT in properties/methods
-			const hasTypeAnnotation = homePage?.properties?.some((p: any) => 
+			const hasTypeAnnotation = moduleBox?.properties?.some((p: any) =>
 				p.type === 'PublicUserDTO' || p.name === 'PublicUserDTO'
 			);
-			
-			assert.ok(!hasTypeAnnotation, 
+
+			assert.ok(!hasTypeAnnotation,
 				'TypeScript parser does NOT extract type annotations (this is the gap!)');
 		});
 		

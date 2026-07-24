@@ -19,50 +19,31 @@ export class TypeScriptParser extends AbstractParserStrategy {
 					classes.push(this.extractClassInfo(node, filePath));
 				} else if (ts.isInterfaceDeclaration(node)) {
 					classes.push(this.extractInterfaceInfo(node, filePath));
-				} else if (ts.isFunctionDeclaration(node) && node.name) {
-					// Extract standalone functions as modules
-					classes.push(this.extractFunctionAsModule(node, sourceFile, filePath));
 				}
 				ts.forEachChild(node, visit);
 			};
 
-			// First pass: collect classes, interfaces, and functions
+			// Collect classes and interfaces - each keeps its own proper box
 			visit(sourceFile);
 
-			// Second pass: collect exported arrow functions and variables
-			sourceFile.forEachChild(node => {
-				if (ts.isVariableStatement(node)) {
-					for (const declaration of node.declarationList.declarations) {
-						if (ts.isIdentifier(declaration.name)) {
-							if (declaration.initializer &&
-								(ts.isArrowFunction(declaration.initializer) || ts.isFunctionExpression(declaration.initializer))) {
-								classes.push(this.extractArrowFunctionAsModule(declaration, node, sourceFile, filePath));
-							}
-						}
-					}
-				}
-			});
-
-			// Fallback: if no classes/functions found, create a module info
-			if (classes.length === 0) {
-				const moduleInfo = this.extractModuleInfo(sourceFile, filePath);
-				if (moduleInfo) {
-					classes.push(moduleInfo);
-				} else {
-					// If still nothing found, but file has imports/exports, create a minimal module
-					const hasImportsOrExports = this.hasImportsOrExports(sourceFile);
-					if (hasImportsOrExports) {
-						const fileName = path.basename(filePath, path.extname(filePath));
-						classes.push({
-							name: fileName,
-							filePath,
-							properties: [],
-							methods: [],
-							isModule: true,
-							classType: 'module'
-						});
-					}
-				}
+			// Bundle every standalone top-level function (declarations and
+			// const-assigned arrow/function expressions) into a single companion
+			// "[filename]" module box, alongside any classes/interfaces found above.
+			// Mirrors JavaScriptParser/PythonParser/PHPParser, which already do this.
+			const moduleInfo = this.extractModuleInfo(sourceFile, filePath);
+			if (moduleInfo) {
+				classes.push(moduleInfo);
+			} else if (classes.length === 0 && this.hasImportsOrExports(sourceFile)) {
+				// Nothing found at all, but the file has imports/exports - create a minimal module marker
+				const fileName = path.basename(filePath, path.extname(filePath));
+				classes.push({
+					name: fileName,
+					filePath,
+					properties: [],
+					methods: [],
+					isModule: true,
+					classType: 'module'
+				});
 			}
 		} catch {
 			// Return empty on parse error — never crash the extension
@@ -91,6 +72,21 @@ export class TypeScriptParser extends AbstractParserStrategy {
 				classMap.set(cls.name, []);
 			}
 			classMap.get(cls.name)!.push(cls);
+		});
+
+		// Map of method name -> every class/module that declares a method with that name.
+		// Standalone functions live as methods inside a per-file "[filename]" module box
+		// rather than being their own top-level class, so a bare call like validateUser(...)
+		// has to be resolved by looking up which box owns that method, not by treating the
+		// function's own name as a class name.
+		const methodOwnerMap = new Map<string, ClassInfo[]>();
+		classes.forEach(cls => {
+			cls.methods.forEach(method => {
+				if (!methodOwnerMap.has(method.name)) {
+					methodOwnerMap.set(method.name, []);
+				}
+				methodOwnerMap.get(method.name)!.push(cls);
+			});
 		});
 
 		for (const classInfo of classes) {
@@ -153,10 +149,11 @@ export class TypeScriptParser extends AbstractParserStrategy {
 
 				// Extract: super calls, static calls, creates, imports, re-exports, async-calls, callbacks, generics
 				const advancedRelationships = this.extractAdvancedRelationships(
-					sourceFile, 
-					classInfo, 
-					allClassNames, 
-					classMap
+					sourceFile,
+					classInfo,
+					allClassNames,
+					classMap,
+					methodOwnerMap
 				);
 				relationships.push(...advancedRelationships);
 
@@ -175,7 +172,8 @@ export class TypeScriptParser extends AbstractParserStrategy {
 		sourceFile: ts.SourceFile,
 		classInfo: ClassInfo,
 		allClassNames: Set<string>,
-		classMap: Map<string, ClassInfo[]>
+		classMap: Map<string, ClassInfo[]>,
+		methodOwnerMap: Map<string, ClassInfo[]>
 	): ClassRelationship[] {
 		const relationships: ClassRelationship[] = [];
 		const fromId = this.createClassId(classInfo);
@@ -214,12 +212,15 @@ export class TypeScriptParser extends AbstractParserStrategy {
 				// 3. CALLS: Regular function calls (function-to-function)
 				if (ts.isIdentifier(node.expression)) {
 					const funcName = node.expression.getText();
-					if (allClassNames.has(funcName) && funcName !== classInfo.name) {
-						relationships.push(...this.createRelationshipsToTargets(
-							classInfo, funcName, classMap, 'calls',
-							(target) => target.isModule === true
-						));
-					}
+					// Standalone functions are methods inside a per-file module box now, so
+					// resolve by which box declares a method with this name. Skip same-box
+					// matches - those are calls within the same file, not a dependency
+					// between two files.
+					(methodOwnerMap.get(funcName) || []).forEach(target => {
+						if (target !== classInfo) {
+							relationships.push({ from: fromId, to: this.createClassId(target), type: 'calls' });
+						}
+					});
 				}
 			}
 
@@ -238,12 +239,11 @@ export class TypeScriptParser extends AbstractParserStrategy {
 				const callExpr = node.expression;
 				if (ts.isIdentifier(callExpr.expression)) {
 					const funcName = callExpr.expression.getText();
-					if (allClassNames.has(funcName)) {
-						relationships.push(...this.createRelationshipsToTargets(
-							classInfo, funcName, classMap, 'async-calls',
-							(target) => target.isModule === true
-						));
-					}
+					(methodOwnerMap.get(funcName) || []).forEach(target => {
+						if (target !== classInfo) {
+							relationships.push({ from: fromId, to: this.createClassId(target), type: 'async-calls' });
+						}
+					});
 				}
 			}
 
@@ -254,12 +254,11 @@ export class TypeScriptParser extends AbstractParserStrategy {
 						// This call passes a callback
 						if (ts.isIdentifier(node.expression)) {
 							const funcName = node.expression.getText();
-							if (allClassNames.has(funcName)) {
-								relationships.push(...this.createRelationshipsToTargets(
-									classInfo, funcName, classMap, 'callback',
-									(target) => target.isModule === true
-								));
-							}
+							(methodOwnerMap.get(funcName) || []).forEach(target => {
+								if (target !== classInfo) {
+									relationships.push({ from: fromId, to: this.createClassId(target), type: 'callback' });
+								}
+							});
 						}
 					}
 				});
@@ -696,25 +695,23 @@ export class TypeScriptParser extends AbstractParserStrategy {
 		const methods: MethodInfo[] = [];
 
 		sourceFile.forEachChild(node => {
+			// Every top-level function declaration becomes a method on this file's
+			// module box, exported or not (a private helper is still worth showing).
 			if (ts.isFunctionDeclaration(node) && node.name) {
-				const isExported = node.modifiers?.some(
-					m => m.kind === ts.SyntaxKind.ExportKeyword || m.kind === ts.SyntaxKind.DefaultKeyword
-				);
-				if (isExported) {
-					methods.push({
-						name: node.name.getText(),
-						parameters: node.parameters.map(p => ({
-							name: p.name.getText(),
-							type: p.type?.getText() || 'any',
-							optional: !!p.questionToken
-						})),
-						returnType: node.type?.getText() || 'void',
-						visibility: 'public',
-						isStatic: true,
-						lineNumber: sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1,
-						endLineNumber: sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1
-					});
-				}
+				methods.push({
+					name: node.name.getText(),
+					parameters: node.parameters.map(p => ({
+						name: p.name.getText(),
+						type: p.type?.getText() || 'any',
+						optional: !!p.questionToken
+					})),
+					returnType: node.type?.getText() || 'void',
+					visibility: 'public',
+					isStatic: true,
+					isAsync: !!node.modifiers?.some(m => m.kind === ts.SyntaxKind.AsyncKeyword),
+					lineNumber: sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1,
+					endLineNumber: sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1
+				});
 			}
 
 			if (ts.isVariableStatement(node)) {
@@ -725,23 +722,26 @@ export class TypeScriptParser extends AbstractParserStrategy {
 						const isConst = (node.declarationList.flags & ts.NodeFlags.Const) !== 0;
 						if (declaration.initializer &&
 							(ts.isArrowFunction(declaration.initializer) || ts.isFunctionExpression(declaration.initializer))) {
-							if (isExported) {
-								const funcNode = declaration.initializer;
-								methods.push({
-									name,
-									parameters: funcNode.parameters.map(p => ({
-										name: p.name.getText(),
-										type: p.type?.getText() || 'any',
-										optional: !!p.questionToken
-									})),
-									returnType: funcNode.type?.getText() || (name.match(/^[A-Z]/) ? 'JSX.Element' : 'any'),
-									visibility: 'public',
-									isStatic: true,
-									lineNumber: sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1,
-									endLineNumber: sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1
-								});
-							}
+							// Same as function declarations above: include regardless of export.
+							const funcNode = declaration.initializer;
+							methods.push({
+								name,
+								parameters: funcNode.parameters.map(p => ({
+									name: p.name.getText(),
+									type: p.type?.getText() || 'any',
+									optional: !!p.questionToken
+								})),
+								returnType: funcNode.type?.getText() || (name.match(/^[A-Z]/) ? 'JSX.Element' : 'any'),
+								visibility: 'public',
+								isStatic: true,
+								isAsync: !!funcNode.modifiers?.some(m => m.kind === ts.SyntaxKind.AsyncKeyword),
+								lineNumber: sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1,
+								endLineNumber: sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1
+							});
 						} else if (isExported) {
+							// Plain (non-function) module-level variables: only exported ones
+							// are worth surfacing as a property, to avoid noise from every
+							// internal constant/local.
 							properties.push({
 								name,
 								type: declaration.type?.getText() || 'inferred',
@@ -765,72 +765,5 @@ export class TypeScriptParser extends AbstractParserStrategy {
 		if (node.modifiers?.some(m => m.kind === ts.SyntaxKind.PrivateKeyword)) { return 'private'; }
 		if (node.modifiers?.some(m => m.kind === ts.SyntaxKind.ProtectedKeyword)) { return 'protected'; }
 		return 'public';
-	}
-
-	/**
-	 * Extract a standalone function declaration as a module
-	 */
-	private extractFunctionAsModule(node: ts.FunctionDeclaration, sourceFile: ts.SourceFile, filePath: string): ClassInfo {
-		const name = node.name!.getText();
-		const methods: MethodInfo[] = [{
-			name,
-			parameters: node.parameters.map(p => ({
-				name: p.name.getText(),
-				type: p.type?.getText() || 'any',
-				optional: !!p.questionToken
-			})),
-			returnType: node.type?.getText() || 'void',
-			visibility: 'public',
-			isStatic: false,
-			isAsync: !!node.modifiers?.some(m => m.kind === ts.SyntaxKind.AsyncKeyword),
-			lineNumber: sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1,
-			endLineNumber: sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1
-		}];
-
-		return {
-			name,
-			filePath,
-			properties: [],
-			methods,
-			isModule: true,
-			classType: 'module'
-		};
-	}
-
-	/**
-	 * Extract an arrow function or function expression as a module
-	 */
-	private extractArrowFunctionAsModule(
-		declaration: ts.VariableDeclaration,
-		statement: ts.VariableStatement,
-		sourceFile: ts.SourceFile,
-		filePath: string
-	): ClassInfo {
-		const name = (declaration.name as ts.Identifier).getText();
-		const funcNode = declaration.initializer as ts.ArrowFunction | ts.FunctionExpression;
-		
-		const methods: MethodInfo[] = [{
-			name,
-			parameters: funcNode.parameters.map(p => ({
-				name: p.name.getText(),
-				type: p.type?.getText() || 'any',
-				optional: !!p.questionToken
-			})),
-			returnType: funcNode.type?.getText() || 'any',
-			visibility: 'public',
-			isStatic: false,
-			isAsync: !!funcNode.modifiers?.some(m => m.kind === ts.SyntaxKind.AsyncKeyword),
-			lineNumber: sourceFile.getLineAndCharacterOfPosition(statement.getStart()).line + 1,
-			endLineNumber: sourceFile.getLineAndCharacterOfPosition(statement.getEnd()).line + 1
-		}];
-
-		return {
-			name,
-			filePath,
-			properties: [],
-			methods,
-			isModule: true,
-			classType: 'module'
-		};
 	}
 }
