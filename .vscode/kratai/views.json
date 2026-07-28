@@ -1,34 +1,430 @@
 {
   "views": [
     {
-      "id": "overview-architecture",
-      "name": "Overview architecture",
+      "id": "packages-architecture",
+      "name": "Packages Architecture",
       "config": {
         "selectedFolders": [
-          "src",
-          "src/commands",
-          "src/mcp",
-          "src/services",
-          "src/services/config",
-          "src/services/diagram",
-          "src/services/enrichment",
-          "src/services/enrichment/frameworks",
-          "src/services/export",
-          "src/services/git",
-          "src/services/parsing",
-          "src/services/parsing/frameworks",
-          "src/services/parsing/languages",
-          "src/services/telemetry",
-          "src/services/view",
-          "src/types",
-          "src/types/config",
-          "src/types/domain",
-          "src/types/view",
-          "src/views",
-          "src/views/components"
+          "packages",
+          "packages/core",
+          "packages/core/src",
+          "packages/core/src/diagram",
+          "packages/core/src/enrichment",
+          "packages/core/src/enrichment/frameworks",
+          "packages/core/src/export",
+          "packages/core/src/git",
+          "packages/core/src/parsing",
+          "packages/core/src/parsing/frameworks",
+          "packages/core/src/parsing/languages",
+          "packages/core/src/telemetry",
+          "packages/core/src/test",
+          "packages/core/src/test/unit",
+          "packages/core/src/test/unit/enrichment",
+          "packages/core/src/test/unit/enrichment/django",
+          "packages/core/src/test/unit/enrichment/django/fixtures",
+          "packages/core/src/test/unit/enrichment/nextjs",
+          "packages/core/src/test/unit/enrichment/nextjs/fixtures",
+          "packages/core/src/test/unit/enrichment/springboot",
+          "packages/core/src/test/unit/enrichment/springboot/fixtures",
+          "packages/core/src/test/unit/enrichment/springboot/fixtures/users",
+          "packages/core/src/test/unit/http",
+          "packages/core/src/test/unit/http/fixtures",
+          "packages/core/src/test/unit/languages",
+          "packages/core/src/test/unit/languages/html",
+          "packages/core/src/test/unit/languages/html/fixtures",
+          "packages/core/src/test/unit/languages/html/fixtures/nested",
+          "packages/core/src/test/unit/languages/html/fixtures/nested/subfolder",
+          "packages/core/src/test/unit/languages/java",
+          "packages/core/src/test/unit/languages/java/fixtures",
+          "packages/core/src/test/unit/languages/java/fixtures/com",
+          "packages/core/src/test/unit/languages/java/fixtures/com/acme",
+          "packages/core/src/test/unit/languages/java/fixtures/com/acme/model",
+          "packages/core/src/test/unit/languages/java/fixtures/com/company",
+          "packages/core/src/test/unit/languages/java/fixtures/com/company/app",
+          "packages/core/src/test/unit/languages/java/fixtures/com/company/app/module",
+          "packages/core/src/test/unit/languages/java/fixtures/com/company/app/module/feature",
+          "packages/core/src/test/unit/languages/java/fixtures/com/company/app/module/feature/service",
+          "packages/core/src/test/unit/languages/java/fixtures/com/company/app/module/feature/service/impl",
+          "packages/core/src/test/unit/languages/java/fixtures/com/example",
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/base",
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/controller",
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/dto",
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/factory",
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/interfaces",
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/model",
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/repository",
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/service",
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/util",
+          "packages/core/src/test/unit/languages/javascript",
+          "packages/core/src/test/unit/languages/javascript/fixtures",
+          "packages/core/src/test/unit/languages/php",
+          "packages/core/src/test/unit/languages/php/fixtures",
+          "packages/core/src/test/unit/languages/python",
+          "packages/core/src/test/unit/languages/python/fixtures",
+          "packages/core/src/test/unit/languages/typescript",
+          "packages/core/src/test/unit/languages/typescript/fixtures",
+          "packages/core/src/test/unit/services",
+          "packages/core/src/types",
+          "packages/core/src/types/config",
+          "packages/core/src/types/domain",
+          "packages/core/src/types/view",
+          "packages/core/src/util",
+          "packages/core/src/view",
+          "packages/viewer",
+          "packages/viewer/src",
+          "packages/viewer/src/components"
         ],
+        "folders": {
+          "packages": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/diagram": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/enrichment": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/enrichment/frameworks": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/export": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/git": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/parsing": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/parsing/frameworks": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/parsing/languages": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/telemetry": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/enrichment": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/enrichment/django": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/enrichment/django/fixtures": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/enrichment/nextjs": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/enrichment/nextjs/fixtures": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/enrichment/springboot": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/enrichment/springboot/fixtures": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/enrichment/springboot/fixtures/users": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/http": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/http/fixtures": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/html": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/html/fixtures": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/html/fixtures/nested": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/html/fixtures/nested/subfolder": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/acme": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/acme/model": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/company": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/company/app": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/company/app/module": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/company/app/module/feature": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/company/app/module/feature/service": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/company/app/module/feature/service/impl": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/example": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/base": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/controller": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/dto": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/factory": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/interfaces": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/model": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/repository": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/service": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/java/fixtures/com/example/util": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/javascript": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/javascript/fixtures": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/php": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/php/fixtures": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/python": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/python/fixtures": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/typescript": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/languages/typescript/fixtures": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/test/unit/services": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/types": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/types/config": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/types/domain": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/types/view": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/util": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/core/src/view": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/viewer": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/viewer/src": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          },
+          "packages/viewer/src/components": {
+            "selected": true,
+            "expanded": true,
+            "order": null
+          }
+        },
         "selectedExtensions": [
           ".ts",
+          ".js",
+          ".java",
+          ".py",
+          ".php",
+          ".html",
+          ".tsx",
+          ".jsp",
           "on",
           "on",
           "on",
@@ -74,8 +470,7 @@
           "baseCommit": "HEAD~1"
         }
       },
-      "createdAt": "2026-06-27T04:12:57.775Z",
-      "lastGenerated": "2026-07-24T03:46:04.394Z"
+      "createdAt": "2026-07-28T08:39:41.195Z"
     }
   ]
 }
