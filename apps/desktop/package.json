@@ -1,0 +1,10 @@
+{
+  "name": "@kratai/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "PLACEHOLDER - not implemented yet, much later. Electron app: main process reuses @kratai/core against the real local filesystem (no network), renderer loads @kratai/viewer's output directly.",
+  "dependencies": {
+    "@kratai/core": "*",
+    "@kratai/viewer": "*"
+  }
+}

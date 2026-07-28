@@ -1,0 +1,19 @@
+{
+  "name": "@kratai/viewer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Framework-agnostic interactive class diagram HTML/CSS/SVG/JS view, shared by every kratai host app.",
+  "main": "./out/index.js",
+  "types": "./out/index.d.ts",
+  "scripts": {
+    "build": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@kratai/core": "*"
+  },
+  "devDependencies": {
+    "@types/node": "22.x"
+  }
+}

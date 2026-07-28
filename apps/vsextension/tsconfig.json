@@ -1,0 +1,23 @@
+{
+	"compilerOptions": {
+		"module": "Node16",
+		"target": "ES2022",
+		"outDir": "out",
+		"lib": [
+			"ES2022"
+		],
+		"sourceMap": true,
+		"rootDir": "src",
+		"strict": true,
+		"esModuleInterop": true,
+		"types": [
+			"node",
+			"mocha"
+		],
+		"moduleResolution": "node16"
+	},
+	"exclude": [
+		"node_modules",
+		"out"
+	]
+}

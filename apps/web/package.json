@@ -1,0 +1,10 @@
+{
+  "name": "@kratai/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "PLACEHOLDER - not implemented yet. Next.js web app: GitHub OAuth, server-side clone+parse via @kratai/core, interactive diagram via @kratai/viewer, saved views in a database.",
+  "dependencies": {
+    "@kratai/core": "*",
+    "@kratai/viewer": "*"
+  }
+}

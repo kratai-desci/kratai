@@ -1,0 +1,24 @@
+{
+  "name": "@kratai/core",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Parsing, enrichment, diagram generation, and export logic shared across all kratai apps.",
+  "main": "./out/index.js",
+  "types": "./out/index.d.ts",
+  "scripts": {
+    "build": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src",
+    "test": "npm run build && mocha \"out/test/**/*.test.js\""
+  },
+  "dependencies": {
+    "typescript": "^5.9.3",
+    "php-parser": "^3.6.0",
+    "@vscode/extension-telemetry": "^1.5.2"
+  },
+  "devDependencies": {
+    "@types/node": "22.x",
+    "@types/mocha": "^10.0.10",
+    "mocha": "^10.7.3"
+  }
+}

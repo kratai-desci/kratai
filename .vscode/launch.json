@@ -10,11 +10,11 @@
 			"type": "extensionHost",
 			"request": "launch",
 			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--extensionDevelopmentPath=${workspaceFolder}/apps/vsextension",
 				"${workspaceFolder}"
 			],
 			"outFiles": [
-				"${workspaceFolder}/out/**/*.js"
+				"${workspaceFolder}/apps/vsextension/out/**/*.js"
 			],
 			"preLaunchTask": "${defaultBuildTask}"
 		}

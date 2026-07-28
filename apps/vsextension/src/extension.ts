@@ -1,0 +1,122 @@
+// The module 'vscode' contains the VS Code extensibility API
+// Import the module and reference it with the alias vscode in your code below
+import * as vscode from 'vscode';
+import { showGitChanges, generateClassDiagram, generateClassDiagramDirect, showConfigPanel, generateDiagramFromView } from './commands';
+import { KrataiTreeProvider } from './views/krataiTreeProvider';
+import { TelemetryService } from '@kratai/core';
+import { registerKrataiChatParticipant } from './chat';
+
+// This method is called when your extension is activated
+// Your extension is activated the very first time the command is executed
+export function activate(context: vscode.ExtensionContext) {
+
+	console.log('🐰 Kratai extension is now activating...');
+
+	// Initialize telemetry (respects VS Code's telemetry.telemetryLevel setting automatically)
+	// Note: initialize() is async but we don't await to avoid blocking activation
+	TelemetryService.initialize();
+	context.subscriptions.push({ dispose: () => TelemetryService.dispose() });
+
+	// Register chat participant (@kratai)
+	registerKrataiChatParticipant(context);
+
+	// Register sidebar view
+	console.log('🐰 Registering tree data provider for kratai-actions...');
+	const treeProvider = new KrataiTreeProvider();
+	const disposable = vscode.window.registerTreeDataProvider('kratai-actions', treeProvider);
+	context.subscriptions.push(disposable);
+	console.log('🐰 Tree data provider registered successfully');
+
+	// Register sidebar action commands
+	context.subscriptions.push(
+		vscode.commands.registerCommand('kratai.openClassDiagram', () => {
+			vscode.commands.executeCommand('kratai.generateClassDiagram');
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('kratai.openGitChanges', () => {
+			vscode.commands.executeCommand('kratai.showFileSummary');
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('kratai.openCommunity', () => {
+			TelemetryService.trackOpenCommunity();
+			vscode.env.openExternal(vscode.Uri.parse('https://github.com/kratai-desci/kratai/discussions'));
+		})
+	);
+
+	// Register refresh command for sidebar
+	context.subscriptions.push(
+		vscode.commands.registerCommand('kratai.refreshViews', () => {
+			treeProvider.refresh();
+		})
+	);
+
+	// Register refresh alias for tree view
+	context.subscriptions.push(
+		vscode.commands.registerCommand('kratai.refreshTreeView', () => {
+			treeProvider.refresh();
+		})
+	);
+
+	// Register MCP Server Provider
+	const providerId = 'kratai.mcpProvider';
+	context.subscriptions.push(
+		vscode.lm.registerMcpServerDefinitionProvider(providerId, {
+			provideMcpServerDefinitions: async () => {
+				// Resolved via the @kratai/mcp-server workspace dependency rather than a
+				// path bundled inside this extension's own out/ folder. NOTE: this only
+				// resolves in dev (npm workspaces symlinks node_modules/@kratai/mcp-server
+				// to apps/mcp-server) - packaging the published .vsix still needs a build
+				// step that copies mcp-server's compiled output into this extension's own
+				// out/ directory, since a published extension has no node_modules to walk.
+				const serverScript = require.resolve('@kratai/mcp-server/out/server.mjs');
+
+				// Return one server definition per workspace folder
+				const workspaceFolders = vscode.workspace.workspaceFolders || [];
+				
+				if (workspaceFolders.length === 0) {
+					// No workspace open - return empty array
+					return [];
+				}
+
+				// Create a server definition for each workspace folder
+				return workspaceFolders.map((folder, index) => {
+					const serverName = workspaceFolders.length === 1 
+						? 'kratai'  // Single workspace: just "kratai"
+						: `kratai (${folder.name})`; // Multi-workspace: "kratai (folder-name)"
+					
+					return new vscode.McpStdioServerDefinition(
+						serverName,
+						'node',
+						[serverScript, folder.uri.fsPath],
+						undefined,
+						context.extension.packageJSON.version
+					);
+				});
+			},
+		})
+	);
+
+	// Register all commands
+	context.subscriptions.push(
+		vscode.commands.registerCommand('kratai.showFileSummary', () => showGitChanges(context)),
+		vscode.commands.registerCommand('kratai.generateClassDiagram', () => generateClassDiagram(context)),
+		vscode.commands.registerCommand('kratai.generateClassDiagramDirect', () => generateClassDiagramDirect(context)),
+		vscode.commands.registerCommand('kratai.showConfigPanel', (options) => showConfigPanel(context, options)),
+		vscode.commands.registerCommand('kratai.generateDiagramFromView', (viewId: string) => generateDiagramFromView(context, viewId)),
+		vscode.commands.registerCommand('kratai.openExportedFile', async (filePath: string) => {
+			// Open exported markdown file
+			const fileUri = vscode.Uri.file(filePath);
+			await vscode.window.showTextDocument(fileUri, {
+				preview: false,
+				viewColumn: vscode.ViewColumn.Active
+			});
+		})
+	);
+}
+
+// This method is called when your extension is deactivated
+export function deactivate() {}

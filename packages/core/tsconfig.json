@@ -1,0 +1,26 @@
+{
+	"compilerOptions": {
+		"module": "Node16",
+		"target": "ES2022",
+		"outDir": "out",
+		"lib": [
+			"ES2022"
+		],
+		"declaration": true,
+		"sourceMap": true,
+		"rootDir": "src",
+		"strict": true,
+		"esModuleInterop": true,
+		"types": [
+			"node",
+			"mocha"
+		],
+		"moduleResolution": "node16"
+	},
+	"exclude": [
+		"node_modules",
+		"out",
+		"src/test/unit/enrichment/**/fixtures/**/*.tsx",
+		"src/test/unit/enrichment/**/fixtures/**/*.ts"
+	]
+}
