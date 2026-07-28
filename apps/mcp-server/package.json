@@ -8,7 +8,8 @@
     "kratai-mcp": "./out/server.mjs"
   },
   "scripts": {
-    "build": "tsc -p ./",
+    "typecheck": "tsc -p ./ --noEmit",
+    "build": "npm run typecheck && node esbuild.js",
     "watch": "tsc -watch -p ./",
     "start": "node ./out/server.mjs"
   },
@@ -17,6 +18,7 @@
     "@modelcontextprotocol/sdk": "^1.0.4"
   },
   "devDependencies": {
-    "@types/node": "22.x"
+    "@types/node": "22.x",
+    "esbuild": "^0.24.0"
   }
 }

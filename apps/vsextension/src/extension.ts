@@ -1,6 +1,8 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
 import { showGitChanges, generateClassDiagram, generateClassDiagramDirect, showConfigPanel, generateDiagramFromView } from './commands';
 import { KrataiTreeProvider } from './views/krataiTreeProvider';
 import { TelemetryService } from '@kratai/core';
@@ -66,13 +68,16 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.lm.registerMcpServerDefinitionProvider(providerId, {
 			provideMcpServerDefinitions: async () => {
-				// Resolved via the @kratai/mcp-server workspace dependency rather than a
-				// path bundled inside this extension's own out/ folder. NOTE: this only
-				// resolves in dev (npm workspaces symlinks node_modules/@kratai/mcp-server
-				// to apps/mcp-server) - packaging the published .vsix still needs a build
-				// step that copies mcp-server's compiled output into this extension's own
-				// out/ directory, since a published extension has no node_modules to walk.
-				const serverScript = require.resolve('@kratai/mcp-server/out/server.mjs');
+				// Prefer the self-contained bundle copied into this extension's own out/
+				// (produced by `npm run bundle`, see copy-mcp-server.js) - that's what
+				// exists in a packaged/installed .vsix, which has no node_modules to walk.
+				// Fall back to resolving the @kratai/mcp-server workspace package directly
+				// for day-to-day dev (F5) when only `tsc -watch` has run and the bundle
+				// step hasn't, so debugging never needs an extra manual step.
+				const bundledServerScript = path.join(context.extensionPath, 'out', 'mcp', 'server.mjs');
+				const serverScript = fs.existsSync(bundledServerScript)
+					? bundledServerScript
+					: require.resolve('@kratai/mcp-server/out/server.mjs');
 
 				// Return one server definition per workspace folder
 				const workspaceFolders = vscode.workspace.workspaceFolders || [];

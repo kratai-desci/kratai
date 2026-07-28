@@ -114,7 +114,9 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run bundle",
+    "bundle": "npm run typecheck && node esbuild.js && node copy-mcp-server.js",
+    "typecheck": "tsc -p ./ --noEmit",
     "compile": "tsc -p ./",
     "build": "tsc -p ./",
     "watch": "tsc -watch -p ./",
@@ -128,6 +130,7 @@
     "@types/vscode": "^1.120.0",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.24.0",
     "eslint": "^9.39.3",
     "typescript-eslint": "^8.56.1"
   },
