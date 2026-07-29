@@ -1,0 +1,108 @@
+{
+  "selectedFolders": [
+    "apps/web/src/1_application",
+    "apps/web/src/2_domain",
+    "apps/web/src/2_domain/entities",
+    "apps/web/src/2_domain/repositories",
+    "apps/web/src/3_infrastructure",
+    "apps/web/src/3_infrastructure/fixtures",
+    "apps/web/src/3_infrastructure/mock",
+    "apps/web/src/lib"
+  ],
+  "folders": {
+    "apps/web/src/1_application": {
+      "selected": true,
+      "expanded": true,
+      "order": 2
+    },
+    "apps/web/src/2_domain": {
+      "selected": true,
+      "expanded": true,
+      "order": 3
+    },
+    "apps/web/src/2_domain/entities": {
+      "selected": true,
+      "expanded": true,
+      "order": 4
+    },
+    "apps/web/src/2_domain/repositories": {
+      "selected": true,
+      "expanded": true,
+      "order": 5
+    },
+    "apps/web/src/3_infrastructure": {
+      "selected": true,
+      "expanded": true,
+      "order": 6
+    },
+    "apps/web/src/3_infrastructure/fixtures": {
+      "selected": true,
+      "expanded": true,
+      "order": 7
+    },
+    "apps/web/src/3_infrastructure/mock": {
+      "selected": true,
+      "expanded": true,
+      "order": 8
+    },
+    "apps/web/src/lib": {
+      "selected": true,
+      "expanded": true,
+      "order": 1
+    }
+  },
+  "selectedExtensions": [
+    ".ts",
+    ".js",
+    ".tsx",
+    ".java",
+    ".py",
+    ".php",
+    ".html",
+    ".jsp",
+    "on",
+    "on",
+    "on",
+    "on",
+    "on"
+  ],
+  "respectGitignore": true,
+  "followSymlinks": false,
+  "classTypeFilters": {
+    "class": true,
+    "interface": true,
+    "abstract": true,
+    "module": true
+  },
+  "relationshipTypeFilters": {
+    "extends": true,
+    "implements": true,
+    "composition": true,
+    "uses": true,
+    "calls": true,
+    "calls-super": true,
+    "calls-static": true,
+    "async-calls": true,
+    "parameter": true,
+    "returns": true,
+    "creates": true,
+    "imports": true,
+    "re-exports": true,
+    "http-call": true,
+    "routes-to": true,
+    "belongs-to": true,
+    "many-to-many": true,
+    "one-to-one": true,
+    "renders": true,
+    "serializes": true,
+    "protected-by": true,
+    "middleware": true,
+    "layout-wraps": true,
+    "server-action": true
+  },
+  "gitDiff": {
+    "enabled": true,
+    "baseCommit": "HEAD~1"
+  },
+  "lastUpdated": "2026-07-29T02:41:49.634Z"
+}
