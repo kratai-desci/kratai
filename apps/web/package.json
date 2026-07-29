@@ -2,7 +2,7 @@
   "name": "@kratai/web",
   "version": "0.0.0",
   "private": true,
-  "description": "Next.js web app: GitHub OAuth, server-side clone+parse via @kratai/core, interactive diagram via @kratai/viewer, saved views in a database. Phase 1 (current): UI only, backed by mock data.",
+  "description": "Next.js web app: GitHub OAuth, server-side clone+parse via @kratai/core, interactive diagram via @kratai/viewer, saved views in MongoDB Atlas. Falls back to mock data for any of the three that isn't configured via env vars.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -23,6 +23,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.27.0",
+    "mongodb": "^7.5.0",
     "next": "^16.2.12",
     "next-auth": "5.0.0-beta.32",
     "next-themes": "^0.4.6",
