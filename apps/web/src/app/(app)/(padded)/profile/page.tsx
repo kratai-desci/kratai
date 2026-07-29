@@ -1,6 +1,7 @@
 import { LogOut } from 'lucide-react';
-import Link from 'next/link';
 
+import { isSignInEnabled } from '@/1_application/auth';
+import { signOutAction } from '@/1_application/authActions';
 import { getCurrentUser } from '@/1_application/queries';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +10,7 @@ import { Card } from '@/components/ui/card';
 
 export default async function ProfilePage() {
 	const user = await getCurrentUser();
+	const signInEnabled = isSignInEnabled();
 
 	return (
 		<div className="mx-auto flex max-w-xl flex-col gap-6">
@@ -35,17 +37,19 @@ export default async function ProfilePage() {
 			</Card>
 
 			<div className="flex justify-end">
-				<Button asChild variant="secondary">
-					<Link href="/">
+				<form action={signOutAction}>
+					<Button type="submit" variant="secondary">
 						<LogOut className="size-4" />
 						Sign out
-					</Link>
-				</Button>
+					</Button>
+				</form>
 			</div>
 
-			<p className="text-center text-xs text-ink-3">
-				This is demo data - account management isn&apos;t wired up to real GitHub OAuth yet.
-			</p>
+			{!signInEnabled && (
+				<p className="text-center text-xs text-ink-3">
+					This is demo data - account management isn&apos;t wired up to real GitHub OAuth yet.
+				</p>
+			)}
 		</div>
 	);
 }

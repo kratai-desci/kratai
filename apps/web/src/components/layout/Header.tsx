@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 
+import { isSignInEnabled } from '@/1_application/auth';
 import { getCurrentUser } from '@/1_application/queries';
 
 import { ThemeToggle } from '../theme/ThemeToggle';
@@ -8,6 +9,10 @@ import { UserMenu } from './UserMenu';
 
 export async function Header() {
 	const user = await getCurrentUser();
+	// If sign-in isn't configured we're always on mock data. If it is, the
+	// (app) layout already redirects unauthenticated visitors away, so
+	// reaching here means this is a real signed-in user.
+	const isDemoData = !isSignInEnabled();
 
 	return (
 		<header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-line bg-surface/95 px-6 backdrop-blur-md">
@@ -30,9 +35,11 @@ export async function Header() {
 				<Link href="/new" className="text-ink-2 transition-colors hover:text-brand-ink">
 					New Diagram
 				</Link>
-				<span className="rounded-md border border-line px-2 py-1 text-xs font-medium text-ink-3">
-					Demo data
-				</span>
+				{isDemoData && (
+					<span className="rounded-md border border-line px-2 py-1 text-xs font-medium text-ink-3">
+						Demo data
+					</span>
+				)}
 				<ThemeToggle />
 				<UserMenu user={user} />
 			</nav>

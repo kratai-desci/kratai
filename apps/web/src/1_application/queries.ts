@@ -1,28 +1,34 @@
 import type { Branch, Repo, User, WebDiagramView } from '@/2_domain';
-import { githubRepository } from '@/3_infrastructure/githubRepository';
+import { getGitHubRepository } from '@/3_infrastructure/githubRepository';
 import { viewRepository } from '@/3_infrastructure/viewRepository';
 
 /**
  * Read-side use cases, called from Server Components. Depend only on the
  * domain-typed repository instances from 3_infrastructure - swapping mock
  * for real GitHub API / MongoDB Atlas implementations there doesn't
- * require any change here.
+ * require any change here. getGitHubRepository() is async (unlike
+ * viewRepository) because which implementation applies depends on the
+ * current request's session.
  */
 
 export async function getCurrentUser(): Promise<User> {
-	return githubRepository.getCurrentUser();
+	const github = await getGitHubRepository();
+	return github.getCurrentUser();
 }
 
 export async function listRepos(): Promise<Repo[]> {
-	return githubRepository.listRepos();
+	const github = await getGitHubRepository();
+	return github.listRepos();
 }
 
 export async function getRepo(fullName: string): Promise<Repo | undefined> {
-	return githubRepository.getRepo(fullName);
+	const github = await getGitHubRepository();
+	return github.getRepo(fullName);
 }
 
 export async function listBranches(repoFullName: string): Promise<Branch[]> {
-	return githubRepository.listBranches(repoFullName);
+	const github = await getGitHubRepository();
+	return github.listBranches(repoFullName);
 }
 
 export async function listViews(filter?: {

@@ -11,6 +11,18 @@ const nextConfig: NextConfig = {
 	// out of the client bundle entirely, since they're only ever imported
 	// from Server Components / Route Handlers.
 	serverExternalPackages: ['@kratai/core', '@kratai/viewer'],
+
+	// next/image only loads from allowlisted remote hosts - GitHub's avatar
+	// CDN, used for the real signed-in user's profile picture (Avatar
+	// component, src = session.user.image).
+	images: {
+		remotePatterns: [
+			{
+				protocol: 'https',
+				hostname: 'avatars.githubusercontent.com',
+			},
+		],
+	},
 };
 
 export default nextConfig;

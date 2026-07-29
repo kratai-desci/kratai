@@ -3,6 +3,7 @@
 import { ChevronDown, LogOut, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
 
+import { signOutAction } from '@/1_application/authActions';
 import type { User } from '@/2_domain';
 import { Avatar } from '@/components/ui/avatar';
 import {
@@ -34,11 +35,14 @@ export function UserMenu({ user }: { user: User }) {
 					</Link>
 				</DropdownMenuItem>
 				<DropdownMenuSeparator />
-				<DropdownMenuItem asChild className="text-danger-2 data-[highlighted]:text-danger-2">
-					<Link href="/">
-						<LogOut className="size-3.5" />
-						Sign out
-					</Link>
+				<DropdownMenuItem
+					className="text-danger-2 data-[highlighted]:text-danger-2"
+					onSelect={() => {
+						void signOutAction();
+					}}
+				>
+					<LogOut className="size-3.5" />
+					Sign out
 				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
