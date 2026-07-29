@@ -22,7 +22,7 @@ function makeId(): string {
 const store: WebDiagramView[] = [
 	{
 		id: 'view_seed_core',
-		repoFullName: 'kratai-desci/kratai',
+		repoFullName: 'sample-dev/architecture-tool',
 		branch: 'main',
 		name: 'Diagram Pipeline',
 		config: DEFAULT_CONFIG,

@@ -1,4 +1,4 @@
-import { ArrowRight, LogIn } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -27,12 +27,6 @@ export default function LandingPage() {
 						<LogIn className="size-4" />
 						Continue with GitHub
 					</Link>
-				</Button>
-				<Button asChild variant="secondary">
-					<a href="https://github.com/kratai-desci/kratai" target="_blank" rel="noreferrer">
-						View source
-						<ArrowRight className="size-4" />
-					</a>
 				</Button>
 			</div>
 			<p className="mt-6 text-xs text-ink-3">
