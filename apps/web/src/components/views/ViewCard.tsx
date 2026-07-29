@@ -43,7 +43,7 @@ export function ViewCard({ view }: { view: WebDiagramView }) {
 			<Card className="flex flex-col gap-3">
 				<div className="flex items-start justify-between gap-2">
 					<Link href={`/diagrams/${view.id}`} className="min-w-0">
-						<h3 className="truncate text-base font-semibold text-ink hover:text-brand">
+						<h3 className="truncate text-base font-semibold text-ink hover:text-brand-ink">
 							{view.name}
 						</h3>
 					</Link>

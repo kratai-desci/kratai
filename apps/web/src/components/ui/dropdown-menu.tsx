@@ -35,7 +35,7 @@ function DropdownMenuItem({
 	return (
 		<DropdownMenuPrimitive.Item
 			className={cn(
-				'flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-ink-2 outline-none transition-colors data-[highlighted]:bg-surface-2 data-[highlighted]:text-brand',
+				'flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-ink-2 outline-none transition-colors data-[highlighted]:bg-surface-2 data-[highlighted]:text-brand-ink',
 				className
 			)}
 			{...props}
@@ -53,13 +53,13 @@ function DropdownMenuCheckboxItem({
 		<DropdownMenuPrimitive.CheckboxItem
 			checked={checked}
 			className={cn(
-				'flex cursor-pointer items-center gap-2 rounded py-1.5 pl-7 pr-2 text-sm text-ink-2 outline-none transition-colors data-[highlighted]:bg-surface-2 data-[highlighted]:text-brand',
+				'flex cursor-pointer items-center gap-2 rounded py-1.5 pl-7 pr-2 text-sm text-ink-2 outline-none transition-colors data-[highlighted]:bg-surface-2 data-[highlighted]:text-brand-ink',
 				className
 			)}
 			{...props}
 		>
 			<DropdownMenuPrimitive.ItemIndicator className="absolute left-2 flex items-center">
-				<Check className="size-3.5 text-brand" />
+				<Check className="size-3.5 text-brand-ink" />
 			</DropdownMenuPrimitive.ItemIndicator>
 			{children}
 		</DropdownMenuPrimitive.CheckboxItem>

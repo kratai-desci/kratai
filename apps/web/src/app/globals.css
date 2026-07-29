@@ -1,14 +1,43 @@
 @import 'tailwindcss';
 
 /*
+ * next-themes toggles a .dark/.light class on <html> (see
+ * ThemeProvider.tsx), so dark:/light: variants need to key off that class
+ * rather than Tailwind v4's default prefers-color-scheme media query.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant light (&:where(.light, .light *));
+
+/*
  * Design tokens mirrored from docs/theme.md (kratai brand & design theme),
  * exposed as Tailwind v4 @theme vars so utilities like bg-brand,
  * text-ink-2, border-line, font-sans etc. are generated automatically.
+ *
+ * Every component is built on these semantic tokens rather than raw
+ * Tailwind colors, so light/dark theming (see .dark/.light below) only
+ * needs to override the CSS custom properties here - no component classes
+ * change between themes.
+ *
+ * Two tokens exist purely to avoid contrast breakage across themes:
+ * - --color-brand-ink: brand yellow used as *text* (links, hover/active
+ *   states, accents). Kept separate from --color-brand (used for *fills*
+ *   like buttons/badges/rings) because a legible "brand as text" color on
+ *   a white background is a much darker gold than the vivid fill yellow -
+ *   using one token for both would mean unreadable yellow-on-white text
+ *   in light mode.
+ * - --color-on-brand: text/icon color for content sitting ON TOP of a
+ *   solid --color-brand fill (primary button label, checked
+ *   checkbox/switch marks). Deliberately NOT tied to --color-surface -
+ *   that coupling only worked by coincidence in dark mode (surface and
+ *   on-brand happened to be the same near-black) and breaks once surface
+ *   becomes light-mode white.
  */
 @theme {
 	--color-brand: #f4d03f;
+	--color-brand-ink: #f4d03f;
 	--color-brand-gold: #d4af37;
 	--color-brand-gold-dark: #c9a227;
+	--color-on-brand: #1e1e1e;
 
 	--color-surface: #1e1e1e;
 	--color-surface-2: #252526;
@@ -32,6 +61,48 @@
 		'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 	--font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New',
 		monospace;
+}
+
+/* Explicit dark theme (next-themes always applies .dark or .light to
+   <html> once mounted, so this restates the @theme defaults above rather
+   than relying on them applying "by default"). */
+.dark {
+	--color-brand-ink: #f4d03f;
+	--color-surface: #1e1e1e;
+	--color-surface-2: #252526;
+	--color-panel: #2d2d30;
+	--color-line: #3e3e42;
+	--color-ink: #ffffff;
+	--color-ink-2: #cccccc;
+	--color-ink-3: #808080;
+	--color-success-2: #81c784;
+	--color-warning-2: #ffd54f;
+	--color-danger-2: #e57373;
+	--color-info-2: #64b5f6;
+}
+
+.light {
+	/* Deeper gold, not the vivid fill yellow - needs to stay readable as
+	   text on a white/light background. */
+	--color-brand-ink: #7a5a0c;
+
+	--color-surface: #f7f7f8;
+	--color-surface-2: #ececee;
+	--color-panel: #ffffff;
+	--color-line: #e4e4e7;
+
+	--color-ink: #18181b;
+	--color-ink-2: #52525b;
+	--color-ink-3: #6b6b73;
+
+	/* Darker shades of the same hues, for legibility as text on light
+	   backgrounds (badges, destructive menu items) - the base
+	   success/warning/danger/info tokens stay the vivid fill colors used
+	   at reduced opacity (bg-success/15 etc.), unchanged across themes. */
+	--color-success-2: #15803d;
+	--color-warning-2: #b45309;
+	--color-danger-2: #b91c1c;
+	--color-info-2: #1d4ed8;
 }
 
 body {

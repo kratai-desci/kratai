@@ -31,7 +31,7 @@ export function BranchPicker({
 			<DropdownMenuContent align="start">
 				{branches.map((branch) => (
 					<DropdownMenuItem key={branch.name} onSelect={() => onSelect(branch.name)}>
-						{branch.name === selected && <Check className="size-3.5 text-brand" />}
+						{branch.name === selected && <Check className="size-3.5 text-brand-ink" />}
 						{branch.name}
 						{branch.isDefault && <span className="ml-auto text-xs text-ink-3">default</span>}
 					</DropdownMenuItem>

@@ -7,9 +7,15 @@ import { Button } from '@/components/ui/button';
 export default function LandingPage() {
 	return (
 		<div className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
-			<Image src="/logo-white.png" alt="kratai" width={64} height={64} className="mb-8 opacity-90" />
+			<Image
+				src="/logo-white.png"
+				alt="kratai"
+				width={64}
+				height={64}
+				className="mb-8 opacity-90 light:invert"
+			/>
 			<h1 className="max-w-2xl text-5xl font-bold text-ink">
-				Architecture diagrams for your <span className="text-brand">GitHub repos</span>
+				Architecture diagrams for your <span className="text-brand-ink">GitHub repos</span>
 			</h1>
 			<p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-2">
 				Pick a repo and branch, generate an interactive architecture diagram from the real code

@@ -10,10 +10,10 @@ const buttonVariants = cva(
 		variants: {
 			variant: {
 				primary:
-					'bg-brand text-surface hover:-translate-y-px hover:bg-brand-gold hover:shadow-[0_4px_12px_rgba(244,208,63,0.3)]',
+					'bg-brand text-on-brand hover:-translate-y-px hover:bg-brand-gold hover:shadow-[0_4px_12px_rgba(244,208,63,0.3)]',
 				secondary:
-					'border-2 border-line bg-transparent text-ink hover:border-brand hover:text-brand',
-				ghost: 'bg-transparent text-ink-2 hover:text-brand',
+					'border-2 border-line bg-transparent text-ink hover:border-brand hover:text-brand-ink',
+				ghost: 'bg-transparent text-ink-2 hover:text-brand-ink',
 				danger: 'bg-danger text-ink hover:bg-danger-2',
 			},
 			size: {

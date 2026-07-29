@@ -15,12 +15,12 @@ export function DiagramSidebar({ views }: { views: WebDiagramView[] }) {
 	return (
 		<aside className="flex w-64 shrink-0 flex-col border-r border-line bg-surface-2">
 			<div className="flex items-center justify-between border-b border-line px-4 py-3">
-				<Link href="/dashboard" className="text-sm font-medium text-ink-2 hover:text-brand">
+				<Link href="/dashboard" className="text-sm font-medium text-ink-2 hover:text-brand-ink">
 					← Dashboard
 				</Link>
 				<Link
 					href="/new"
-					className="rounded-md p-1 text-ink-3 transition-colors hover:bg-surface hover:text-brand"
+					className="rounded-md p-1 text-ink-3 transition-colors hover:bg-surface hover:text-brand-ink"
 					aria-label="New diagram"
 				>
 					<Plus className="size-4" />
@@ -50,7 +50,7 @@ export function DiagramSidebar({ views }: { views: WebDiagramView[] }) {
 											className={cn(
 												'block truncate rounded-md px-2 py-1.5 text-sm transition-colors',
 												isActive
-													? 'bg-brand/15 text-brand'
+													? 'bg-brand/15 text-brand-ink'
 													: 'text-ink-2 hover:bg-surface hover:text-ink'
 											)}
 										>

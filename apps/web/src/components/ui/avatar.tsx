@@ -35,7 +35,7 @@ export function Avatar({
 	return (
 		<span
 			className={cn(
-				'flex shrink-0 items-center justify-center rounded-full bg-brand/20 font-semibold text-brand',
+				'flex shrink-0 items-center justify-center rounded-full bg-brand/20 font-semibold text-brand-ink',
 				className
 			)}
 			style={{ width: size, height: size, fontSize: size * 0.4 }}
