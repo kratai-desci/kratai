@@ -1,0 +1,30 @@
+import nextPlugin from '@next/eslint-plugin-next';
+import reactHooks from 'eslint-plugin-react-hooks';
+import typescriptEslint from 'typescript-eslint';
+
+// Native flat configs only - deliberately not using eslint-config-next's
+// FlatCompat("next/core-web-vitals", ...) shim. That path round-trips
+// through @eslint/eslintrc's legacy-config validator, which currently
+// chokes on a circular reference inside eslint-plugin-react's own flat
+// "recommended" config (its config.plugins.react points back at the
+// plugin object) and fails with "Converting circular structure to JSON"
+// before any real linting happens. @next/eslint-plugin-next and
+// eslint-plugin-react-hooks both ship real flat configs directly, so we
+// compose those instead and skip the compat layer entirely.
+export default [
+	...typescriptEslint.configs.recommended,
+	{
+		files: ['**/*.{ts,tsx}'],
+		plugins: {
+			'@next/next': nextPlugin,
+			'react-hooks': reactHooks,
+		},
+		rules: {
+			...nextPlugin.configs['core-web-vitals'].rules,
+			...reactHooks.configs['recommended-latest'].rules,
+		},
+	},
+	{
+		ignores: ['.next/**', 'scripts/**', 'src/lib/fixtures/**'],
+	},
+];

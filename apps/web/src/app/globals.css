@@ -1,0 +1,45 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens mirrored from docs/theme.md (kratai brand & design theme),
+ * exposed as Tailwind v4 @theme vars so utilities like bg-brand,
+ * text-ink-2, border-line, font-sans etc. are generated automatically.
+ */
+@theme {
+	--color-brand: #f4d03f;
+	--color-brand-gold: #d4af37;
+	--color-brand-gold-dark: #c9a227;
+
+	--color-surface: #1e1e1e;
+	--color-surface-2: #252526;
+	--color-panel: #2d2d30;
+	--color-line: #3e3e42;
+
+	--color-ink: #ffffff;
+	--color-ink-2: #cccccc;
+	--color-ink-3: #808080;
+
+	--color-success: #4caf50;
+	--color-success-2: #81c784;
+	--color-warning: #ffc107;
+	--color-warning-2: #ffd54f;
+	--color-danger: #f44336;
+	--color-danger-2: #e57373;
+	--color-info: #2196f3;
+	--color-info-2: #64b5f6;
+
+	--font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
+		'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+	--font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New',
+		monospace;
+}
+
+body {
+	background: var(--color-surface);
+	color: var(--color-ink);
+	font-family: var(--font-sans);
+}
+
+::selection {
+	background: color-mix(in srgb, var(--color-brand) 35%, transparent);
+}

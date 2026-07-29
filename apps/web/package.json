@@ -2,9 +2,42 @@
   "name": "@kratai/web",
   "version": "0.0.0",
   "private": true,
-  "description": "PLACEHOLDER - not implemented yet. Next.js web app: GitHub OAuth, server-side clone+parse via @kratai/core, interactive diagram via @kratai/viewer, saved views in a database.",
+  "description": "Next.js web app: GitHub OAuth, server-side clone+parse via @kratai/core, interactive diagram via @kratai/viewer, saved views in a database. Phase 1 (current): UI only, backed by mock data.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "fixture:generate": "node --experimental-strip-types scripts/generate-fixture.mts"
+  },
   "dependencies": {
     "@kratai/core": "*",
-    "@kratai/viewer": "*"
+    "@kratai/viewer": "*",
+    "@radix-ui/react-checkbox": "^1.3.11",
+    "@radix-ui/react-dialog": "^1.1.23",
+    "@radix-ui/react-dropdown-menu": "^2.1.24",
+    "@radix-ui/react-slot": "^1.3.3",
+    "@radix-ui/react-switch": "^1.3.7",
+    "@radix-ui/react-tooltip": "^1.2.16",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.27.0",
+    "next": "^16.2.12",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^16.2.12",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "22.x",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.3",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3"
   }
 }

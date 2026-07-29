@@ -1,0 +1,2021 @@
+{
+  "classes": [
+    {
+      "name": "DiagramGeneratorService",
+      "filePath": "packages/core/src/diagram/diagramGeneratorService.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "generateReactFlowData",
+          "parameters": [
+            {
+              "name": "diagramData",
+              "type": "DiagramData",
+              "optional": false
+            }
+          ],
+          "returnType": "{ nodes: ReactFlowNode[]; edges: ReactFlowEdge[] }",
+          "visibility": "public",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 8,
+          "endLineNumber": 13
+        },
+        {
+          "name": "generateNodes",
+          "parameters": [
+            {
+              "name": "classes",
+              "type": "ClassInfo[]",
+              "optional": false
+            }
+          ],
+          "returnType": "ReactFlowNode[]",
+          "visibility": "private",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 15,
+          "endLineNumber": 46
+        },
+        {
+          "name": "generateEdges",
+          "parameters": [
+            {
+              "name": "diagramData",
+              "type": "DiagramData",
+              "optional": false
+            }
+          ],
+          "returnType": "ReactFlowEdge[]",
+          "visibility": "private",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 48,
+          "endLineNumber": 82
+        },
+        {
+          "name": "getEdgeStyle",
+          "parameters": [
+            {
+              "name": "umlType",
+              "type": "UMLRelationshipType",
+              "optional": false
+            }
+          ],
+          "returnType": "{ type: string; label?: string; animated: boolean; style: Record<string, any> }",
+          "visibility": "private",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 84,
+          "endLineNumber": 143
+        }
+      ],
+      "isAbstract": false,
+      "classType": "class"
+    },
+    {
+      "name": "DiagramFolderNode",
+      "filePath": "packages/core/src/diagram/folderStructure.ts",
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 4,
+          "endLineNumber": 4
+        },
+        {
+          "name": "fullPath",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 5,
+          "endLineNumber": 5
+        },
+        {
+          "name": "children",
+          "type": "Map<string, DiagramFolderNode>",
+          "visibility": "public",
+          "lineNumber": 6,
+          "endLineNumber": 6
+        },
+        {
+          "name": "classes",
+          "type": "ReactFlowNode[]",
+          "visibility": "public",
+          "lineNumber": 7,
+          "endLineNumber": 7
+        }
+      ],
+      "methods": [],
+      "isInterface": true,
+      "classType": "interface"
+    },
+    {
+      "name": "FolderStructureBuilder",
+      "filePath": "packages/core/src/diagram/folderStructure.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "build",
+          "parameters": [
+            {
+              "name": "nodes",
+              "type": "ReactFlowNode[]",
+              "optional": false
+            }
+          ],
+          "returnType": "DiagramFolderNode",
+          "visibility": "public",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 11,
+          "endLineNumber": 71
+        },
+        {
+          "name": "collapsePassThroughFolders",
+          "parameters": [
+            {
+              "name": "folder",
+              "type": "DiagramFolderNode",
+              "optional": false
+            }
+          ],
+          "returnType": "void",
+          "visibility": "private",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 77,
+          "endLineNumber": 91
+        },
+        {
+          "name": "logStructure",
+          "parameters": [
+            {
+              "name": "folder",
+              "type": "DiagramFolderNode",
+              "optional": false
+            },
+            {
+              "name": "indent",
+              "type": "any",
+              "optional": false
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 96,
+          "endLineNumber": 101
+        },
+        {
+          "name": "countClasses",
+          "parameters": [
+            {
+              "name": "folder",
+              "type": "DiagramFolderNode",
+              "optional": false
+            }
+          ],
+          "returnType": "number",
+          "visibility": "public",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 106,
+          "endLineNumber": 110
+        },
+        {
+          "name": "countFolders",
+          "parameters": [
+            {
+              "name": "folder",
+              "type": "DiagramFolderNode",
+              "optional": false
+            }
+          ],
+          "returnType": "number",
+          "visibility": "public",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 112,
+          "endLineNumber": 116
+        }
+      ],
+      "isAbstract": false,
+      "classType": "class"
+    },
+    {
+      "name": "index",
+      "filePath": "packages/core/src/diagram/index.ts",
+      "properties": [],
+      "methods": [],
+      "isModule": true,
+      "classType": "module"
+    },
+    {
+      "name": "MarkdownExporter",
+      "filePath": "packages/core/src/export/MarkdownExporter.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "toMarkdown",
+          "parameters": [
+            {
+              "name": "data",
+              "type": "DiagramData",
+              "optional": false
+            },
+            {
+              "name": "diagramName",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "public",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 7,
+          "endLineNumber": 112
+        },
+        {
+          "name": "generateFolderTree",
+          "parameters": [
+            {
+              "name": "data",
+              "type": "DiagramData",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 117,
+          "endLineNumber": 165
+        },
+        {
+          "name": "getChangeStatusTag",
+          "parameters": [
+            {
+              "name": "status",
+              "type": "string",
+              "optional": true
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 170,
+          "endLineNumber": 177
+        },
+        {
+          "name": "getVisibilitySymbol",
+          "parameters": [
+            {
+              "name": "visibility",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 182,
+          "endLineNumber": 189
+        }
+      ],
+      "isAbstract": false,
+      "classType": "class"
+    },
+    {
+      "name": "TreeNode",
+      "filePath": "packages/core/src/export/MarkdownExporter.ts",
+      "properties": [],
+      "methods": [],
+      "isInterface": true,
+      "classType": "interface"
+    },
+    {
+      "name": "ViewManager",
+      "filePath": "packages/core/src/view/ViewManager.ts",
+      "properties": [
+        {
+          "name": "VIEWS_DIR",
+          "type": "any",
+          "visibility": "private",
+          "isStatic": true,
+          "isReadonly": true,
+          "lineNumber": 7,
+          "endLineNumber": 7
+        },
+        {
+          "name": "REGISTRY_FILE",
+          "type": "any",
+          "visibility": "private",
+          "isStatic": true,
+          "isReadonly": true,
+          "lineNumber": 8,
+          "endLineNumber": 8
+        }
+      ],
+      "methods": [
+        {
+          "name": "slugify",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "public",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 14,
+          "endLineNumber": 21
+        },
+        {
+          "name": "getViewsDir",
+          "parameters": [
+            {
+              "name": "workspacePath",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 26,
+          "endLineNumber": 28
+        },
+        {
+          "name": "getRegistryPath",
+          "parameters": [
+            {
+              "name": "workspacePath",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 33,
+          "endLineNumber": 35
+        },
+        {
+          "name": "getViewConfigPath",
+          "parameters": [
+            {
+              "name": "workspacePath",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "viewId",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 40,
+          "endLineNumber": 42
+        },
+        {
+          "name": "ensureViewsDir",
+          "parameters": [
+            {
+              "name": "workspacePath",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "void",
+          "visibility": "private",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 47,
+          "endLineNumber": 52
+        },
+        {
+          "name": "loadRegistry",
+          "parameters": [
+            {
+              "name": "workspacePath",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "Promise<DiagramViewRegistry>",
+          "visibility": "private",
+          "isStatic": true,
+          "isAsync": true,
+          "lineNumber": 57,
+          "endLineNumber": 71
+        },
+        {
+          "name": "saveRegistry",
+          "parameters": [
+            {
+              "name": "workspacePath",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "registry",
+              "type": "DiagramViewRegistry",
+              "optional": false
+            }
+          ],
+          "returnType": "Promise<void>",
+          "visibility": "private",
+          "isStatic": true,
+          "isAsync": true,
+          "lineNumber": 76,
+          "endLineNumber": 80
+        },
+        {
+          "name": "createView",
+          "parameters": [
+            {
+              "name": "workspacePath",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "name",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "config",
+              "type": "KrataiConfig",
+              "optional": false
+            }
+          ],
+          "returnType": "Promise<DiagramView>",
+          "visibility": "public",
+          "isStatic": true,
+          "isAsync": true,
+          "lineNumber": 85,
+          "endLineNumber": 112
+        },
+        {
+          "name": "saveViewConfig",
+          "parameters": [
+            {
+              "name": "workspacePath",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "viewId",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "config",
+              "type": "KrataiConfig",
+              "optional": false
+            }
+          ],
+          "returnType": "Promise<void>",
+          "visibility": "public",
+          "isStatic": true,
+          "isAsync": true,
+          "lineNumber": 117,
+          "endLineNumber": 127
+        },
+        {
+          "name": "loadViewConfig",
+          "parameters": [
+            {
+              "name": "workspacePath",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "viewId",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "Promise<KrataiConfig>",
+          "visibility": "public",
+          "isStatic": true,
+          "isAsync": true,
+          "lineNumber": 132,
+          "endLineNumber": 145
+        },
+        {
+          "name": "listViews",
+          "parameters": [
+            {
+              "name": "workspacePath",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "Promise<DiagramView[]>",
+          "visibility": "public",
+          "isStatic": true,
+          "isAsync": true,
+          "lineNumber": 150,
+          "endLineNumber": 153
+        },
+        {
+          "name": "getView",
+          "parameters": [
+            {
+              "name": "workspacePath",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "viewId",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "Promise<DiagramView | undefined>",
+          "visibility": "public",
+          "isStatic": true,
+          "isAsync": true,
+          "lineNumber": 158,
+          "endLineNumber": 161
+        },
+        {
+          "name": "updateLastGenerated",
+          "parameters": [
+            {
+              "name": "workspacePath",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "viewId",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "Promise<void>",
+          "visibility": "public",
+          "isStatic": true,
+          "isAsync": true,
+          "lineNumber": 166,
+          "endLineNumber": 174
+        },
+        {
+          "name": "updateView",
+          "parameters": [
+            {
+              "name": "workspacePath",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "viewId",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "updates",
+              "type": "Partial<Pick<DiagramView, 'name'>>",
+              "optional": false
+            }
+          ],
+          "returnType": "Promise<string>",
+          "visibility": "public",
+          "isStatic": true,
+          "isAsync": true,
+          "lineNumber": 180,
+          "endLineNumber": 212
+        },
+        {
+          "name": "deleteView",
+          "parameters": [
+            {
+              "name": "workspacePath",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "viewId",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "Promise<void>",
+          "visibility": "public",
+          "isStatic": true,
+          "isAsync": true,
+          "lineNumber": 217,
+          "endLineNumber": 229
+        }
+      ],
+      "isAbstract": false,
+      "classType": "class"
+    },
+    {
+      "name": "index",
+      "filePath": "packages/core/src/view/index.ts",
+      "properties": [],
+      "methods": [],
+      "isModule": true,
+      "classType": "module"
+    },
+    {
+      "name": "ClassInfo",
+      "filePath": "packages/core/src/types/domain/ClassInfo.ts",
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 5,
+          "endLineNumber": 5
+        },
+        {
+          "name": "filePath",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 6,
+          "endLineNumber": 6
+        },
+        {
+          "name": "properties",
+          "type": "PropertyInfo[]",
+          "visibility": "public",
+          "lineNumber": 7,
+          "endLineNumber": 7
+        },
+        {
+          "name": "methods",
+          "type": "MethodInfo[]",
+          "visibility": "public",
+          "lineNumber": 8,
+          "endLineNumber": 8
+        },
+        {
+          "name": "extends",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 9,
+          "endLineNumber": 9
+        },
+        {
+          "name": "implements",
+          "type": "string[]",
+          "visibility": "public",
+          "lineNumber": 10,
+          "endLineNumber": 10
+        },
+        {
+          "name": "isInterface",
+          "type": "boolean",
+          "visibility": "public",
+          "lineNumber": 11,
+          "endLineNumber": 11
+        },
+        {
+          "name": "isAbstract",
+          "type": "boolean",
+          "visibility": "public",
+          "lineNumber": 12,
+          "endLineNumber": 12
+        },
+        {
+          "name": "isModule",
+          "type": "boolean",
+          "visibility": "public",
+          "lineNumber": 13,
+          "endLineNumber": 13
+        },
+        {
+          "name": "classType",
+          "type": "| 'class' \n\t\t| 'interface' \n\t\t| 'abstract' \n\t\t| 'module' \n\t\t| 'enum' \n\t\t| 'function'\n\t\t// HTTP types (HTTPParser)\n\t\t| 'route'\n\t\t// Template types (HTMLParser)\n\t\t| 'template'      // HTML/Blade/Twig template files\n\t\t// Framework types (Enrichers)\n\t\t| 'middleware'    // Next.js/Laravel middleware\n\t\t| 'layout'        // Next.js layout component\n\t\t| 'page'          // Next.js page component\n\t\t| 'view'          // Spring MVC view (JSP/Thymeleaf)\n\t\t| 'server-action' // Next.js server action\n\t\t| 'controller'    // MVC controller (returns views)\n\t\t| 'rest-controller' // REST API controller (returns JSON)\n\t\t| 'service'       // Service layer\n\t\t| 'repository'    // Data access layer\n\t\t| 'entity'        // JPA/ORM entity\n\t\t| 'configuration' // Spring @Configuration\n\t\t| 'exception-handler'",
+          "visibility": "public",
+          "lineNumber": 14,
+          "endLineNumber": 38
+        },
+        {
+          "name": "changeStatus",
+          "type": "'added' | 'deleted' | 'modified' | 'unchanged'",
+          "visibility": "public",
+          "lineNumber": 39,
+          "endLineNumber": 39
+        },
+        {
+          "name": "routeMeta",
+          "type": "{\n\t\tpath: string;        // '/api/users/:id'\n\t\tmethod: string;      // 'GET', 'POST', '*' (any)\n\t\tdefinedIn?: string;  // Source file path\n\t\tpathVariables?: string[]; // ['id', 'postId']\n\t}",
+          "visibility": "public",
+          "lineNumber": 42,
+          "endLineNumber": 47
+        },
+        {
+          "name": "repositoryMeta",
+          "type": "{\n\t\tentityType?: string;  // 'User' from JpaRepository<User, Long>\n\t\tidType?: string;      // 'Long' from JpaRepository<User, Long>\n\t}",
+          "visibility": "public",
+          "lineNumber": 50,
+          "endLineNumber": 53
+        },
+        {
+          "name": "entityMeta",
+          "type": "{\n\t\ttableName?: string;   // From @Table(name = \"users\")\n\t\tprimaryKey?: string;  // Field marked with @Id\n\t}",
+          "visibility": "public",
+          "lineNumber": 56,
+          "endLineNumber": 59
+        }
+      ],
+      "methods": [],
+      "isInterface": true,
+      "classType": "interface"
+    },
+    {
+      "name": "ClassRelationship",
+      "filePath": "packages/core/src/types/domain/ClassRelationship.ts",
+      "properties": [
+        {
+          "name": "from",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 2,
+          "endLineNumber": 2
+        },
+        {
+          "name": "to",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 3,
+          "endLineNumber": 3
+        },
+        {
+          "name": "type",
+          "type": "| 'extends' \n\t\t| 'implements' \n\t\t| 'uses' \n\t\t| 'composition'\n\t\t// Type relationships\n\t\t| 'returns'\n\t\t| 'parameter'\n\t\t| 'generic'\n\t\t// Method calls\n\t\t| 'calls'\n\t\t| 'calls-super'\n\t\t| 'calls-static'\n\t\t| 'async-calls'\n\t\t// Factory/creation\n\t\t| 'creates'\n\t\t// Module graph\n\t\t| 'imports'\n\t\t| 're-exports'\n\t\t// Higher-order\n\t\t| 'callback'\n\t\t// HTTP relationships\n\t\t| 'http-call'    // Client calls HTTP endpoint\n\t\t| 'routes-to'    // Route maps to handler\n\t\t// Framework-specific relationships (added by enrichers)\n\t\t| 'server-action'   // Next.js: Form component → Server action\n\t\t| 'middleware'      // Next.js/Laravel: Middleware → Protected route\n\t\t| 'data-fetching'   // Next.js: Data fetching function → Page component\n\t\t| 'layout-wraps'    // Next.js: Layout → Nested page/layout\n\t\t| 'injects'         // Laravel/Django: DI container → Service\n\t\t| 'observes'        // Laravel: Observer → Model\n\t\t| 'triggers'        // Django: Signal → Handler\n\t\t// ORM relationships\n\t\t| 'belongs-to'      // Django/Laravel: ForeignKey, belongsTo\n\t\t| 'has-many'        // Django/Laravel: Reverse ForeignKey, hasMany\n\t\t| 'many-to-many'    // Django/Laravel: ManyToManyField\n\t\t| 'one-to-one'      // Django/Laravel: OneToOneField\n\t\t// JPA relationships (Spring Boot)\n\t\t| 'one-to-many'     // JPA @OneToMany: User -> List<Post>\n\t\t| 'many-to-one'     // JPA @ManyToOne: Post -> User\n\t\t// Django REST Framework\n\t\t| 'serializes'      // DRF: Serializer → Model\n\t\t| 'protected-by'    // Middleware/Guard → View/Route\n\t\t// Template rendering\n\t\t| 'renders'        // View/Controller → Template file\n\t\t| string[]",
+          "visibility": "public",
+          "lineNumber": 5,
+          "endLineNumber": 51
+        },
+        {
+          "name": "metadata",
+          "type": "{\n\t\t[key: string]: any;\n\t}",
+          "visibility": "public",
+          "lineNumber": 54,
+          "endLineNumber": 56
+        }
+      ],
+      "methods": [],
+      "isInterface": true,
+      "classType": "interface"
+    },
+    {
+      "name": "DiagramData",
+      "filePath": "packages/core/src/types/domain/DiagramData.ts",
+      "properties": [
+        {
+          "name": "classes",
+          "type": "ClassInfo[]",
+          "visibility": "public",
+          "lineNumber": 5,
+          "endLineNumber": 5
+        },
+        {
+          "name": "relationships",
+          "type": "ClassRelationship[]",
+          "visibility": "public",
+          "lineNumber": 6,
+          "endLineNumber": 6
+        }
+      ],
+      "methods": [],
+      "isInterface": true,
+      "classType": "interface"
+    },
+    {
+      "name": "MethodInfo",
+      "filePath": "packages/core/src/types/domain/MethodInfo.ts",
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 4,
+          "endLineNumber": 4
+        },
+        {
+          "name": "parameters",
+          "type": "ParameterInfo[]",
+          "visibility": "public",
+          "lineNumber": 5,
+          "endLineNumber": 5
+        },
+        {
+          "name": "returnType",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 6,
+          "endLineNumber": 6
+        },
+        {
+          "name": "visibility",
+          "type": "'public' | 'private' | 'protected'",
+          "visibility": "public",
+          "lineNumber": 7,
+          "endLineNumber": 7
+        },
+        {
+          "name": "isStatic",
+          "type": "boolean",
+          "visibility": "public",
+          "lineNumber": 8,
+          "endLineNumber": 8
+        },
+        {
+          "name": "isAsync",
+          "type": "boolean",
+          "visibility": "public",
+          "lineNumber": 9,
+          "endLineNumber": 9
+        },
+        {
+          "name": "changeStatus",
+          "type": "'added' | 'deleted' | 'modified' | 'unchanged'",
+          "visibility": "public",
+          "lineNumber": 10,
+          "endLineNumber": 10
+        },
+        {
+          "name": "lineNumber",
+          "type": "number",
+          "visibility": "public",
+          "lineNumber": 11,
+          "endLineNumber": 11
+        },
+        {
+          "name": "endLineNumber",
+          "type": "number",
+          "visibility": "public",
+          "lineNumber": 12,
+          "endLineNumber": 12
+        },
+        {
+          "name": "hasInternalCalls",
+          "type": "boolean",
+          "visibility": "public",
+          "lineNumber": 13,
+          "endLineNumber": 13
+        }
+      ],
+      "methods": [],
+      "isInterface": true,
+      "classType": "interface"
+    },
+    {
+      "name": "ParameterInfo",
+      "filePath": "packages/core/src/types/domain/ParameterInfo.ts",
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 2,
+          "endLineNumber": 2
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 3,
+          "endLineNumber": 3
+        },
+        {
+          "name": "optional",
+          "type": "boolean",
+          "visibility": "public",
+          "lineNumber": 4,
+          "endLineNumber": 4
+        }
+      ],
+      "methods": [],
+      "isInterface": true,
+      "classType": "interface"
+    },
+    {
+      "name": "PropertyInfo",
+      "filePath": "packages/core/src/types/domain/PropertyInfo.ts",
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 2,
+          "endLineNumber": 2
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 3,
+          "endLineNumber": 3
+        },
+        {
+          "name": "visibility",
+          "type": "'public' | 'private' | 'protected'",
+          "visibility": "public",
+          "lineNumber": 4,
+          "endLineNumber": 4
+        },
+        {
+          "name": "isStatic",
+          "type": "boolean",
+          "visibility": "public",
+          "lineNumber": 5,
+          "endLineNumber": 5
+        },
+        {
+          "name": "isReadonly",
+          "type": "boolean",
+          "visibility": "public",
+          "lineNumber": 6,
+          "endLineNumber": 6
+        },
+        {
+          "name": "changeStatus",
+          "type": "'added' | 'deleted' | 'modified' | 'unchanged'",
+          "visibility": "public",
+          "lineNumber": 7,
+          "endLineNumber": 7
+        },
+        {
+          "name": "lineNumber",
+          "type": "number",
+          "visibility": "public",
+          "lineNumber": 8,
+          "endLineNumber": 8
+        },
+        {
+          "name": "endLineNumber",
+          "type": "number",
+          "visibility": "public",
+          "lineNumber": 9,
+          "endLineNumber": 9
+        }
+      ],
+      "methods": [],
+      "isInterface": true,
+      "classType": "interface"
+    },
+    {
+      "name": "index",
+      "filePath": "packages/core/src/types/domain/index.ts",
+      "properties": [],
+      "methods": [],
+      "isModule": true,
+      "classType": "module"
+    },
+    {
+      "name": "ConfigFolderNode",
+      "filePath": "packages/core/src/types/view/ConfigFolderNode.ts",
+      "properties": [
+        {
+          "name": "path",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 2,
+          "endLineNumber": 2
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 3,
+          "endLineNumber": 3
+        },
+        {
+          "name": "selected",
+          "type": "boolean",
+          "visibility": "public",
+          "lineNumber": 4,
+          "endLineNumber": 4
+        },
+        {
+          "name": "children",
+          "type": "ConfigFolderNode[]",
+          "visibility": "public",
+          "lineNumber": 5,
+          "endLineNumber": 5
+        },
+        {
+          "name": "fileCount",
+          "type": "number",
+          "visibility": "public",
+          "lineNumber": 6,
+          "endLineNumber": 6
+        }
+      ],
+      "methods": [],
+      "isInterface": true,
+      "classType": "interface"
+    },
+    {
+      "name": "DiagramView",
+      "filePath": "packages/core/src/types/view/DiagramView.ts",
+      "properties": [
+        {
+          "name": "id",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 4,
+          "endLineNumber": 4
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 5,
+          "endLineNumber": 5
+        },
+        {
+          "name": "config",
+          "type": "KrataiConfig",
+          "visibility": "public",
+          "lineNumber": 6,
+          "endLineNumber": 6
+        },
+        {
+          "name": "createdAt",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 7,
+          "endLineNumber": 7
+        },
+        {
+          "name": "lastGenerated",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 8,
+          "endLineNumber": 8
+        }
+      ],
+      "methods": [],
+      "isInterface": true,
+      "classType": "interface"
+    },
+    {
+      "name": "DiagramViewRegistry",
+      "filePath": "packages/core/src/types/view/DiagramView.ts",
+      "properties": [
+        {
+          "name": "views",
+          "type": "DiagramView[]",
+          "visibility": "public",
+          "lineNumber": 12,
+          "endLineNumber": 12
+        }
+      ],
+      "methods": [],
+      "isInterface": true,
+      "classType": "interface"
+    },
+    {
+      "name": "ExtensionInfo",
+      "filePath": "packages/core/src/types/view/ExtensionInfo.ts",
+      "properties": [
+        {
+          "name": "extension",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 2,
+          "endLineNumber": 2
+        },
+        {
+          "name": "count",
+          "type": "number",
+          "visibility": "public",
+          "lineNumber": 3,
+          "endLineNumber": 3
+        },
+        {
+          "name": "selected",
+          "type": "boolean",
+          "visibility": "public",
+          "lineNumber": 4,
+          "endLineNumber": 4
+        }
+      ],
+      "methods": [],
+      "isInterface": true,
+      "classType": "interface"
+    },
+    {
+      "name": "ReactFlowEdge",
+      "filePath": "packages/core/src/types/view/ReactFlowEdge.ts",
+      "properties": [
+        {
+          "name": "id",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 4,
+          "endLineNumber": 4
+        },
+        {
+          "name": "source",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 5,
+          "endLineNumber": 5
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 6,
+          "endLineNumber": 6
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 7,
+          "endLineNumber": 7
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 8,
+          "endLineNumber": 8
+        },
+        {
+          "name": "animated",
+          "type": "boolean",
+          "visibility": "public",
+          "lineNumber": 9,
+          "endLineNumber": 9
+        },
+        {
+          "name": "style",
+          "type": "Record<string, any>",
+          "visibility": "public",
+          "lineNumber": 10,
+          "endLineNumber": 10
+        },
+        {
+          "name": "metadata",
+          "type": "{\n\t\tumlType: UMLRelationshipType;\n\t\tdetailedTypes: string[];\n\t}",
+          "visibility": "public",
+          "lineNumber": 11,
+          "endLineNumber": 14
+        }
+      ],
+      "methods": [],
+      "isInterface": true,
+      "classType": "interface"
+    },
+    {
+      "name": "ReactFlowNode",
+      "filePath": "packages/core/src/types/view/ReactFlowNode.ts",
+      "properties": [
+        {
+          "name": "id",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 4,
+          "endLineNumber": 4
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "visibility": "public",
+          "lineNumber": 5,
+          "endLineNumber": 5
+        },
+        {
+          "name": "position",
+          "type": "{ x: number; y: number }",
+          "visibility": "public",
+          "lineNumber": 6,
+          "endLineNumber": 6
+        },
+        {
+          "name": "data",
+          "type": "{\n\t\tlabel: string;\n\t\tclassInfo: ClassInfo;\n\t}",
+          "visibility": "public",
+          "lineNumber": 7,
+          "endLineNumber": 10
+        }
+      ],
+      "methods": [],
+      "isInterface": true,
+      "classType": "interface"
+    },
+    {
+      "name": "index",
+      "filePath": "packages/core/src/types/view/index.ts",
+      "properties": [],
+      "methods": [],
+      "isModule": true,
+      "classType": "module"
+    },
+    {
+      "name": "ClassDiagramView",
+      "filePath": "packages/viewer/src/classDiagramView.ts",
+      "properties": [],
+      "methods": [
+        {
+          "name": "generate",
+          "parameters": [
+            {
+              "name": "nodes",
+              "type": "ReactFlowNode[]",
+              "optional": false
+            },
+            {
+              "name": "edges",
+              "type": "ReactFlowEdge[]",
+              "optional": false
+            },
+            {
+              "name": "workspaceName",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "config",
+              "type": "KrataiConfig",
+              "optional": false
+            },
+            {
+              "name": "iconUri",
+              "type": "string",
+              "optional": true
+            }
+          ],
+          "returnType": "string",
+          "visibility": "public",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 6,
+          "endLineNumber": 31
+        },
+        {
+          "name": "generateHTML",
+          "parameters": [
+            {
+              "name": "workspaceName",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "classCount",
+              "type": "number",
+              "optional": false
+            },
+            {
+              "name": "edgeCount",
+              "type": "number",
+              "optional": false
+            },
+            {
+              "name": "folderCount",
+              "type": "number",
+              "optional": false
+            },
+            {
+              "name": "folderHTML",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "edges",
+              "type": "ReactFlowEdge[]",
+              "optional": false
+            },
+            {
+              "name": "iconUri",
+              "type": "string",
+              "optional": true
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": true,
+          "isAsync": false,
+          "lineNumber": 33,
+          "endLineNumber": 847
+        }
+      ],
+      "isAbstract": false,
+      "classType": "class"
+    },
+    {
+      "name": "ClassBoxRenderer",
+      "filePath": "packages/viewer/src/components/classBoxRenderer.ts",
+      "properties": [
+        {
+          "name": "boxWidth",
+          "type": "number",
+          "visibility": "private",
+          "isStatic": false,
+          "isReadonly": false,
+          "lineNumber": 4,
+          "endLineNumber": 4
+        }
+      ],
+      "methods": [
+        {
+          "name": "constructor",
+          "parameters": [
+            {
+              "name": "boxWidth",
+              "type": "number",
+              "optional": false
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public",
+          "lineNumber": 4,
+          "endLineNumber": 4
+        },
+        {
+          "name": "render",
+          "parameters": [
+            {
+              "name": "classInfo",
+              "type": "ClassInfo",
+              "optional": false
+            },
+            {
+              "name": "relationshipMap",
+              "type": "Map<string, Array<{target: string, type: string}>>",
+              "optional": true
+            }
+          ],
+          "returnType": "string",
+          "visibility": "public",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 6,
+          "endLineNumber": 41
+        },
+        {
+          "name": "escapeHtml",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 43,
+          "endLineNumber": 56
+        },
+        {
+          "name": "renderHeader",
+          "parameters": [
+            {
+              "name": "classInfo",
+              "type": "ClassInfo",
+              "optional": false
+            },
+            {
+              "name": "isModule",
+              "type": "boolean",
+              "optional": false
+            },
+            {
+              "name": "displayName",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 58,
+          "endLineNumber": 76
+        },
+        {
+          "name": "renderProperties",
+          "parameters": [
+            {
+              "name": "classInfo",
+              "type": "ClassInfo",
+              "optional": false
+            },
+            {
+              "name": "isModule",
+              "type": "boolean",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 78,
+          "endLineNumber": 117
+        },
+        {
+          "name": "renderMethods",
+          "parameters": [
+            {
+              "name": "classInfo",
+              "type": "ClassInfo",
+              "optional": false
+            },
+            {
+              "name": "isModule",
+              "type": "boolean",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 119,
+          "endLineNumber": 157
+        },
+        {
+          "name": "truncateType",
+          "parameters": [
+            {
+              "name": "type",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 159,
+          "endLineNumber": 164
+        },
+        {
+          "name": "truncateParams",
+          "parameters": [
+            {
+              "name": "parameters",
+              "type": "any[]",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 166,
+          "endLineNumber": 170
+        },
+        {
+          "name": "getVisibilityColor",
+          "parameters": [
+            {
+              "name": "visibility",
+              "type": "'public' | 'private' | 'protected'",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 172,
+          "endLineNumber": 175
+        },
+        {
+          "name": "getVisibilitySymbol",
+          "parameters": [
+            {
+              "name": "visibility",
+              "type": "'public' | 'private' | 'protected'",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 177,
+          "endLineNumber": 180
+        },
+        {
+          "name": "getChangeStatusBgColor",
+          "parameters": [
+            {
+              "name": "status",
+              "type": "'added' | 'deleted' | 'modified' | 'unchanged'",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 182,
+          "endLineNumber": 190
+        },
+        {
+          "name": "getMemberChangeStatusBgColor",
+          "parameters": [
+            {
+              "name": "status",
+              "type": "'added' | 'deleted' | 'modified' | 'unchanged'",
+              "optional": true
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 192,
+          "endLineNumber": 200
+        }
+      ],
+      "isAbstract": false,
+      "classType": "class"
+    },
+    {
+      "name": "FolderBoxRenderer",
+      "filePath": "packages/viewer/src/components/folderBoxRenderer.ts",
+      "properties": [
+        {
+          "name": "config",
+          "type": "KrataiConfig",
+          "visibility": "private",
+          "isStatic": false,
+          "isReadonly": false,
+          "lineNumber": 190,
+          "endLineNumber": 190
+        }
+      ],
+      "methods": [
+        {
+          "name": "constructor",
+          "parameters": [
+            {
+              "name": "config",
+              "type": "KrataiConfig",
+              "optional": false
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public",
+          "lineNumber": 192,
+          "endLineNumber": 194
+        },
+        {
+          "name": "renderAll",
+          "parameters": [
+            {
+              "name": "folder",
+              "type": "DiagramFolderNode",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "public",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 196,
+          "endLineNumber": 205
+        },
+        {
+          "name": "collectLeafFolders",
+          "parameters": [
+            {
+              "name": "folder",
+              "type": "DiagramFolderNode",
+              "optional": false
+            }
+          ],
+          "returnType": "DiagramFolderNode[]",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 210,
+          "endLineNumber": 224
+        },
+        {
+          "name": "sortFoldersByOrder",
+          "parameters": [
+            {
+              "name": "folders",
+              "type": "DiagramFolderNode[]",
+              "optional": false
+            }
+          ],
+          "returnType": "DiagramFolderNode[]",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 229,
+          "endLineNumber": 252
+        },
+        {
+          "name": "getFolderOrder",
+          "parameters": [
+            {
+              "name": "folder",
+              "type": "DiagramFolderNode",
+              "optional": false
+            }
+          ],
+          "returnType": "number | null",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 257,
+          "endLineNumber": 263
+        },
+        {
+          "name": "getLayerWeight",
+          "parameters": [
+            {
+              "name": "fullPath",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "folderName",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "number",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 270,
+          "endLineNumber": 282
+        },
+        {
+          "name": "isVirtualBox",
+          "parameters": [
+            {
+              "name": "fullPath",
+              "type": "string",
+              "optional": false
+            },
+            {
+              "name": "folderName",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "boolean",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 287,
+          "endLineNumber": 301
+        },
+        {
+          "name": "analyzeForKeywords",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "number",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 306,
+          "endLineNumber": 340
+        },
+        {
+          "name": "escapeHtml",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 342,
+          "endLineNumber": 351
+        },
+        {
+          "name": "renderLeafFolder",
+          "parameters": [
+            {
+              "name": "folder",
+              "type": "DiagramFolderNode",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 356,
+          "endLineNumber": 411
+        },
+        {
+          "name": "getFolderIcon",
+          "parameters": [
+            {
+              "name": "folderName",
+              "type": "string",
+              "optional": false
+            }
+          ],
+          "returnType": "string",
+          "visibility": "private",
+          "isStatic": false,
+          "isAsync": false,
+          "lineNumber": 413,
+          "endLineNumber": 424
+        }
+      ],
+      "isAbstract": false,
+      "classType": "class"
+    },
+    {
+      "name": "index",
+      "filePath": "packages/viewer/src/index.ts",
+      "properties": [],
+      "methods": [],
+      "isModule": true,
+      "classType": "module"
+    }
+  ],
+  "relationships": [
+    {
+      "from": "packages/core/src/diagram/diagramGeneratorService.ts__DiagramGeneratorService",
+      "to": "packages/core/src/types/view/ReactFlowNode.ts__ReactFlowNode",
+      "type": [
+        "returns",
+        "imports",
+        "generic"
+      ]
+    },
+    {
+      "from": "packages/core/src/diagram/diagramGeneratorService.ts__DiagramGeneratorService",
+      "to": "packages/core/src/types/view/ReactFlowEdge.ts__ReactFlowEdge",
+      "type": [
+        "returns",
+        "imports",
+        "generic"
+      ]
+    },
+    {
+      "from": "packages/core/src/diagram/diagramGeneratorService.ts__DiagramGeneratorService",
+      "to": "packages/core/src/types/domain/DiagramData.ts__DiagramData",
+      "type": [
+        "parameter",
+        "imports",
+        "generic"
+      ]
+    },
+    {
+      "from": "packages/core/src/diagram/diagramGeneratorService.ts__DiagramGeneratorService",
+      "to": "packages/core/src/types/domain/ClassInfo.ts__ClassInfo",
+      "type": [
+        "parameter",
+        "imports",
+        "generic"
+      ]
+    },
+    {
+      "from": "packages/core/src/diagram/diagramGeneratorService.ts__DiagramGeneratorService",
+      "to": "__unknown__UMLRelationshipType",
+      "type": [
+        "imports"
+      ]
+    },
+    {
+      "from": "packages/core/src/diagram/diagramGeneratorService.ts__DiagramGeneratorService",
+      "to": "__unknown__UMLMapper",
+      "type": [
+        "imports"
+      ]
+    },
+    {
+      "from": "packages/core/src/diagram/folderStructure.ts__DiagramFolderNode",
+      "to": "packages/core/src/types/view/ReactFlowNode.ts__ReactFlowNode",
+      "type": [
+        "composition",
+        "imports",
+        "generic"
+      ]
+    },
+    {
+      "from": "packages/core/src/diagram/folderStructure.ts__FolderStructureBuilder",
+      "to": "packages/core/src/diagram/folderStructure.ts__DiagramFolderNode",
+      "type": [
+        "returns",
+        "parameter",
+        "generic"
+      ]
+    },
+    {
+      "from": "packages/core/src/diagram/folderStructure.ts__FolderStructureBuilder",
+      "to": "packages/core/src/types/view/ReactFlowNode.ts__ReactFlowNode",
+      "type": [
+        "parameter",
+        "imports",
+        "generic"
+      ]
+    },
+    {
+      "from": "packages/core/src/export/MarkdownExporter.ts__MarkdownExporter",
+      "to": "packages/core/src/types/domain/DiagramData.ts__DiagramData",
+      "type": [
+        "parameter",
+        "imports",
+        "generic"
+      ]
+    },
+    {
+      "from": "packages/core/src/export/MarkdownExporter.ts__MarkdownExporter",
+      "to": "packages/core/src/export/MarkdownExporter.ts__TreeNode",
+      "type": [
+        "generic"
+      ]
+    },
+    {
+      "from": "packages/core/src/export/MarkdownExporter.ts__TreeNode",
+      "to": "packages/core/src/types/domain/DiagramData.ts__DiagramData",
+      "type": [
+        "imports",
+        "generic"
+      ]
+    },
+    {
+      "from": "packages/core/src/view/ViewManager.ts__ViewManager",
+      "to": "packages/core/src/types/view/DiagramView.ts__DiagramViewRegistry",
+      "type": [
+        "returns",
+        "parameter",
+        "imports",
+        "generic"
+      ]
+    },
+    {
+      "from": "packages/core/src/view/ViewManager.ts__ViewManager",
+      "to": "packages/core/src/types/view/DiagramView.ts__DiagramView",
+      "type": [
+        "returns",
+        "parameter",
+        "imports",
+        "generic"
+      ]
+    },
+    {
+      "from": "packages/core/src/view/ViewManager.ts__ViewManager",
+      "to": "__unknown__KrataiConfig",
+      "type": [
+        "imports"
+      ]
+    },
+    {
+      "from": "packages/core/src/types/domain/ClassInfo.ts__ClassInfo",
+      "to": "packages/core/src/types/domain/PropertyInfo.ts__PropertyInfo",
+      "type": [
+        "composition",
+        "imports"
+      ]
+    },
+    {
+      "from": "packages/core/src/types/domain/ClassInfo.ts__ClassInfo",
+      "to": "packages/core/src/types/domain/MethodInfo.ts__MethodInfo",
+      "type": [
+        "composition",
+        "imports"
+      ]
+    },
+    {
+      "from": "packages/core/src/types/domain/DiagramData.ts__DiagramData",
+      "to": "packages/core/src/types/domain/ClassInfo.ts__ClassInfo",
+      "type": [
+        "composition",
+        "imports"
+      ]
+    },
+    {
+      "from": "packages/core/src/types/domain/DiagramData.ts__DiagramData",
+      "to": "packages/core/src/types/domain/ClassRelationship.ts__ClassRelationship",
+      "type": [
+        "composition",
+        "imports"
+      ]
+    },
+    {
+      "from": "packages/core/src/types/domain/MethodInfo.ts__MethodInfo",
+      "to": "packages/core/src/types/domain/ParameterInfo.ts__ParameterInfo",
+      "type": [
+        "composition",
+        "imports"
+      ]
+    },
+    {
+      "from": "packages/core/src/types/view/DiagramView.ts__DiagramView",
+      "to": "__unknown__KrataiConfig",
+      "type": [
+        "imports"
+      ]
+    },
+    {
+      "from": "packages/core/src/types/view/DiagramView.ts__DiagramViewRegistry",
+      "to": "packages/core/src/types/view/DiagramView.ts__DiagramView",
+      "type": [
+        "composition"
+      ]
+    },
+    {
+      "from": "packages/core/src/types/view/DiagramView.ts__DiagramViewRegistry",
+      "to": "__unknown__KrataiConfig",
+      "type": [
+        "imports"
+      ]
+    },
+    {
+      "from": "packages/core/src/types/view/ReactFlowEdge.ts__ReactFlowEdge",
+      "to": "__unknown__UMLRelationshipType",
+      "type": [
+        "imports"
+      ]
+    },
+    {
+      "from": "packages/core/src/types/view/ReactFlowNode.ts__ReactFlowNode",
+      "to": "packages/core/src/types/domain/ClassInfo.ts__ClassInfo",
+      "type": [
+        "composition",
+        "imports"
+      ]
+    },
+    {
+      "from": "packages/viewer/src/classDiagramView.ts__ClassDiagramView",
+      "to": "packages/core/src/types/view/ReactFlowNode.ts__ReactFlowNode",
+      "type": [
+        "parameter",
+        "generic"
+      ]
+    },
+    {
+      "from": "packages/viewer/src/classDiagramView.ts__ClassDiagramView",
+      "to": "packages/core/src/types/view/ReactFlowEdge.ts__ReactFlowEdge",
+      "type": [
+        "parameter",
+        "generic"
+      ]
+    },
+    {
+      "from": "packages/viewer/src/classDiagramView.ts__ClassDiagramView",
+      "to": "packages/viewer/src/components/folderBoxRenderer.ts__FolderBoxRenderer",
+      "type": [
+        "imports",
+        "creates"
+      ]
+    },
+    {
+      "from": "packages/viewer/src/classDiagramView.ts__ClassDiagramView",
+      "to": "packages/core/src/diagram/folderStructure.ts__FolderStructureBuilder",
+      "type": [
+        "calls-static"
+      ]
+    },
+    {
+      "from": "packages/viewer/src/components/classBoxRenderer.ts__ClassBoxRenderer",
+      "to": "packages/core/src/types/domain/ClassInfo.ts__ClassInfo",
+      "type": [
+        "parameter",
+        "generic"
+      ]
+    },
+    {
+      "from": "packages/viewer/src/components/folderBoxRenderer.ts__FolderBoxRenderer",
+      "to": "packages/core/src/diagram/folderStructure.ts__DiagramFolderNode",
+      "type": [
+        "returns",
+        "parameter",
+        "generic"
+      ]
+    }
+  ]
+}

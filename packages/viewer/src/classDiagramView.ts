@@ -292,9 +292,14 @@ export class ClassDiagramView {
         }
         
         let currentZoom = 1;
-        
-        // Initialize VS Code API for communication
-        const vscode = acquireVsCodeApi();
+
+        // Initialize host communication: real VS Code webviews provide
+        // acquireVsCodeApi(); other hosts (e.g. a browser <iframe>) get a
+        // postMessage-to-parent shim instead, so the same message protocol
+        // (saveAsMD/openSettings/openFile/openMember) works everywhere.
+        const vscode = (typeof acquireVsCodeApi === 'function')
+            ? acquireVsCodeApi()
+            : { postMessage: (msg) => window.parent.postMessage(msg, '*') };
         
         function saveAsMD() {
             vscode.postMessage({
