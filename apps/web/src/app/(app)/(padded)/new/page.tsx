@@ -1,18 +1,13 @@
-import { listBranches, listRepos } from '@/1_application/queries';
+import { listRepos } from '@/1_application/queries';
 import { NewDiagramFlow } from '@/components/repo/NewDiagramFlow';
-import type { Branch } from '@/2_domain';
 
 export default async function NewDiagramPage() {
 	const repos = await listRepos();
-	const branchesByRepo: Record<string, Branch[]> = {};
-	for (const repo of repos) {
-		branchesByRepo[repo.fullName] = await listBranches(repo.fullName);
-	}
 
 	return (
 		<div className="mx-auto max-w-2xl">
 			<h1 className="mb-8 text-3xl font-semibold text-ink">New Diagram</h1>
-			<NewDiagramFlow repos={repos} branchesByRepo={branchesByRepo} />
+			<NewDiagramFlow repos={repos} />
 		</div>
 	);
 }

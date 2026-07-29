@@ -26,9 +26,9 @@ export async function getRepo(fullName: string): Promise<Repo | undefined> {
 	return github.getRepo(fullName);
 }
 
-export async function listBranches(repoFullName: string): Promise<Branch[]> {
+export async function listBranches(repoFullName: string, defaultBranch: string): Promise<Branch[]> {
 	const github = await getGitHubRepository();
-	return github.listBranches(repoFullName);
+	return github.listBranches(repoFullName, defaultBranch);
 }
 
 export async function listViews(filter?: {

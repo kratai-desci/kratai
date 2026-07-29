@@ -79,7 +79,7 @@ export class MockGitHubRepository implements GitHubRepository {
 		return MOCK_REPOS.find((r) => r.fullName === fullName);
 	}
 
-	async listBranches(repoFullName: string): Promise<Branch[]> {
+	async listBranches(repoFullName: string, _defaultBranch: string): Promise<Branch[]> {
 		return MOCK_BRANCHES[repoFullName] ?? [];
 	}
 }

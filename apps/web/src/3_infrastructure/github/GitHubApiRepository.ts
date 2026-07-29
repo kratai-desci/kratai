@@ -64,9 +64,7 @@ export class GitHubApiRepository implements GitHubRepository {
 		}
 	}
 
-	async listBranches(repoFullName: string): Promise<Branch[]> {
-		const repo = await this.getRepo(repoFullName);
-		const defaultBranch = repo?.defaultBranch;
+	async listBranches(repoFullName: string, defaultBranch: string): Promise<Branch[]> {
 		const branches = await this.fetchJson<GitHubApiBranch[]>(
 			`/repos/${repoFullName}/branches?per_page=100`
 		);

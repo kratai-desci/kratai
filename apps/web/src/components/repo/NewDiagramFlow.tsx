@@ -2,28 +2,34 @@
 
 import { ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useState, useTransition } from 'react';
 
+import { listBranchesAction } from '@/1_application/repoActions';
 import type { Branch, Repo } from '@/2_domain';
 import { Button } from '@/components/ui/button';
 
 import { BranchPicker } from './BranchPicker';
 import { RepoPicker } from './RepoPicker';
 
-export function NewDiagramFlow({ repos, branchesByRepo }: { repos: Repo[]; branchesByRepo: Record<string, Branch[]> }) {
+export function NewDiagramFlow({ repos }: { repos: Repo[] }) {
 	const router = useRouter();
 	const [selectedRepo, setSelectedRepo] = useState<Repo | null>(null);
 	const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
-
-	const branches = useMemo(
-		() => (selectedRepo ? (branchesByRepo[selectedRepo.fullName] ?? []) : []),
-		[selectedRepo, branchesByRepo]
-	);
+	const [branches, setBranches] = useState<Branch[]>([]);
+	const [isLoadingBranches, startTransition] = useTransition();
 
 	function handleSelectRepo(repo: Repo) {
 		setSelectedRepo(repo);
-		const defaultBranch = branchesByRepo[repo.fullName]?.find((b) => b.isDefault);
-		setSelectedBranch(defaultBranch?.name ?? null);
+		setBranches([]);
+		// Optimistic: Repo.defaultBranch is already known from the repo list,
+		// so the branch is selected (and "Continue" enabled) immediately,
+		// without waiting on the branch-list fetch below.
+		setSelectedBranch(repo.defaultBranch);
+
+		startTransition(async () => {
+			const result = await listBranchesAction(repo.fullName, repo.defaultBranch);
+			setBranches(result);
+		});
 	}
 
 	function handleContinue() {
@@ -46,7 +52,12 @@ export function NewDiagramFlow({ repos, branchesByRepo }: { repos: Repo[]; branc
 					<h2 className="mb-3 text-sm font-semibold tracking-wide text-ink-3 uppercase">
 						2. Choose a branch
 					</h2>
-					<BranchPicker branches={branches} selected={selectedBranch} onSelect={setSelectedBranch} />
+					<BranchPicker
+						branches={branches}
+						selected={selectedBranch}
+						onSelect={setSelectedBranch}
+						isLoading={isLoadingBranches}
+					/>
 				</section>
 			)}
 
