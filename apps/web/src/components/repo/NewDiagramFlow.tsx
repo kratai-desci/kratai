@@ -2,7 +2,7 @@
 
 import { ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 
 import { listBranchesAction } from '@/1_application/repoActions';
 import type { Branch, Repo } from '@/2_domain';
@@ -17,6 +17,16 @@ export function NewDiagramFlow({ repos }: { repos: Repo[] }) {
 	const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
 	const [branches, setBranches] = useState<Branch[]>([]);
 	const [isLoadingBranches, startTransition] = useTransition();
+	const nextStepRef = useRef<HTMLDivElement>(null);
+
+	// With a long repo list, the branch picker + Continue button can land
+	// below the fold with no cue to scroll - bring them into view as soon
+	// as they appear instead.
+	useEffect(() => {
+		if (selectedRepo) {
+			nextStepRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}
+	}, [selectedRepo]);
 
 	function handleSelectRepo(repo: Repo) {
 		setSelectedRepo(repo);
@@ -48,25 +58,27 @@ export function NewDiagramFlow({ repos }: { repos: Repo[] }) {
 			</section>
 
 			{selectedRepo && (
-				<section>
-					<h2 className="mb-3 text-sm font-semibold tracking-wide text-ink-3 uppercase">
-						2. Choose a branch
-					</h2>
-					<BranchPicker
-						branches={branches}
-						selected={selectedBranch}
-						onSelect={setSelectedBranch}
-						isLoading={isLoadingBranches}
-					/>
-				</section>
-			)}
+				<div ref={nextStepRef} className="flex scroll-mt-20 flex-col gap-8">
+					<section>
+						<h2 className="mb-3 text-sm font-semibold tracking-wide text-ink-3 uppercase">
+							2. Choose a branch
+						</h2>
+						<BranchPicker
+							branches={branches}
+							selected={selectedBranch}
+							onSelect={setSelectedBranch}
+							isLoading={isLoadingBranches}
+						/>
+					</section>
 
-			<div className="flex justify-end">
-				<Button onClick={handleContinue} disabled={!selectedRepo || !selectedBranch}>
-					Continue
-					<ArrowRight className="size-4" />
-				</Button>
-			</div>
+					<div className="flex justify-end">
+						<Button onClick={handleContinue} disabled={!selectedRepo || !selectedBranch}>
+							Continue
+							<ArrowRight className="size-4" />
+						</Button>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }
