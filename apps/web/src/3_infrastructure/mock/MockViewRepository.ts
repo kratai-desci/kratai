@@ -1,43 +1,18 @@
 import type { CreateViewInput, ViewRepository, WebDiagramView } from '@/2_domain';
-import type { KrataiConfig } from '@kratai/core';
 
 function makeId(): string {
 	return `view_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// Infrastructure must not depend on 1_application (that would create a
-// cycle: application -> infrastructure -> application), so the seed
-// view's config is its own literal rather than an import of
-// 1_application/config.ts's DEFAULT_CONFIG - they happen to agree today by
-// construction, not by a shared reference.
-const SEED_CONFIG: KrataiConfig = {
-	selectedFolders: [],
-	selectedExtensions: ['.ts', '.tsx', '.js', '.jsx', '.py', '.java', '.php', '.html'],
-	respectGitignore: true,
-	classTypeFilters: {},
-	relationshipTypeFilters: {},
-	detectHttpCalls: true,
-	frameworkEnrichment: true,
-};
-
 /**
  * In-memory implementation of ViewRepository - resets on server restart,
- * which is fine for a UI-only phase with no real persistence yet. Seeded
- * with one example so /dashboard isn't empty on first load. Swapped for a
- * MongoDB Atlas-backed implementation later, behind the same interface.
+ * which is fine for a UI-only phase with no real persistence yet. Starts
+ * empty; ViewList already renders a "No diagrams yet" state for that.
+ * Swapped for a MongoDB Atlas-backed implementation later, behind the
+ * same interface.
  */
 export class MockViewRepository implements ViewRepository {
-	private store: WebDiagramView[] = [
-		{
-			id: 'view_seed_core',
-			repoFullName: 'sample-dev/architecture-tool',
-			branch: 'main',
-			name: 'Diagram Pipeline',
-			config: SEED_CONFIG,
-			createdAt: '2026-07-24T06:19:00Z',
-			lastGenerated: '2026-07-28T15:40:26Z',
-		},
-	];
+	private store: WebDiagramView[] = [];
 
 	async listViews(filter?: { repoFullName?: string; branch?: string }): Promise<WebDiagramView[]> {
 		return this.store
