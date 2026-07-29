@@ -35,9 +35,11 @@ export async function listViews(filter?: {
 	repoFullName?: string;
 	branch?: string;
 }): Promise<WebDiagramView[]> {
-	return viewRepository.listViews(filter);
+	const user = await getCurrentUser();
+	return viewRepository.listViews(user.id, filter);
 }
 
 export async function getView(id: string): Promise<WebDiagramView | undefined> {
-	return viewRepository.getView(id);
+	const user = await getCurrentUser();
+	return viewRepository.getView(id, user.id);
 }

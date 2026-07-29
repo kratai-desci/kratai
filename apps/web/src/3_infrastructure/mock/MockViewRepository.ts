@@ -14,20 +14,25 @@ function makeId(): string {
 export class MockViewRepository implements ViewRepository {
 	private store: WebDiagramView[] = [];
 
-	async listViews(filter?: { repoFullName?: string; branch?: string }): Promise<WebDiagramView[]> {
+	async listViews(
+		userId: string,
+		filter?: { repoFullName?: string; branch?: string }
+	): Promise<WebDiagramView[]> {
 		return this.store
+			.filter((v) => v.userId === userId)
 			.filter((v) => !filter?.repoFullName || v.repoFullName === filter.repoFullName)
 			.filter((v) => !filter?.branch || v.branch === filter.branch)
 			.sort((a, b) => (b.lastGenerated ?? b.createdAt).localeCompare(a.lastGenerated ?? a.createdAt));
 	}
 
-	async getView(id: string): Promise<WebDiagramView | undefined> {
-		return this.store.find((v) => v.id === id);
+	async getView(id: string, userId: string): Promise<WebDiagramView | undefined> {
+		return this.store.find((v) => v.id === id && v.userId === userId);
 	}
 
-	async createView(input: CreateViewInput): Promise<WebDiagramView> {
+	async createView(userId: string, input: CreateViewInput): Promise<WebDiagramView> {
 		const view: WebDiagramView = {
 			id: makeId(),
+			userId,
 			repoFullName: input.repoFullName,
 			branch: input.branch,
 			name: input.name,
@@ -41,16 +46,17 @@ export class MockViewRepository implements ViewRepository {
 
 	async updateView(
 		id: string,
+		userId: string,
 		updates: Partial<Pick<WebDiagramView, 'name' | 'config'>>
 	): Promise<WebDiagramView | undefined> {
-		const view = this.store.find((v) => v.id === id);
+		const view = this.store.find((v) => v.id === id && v.userId === userId);
 		if (!view) return undefined;
 		Object.assign(view, updates, { lastGenerated: new Date().toISOString() });
 		return view;
 	}
 
-	async deleteView(id: string): Promise<void> {
-		const index = this.store.findIndex((v) => v.id === id);
+	async deleteView(id: string, userId: string): Promise<void> {
+		const index = this.store.findIndex((v) => v.id === id && v.userId === userId);
 		if (index !== -1) this.store.splice(index, 1);
 	}
 }

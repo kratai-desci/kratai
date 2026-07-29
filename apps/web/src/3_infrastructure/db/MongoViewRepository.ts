@@ -13,6 +13,7 @@ const COLLECTION = 'diagramViews';
 // id <-> _id translation table is needed elsewhere.
 interface ViewDocument {
 	_id: string;
+	userId: string;
 	repoFullName: string;
 	branch: string;
 	name: string;
@@ -36,6 +37,10 @@ function makeId(): string {
  * GitHubApiRepository/GitCloneDiagramSource, it isn't per-request state,
  * since which DB to use doesn't depend on who's signed in, only on
  * whether MONGODB_URI is configured.
+ *
+ * Every query includes userId in the filter itself (not a post-fetch
+ * check), so a user can never read, modify, or delete another user's
+ * document even if they know its id.
  */
 export class MongoViewRepository implements ViewRepository {
 	private async collection(): Promise<Collection<ViewDocument>> {
@@ -43,9 +48,12 @@ export class MongoViewRepository implements ViewRepository {
 		return db.collection<ViewDocument>(COLLECTION);
 	}
 
-	async listViews(filter?: { repoFullName?: string; branch?: string }): Promise<WebDiagramView[]> {
+	async listViews(
+		userId: string,
+		filter?: { repoFullName?: string; branch?: string }
+	): Promise<WebDiagramView[]> {
 		const collection = await this.collection();
-		const query: Partial<Pick<ViewDocument, 'repoFullName' | 'branch'>> = {};
+		const query: Partial<Pick<ViewDocument, 'userId' | 'repoFullName' | 'branch'>> = { userId };
 		if (filter?.repoFullName) query.repoFullName = filter.repoFullName;
 		if (filter?.branch) query.branch = filter.branch;
 
@@ -56,17 +64,18 @@ export class MongoViewRepository implements ViewRepository {
 		return docs.map(toDomain);
 	}
 
-	async getView(id: string): Promise<WebDiagramView | undefined> {
+	async getView(id: string, userId: string): Promise<WebDiagramView | undefined> {
 		const collection = await this.collection();
-		const doc = await collection.findOne({ _id: id });
+		const doc = await collection.findOne({ _id: id, userId });
 		return doc ? toDomain(doc) : undefined;
 	}
 
-	async createView(input: CreateViewInput): Promise<WebDiagramView> {
+	async createView(userId: string, input: CreateViewInput): Promise<WebDiagramView> {
 		const collection = await this.collection();
 		const now = new Date().toISOString();
 		const doc: ViewDocument = {
 			_id: makeId(),
+			userId,
 			repoFullName: input.repoFullName,
 			branch: input.branch,
 			name: input.name,
@@ -80,19 +89,20 @@ export class MongoViewRepository implements ViewRepository {
 
 	async updateView(
 		id: string,
+		userId: string,
 		updates: Partial<Pick<WebDiagramView, 'name' | 'config'>>
 	): Promise<WebDiagramView | undefined> {
 		const collection = await this.collection();
 		const result = await collection.findOneAndUpdate(
-			{ _id: id },
+			{ _id: id, userId },
 			{ $set: { ...updates, lastGenerated: new Date().toISOString() } },
 			{ returnDocument: 'after' }
 		);
 		return result ? toDomain(result) : undefined;
 	}
 
-	async deleteView(id: string): Promise<void> {
+	async deleteView(id: string, userId: string): Promise<void> {
 		const collection = await this.collection();
-		await collection.deleteOne({ _id: id });
+		await collection.deleteOne({ _id: id, userId });
 	}
 }
