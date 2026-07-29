@@ -8,10 +8,11 @@ const mockGitHubRepository = new MockGitHubRepository();
 
 /**
  * Composition point: picks the active GitHubRepository implementation.
- * Unlike viewRepository/diagramSource, this can't be a fixed module-level
- * singleton - the real implementation needs the current request's
- * signed-in user and OAuth access token, so it's constructed fresh per
- * call. Falls back to the mock whenever there's no authenticated session -
+ * Unlike viewRepository, this can't be a fixed module-level singleton
+ * (same reasoning as diagramSource.ts) - the real implementation needs the
+ * current request's signed-in user and OAuth access token, so it's
+ * constructed fresh per call. Falls back to the mock whenever there's no
+ * authenticated session -
  * and skips calling auth() at all when OAuth isn't configured, since
  * Auth.js validates its config (and complains about a missing AUTH_SECRET)
  * on every call regardless of whether the request actually needs a session.

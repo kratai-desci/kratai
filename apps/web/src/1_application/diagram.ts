@@ -4,21 +4,23 @@ import type { ConfigFolderNode, DiagramData, KrataiConfig } from '@kratai/core';
 import { DiagramGeneratorService } from '@kratai/core';
 import { ClassDiagramView } from '@kratai/viewer';
 
-import { diagramSource } from '@/3_infrastructure/diagramSource';
+import { getDiagramSource } from '@/3_infrastructure/diagramSource';
 
 /**
  * Fetches the parsed architecture data for a repo/branch/config. Thin
- * pass-through to 3_infrastructure's diagramSource (an allowed
- * application -> infrastructure call) - kept here so presentation code
- * only ever depends on 1_application, never reaches into
- * 3_infrastructure directly.
+ * pass-through to 3_infrastructure's diagramSource composition point (an
+ * allowed application -> infrastructure call) - kept here so presentation
+ * code only ever depends on 1_application, never reaches into
+ * 3_infrastructure directly. Real repo (git clone + parse) when signed in,
+ * the static fixture otherwise.
  */
 export async function getDiagramData(
 	repoFullName: string,
 	branch: string,
 	config: KrataiConfig
 ): Promise<DiagramData> {
-	return diagramSource.getDiagramData(repoFullName, branch, config);
+	const source = await getDiagramSource();
+	return source.getDiagramData(repoFullName, branch, config);
 }
 
 /**
