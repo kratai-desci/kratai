@@ -23,6 +23,14 @@ export interface Branch {
 	isDefault: boolean;
 }
 
+export interface User {
+	id: string;
+	name: string;
+	username: string;
+	email: string;
+	avatarUrl: string | null;
+}
+
 /**
  * The web app's saved diagram, scoped per repo+branch (there's no
  * workspace path to scope by, unlike the extension's ViewManager).

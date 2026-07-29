@@ -1,7 +1,13 @@
 import Image from 'next/image';
 import Link from 'next/link';
 
-export function Header() {
+import { getCurrentUser } from '@/lib/data';
+
+import { UserMenu } from './UserMenu';
+
+export async function Header() {
+	const user = await getCurrentUser();
+
 	return (
 		<header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-line bg-surface/95 px-6 backdrop-blur-md">
 			<Link href="/dashboard" className="flex items-center gap-3">
@@ -18,6 +24,7 @@ export function Header() {
 				<span className="rounded-md border border-line px-2 py-1 text-xs font-medium text-ink-3">
 					Demo data
 				</span>
+				<UserMenu user={user} />
 			</nav>
 		</header>
 	);
