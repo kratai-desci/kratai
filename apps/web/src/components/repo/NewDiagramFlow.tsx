@@ -4,8 +4,8 @@ import { ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
+import type { Branch, Repo } from '@/2_domain';
 import { Button } from '@/components/ui/button';
-import type { Branch, Repo } from '@/lib/data/types';
 
 import { BranchPicker } from './BranchPicker';
 import { RepoPicker } from './RepoPicker';

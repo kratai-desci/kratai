@@ -1,6 +1,6 @@
+import { listBranches, listRepos } from '@/1_application/queries';
 import { NewDiagramFlow } from '@/components/repo/NewDiagramFlow';
-import type { Branch } from '@/lib/data/types';
-import { listBranches, listRepos } from '@/lib/data';
+import type { Branch } from '@/2_domain';
 
 export default async function NewDiagramPage() {
 	const repos = await listRepos();

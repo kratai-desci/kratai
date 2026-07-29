@@ -4,8 +4,8 @@ import { GitBranch, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-import { groupViewsByRepoAndBranch } from '@/lib/data/groupViews';
-import type { WebDiagramView } from '@/lib/data/types';
+import { groupViewsByRepoAndBranch } from '@/1_application/groupViews';
+import type { WebDiagramView } from '@/2_domain';
 import { cn } from '@/lib/utils';
 
 export function DiagramSidebar({ views }: { views: WebDiagramView[] }) {

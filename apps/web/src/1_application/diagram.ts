@@ -4,16 +4,21 @@ import type { ConfigFolderNode, DiagramData, KrataiConfig } from '@kratai/core';
 import { DiagramGeneratorService } from '@kratai/core';
 import { ClassDiagramView } from '@kratai/viewer';
 
-import sampleDiagram from '../fixtures/sample-diagram.json';
+import { diagramSource } from '@/3_infrastructure/diagramSource';
 
-// The only fixture available in this UI-only phase - every generated view
-// renders this same real DiagramData regardless of which (mock) repo/branch
-// was selected. Phase 2 replaces this with real
-// CodeParserService.parseWorkspace output from a server-side clone.
-const FIXTURE_DIAGRAM_DATA = sampleDiagram as DiagramData;
-
-export function getFixtureDiagramData(): DiagramData {
-	return FIXTURE_DIAGRAM_DATA;
+/**
+ * Fetches the parsed architecture data for a repo/branch/config. Thin
+ * pass-through to 3_infrastructure's diagramSource (an allowed
+ * application -> infrastructure call) - kept here so presentation code
+ * only ever depends on 1_application, never reaches into
+ * 3_infrastructure directly.
+ */
+export async function getDiagramData(
+	repoFullName: string,
+	branch: string,
+	config: KrataiConfig
+): Promise<DiagramData> {
+	return diagramSource.getDiagramData(repoFullName, branch, config);
 }
 
 /**
@@ -50,10 +55,10 @@ export function applyConfigFilters(data: DiagramData, config: KrataiConfig): Dia
 
 /**
  * Available class-type / relationship-type filter options for the config
- * panel, derived from what's actually present in the fixture data - mirrors
+ * panel, derived from what's actually present in the data - mirrors
  * detectAvailableTypes/countRelationshipsByType in
  * apps/vsextension/src/commands/showConfigPanel.ts, just computed
- * synchronously since the fixture is already in memory instead of a fresh
+ * synchronously since the data is already in memory instead of a fresh
  * parse.
  */
 export interface FilterOption {
@@ -108,14 +113,14 @@ export function getAvailableRelationshipTypes(data: DiagramData): FilterOption[]
 }
 
 /**
- * Folder tree for the config panel's folder-selection UI, derived from the
- * fixture's file paths (there's no real repo to scan from in this UI-only
- * phase). Mirrors ConfigFolderNode, the same shape
+ * Folder tree for the config panel's folder-selection UI, derived from
+ * whatever DiagramData was fetched (today: the fixture; later: a real
+ * clone+parse result). Mirrors ConfigFolderNode, the same shape
  * apps/vsextension/src/commands/showConfigPanel.ts's buildFolderTree
- * produces, and what CodeParserService.parseWorkspace's config.selectedFolders
- * expects in phase 2.
+ * produces, and what CodeParserService.parseWorkspace's
+ * config.selectedFolders expects.
  */
-export function buildFixtureFolderTree(config: KrataiConfig): ConfigFolderNode {
+export function buildFolderTree(data: DiagramData, config: KrataiConfig): ConfigFolderNode {
 	const selectedFolders = config.selectedFolders ?? [];
 	const isSelected = (folderPath: string) =>
 		selectedFolders.length === 0 || selectedFolders.includes(folderPath);
@@ -138,7 +143,7 @@ export function buildFixtureFolderTree(config: KrataiConfig): ConfigFolderNode {
 		return node;
 	}
 
-	for (const classInfo of FIXTURE_DIAGRAM_DATA.classes) {
+	for (const classInfo of data.classes) {
 		const dir = classInfo.filePath.includes('/')
 			? classInfo.filePath.slice(0, classInfo.filePath.lastIndexOf('/'))
 			: '';

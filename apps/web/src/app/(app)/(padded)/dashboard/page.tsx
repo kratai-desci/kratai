@@ -1,9 +1,9 @@
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
 
-import { ViewList } from '@/components/views/ViewList';
+import { listViews } from '@/1_application/queries';
 import { Button } from '@/components/ui/button';
-import { listViews } from '@/lib/data';
+import { ViewList } from '@/components/views/ViewList';
 
 export default async function DashboardPage() {
 	const views = await listViews();

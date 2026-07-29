@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 
-import { getCurrentUser } from '@/lib/data';
+import { getCurrentUser } from '@/1_application/queries';
 
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { UserMenu } from './UserMenu';

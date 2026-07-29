@@ -22,9 +22,13 @@ export default [
 		rules: {
 			...nextPlugin.configs['core-web-vitals'].rules,
 			...reactHooks.configs['recommended-latest'].rules,
+			// Leading underscore marks an intentionally-unused parameter (e.g.
+			// mock repository implementations matching a domain interface
+			// shaped for arguments the mock doesn't need).
+			'@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
 		},
 	},
 	{
-		ignores: ['.next/**', 'scripts/**', 'src/lib/fixtures/**'],
+		ignores: ['.next/**', 'scripts/**', 'src/3_infrastructure/fixtures/**'],
 	},
 ];

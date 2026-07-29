@@ -1,5 +1,5 @@
+import { listViews } from '@/1_application/queries';
 import { DiagramSidebar } from '@/components/diagram/DiagramSidebar';
-import { listViews } from '@/lib/data';
 
 export default async function DiagramsLayout({ children }: { children: React.ReactNode }) {
 	const views = await listViews();

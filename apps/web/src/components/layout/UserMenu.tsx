@@ -3,6 +3,7 @@
 import { ChevronDown, LogOut, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
 
+import type { User } from '@/2_domain';
 import { Avatar } from '@/components/ui/avatar';
 import {
 	DropdownMenu,
@@ -12,7 +13,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { User } from '@/lib/data/types';
 
 export function UserMenu({ user }: { user: User }) {
 	return (

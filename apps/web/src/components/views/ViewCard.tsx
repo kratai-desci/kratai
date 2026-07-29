@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
+import { deleteViewAction } from '@/1_application/actions';
+import type { WebDiagramView } from '@/2_domain';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -22,8 +24,6 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { deleteViewAction } from '@/lib/data/actions';
-import type { WebDiagramView } from '@/lib/data/types';
 
 export function ViewCard({ view }: { view: WebDiagramView }) {
 	const router = useRouter();

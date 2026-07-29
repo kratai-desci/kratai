@@ -4,12 +4,12 @@ import type { ConfigFolderNode, KrataiConfig } from '@kratai/core';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 
+import { createViewAction, updateViewAction } from '@/1_application/actions';
+import type { FilterOption } from '@/1_application/diagram';
+import { getRelTypeDescription, getRelTypeLabel, getTypeLabel } from '@/1_application/labels';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { createViewAction, updateViewAction } from '@/lib/data/actions';
-import type { FilterOption } from '@/lib/diagram/generateDiagramHtml';
-import { getRelTypeDescription, getRelTypeLabel, getTypeLabel } from '@/lib/diagram/labels';
 
 import { ExtensionPicker } from './ExtensionPicker';
 import { FolderTree } from './FolderTree';

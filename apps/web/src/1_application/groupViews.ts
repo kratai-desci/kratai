@@ -1,4 +1,4 @@
-import type { WebDiagramView } from './types';
+import type { WebDiagramView } from '@/2_domain';
 
 export interface DiagramGroup {
 	key: string;

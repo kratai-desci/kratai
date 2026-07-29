@@ -2,14 +2,14 @@
 
 import { Check, GitBranch } from 'lucide-react';
 
+import type { Branch } from '@/2_domain';
+import { Button } from '@/components/ui/button';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import type { Branch } from '@/lib/data/types';
 
 export function BranchPicker({
 	branches,

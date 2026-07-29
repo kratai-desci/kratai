@@ -1,14 +1,15 @@
 import { notFound } from 'next/navigation';
 
-import { ConfigForm } from '@/components/config/ConfigForm';
-import { DEFAULT_CONFIG, getView } from '@/lib/data';
+import { DEFAULT_CONFIG } from '@/1_application/config';
 import {
-	buildFixtureFolderTree,
+	buildFolderTree,
 	getAvailableClassTypes,
 	getAvailableExtensions,
 	getAvailableRelationshipTypes,
-	getFixtureDiagramData,
-} from '@/lib/diagram/generateDiagramHtml';
+	getDiagramData,
+} from '@/1_application/diagram';
+import { getView } from '@/1_application/queries';
+import { ConfigForm } from '@/components/config/ConfigForm';
 
 interface ConfigurePageProps {
 	searchParams: Promise<{ repo?: string; branch?: string; viewId?: string }>;
@@ -40,11 +41,11 @@ export default async function ConfigurePage({ searchParams }: ConfigurePageProps
 		initialName = `${repoFullName.split('/')[1]} diagram`;
 	}
 
-	const fixture = getFixtureDiagramData();
-	const folderTree = buildFixtureFolderTree(initialConfig);
-	const extensionOptions = getAvailableExtensions(fixture);
-	const classTypeOptions = getAvailableClassTypes(fixture);
-	const relationshipTypeOptions = getAvailableRelationshipTypes(fixture);
+	const data = await getDiagramData(repoFullName, branch, initialConfig);
+	const folderTree = buildFolderTree(data, initialConfig);
+	const extensionOptions = getAvailableExtensions(data);
+	const classTypeOptions = getAvailableClassTypes(data);
+	const relationshipTypeOptions = getAvailableRelationshipTypes(data);
 
 	return (
 		<div className="mx-auto max-w-3xl">

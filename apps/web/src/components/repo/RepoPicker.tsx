@@ -2,8 +2,8 @@
 
 import { Lock } from 'lucide-react';
 
+import type { Repo } from '@/2_domain';
 import { cn } from '@/lib/utils';
-import type { Repo } from '@/lib/data/types';
 
 export function RepoPicker({
 	repos,

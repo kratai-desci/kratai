@@ -1,4 +1,4 @@
-import type { WebDiagramView } from '@/lib/data/types';
+import type { WebDiagramView } from '@/2_domain';
 
 import { ViewCard } from './ViewCard';
 

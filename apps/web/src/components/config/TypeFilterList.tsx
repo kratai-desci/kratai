@@ -1,7 +1,7 @@
 'use client';
 
+import type { FilterOption } from '@/1_application/diagram';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { FilterOption } from '@/lib/diagram/generateDiagramHtml';
 import { cn } from '@/lib/utils';
 
 export function TypeFilterList({

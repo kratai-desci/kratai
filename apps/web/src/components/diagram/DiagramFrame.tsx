@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 
-import { githubFileUrl } from '@/lib/github';
+import { githubFileUrl } from '@/1_application/githubUrls';
 
 interface DiagramMessage {
 	command: 'saveAsMD' | 'openSettings' | 'openFile' | 'openMember';

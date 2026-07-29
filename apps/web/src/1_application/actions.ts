@@ -1,19 +1,18 @@
 'use server';
 
+import type { CreateViewInput, WebDiagramView } from '@/2_domain';
+import { viewRepository } from '@/3_infrastructure/viewRepository';
 import type { KrataiConfig } from '@kratai/core';
 import { revalidatePath } from 'next/cache';
 
-import * as mockViews from './mock/views';
-import type { CreateViewInput, WebDiagramView } from './types';
-
 /**
- * Mutations, called from Client Components. Same swap seam as
- * lib/data/index.ts: phase 2 replaces mockViews' in-memory store with real
- * MongoDB Atlas persistence behind these same signatures.
+ * Mutation use cases, called from Client Components. Same dependency
+ * shape as queries.ts: depends only on the domain-typed viewRepository
+ * instance, not on a concrete implementation.
  */
 
 export async function createViewAction(input: CreateViewInput): Promise<WebDiagramView> {
-	const view = mockViews.createView(input);
+	const view = await viewRepository.createView(input);
 	revalidatePath('/dashboard');
 	return view;
 }
@@ -22,13 +21,13 @@ export async function updateViewAction(
 	id: string,
 	updates: { name?: string; config?: KrataiConfig }
 ): Promise<WebDiagramView | undefined> {
-	const view = mockViews.updateView(id, updates);
+	const view = await viewRepository.updateView(id, updates);
 	revalidatePath('/dashboard');
 	revalidatePath(`/diagrams/${id}`);
 	return view;
 }
 
 export async function deleteViewAction(id: string): Promise<void> {
-	mockViews.deleteView(id);
+	await viewRepository.deleteView(id);
 	revalidatePath('/dashboard');
 }

@@ -1,11 +1,11 @@
 import { LogOut } from 'lucide-react';
 import Link from 'next/link';
 
+import { getCurrentUser } from '@/1_application/queries';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { getCurrentUser } from '@/lib/data';
 
 export default async function ProfilePage() {
 	const user = await getCurrentUser();

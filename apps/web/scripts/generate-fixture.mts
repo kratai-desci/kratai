@@ -34,7 +34,7 @@ const config: KrataiConfig = {
 async function main() {
 	const data: DiagramData = await CodeParserService.parseWorkspace(repoRoot, config);
 
-	const outPath = path.join(__dirname, '..', 'src', 'lib', 'fixtures', 'sample-diagram.json');
+	const outPath = path.join(__dirname, '..', 'src', '3_infrastructure', 'fixtures', 'sample-diagram.json');
 	fs.mkdirSync(path.dirname(outPath), { recursive: true });
 	fs.writeFileSync(outPath, JSON.stringify(data, null, 2), 'utf-8');
 
