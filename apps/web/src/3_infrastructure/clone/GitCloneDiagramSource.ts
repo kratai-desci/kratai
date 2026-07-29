@@ -7,7 +7,9 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import type { DiagramSourceRepository } from '@/2_domain';
-import { CodeParserService, type DiagramData, type KrataiConfig } from '@kratai/core';
+import type { DiagramData, KrataiConfig } from '@kratai/core';
+
+import { parseWorkspaceInWorker } from '../parsing/parseWorkspaceInWorker';
 
 const execFileAsync = promisify(execFile);
 
@@ -33,7 +35,7 @@ export class GitCloneDiagramSource implements DiagramSourceRepository {
 
 		try {
 			await this.clone(repoFullName, branch, workDir);
-			return await CodeParserService.parseWorkspace(workDir, config);
+			return await parseWorkspaceInWorker(workDir, config);
 		} finally {
 			fs.rmSync(workDir, { recursive: true, force: true });
 		}

@@ -200,6 +200,49 @@ could hit the platform's own request-timeout or memory ceiling before any
 app-level guard would kick in. That's an accepted tradeoff for v1, not
 something to build around now — revisit only if it actually bites.
 
+### 5.3.1 Parsing concurrency (planned, not yet implemented)
+
+**Problem:** `CodeParserService.parseWorkspace`
+(`packages/core/src/parsing/codeParserService.ts`) parses files in a
+synchronous, CPU-bound loop with no `await`s inside — for a large repo this
+can occupy Node's single event loop for 30+ seconds, which freezes the
+*entire* server instance (every other concurrent user's requests, not just
+the one generating the diagram) for that whole time. `git clone` itself is
+async (`execFileAsync`) and is not the concern here.
+
+**Planned fix:** run the parse step in a Node `worker_threads` worker — one
+worker per generation request, not a single shared worker (a shared worker
+would just relocate the bottleneck without adding throughput). This keeps
+the main thread free to serve all other requests no matter how long a parse
+takes, and lets concurrent parses run in genuine parallel across multiple
+vCPUs. Deliberately **not** a job queue / background-task system (Cloud
+Tasks, a DB-backed job table, a polling UI) — out of scope for now; revisit
+only if worker threads turn out to be insufficient. This also does not
+reduce the parse time itself, only its blast radius on other users.
+
+**Deploy-time requirements once this lands** (nothing to do today, but
+don't forget when writing the Cloud Run deploy config / Dockerfile):
+- `--cpu 2` or higher. Parallelism needs more than 1 vCPU — on a single
+  vCPU, worker threads only fix responsiveness (main thread stays free),
+  not throughput (concurrent parses still contend for the one core).
+- `--concurrency` set well below the platform default of 80. CPU-bound work
+  means you don't want dozens of requests piling onto one instance — cap it
+  near however many concurrent parses that instance's vCPU count can
+  actually sustain, and let Cloud Run spin up more instances instead.
+- `--memory` raised alongside `--cpu`/`--concurrency` — each worker thread
+  gets its own V8 heap (no shared memory by default), so memory scales with
+  concurrent parses.
+- Default CPU throttling behavior (CPU allocated only while a request is
+  being processed) is fine as-is — no need for `--no-cpu-throttling`, since
+  the worker's entire lifetime is inside the awaited request.
+- Build-output gotcha: Next.js `output: 'standalone'` only ships files it
+  can statically trace from imports; a `new Worker(runtimePath)` call with
+  a computed path won't be picked up by that tracing. The worker script
+  needs its own build step (compiled separately, not part of Next's page
+  bundling), explicitly copied into the standalone output directory as a
+  postbuild step, and referenced at runtime via an absolute path built from
+  `process.cwd()`.
+
 ### 5.4 High-level data flow
 ```
 Browser                      Web Server (Node)                  External

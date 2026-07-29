@@ -29,6 +29,14 @@ export default [
 		},
 	},
 	{
-		ignores: ['.next/**', 'scripts/**', 'src/3_infrastructure/fixtures/**'],
+		// Plain CommonJS script loaded directly by node:worker_threads, not
+		// compiled/bundled by Next.js or written against the app's TS/ESM
+		// conventions - see parseWorkspaceInWorker.ts for why.
+		ignores: [
+			'.next/**',
+			'scripts/**',
+			'src/3_infrastructure/fixtures/**',
+			'src/3_infrastructure/parsing/parseWorker.js',
+		],
 	},
 ];

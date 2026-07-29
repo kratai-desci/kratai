@@ -201,6 +201,57 @@ export class JavaScriptParser extends AbstractParserStrategy {
 	): ClassRelationship[] {
 		const relationships: ClassRelationship[] = [];
 
+		// Module functions already have their AST nodes from the original
+		// parse (extractModuleInfo), so this branch never needs to re-read
+		// the file - which matters because by the time this runs,
+		// classInfo.filePath has been normalized to a workspace-relative
+		// path (parseWorkspace does that before relationship extraction), so
+		// a fresh fs.readFileSync(classInfo.filePath) below can no longer
+		// find it and would silently no-op via the catch below.
+		if (classInfo.isModule === true && (classInfo as any)._functionNodes) {
+			const functionNodes = (classInfo as any)._functionNodes as Map<string, ts.Node>;
+			const functionNames = new Set(classInfo.methods.map(m => m.name));
+
+			// For each function, scan its body for calls to other functions
+			for (const [funcName, funcNode] of functionNodes.entries()) {
+				const visitFunctionBody = (node: ts.Node) => {
+					if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+						const calledFuncName = node.expression.getText();
+						// Check if it's calling another function in this module
+						if (functionNames.has(calledFuncName) && calledFuncName !== funcName) {
+							const fromId = `${classInfo.filePath}__${funcName}`;
+							const toId = `${classInfo.filePath}__${calledFuncName}`;
+							relationships.push({ from: fromId, to: toId, type: 'calls' });
+						}
+					}
+
+					// Check for await calls
+					if (ts.isAwaitExpression(node) && ts.isCallExpression(node.expression)) {
+						const callExpr = node.expression;
+						if (ts.isIdentifier(callExpr.expression)) {
+							const calledFuncName = callExpr.expression.getText();
+							if (functionNames.has(calledFuncName) && calledFuncName !== funcName) {
+								const fromId = `${classInfo.filePath}__${funcName}`;
+								const toId = `${classInfo.filePath}__${calledFuncName}`;
+								relationships.push({ from: fromId, to: toId, type: 'async-calls' });
+							}
+						}
+					}
+
+					ts.forEachChild(node, visitFunctionBody);
+				};
+
+				ts.forEachChild(funcNode, visitFunctionBody);
+			}
+
+			// One-shot use - the raw AST nodes carry internal TS compiler
+			// state (parent pointers, binder closures) that isn't safe to
+			// keep around on a domain object callers may serialize.
+			delete (classInfo as any)._functionNodes;
+
+			return relationships; // For modules, only return intra-module relationships
+		}
+
 		try {
 			const sourceCode = fs.readFileSync(classInfo.filePath, 'utf-8');
 			const sourceFile = ts.createSourceFile(
@@ -210,46 +261,6 @@ export class JavaScriptParser extends AbstractParserStrategy {
 				true,
 				ts.ScriptKind.JS
 			);
-
-			// For module functions, extract intra-module call relationships
-			if (classInfo.isModule === true && (classInfo as any)._functionNodes) {
-				const functionNodes = (classInfo as any)._functionNodes as Map<string, ts.Node>;
-				const functionNames = new Set(classInfo.methods.map(m => m.name));
-				
-				// For each function, scan its body for calls to other functions
-				for (const [funcName, funcNode] of functionNodes.entries()) {
-					const visitFunctionBody = (node: ts.Node) => {
-						if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
-							const calledFuncName = node.expression.getText();
-							// Check if it's calling another function in this module
-							if (functionNames.has(calledFuncName) && calledFuncName !== funcName) {
-								const fromId = `${classInfo.filePath}__${funcName}`;
-								const toId = `${classInfo.filePath}__${calledFuncName}`;
-								relationships.push({ from: fromId, to: toId, type: 'calls' });
-							}
-						}
-						
-						// Check for await calls
-						if (ts.isAwaitExpression(node) && ts.isCallExpression(node.expression)) {
-							const callExpr = node.expression;
-							if (ts.isIdentifier(callExpr.expression)) {
-								const calledFuncName = callExpr.expression.getText();
-								if (functionNames.has(calledFuncName) && calledFuncName !== funcName) {
-									const fromId = `${classInfo.filePath}__${funcName}`;
-									const toId = `${classInfo.filePath}__${calledFuncName}`;
-									relationships.push({ from: fromId, to: toId, type: 'async-calls' });
-								}
-							}
-						}
-						
-						ts.forEachChild(node, visitFunctionBody);
-					};
-					
-					ts.forEachChild(funcNode, visitFunctionBody);
-				}
-				
-				return relationships; // For modules, only return intra-module relationships
-			}
 
 			const visitNode = (node: ts.Node) => {
 				// 1. CALLS-SUPER: super.method() or super() calls
