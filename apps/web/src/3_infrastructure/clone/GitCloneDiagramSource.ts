@@ -6,8 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import type { DiagramSourceRepository } from '@/2_domain';
-import type { DiagramData, KrataiConfig } from '@kratai/core';
+import type { DiagramSourceRepository, DiagramSourceResult } from '@/2_domain';
+import type { KrataiConfig } from '@kratai/core';
 
 import { parseWorkspaceInWorker } from '../parsing/parseWorkspaceInWorker';
 
@@ -30,15 +30,24 @@ export class GitCloneDiagramSource implements DiagramSourceRepository {
 		repoFullName: string,
 		branch: string,
 		config: KrataiConfig
-	): Promise<DiagramData> {
+	): Promise<DiagramSourceResult> {
 		const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kratai-clone-'));
 
 		try {
 			await this.clone(repoFullName, branch, workDir);
-			return await parseWorkspaceInWorker(workDir, config);
+			const [diagramData, commitSha] = await Promise.all([
+				parseWorkspaceInWorker(workDir, config),
+				this.getHeadSha(workDir),
+			]);
+			return { diagramData, commitSha };
 		} finally {
 			fs.rmSync(workDir, { recursive: true, force: true });
 		}
+	}
+
+	private async getHeadSha(repoDir: string): Promise<string> {
+		const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: repoDir });
+		return stdout.trim();
 	}
 
 	private async clone(repoFullName: string, branch: string, targetDir: string): Promise<void> {

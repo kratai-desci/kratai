@@ -25,6 +25,7 @@ export default async function ConfigurePage({ searchParams }: ConfigurePageProps
 	let initialName: string;
 	let initialConfig = DEFAULT_CONFIG;
 	let viewId: string | undefined;
+	let cachedData: Awaited<ReturnType<typeof getDiagramData>> | undefined;
 
 	if (mode === 'edit') {
 		const view = await getView(params.viewId!);
@@ -34,6 +35,10 @@ export default async function ConfigurePage({ searchParams }: ConfigurePageProps
 		initialName = view.name;
 		initialConfig = view.config;
 		viewId = view.id;
+		// Reuse the already-cached parse instead of re-cloning just to
+		// rebuild the folder tree/filter options - the config editor
+		// doesn't need a fresher parse than what's already generated.
+		cachedData = view.diagramData;
 	} else {
 		if (!params.repo || !params.branch) notFound();
 		repoFullName = params.repo;
@@ -41,7 +46,7 @@ export default async function ConfigurePage({ searchParams }: ConfigurePageProps
 		initialName = `${repoFullName.split('/')[1]} diagram`;
 	}
 
-	const data = await getDiagramData(repoFullName, branch, initialConfig);
+	const data = cachedData ?? (await getDiagramData(repoFullName, branch, initialConfig));
 	const folderTree = buildFolderTree(data, initialConfig);
 	const extensionOptions = getAvailableExtensions(data);
 	const classTypeOptions = getAvailableClassTypes(data);

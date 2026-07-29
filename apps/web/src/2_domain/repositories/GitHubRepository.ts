@@ -19,4 +19,13 @@ export interface GitHubRepository {
 	 * second lookup for something already known.
 	 */
 	listBranches(repoFullName: string, defaultBranch: string): Promise<Branch[]>;
+	/**
+	 * Current head commit sha for a single branch - used to check whether a
+	 * cached diagram view is stale, without paying for a full listBranches
+	 * call (which fetches every branch, paginated, just to find one).
+	 * Returns undefined if the branch can't be resolved (e.g. renamed or
+	 * deleted since the view was generated) - callers should treat that as
+	 * "can't tell", not "stale".
+	 */
+	getBranchHeadSha(repoFullName: string, branch: string): Promise<string | undefined>;
 }

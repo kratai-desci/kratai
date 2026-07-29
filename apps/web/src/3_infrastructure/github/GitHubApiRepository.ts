@@ -15,6 +15,7 @@ interface GitHubApiRepo {
 
 interface GitHubApiBranch {
 	name: string;
+	commit: { sha: string };
 }
 
 /**
@@ -68,7 +69,18 @@ export class GitHubApiRepository implements GitHubRepository {
 		const branches = await this.fetchJson<GitHubApiBranch[]>(
 			`/repos/${repoFullName}/branches?per_page=100`
 		);
-		return branches.map((b) => ({ name: b.name, isDefault: b.name === defaultBranch }));
+		return branches.map((b) => ({ name: b.name, isDefault: b.name === defaultBranch, sha: b.commit.sha }));
+	}
+
+	async getBranchHeadSha(repoFullName: string, branch: string): Promise<string | undefined> {
+		try {
+			const result = await this.fetchJson<GitHubApiBranch>(
+				`/repos/${repoFullName}/branches/${encodeURIComponent(branch)}`
+			);
+			return result.commit.sha;
+		} catch {
+			return undefined;
+		}
 	}
 }
 

@@ -82,4 +82,10 @@ export class MockGitHubRepository implements GitHubRepository {
 	async listBranches(repoFullName: string, _defaultBranch: string): Promise<Branch[]> {
 		return MOCK_BRANCHES[repoFullName] ?? [];
 	}
+
+	// Always the same fake sha, matching MockDiagramSource's commitSha - so
+	// mock mode never shows a demo view as stale.
+	async getBranchHeadSha(_repoFullName: string, _branch: string): Promise<string | undefined> {
+		return 'mock-commit-sha';
+	}
 }

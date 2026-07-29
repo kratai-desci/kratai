@@ -1,7 +1,7 @@
 import 'server-only';
 
 import type { DiagramData, KrataiConfig } from '@kratai/core';
-import type { DiagramSourceRepository } from '@/2_domain';
+import type { DiagramSourceRepository, DiagramSourceResult } from '@/2_domain';
 
 import sampleDiagram from '../fixtures/sample-diagram.json';
 
@@ -14,12 +14,16 @@ import sampleDiagram from '../fixtures/sample-diagram.json';
 // use them.
 const FIXTURE_DIAGRAM_DATA = sampleDiagram as DiagramData;
 
+// Matches MockGitHubRepository.getBranchHeadSha, so mock mode never shows
+// a demo view as stale.
+const MOCK_COMMIT_SHA = 'mock-commit-sha';
+
 export class MockDiagramSource implements DiagramSourceRepository {
 	async getDiagramData(
 		_repoFullName: string,
 		_branch: string,
 		_config: KrataiConfig
-	): Promise<DiagramData> {
-		return FIXTURE_DIAGRAM_DATA;
+	): Promise<DiagramSourceResult> {
+		return { diagramData: FIXTURE_DIAGRAM_DATA, commitSha: MOCK_COMMIT_SHA };
 	}
 }

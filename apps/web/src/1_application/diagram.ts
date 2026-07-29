@@ -7,10 +7,14 @@ import { ClassDiagramView } from '@kratai/viewer';
 import { getDiagramSource } from '@/3_infrastructure/diagramSource';
 
 /**
- * Fetches the parsed architecture data for a repo/branch/config. Thin
- * pass-through to 3_infrastructure's diagramSource composition point (an
- * allowed application -> infrastructure call) - kept here so presentation
- * code only ever depends on 1_application, never reaches into
+ * Fetches the parsed architecture data for a repo/branch/config, discarding
+ * the commit sha the data was generated from - for callers that only need
+ * the data itself (building the configure page's folder tree/filter
+ * options). Callers that need to persist a cache entry (generateView.ts)
+ * call getDiagramSource() directly instead, since they need the commitSha
+ * too. Thin pass-through to 3_infrastructure's diagramSource composition
+ * point (an allowed application -> infrastructure call) - kept here so
+ * presentation code only ever depends on 1_application, never reaches into
  * 3_infrastructure directly. Real repo (git clone + parse) when signed in,
  * the static fixture otherwise.
  */
@@ -20,7 +24,8 @@ export async function getDiagramData(
 	config: KrataiConfig
 ): Promise<DiagramData> {
 	const source = await getDiagramSource();
-	return source.getDiagramData(repoFullName, branch, config);
+	const { diagramData } = await source.getDiagramData(repoFullName, branch, config);
+	return diagramData;
 }
 
 /**
