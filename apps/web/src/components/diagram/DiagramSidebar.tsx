@@ -1,10 +1,11 @@
 'use client';
 
-import { GitBranch, Plus } from 'lucide-react';
+import { GitBranch, GitCommitHorizontal, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { groupViewsByRepoAndBranch } from '@/1_application/groupViews';
+import { githubCommitUrl, shortSha } from '@/1_application/githubUrls';
 import type { WebDiagramView } from '@/2_domain';
 import { cn } from '@/lib/utils';
 
@@ -44,18 +45,30 @@ export function DiagramSidebar({ views }: { views: WebDiagramView[] }) {
 								const href = `/diagrams/${view.id}`;
 								const isActive = pathname === href;
 								return (
-									<li key={view.id}>
-										<Link
-											href={href}
-											className={cn(
-												'block truncate rounded-md px-2 py-1.5 text-sm transition-colors',
-												isActive
-													? 'bg-brand/15 text-brand-ink'
-													: 'text-ink-2 hover:bg-surface hover:text-ink'
-											)}
-										>
+									<li
+										key={view.id}
+										className={cn(
+											'flex items-center justify-between gap-2 rounded-md px-2 text-sm transition-colors',
+											isActive
+												? 'bg-brand/15 text-brand-ink'
+												: 'text-ink-2 hover:bg-surface hover:text-ink'
+										)}
+									>
+										<Link href={href} className="min-w-0 flex-1 truncate py-1.5">
 											{view.name}
 										</Link>
+										{view.commitSha && (
+											<a
+												href={githubCommitUrl(view.repoFullName, view.commitSha)}
+												target="_blank"
+												rel="noreferrer"
+												title={view.commitSha}
+												className="flex shrink-0 items-center gap-0.5 font-mono text-[10px] text-ink-3 hover:text-brand-ink hover:underline"
+											>
+												<GitCommitHorizontal className="size-2.5" />
+												{shortSha(view.commitSha)}
+											</a>
+										)}
 									</li>
 								);
 							})}

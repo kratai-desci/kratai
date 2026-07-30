@@ -1,11 +1,12 @@
 'use client';
 
-import { GitBranch, MoreVertical, Settings, Trash2 } from 'lucide-react';
+import { GitBranch, GitCommitHorizontal, MoreVertical, Settings, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
 import { deleteViewAction } from '@/1_application/actions';
+import { githubCommitUrl, shortSha } from '@/1_application/githubUrls';
 import type { WebDiagramView } from '@/2_domain';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -78,7 +79,18 @@ export function ViewCard({ view }: { view: WebDiagramView }) {
 						<GitBranch className="mr-1 size-3" />
 						{view.branch}
 					</Badge>
-					<span>Updated {new Date(view.lastGenerated ?? view.createdAt).toLocaleDateString()}</span>
+					{view.commitSha && (
+						<a
+							href={githubCommitUrl(view.repoFullName, view.commitSha)}
+							target="_blank"
+							rel="noreferrer"
+							title={view.commitSha}
+							className="flex items-center gap-1 font-mono hover:text-brand-ink hover:underline"
+						>
+							<GitCommitHorizontal className="size-3" />
+							{shortSha(view.commitSha)}
+						</a>
+					)}
 				</div>
 			</Card>
 
