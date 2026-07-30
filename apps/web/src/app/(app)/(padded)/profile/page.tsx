@@ -53,11 +53,11 @@ export default async function ProfilePage() {
 						</span>
 					</div>
 				</div>
-				{planStatus.plan === 'free' && (
-					<Button asChild variant="secondary" className="self-end">
-						<Link href="/pricing">Upgrade to Pro</Link>
-					</Button>
-				)}
+				<Button asChild variant="secondary" className="self-end">
+					<Link href={planStatus.plan === 'free' ? '/pricing' : '/billing'}>
+						{planStatus.plan === 'free' ? 'Upgrade to Pro' : 'Manage billing'}
+					</Link>
+				</Button>
 				<div className="border-t border-line pt-4">
 					<p className="mb-2 text-xs text-ink-3">
 						Preview mode (dev only) - no real billing is wired up yet, this just previews the

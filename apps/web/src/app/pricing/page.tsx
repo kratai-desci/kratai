@@ -3,9 +3,10 @@ import Link from 'next/link';
 import NextImage from 'next/image';
 
 import { getPlanStatus } from '@/1_application/plan';
-import { UpgradeButton } from '@/components/pricing/UpgradeButton';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { UpgradeButton } from '@/components/pricing/UpgradeButton';
 
 export const metadata = { title: 'Pricing - kratai' };
 
@@ -100,9 +101,17 @@ export default async function PricingPage() {
 						</li>
 					</ul>
 					{plan === 'pro' ? (
-						<p className="text-center text-sm text-ink-2">You&apos;re on Pro. Thank you!</p>
+						<div className="flex flex-col items-center gap-2">
+							<p className="text-sm text-ink-2">You&apos;re on Pro. Thank you!</p>
+							<Button asChild variant="secondary">
+								<Link href="/billing">Manage billing</Link>
+							</Button>
+						</div>
 					) : (
-						<UpgradeButton />
+						<div className="flex flex-col gap-3 sm:flex-row">
+							<UpgradeButton interval="month" label="$5 / month" />
+							<UpgradeButton interval="year" label="$30 / year" />
+						</div>
 					)}
 				</Card>
 			</div>
