@@ -1,9 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { cancelMockSubscriptionAction } from '@/1_application/planActions';
+import { cancelMockSubscriptionAction } from '@/1_application/billing';
 import { Button } from '@/components/ui/button';
 import {
 	Dialog,
@@ -14,16 +13,14 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog';
 
+/** Only rendered on the billing page's mock branch (Stripe not configured) - real cancellation goes through the Stripe portal instead. */
 export function CancelSubscriptionButton() {
-	const router = useRouter();
 	const [confirmOpen, setConfirmOpen] = useState(false);
 	const [isPending, startTransition] = useTransition();
 
 	function handleCancel() {
 		startTransition(async () => {
 			await cancelMockSubscriptionAction();
-			setConfirmOpen(false);
-			router.push('/pricing');
 		});
 	}
 

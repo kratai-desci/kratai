@@ -1,41 +1,45 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 
-import { setMockPlanAction } from '@/1_application/planActions';
-import type { BillingInterval } from '@/1_application/plan';
+import { createCheckoutSessionAction } from '@/1_application/billing';
+import type { BillingInterval } from '@/2_domain';
 import { Button } from '@/components/ui/button';
 
 /**
- * No real payment processor is wired up yet (REQUIREMENTS.md §9.3) - a real
- * Stripe Checkout redirect here would just be a dead end, so this instead
- * simulates the whole loop: flips the mock plan (same mechanism as the
- * profile page's dev toggle) and lands on a success page, so the full
- * upgrade → confirmation → manage-billing path can actually be reviewed,
- * not just a disabled button. `interval` is real, not cosmetic - it's what
- * the success/billing pages use to show a plausible price, and it's what a
- * real integration would map to a specific Stripe Price id.
+ * createCheckoutSessionAction redirects server-side - to real Stripe
+ * Checkout when configured, straight to the success page otherwise
+ * (REQUIREMENTS.md §9.3) - so this component never needs to know which
+ * happened or call router.push itself; Next's client runtime handles the
+ * redirect() transparently. Only genuine errors (a Stripe API failure)
+ * surface here as a message.
  */
 export function UpgradeButton({ interval, label }: { interval: BillingInterval; label: string }) {
-	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
+	const [error, setError] = useState<string | null>(null);
 
 	function handleClick() {
+		setError(null);
 		startTransition(async () => {
-			await setMockPlanAction('pro', interval);
-			router.push(`/pricing/success?interval=${interval}`);
+			try {
+				await createCheckoutSessionAction(interval);
+			} catch (err) {
+				setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+			}
 		});
 	}
 
 	return (
-		<Button
-			className="w-full flex-1"
-			variant={interval === 'year' ? 'primary' : 'secondary'}
-			onClick={handleClick}
-			disabled={isPending}
-		>
-			{isPending ? 'Processing...' : label}
-		</Button>
+		<div className="flex flex-1 flex-col items-center gap-2">
+			<Button
+				className="w-full"
+				variant={interval === 'year' ? 'primary' : 'secondary'}
+				onClick={handleClick}
+				disabled={isPending}
+			>
+				{isPending ? 'Redirecting...' : label}
+			</Button>
+			{error && <p className="text-center text-xs text-danger-2">{error}</p>}
+		</div>
 	);
 }

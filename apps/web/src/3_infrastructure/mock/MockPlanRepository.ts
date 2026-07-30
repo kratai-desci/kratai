@@ -2,22 +2,57 @@ import 'server-only';
 
 import { cookies } from 'next/headers';
 
-import type { Plan, PlanRepository } from '@/2_domain';
+import type { PlanRepository, UserBillingRecord } from '@/2_domain';
 
-export const MOCK_PLAN_COOKIE_NAME = 'mock-plan';
+export const MOCK_BILLING_COOKIE_NAME = 'mock-billing-record';
 
 /**
- * Every user is on this mock repository today - there is no real billing
- * integration yet (REQUIREMENTS.md §9). Defaults to 'free'; the cookie
- * (flipped via 1_application/planActions.ts's setMockPlanAction, exposed as
- * a dev-only toggle on the profile page) lets the Free/Pro UI - the
- * pricing page, the plan badge, the 1-diagram limit - be previewed without
- * real billing data. Not user-specific by design: userId is unused, since
- * this is a local preview toggle, not a real per-account plan.
+ * Used whenever MongoDB isn't configured (3_infrastructure/planRepository.ts's
+ * composition point, same gating as MockViewRepository) - stores the whole
+ * billing record as one JSON cookie. There's no real multi-user isolation
+ * without a database (the cookie is scoped to the browser, not an account),
+ * which is fine for local dev without Mongo but not for anything real -
+ * REQUIREMENTS.md §9. 1_application/billing.ts is what decides whether to
+ * call the real Stripe API or short-circuit straight to an upsert here;
+ * this class itself doesn't know or care whether Stripe is configured.
  */
 export class MockPlanRepository implements PlanRepository {
-	async getPlan(_userId: string): Promise<Plan> {
+	private async read(): Promise<UserBillingRecord | undefined> {
 		const store = await cookies();
-		return store.get(MOCK_PLAN_COOKIE_NAME)?.value === 'pro' ? 'pro' : 'free';
+		const raw = store.get(MOCK_BILLING_COOKIE_NAME)?.value;
+		if (!raw) return undefined;
+		try {
+			return JSON.parse(raw) as UserBillingRecord;
+		} catch {
+			return undefined;
+		}
+	}
+
+	async getBillingRecord(userId: string): Promise<UserBillingRecord | undefined> {
+		const record = await this.read();
+		return record?.userId === userId ? record : undefined;
+	}
+
+	async upsertBillingRecord(
+		userId: string,
+		updates: Partial<Omit<UserBillingRecord, 'userId'>>
+	): Promise<void> {
+		const existing = await this.read();
+		const merged: UserBillingRecord = {
+			...(existing?.userId === userId ? existing : { userId, plan: 'free' }),
+			...updates,
+			userId,
+		};
+		const store = await cookies();
+		store.set(MOCK_BILLING_COOKIE_NAME, JSON.stringify(merged), {
+			httpOnly: true,
+			sameSite: 'lax',
+			path: '/',
+		});
+	}
+
+	async findByStripeCustomerId(stripeCustomerId: string): Promise<UserBillingRecord | undefined> {
+		const record = await this.read();
+		return record?.stripeCustomerId === stripeCustomerId ? record : undefined;
 	}
 }

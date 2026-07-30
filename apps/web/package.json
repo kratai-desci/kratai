@@ -30,6 +30,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "server-only": "^0.0.1",
+    "stripe": "^22.4.0",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {

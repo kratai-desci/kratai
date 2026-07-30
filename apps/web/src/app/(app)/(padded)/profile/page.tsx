@@ -5,7 +5,6 @@ import { isSignInEnabled } from '@/1_application/auth';
 import { signOutAction } from '@/1_application/authActions';
 import { getPlanStatus } from '@/1_application/plan';
 import { getCurrentUser } from '@/1_application/queries';
-import { PlanPreviewToggle } from '@/components/pricing/PlanPreviewToggle';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -58,13 +57,6 @@ export default async function ProfilePage() {
 						{planStatus.plan === 'free' ? 'Upgrade to Pro' : 'Manage billing'}
 					</Link>
 				</Button>
-				<div className="border-t border-line pt-4">
-					<p className="mb-2 text-xs text-ink-3">
-						Preview mode (dev only) - no real billing is wired up yet, this just previews the
-						Free/Pro UI.
-					</p>
-					<PlanPreviewToggle current={planStatus.plan} />
-				</div>
 			</Card>
 
 			<div className="flex justify-end">

@@ -2,7 +2,10 @@
 
 Status: v1 core flow implemented and in use (GitHub OAuth, repo/branch
 picking, diagram generation + caching, saved views, MD export, MongoDB
-Atlas persistence). Monetization (§9) is requirements-only, not yet built.
+Atlas persistence). Monetization (§9) is implemented too - real Stripe
+Checkout/Customer Portal/webhooks when `STRIPE_SECRET_KEY` etc. are
+configured, an automatic mock-mode fallback (upserts a `users` doc
+directly, no real charge) when they're not - see §9.3.
 Scope: `apps/web`
 
 ## 1. Overview
@@ -510,7 +513,7 @@ generation-status transition is atomic at the database layer.
   app-wide token), and only ever see/modify their own saved views, enforced
   at the database query level (§4.5) — not just hidden in the UI.
 
-## 9. Monetization: Free & Pro Plans (planned, not yet implemented)
+## 9. Monetization: Free & Pro Plans - implemented
 
 Adds a subscription model on top of the existing per-user view scoping
 (§4.5): a **Free** plan and a **Pro** plan, gating how many diagrams a user
@@ -553,27 +556,35 @@ so it doesn't read as the permanent price), with Pro's three perks listed
 app access — coming soon), the two "coming soon" ones visually marked as
 such (e.g. a badge), not presented as available today.
 
-### 9.3 Enforcement point and data model consequence
+### 9.3 Enforcement point and data model - implemented
 
 The 1-diagram cap is a **server-side check** in `createViewAction`
 (`1_application/actions.ts`), reading the current user's plan and their
-existing view count before calling `viewRepository.createView`. This
-requires a new **`users`** collection — see §6 — that doesn't exist today,
-minimally:
-- `_id` / `userId` — the GitHub account id, same identifier already used as
-  `diagramViews.userId`.
-- `plan`: `'free' | 'pro'`.
-- Payment-processor-specific fields (customer id, subscription id,
-  subscription status, current billing period end) — exact shape depends on
-  the payment processor decision below.
+existing view count before calling `viewRepository.createView`.
 
-**Payment processor: not yet decided.** Stripe is the obvious default for
-this shape of product (fixed monthly/annual subscription, no marketplace or
-multi-party payouts involved, well-trodden Next.js integration path via
-Checkout + webhooks) and this document assumes it as a placeholder the same
-way earlier sections assumed Cloud Run before that was fully settled — but
-unlike Cloud Run, this hasn't been explicitly confirmed. Treat "Stripe" as
-a stand-in until confirmed, not a locked decision.
+**`users` collection** (`3_infrastructure/db/MongoPlanRepository.ts`) - a
+new collection that didn't exist before monetization, keyed by `_id` = the
+GitHub account id (same identifier already used as `diagramViews.userId`):
+`plan`, `stripeCustomerId`, `stripeSubscriptionId`, `subscriptionStatus`,
+`billingInterval`, `currentPeriodEnd`. Gated on `isMongoConfigured()`
+(same composition pattern as `viewRepository`) - a cookie-based
+`MockPlanRepository` is used otherwise.
+
+**Payment processor: Stripe**, implemented via Checkout (subscription
+mode) for upgrading, the Stripe-hosted Customer Portal for
+managing/canceling, and a webhook endpoint
+(`app/api/webhooks/stripe/route.ts`, handling
+`customer.subscription.created/updated/deleted`) as the source of truth
+for plan state - the app never queries Stripe live on page load, only
+reads its own `users` collection, which the webhook keeps in sync. Whether
+real Stripe is actually called is decided independently of whether Mongo
+is configured: `1_application/billing.ts`'s
+`createCheckoutSessionAction`/`createPortalSessionAction` check
+`isStripeConfigured()` (is `STRIPE_SECRET_KEY` set) and fall back to
+simulating the purchase/cancellation directly against `planRepository`
+when it isn't - so "Mongo configured, Stripe not" is a coherent state:
+purchases persist for real, just without a real charge. See
+`apps/web/.env.example` for the Stripe env vars and how to obtain them.
 
 ### 9.4 Migration note
 

@@ -26,11 +26,11 @@ export async function createViewAction(input: CreateViewInput): Promise<WebDiagr
 	// reaching this action once they're at the limit, but this is a Server
 	// Action a client could call directly, so the limit has to be re-checked
 	// here too, not just in the UI that leads up to it.
-	const [plan, existingViews] = await Promise.all([
-		planRepository.getPlan(user.id),
+	const [billing, existingViews] = await Promise.all([
+		planRepository.getBillingRecord(user.id),
 		viewRepository.listViews(user.id),
 	]);
-	const limit = getViewLimit(plan);
+	const limit = getViewLimit(billing?.plan ?? 'free');
 	if (existingViews.length >= limit) {
 		throw new Error(
 			`Free plan is limited to ${limit} diagram${limit === 1 ? '' : 's'} - upgrade to Pro for unlimited diagrams.`
