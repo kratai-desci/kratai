@@ -1,8 +1,11 @@
 import { LogOut } from 'lucide-react';
+import Link from 'next/link';
 
 import { isSignInEnabled } from '@/1_application/auth';
 import { signOutAction } from '@/1_application/authActions';
+import { getPlanStatus } from '@/1_application/plan';
 import { getCurrentUser } from '@/1_application/queries';
+import { PlanPreviewToggle } from '@/components/pricing/PlanPreviewToggle';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +14,7 @@ import { Card } from '@/components/ui/card';
 export default async function ProfilePage() {
 	const user = await getCurrentUser();
 	const signInEnabled = isSignInEnabled();
+	const planStatus = await getPlanStatus();
 
 	return (
 		<div className="mx-auto flex max-w-xl flex-col gap-6">
@@ -33,6 +37,33 @@ export default async function ProfilePage() {
 				<div className="flex items-center justify-between text-sm">
 					<span className="text-ink-2">Connected account</span>
 					<Badge variant="brand">GitHub @{user.username}</Badge>
+				</div>
+			</Card>
+
+			<Card className="flex flex-col gap-4 hover:border-line hover:shadow-none">
+				<h2 className="text-sm font-semibold tracking-wide text-ink-3 uppercase">Plan</h2>
+				<div className="flex items-center justify-between text-sm">
+					<span className="text-ink-2">Current plan</span>
+					<div className="flex items-center gap-2">
+						<Badge variant={planStatus.plan === 'pro' ? 'brand' : 'neutral'}>
+							{planStatus.plan === 'pro' ? 'Pro' : 'Free'}
+						</Badge>
+						<span className="text-xs text-ink-3">
+							{planStatus.viewCount}/{planStatus.limit === Infinity ? '∞' : planStatus.limit} diagrams
+						</span>
+					</div>
+				</div>
+				{planStatus.plan === 'free' && (
+					<Button asChild variant="secondary" className="self-end">
+						<Link href="/pricing">Upgrade to Pro</Link>
+					</Button>
+				)}
+				<div className="border-t border-line pt-4">
+					<p className="mb-2 text-xs text-ink-3">
+						Preview mode (dev only) - no real billing is wired up yet, this just previews the
+						Free/Pro UI.
+					</p>
+					<PlanPreviewToggle current={planStatus.plan} />
 				</div>
 			</Card>
 

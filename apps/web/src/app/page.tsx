@@ -47,6 +47,9 @@ export default function LandingPage() {
 					? 'Sign in with your GitHub account to get started.'
 					: "This is a UI preview running on demo data - sign-in isn't wired up yet."}
 			</p>
+			<Link href="/pricing" className="mt-8 text-sm text-ink-2 underline hover:text-brand-ink">
+				View pricing
+			</Link>
 		</div>
 	);
 }

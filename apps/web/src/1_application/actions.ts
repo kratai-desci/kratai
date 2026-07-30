@@ -1,11 +1,13 @@
 'use server';
 
 import type { CreateViewInput, WebDiagramView } from '@/2_domain';
+import { planRepository } from '@/3_infrastructure/planRepository';
 import { viewRepository } from '@/3_infrastructure/viewRepository';
 import type { KrataiConfig } from '@kratai/core';
 import { revalidatePath } from 'next/cache';
 
 import { generateAndCacheView } from './generateView';
+import { getViewLimit } from './plan';
 import { getCurrentUser } from './queries';
 
 /**
@@ -19,6 +21,22 @@ import { getCurrentUser } from './queries';
 
 export async function createViewAction(input: CreateViewInput): Promise<WebDiagramView> {
 	const user = await getCurrentUser();
+
+	// Defense in depth: the /new page already blocks a Free user from
+	// reaching this action once they're at the limit, but this is a Server
+	// Action a client could call directly, so the limit has to be re-checked
+	// here too, not just in the UI that leads up to it.
+	const [plan, existingViews] = await Promise.all([
+		planRepository.getPlan(user.id),
+		viewRepository.listViews(user.id),
+	]);
+	const limit = getViewLimit(plan);
+	if (existingViews.length >= limit) {
+		throw new Error(
+			`Free plan is limited to ${limit} diagram${limit === 1 ? '' : 's'} - upgrade to Pro for unlimited diagrams.`
+		);
+	}
+
 	const view = await viewRepository.createView(user.id, input);
 	revalidatePath('/dashboard');
 	return view;

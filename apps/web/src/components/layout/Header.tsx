@@ -2,13 +2,15 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { isSignInEnabled } from '@/1_application/auth';
+import { getCurrentPlan } from '@/1_application/plan';
 import { getCurrentUser } from '@/1_application/queries';
+import { Badge } from '@/components/ui/badge';
 
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { UserMenu } from './UserMenu';
 
 export async function Header() {
-	const user = await getCurrentUser();
+	const [user, plan] = await Promise.all([getCurrentUser(), getCurrentPlan()]);
 	// If sign-in isn't configured we're always on mock data. If it is, the
 	// (app) layout already redirects unauthenticated visitors away, so
 	// reaching here means this is a real signed-in user.
@@ -34,6 +36,9 @@ export async function Header() {
 				</Link>
 				<Link href="/new" className="text-ink-2 transition-colors hover:text-brand-ink">
 					New Diagram
+				</Link>
+				<Link href="/pricing" className="transition-opacity hover:opacity-80">
+					<Badge variant={plan === 'pro' ? 'brand' : 'neutral'}>{plan === 'pro' ? 'Pro' : 'Free'}</Badge>
 				</Link>
 				{isDemoData && (
 					<span className="rounded-md border border-line px-2 py-1 text-xs font-medium text-ink-3">

@@ -68,6 +68,7 @@ export function ConfigForm({
 }: ConfigFormProps) {
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
+	const [submitError, setSubmitError] = useState<string | null>(null);
 
 	const [name, setName] = useState(initialName);
 	const [selectedExtensions, setSelectedExtensions] = useState(initialConfig.selectedExtensions);
@@ -109,13 +110,22 @@ export function ConfigForm({
 			frameworkEnrichment,
 		};
 
+		setSubmitError(null);
 		startTransition(async () => {
-			if (mode === 'edit' && viewId) {
-				await updateViewAction(viewId, { name, config });
-				router.push(`/diagrams/${viewId}`);
-			} else {
-				const view = await createViewAction({ repoFullName, branch, name, config });
-				router.push(`/diagrams/${view.id}`);
+			try {
+				if (mode === 'edit' && viewId) {
+					await updateViewAction(viewId, { name, config });
+					router.push(`/diagrams/${viewId}`);
+				} else {
+					const view = await createViewAction({ repoFullName, branch, name, config });
+					router.push(`/diagrams/${view.id}`);
+				}
+			} catch (error) {
+				// Most likely the Free-plan diagram limit (createViewAction
+				// re-checks it server-side even though /new already gates on
+				// it - see 1_application/actions.ts) - surface whatever the
+				// action's error message says rather than failing silently.
+				setSubmitError(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
 			}
 		});
 	}
@@ -196,13 +206,16 @@ export function ConfigForm({
 				</label>
 			</section>
 
-			<div className="flex justify-end gap-3 border-t border-line pt-6">
-				<Button variant="secondary" onClick={() => router.back()}>
-					Cancel
-				</Button>
-				<Button onClick={handleSubmit} disabled={isPending || !name.trim()}>
-					{isPending ? 'Generating...' : mode === 'edit' ? 'Save & regenerate' : 'Generate diagram'}
-				</Button>
+			<div className="flex flex-col items-end gap-3 border-t border-line pt-6">
+				{submitError && <p className="text-sm text-danger-2">{submitError}</p>}
+				<div className="flex gap-3">
+					<Button variant="secondary" onClick={() => router.back()}>
+						Cancel
+					</Button>
+					<Button onClick={handleSubmit} disabled={isPending || !name.trim()}>
+						{isPending ? 'Generating...' : mode === 'edit' ? 'Save & regenerate' : 'Generate diagram'}
+					</Button>
+				</div>
 			</div>
 		</div>
 	);
