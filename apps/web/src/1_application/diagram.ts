@@ -29,6 +29,22 @@ export async function getDiagramData(
 }
 
 /**
+ * File paths only, no parsing - what the configure page uses to build the
+ * folder tree/extension picker before a diagram has ever been generated
+ * for this view. Orders of magnitude cheaper than getDiagramData, since
+ * neither of those widgets ever needed class/relationship data. See
+ * DiagramSourceRepository.listFiles.
+ */
+export async function listRepoFiles(
+	repoFullName: string,
+	branch: string,
+	config: KrataiConfig
+): Promise<string[]> {
+	const source = await getDiagramSource();
+	return source.listFiles(repoFullName, branch, config);
+}
+
+/**
  * Mirrors the class-type / relationship-type filtering in
  * apps/vsextension/src/commands/generateClassDiagram.ts's
  * generateClassDiagramDirect, so the config panel's filters actually
@@ -94,13 +110,14 @@ export function getAvailableClassTypes(data: DiagramData): FilterOption[] {
 
 const KNOWN_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.py', '.java', '.php', '.html'];
 
-export function getAvailableExtensions(data: DiagramData): FilterOption[] {
+/** Takes file paths directly (not DiagramData) - extension counts never needed parsed class data, only which files exist. */
+export function getAvailableExtensions(files: string[]): FilterOption[] {
 	const filesByExt = new Map<string, Set<string>>();
-	data.classes.forEach((c) => {
-		const dot = c.filePath.lastIndexOf('.');
-		const ext = dot === -1 ? '' : c.filePath.slice(dot);
+	files.forEach((filePath) => {
+		const dot = filePath.lastIndexOf('.');
+		const ext = dot === -1 ? '' : filePath.slice(dot);
 		if (!filesByExt.has(ext)) filesByExt.set(ext, new Set());
-		filesByExt.get(ext)!.add(c.filePath);
+		filesByExt.get(ext)!.add(filePath);
 	});
 
 	const allExts = new Set([...KNOWN_EXTENSIONS, ...filesByExt.keys()]);
@@ -120,14 +137,16 @@ export function getAvailableRelationshipTypes(data: DiagramData): FilterOption[]
 }
 
 /**
- * Folder tree for the config panel's folder-selection UI, derived from
- * whatever DiagramData was fetched (today: the fixture; later: a real
- * clone+parse result). Mirrors ConfigFolderNode, the same shape
+ * Folder tree for the config panel's folder-selection UI, derived from a
+ * plain file-path list (today: the fixture's paths, or listRepoFiles'
+ * cheap scan; a cached view's diagramData works too, since ClassInfo.filePath
+ * is all this ever read). Mirrors ConfigFolderNode, the same shape
  * apps/vsextension/src/commands/showConfigPanel.ts's buildFolderTree
  * produces, and what CodeParserService.parseWorkspace's
- * config.selectedFolders expects.
+ * config.selectedFolders expects. fileCount is a file count (not a class
+ * count) - a file with zero or several classes only ever counts once here.
  */
-export function buildFolderTree(data: DiagramData, config: KrataiConfig): ConfigFolderNode {
+export function buildFolderTree(files: string[], config: KrataiConfig): ConfigFolderNode {
 	const selectedFolders = config.selectedFolders ?? [];
 	const isSelected = (folderPath: string) =>
 		selectedFolders.length === 0 || selectedFolders.includes(folderPath);
@@ -150,10 +169,8 @@ export function buildFolderTree(data: DiagramData, config: KrataiConfig): Config
 		return node;
 	}
 
-	for (const classInfo of data.classes) {
-		const dir = classInfo.filePath.includes('/')
-			? classInfo.filePath.slice(0, classInfo.filePath.lastIndexOf('/'))
-			: '';
+	for (const filePath of files) {
+		const dir = filePath.includes('/') ? filePath.slice(0, filePath.lastIndexOf('/')) : '';
 		const node = getOrCreate(dir);
 		node.fileCount = (node.fileCount ?? 0) + 1;
 	}

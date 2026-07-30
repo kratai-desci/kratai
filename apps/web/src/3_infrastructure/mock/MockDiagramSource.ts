@@ -26,4 +26,8 @@ export class MockDiagramSource implements DiagramSourceRepository {
 	): Promise<DiagramSourceResult> {
 		return { diagramData: FIXTURE_DIAGRAM_DATA, commitSha: MOCK_COMMIT_SHA };
 	}
+
+	async listFiles(_repoFullName: string, _branch: string, _config: KrataiConfig): Promise<string[]> {
+		return [...new Set(FIXTURE_DIAGRAM_DATA.classes.map((c) => c.filePath))];
+	}
 }

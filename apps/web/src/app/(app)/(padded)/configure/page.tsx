@@ -6,7 +6,8 @@ import {
 	getAvailableClassTypes,
 	getAvailableExtensions,
 	getAvailableRelationshipTypes,
-	getDiagramData,
+	listRepoFiles,
+	type FilterOption,
 } from '@/1_application/diagram';
 import { getView } from '@/1_application/queries';
 import { ConfigForm } from '@/components/config/ConfigForm';
@@ -25,7 +26,7 @@ export default async function ConfigurePage({ searchParams }: ConfigurePageProps
 	let initialName: string;
 	let initialConfig = DEFAULT_CONFIG;
 	let viewId: string | undefined;
-	let cachedData: Awaited<ReturnType<typeof getDiagramData>> | undefined;
+	let cachedDiagramData: NonNullable<Awaited<ReturnType<typeof getView>>>['diagramData'];
 
 	if (mode === 'edit') {
 		const view = await getView(params.viewId!);
@@ -35,10 +36,7 @@ export default async function ConfigurePage({ searchParams }: ConfigurePageProps
 		initialName = view.name;
 		initialConfig = view.config;
 		viewId = view.id;
-		// Reuse the already-cached parse instead of re-cloning just to
-		// rebuild the folder tree/filter options - the config editor
-		// doesn't need a fresher parse than what's already generated.
-		cachedData = view.diagramData;
+		cachedDiagramData = view.diagramData;
 	} else {
 		if (!params.repo || !params.branch) notFound();
 		repoFullName = params.repo;
@@ -46,11 +44,27 @@ export default async function ConfigurePage({ searchParams }: ConfigurePageProps
 		initialName = `${repoFullName.split('/')[1]} diagram`;
 	}
 
-	const data = cachedData ?? (await getDiagramData(repoFullName, branch, initialConfig));
-	const folderTree = buildFolderTree(data, initialConfig);
-	const extensionOptions = getAvailableExtensions(data);
-	const classTypeOptions = getAvailableClassTypes(data);
-	const relationshipTypeOptions = getAvailableRelationshipTypes(data);
+	// Editing an already-generated view: reuse its cached parse for real
+	// class-type/relationship-type filter options instead of re-cloning.
+	// Otherwise (a brand-new diagram, or editing a view that's never
+	// successfully generated) there's no parsed data to draw options from
+	// yet - fall back to a cheap file-listing scan (no parsing) just to
+	// build the folder tree/extension picker, and leave the type filters
+	// empty until the first real generation produces something to filter.
+	let files: string[];
+	let classTypeOptions: FilterOption[] = [];
+	let relationshipTypeOptions: FilterOption[] = [];
+
+	if (cachedDiagramData) {
+		files = [...new Set(cachedDiagramData.classes.map((c) => c.filePath))];
+		classTypeOptions = getAvailableClassTypes(cachedDiagramData);
+		relationshipTypeOptions = getAvailableRelationshipTypes(cachedDiagramData);
+	} else {
+		files = await listRepoFiles(repoFullName, branch, initialConfig);
+	}
+
+	const folderTree = buildFolderTree(files, initialConfig);
+	const extensionOptions = getAvailableExtensions(files);
 
 	return (
 		<div className="mx-auto max-w-3xl">

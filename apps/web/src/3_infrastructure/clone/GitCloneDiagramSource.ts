@@ -7,7 +7,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import type { DiagramSourceRepository, DiagramSourceResult } from '@/2_domain';
-import type { KrataiConfig } from '@kratai/core';
+import { WorkspaceScanner, type KrataiConfig } from '@kratai/core';
 
 import { parseWorkspaceInWorker } from '../parsing/parseWorkspaceInWorker';
 
@@ -48,6 +48,22 @@ export class GitCloneDiagramSource implements DiagramSourceRepository {
 	private async getHeadSha(repoDir: string): Promise<string> {
 		const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: repoDir });
 		return stdout.trim();
+	}
+
+	async listFiles(repoFullName: string, branch: string, config: KrataiConfig): Promise<string[]> {
+		const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kratai-clone-'));
+
+		try {
+			await this.clone(repoFullName, branch, workDir);
+			// A plain directory listing (fs.readdirSync tree walk + gitignore/
+			// extension filtering) - not a worker candidate like the parse
+			// step is, since there's no AST compilation involved; this stays
+			// fast even for large repos.
+			const files = WorkspaceScanner.getFilesToParse(workDir, config);
+			return files.map((file) => path.relative(workDir, file).replace(/\\/g, '/'));
+		} finally {
+			fs.rmSync(workDir, { recursive: true, force: true });
+		}
 	}
 
 	private async clone(repoFullName: string, branch: string, targetDir: string): Promise<void> {

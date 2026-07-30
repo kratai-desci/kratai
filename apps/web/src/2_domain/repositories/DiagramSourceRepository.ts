@@ -15,4 +15,14 @@ export interface DiagramSourceResult {
  */
 export interface DiagramSourceRepository {
 	getDiagramData(repoFullName: string, branch: string, config: KrataiConfig): Promise<DiagramSourceResult>;
+	/**
+	 * File paths (workspace-relative) matching config's folder/extension
+	 * selection, without parsing any of them - for building the configure
+	 * page's folder tree and extension picker before a real diagram has
+	 * ever been generated. Deliberately cheap: a directory listing, not an
+	 * AST parse - orders of magnitude faster than getDiagramData, since
+	 * building those two widgets never needed class/relationship data, only
+	 * which files exist and where.
+	 */
+	listFiles(repoFullName: string, branch: string, config: KrataiConfig): Promise<string[]>;
 }

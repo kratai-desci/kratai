@@ -149,23 +149,31 @@ export function ConfigForm({
 
 			<section>
 				<h2 className="mb-3 text-sm font-semibold tracking-wide text-ink-3 uppercase">Class types</h2>
-				<TypeFilterList
-					options={classTypeOptions}
-					filters={classTypeFilters}
-					onChange={setClassTypeFilters}
-					getLabel={getTypeLabel}
-				/>
+				{classTypeOptions.length > 0 ? (
+					<TypeFilterList
+						options={classTypeOptions}
+						filters={classTypeFilters}
+						onChange={setClassTypeFilters}
+						getLabel={getTypeLabel}
+					/>
+				) : (
+					<p className="text-sm text-ink-3">Available after this diagram is generated once.</p>
+				)}
 			</section>
 
 			<section>
 				<h2 className="mb-3 text-sm font-semibold tracking-wide text-ink-3 uppercase">Relationship types</h2>
-				<TypeFilterList
-					options={relationshipTypeOptions}
-					filters={relationshipTypeFilters}
-					onChange={setRelationshipTypeFilters}
-					getLabel={getRelTypeLabel}
-					getDescription={getRelTypeDescription}
-				/>
+				{relationshipTypeOptions.length > 0 ? (
+					<TypeFilterList
+						options={relationshipTypeOptions}
+						filters={relationshipTypeFilters}
+						onChange={setRelationshipTypeFilters}
+						getLabel={getRelTypeLabel}
+						getDescription={getRelTypeDescription}
+					/>
+				) : (
+					<p className="text-sm text-ink-3">Available after this diagram is generated once.</p>
+				)}
 			</section>
 
 			<section className="flex flex-col gap-4">
