@@ -9,7 +9,7 @@ import {
 	listRepoFiles,
 	type FilterOption,
 } from '@/1_application/diagram';
-import { getView } from '@/1_application/queries';
+import { getView, listViews } from '@/1_application/queries';
 import { ConfigForm } from '@/components/config/ConfigForm';
 
 interface ConfigurePageProps {
@@ -66,6 +66,10 @@ export default async function ConfigurePage({ searchParams }: ConfigurePageProps
 	const folderTree = buildFolderTree(files, initialConfig);
 	const extensionOptions = getAvailableExtensions(files);
 
+	// Only relevant in create mode - determines whether this submission
+	// should also fire GA4's 'create_first_diagram' alongside 'create_diagram'.
+	const isFirstDiagram = mode === 'create' && (await listViews()).length === 0;
+
 	return (
 		<div className="mx-auto max-w-3xl">
 			<div className="mb-8">
@@ -88,6 +92,7 @@ export default async function ConfigurePage({ searchParams }: ConfigurePageProps
 				extensionOptions={extensionOptions}
 				classTypeOptions={classTypeOptions}
 				relationshipTypeOptions={relationshipTypeOptions}
+				isFirstDiagram={isFirstDiagram}
 			/>
 		</div>
 	);

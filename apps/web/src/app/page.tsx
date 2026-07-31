@@ -15,6 +15,7 @@ import type { ReactNode } from 'react';
 
 import { isSignInEnabled } from '@/1_application/auth';
 import { signInAction } from '@/1_application/authActions';
+import { TrackEvent } from '@/components/analytics/TrackEvent';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
@@ -56,6 +57,8 @@ function SignInCTA({ children, size = 'default' }: { children: ReactNode; size?:
 export default function LandingPage() {
 	return (
 		<div className="min-h-screen">
+			<TrackEvent event="visit" />
+
 			{/* Nav */}
 			<nav className="sticky top-0 z-50 border-b border-line bg-surface/95 backdrop-blur-md">
 				<div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">

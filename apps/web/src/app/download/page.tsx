@@ -1,11 +1,10 @@
-import { ArrowUpRight, Bot, Clock, Monitor } from 'lucide-react';
+import { Bot, Clock, Monitor } from 'lucide-react';
 import Link from 'next/link';
 import NextImage from 'next/image';
 
+import { InstallExtensionButton } from '@/components/download/InstallExtensionButton';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-
-const MARKETPLACE_URL = 'https://marketplace.visualstudio.com/items?itemName=kratai-core.kratai';
 
 export const metadata = { title: 'Download - kratai' };
 
@@ -43,15 +42,7 @@ export default function DownloadPage() {
 						Install the kratai extension for the pre-configured SKILL, a local MCP server, and
 						git-diff-aware navigation on top of your saved diagrams.
 					</p>
-					<a
-						href={MARKETPLACE_URL}
-						target="_blank"
-						rel="noopener noreferrer"
-						className="inline-flex items-center justify-center gap-1.5 rounded-md bg-brand px-6 py-3 text-sm font-semibold text-on-brand transition-all duration-150 ease-out hover:-translate-y-px hover:bg-brand-gold hover:shadow-[0_4px_12px_rgba(244,208,63,0.3)]"
-					>
-						Install from Marketplace
-						<ArrowUpRight className="size-4" />
-					</a>
+					<InstallExtensionButton />
 				</Card>
 
 				<Card className="flex flex-col gap-6 hover:border-line hover:shadow-none">

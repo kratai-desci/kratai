@@ -10,6 +10,7 @@ import { getRelTypeDescription, getRelTypeLabel, getTypeLabel } from '@/1_applic
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { trackEvent } from '@/lib/analytics/gtag';
 
 import { ExtensionPicker } from './ExtensionPicker';
 import { FolderTree } from './FolderTree';
@@ -52,6 +53,8 @@ interface ConfigFormProps {
 	extensionOptions: FilterOption[];
 	classTypeOptions: FilterOption[];
 	relationshipTypeOptions: FilterOption[];
+	/** Only meaningful in create mode - whether this would be the user's first saved diagram. */
+	isFirstDiagram?: boolean;
 }
 
 export function ConfigForm({
@@ -65,6 +68,7 @@ export function ConfigForm({
 	extensionOptions,
 	classTypeOptions,
 	relationshipTypeOptions,
+	isFirstDiagram,
 }: ConfigFormProps) {
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
@@ -118,6 +122,8 @@ export function ConfigForm({
 					router.push(`/diagrams/${viewId}`);
 				} else {
 					const view = await createViewAction({ repoFullName, branch, name, config });
+					trackEvent('create_diagram', { repo: repoFullName });
+					if (isFirstDiagram) trackEvent('create_first_diagram', { repo: repoFullName });
 					router.push(`/diagrams/${view.id}`);
 				}
 			} catch (error) {

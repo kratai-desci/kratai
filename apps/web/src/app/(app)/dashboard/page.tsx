@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 import { listViews } from '@/1_application/queries';
 import { DownloadBanner } from '@/components/dashboard/DownloadBanner';
+import { TrackSignup } from '@/components/dashboard/TrackSignup';
 import { Button } from '@/components/ui/button';
 import { ViewList } from '@/components/views/ViewList';
 
@@ -11,6 +12,7 @@ export default async function DashboardPage() {
 
 	return (
 		<div className="flex flex-col">
+			<TrackSignup isNewUser={views.length === 0} />
 			<DownloadBanner />
 
 			<div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10">

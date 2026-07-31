@@ -2,6 +2,7 @@ import { CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 
 import { isBillingConfigured } from '@/1_application/plan';
+import { TrackPurchase } from '@/components/pricing/TrackPurchase';
 import { Button } from '@/components/ui/button';
 
 export const metadata = { title: 'Welcome to Pro - kratai' };
@@ -16,6 +17,7 @@ export default async function PurchaseSuccessPage({ searchParams }: PurchaseSucc
 
 	return (
 		<div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 text-center">
+			<TrackPurchase interval={interval === 'year' ? 'year' : 'month'} />
 			<CheckCircle2 className="mb-6 size-16 text-success-2" />
 			<h1 className="text-3xl font-bold text-ink">You&apos;re on Pro!</h1>
 			<p className="mt-3 text-ink-2">{priceLabel} - unlimited saved diagrams are unlocked.</p>
