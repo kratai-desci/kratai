@@ -30,6 +30,20 @@ FROM node:20-slim AS runner
 WORKDIR /repo
 ENV NODE_ENV=production
 
+# GitCloneDiagramSource (3_infrastructure/clone/GitCloneDiagramSource.ts)
+# shells out to the real `git` binary via execFile('git', ...) to clone
+# repos for diagram generation - node:20-slim doesn't include it by default
+# (that's the whole point of the "slim" variant). Missing this produces
+# `Error: Failed to clone <repo>: spawn git ENOENT` at runtime, on the
+# specific request that tries to generate a diagram - every other route
+# works fine without it, which is why this wasn't caught by earlier route
+# smoke-testing (none of those routes exercise cloning). ca-certificates is
+# also missing from the slim base - without it, git can't verify GitHub's
+# TLS certificate over HTTPS (confirmed via testing: git installed alone
+# still failed with "server certificate verification failed. CAfile: none").
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
+	&& rm -rf /var/lib/apt/lists/*
+
 # apps/web's own traced dependencies (next, react, mongodb, stripe, etc.) -
 # output: 'standalone' in next.config.ts produces this; the standalone
 # tracer walks the actual import graph so this node_modules is far smaller
