@@ -41,6 +41,14 @@ const {
 	signIn,
 	signOut,
 } = NextAuth({
+	// Required whenever Auth.js isn't running directly on Vercel (Cloud Run,
+	// Docker, any reverse-proxied host) - without this it either rejects
+	// requests outright or can construct the OAuth callback URL from the
+	// wrong (internal container) host instead of the public one, breaking
+	// the GitHub redirect. Safe here since the actual host is already
+	// constrained by what's registered as this OAuth App's callback URL on
+	// GitHub's side.
+	trustHost: true,
 	providers: [
 		GitHub({
 			clientId: process.env.AUTH_GITHUB_ID,
