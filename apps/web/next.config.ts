@@ -1,6 +1,14 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+	// Produces a minimal .next/standalone build (traced dependencies only,
+	// includes its own node server) instead of relying on `next start` +
+	// the full node_modules tree - what the Dockerfile's runtime stage
+	// actually ships, since Cloud Run bills/scales per container image and
+	// a standalone output is dramatically smaller than the whole monorepo's
+	// node_modules.
+	output: 'standalone',
+
 	// @kratai/core's barrel export (packages/core/src/index.ts) re-exports
 	// telemetry/telemetryService.ts, which does `require.resolve('vscode')`
 	// at module scope to detect a VS Code host. Webpack's static bundler
