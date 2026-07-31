@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Script from 'next/script';
 
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
-import { GA_MEASUREMENT_ID } from '@/lib/analytics/gtag';
+import { GA_MEASUREMENT_ID } from '@/lib/analytics/gtagConfig';
 
 import './globals.css';
 

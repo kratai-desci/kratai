@@ -1,4 +1,17 @@
-export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+'use client';
+
+// A LOCAL, independent read of the env var - not imported from
+// gtagConfig.ts. Confirmed via testing that importing a Server-Component-safe
+// constant into a 'use client' file recreates the same problem from the
+// other direction depending on which side ends up sharing the compiled
+// module; a plain module worked for server usage (layout.tsx) but silently
+// failed to inline into the client bundle at all, while marking that same
+// module 'use client' fixed the client bundle but turned layout.tsx's usage
+// into a broken opaque reference. Two independent `process.env.NEXT_PUBLIC_*`
+// expressions - one here, one in gtagConfig.ts - each inlines correctly for
+// its own bundle graph, since Next's substitution is a textual match on the
+// literal expression within a file already known to belong to that graph.
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 declare global {
 	interface Window {
