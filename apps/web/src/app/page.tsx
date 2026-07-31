@@ -19,6 +19,17 @@ import { TrackEvent } from '@/components/analytics/TrackEvent';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
+// Without this, Next statically prerenders this page once at `next build`
+// time, baking in whatever isSignInEnabled() (AUTH_GITHUB_ID/SECRET) happens
+// to resolve to during the Docker/Cloud Build step - which normally has no
+// access to Cloud Run's runtime env vars, since those are only injected into
+// the running container, not the build. That mismatch is exactly what
+// produced a landing page permanently stuck showing the mock "no auth
+// configured" sign-in link even once the real GitHub OAuth env vars were
+// correctly set in Cloud Run - confirmed by comparing against /dashboard,
+// which is a dynamic route and correctly saw the real runtime env.
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
 	title: 'kratai — Architecture diagrams for your GitHub repos',
 	description:
