@@ -7,7 +7,16 @@ import { viewRepository } from '@/3_infrastructure/viewRepository';
 
 import { getCurrentUser } from './queries';
 
-/** REQUIREMENTS.md §9.1 - Free plan is capped at 1 saved diagram view. */
+/**
+ * REQUIREMENTS.md §9.1 originally capped Free at 1 saved diagram view.
+ * Deliberately unused for now (kept, not deleted, so reverting is a
+ * one-line change) - Free plan is temporarily unlimited: with zero
+ * returning users and zero purchases, the cap was gating the wrong thing
+ * (a free user could never see a diagram stay in sync across regenerations
+ * - the actual differentiator - since they never got a second one) and
+ * pricing/Pro's value prop needs a real redesign before this limit is
+ * worth re-enforcing. Revisit alongside that redesign.
+ */
 export const FREE_PLAN_VIEW_LIMIT = 1;
 
 /** Whether real Stripe billing is configured - if not, the checkout/portal actions in billing.ts simulate the flow directly against planRepository instead of calling Stripe. REQUIREMENTS.md §9.3. */
@@ -15,8 +24,9 @@ export function isBillingConfigured(): boolean {
 	return isStripeConfigured();
 }
 
-export function getViewLimit(plan: Plan): number {
-	return plan === 'pro' ? Infinity : FREE_PLAN_VIEW_LIMIT;
+/** Both plans are unlimited right now - see FREE_PLAN_VIEW_LIMIT's comment. */
+export function getViewLimit(_plan: Plan): number {
+	return Infinity;
 }
 
 export async function getCurrentPlan(): Promise<Plan> {
