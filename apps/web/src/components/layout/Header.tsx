@@ -34,8 +34,8 @@ export async function Header() {
 				<Link href="/dashboard" className="text-ink-2 transition-colors hover:text-brand-ink">
 					Dashboard
 				</Link>
-				<Link href="/new" className="text-ink-2 transition-colors hover:text-brand-ink">
-					New Diagram
+				<Link href="/download" className="text-ink-2 transition-colors hover:text-brand-ink">
+					Download
 				</Link>
 				<Link href={plan === 'pro' ? '/billing' : '/pricing'} className="transition-opacity hover:opacity-80">
 					<Badge variant={plan === 'pro' ? 'brand' : 'neutral'}>{plan === 'pro' ? 'Pro' : 'Free'}</Badge>

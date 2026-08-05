@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, Download, LogOut, User as UserIcon } from 'lucide-react';
+import { ChevronDown, LogOut, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
 
 import { signOutAction } from '@/1_application/authActions';
@@ -32,12 +32,6 @@ export function UserMenu({ user }: { user: User }) {
 					<Link href="/profile">
 						<UserIcon className="size-3.5" />
 						Profile
-					</Link>
-				</DropdownMenuItem>
-				<DropdownMenuItem asChild>
-					<Link href="/download">
-						<Download className="size-3.5" />
-						Download
 					</Link>
 				</DropdownMenuItem>
 				<DropdownMenuSeparator />
