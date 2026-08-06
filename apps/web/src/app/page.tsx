@@ -1,4 +1,5 @@
-import { GitPullRequest, LogIn, Users2, Waypoints } from 'lucide-react';
+import { LogIn, Users2, Waypoints } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -27,21 +28,21 @@ export const metadata: Metadata = {
 
 const STACK = ['TypeScript', 'JavaScript', 'Python', 'Java', 'PHP', 'Spring', 'Django', 'Next.js'];
 
-const DIFFERENTIATORS = [
+const DIFFERENTIATORS: Array<{
+	icon: LucideIcon;
+	title: string;
+	body?: ReactNode;
+	bullets?: string[];
+}> = [
 	{
 		icon: Waypoints,
 		title: 'Catches architectural drift',
-		body: 'Flags changes that break the intended structure, not just syntax.',
-	},
-	{
-		icon: GitPullRequest,
-		title: 'Comments live on the diagram',
-		body: 'Review context anchored to the architecture, not buried in a diff thread.',
+		bullets: ['Detects bloated controllers', 'Detects over-engineered code'],
 	},
 	{
 		icon: Users2,
 		title: 'Built for humans and AI',
-		body: 'The same context goes to your reviewers and your AI agents.',
+		bullets: ['Every change maps to the diagram', 'AI agents get the same architectural context'],
 	},
 ];
 
@@ -135,28 +136,17 @@ export default function LandingPage() {
 					<div className="grid gap-12 lg:grid-cols-2 lg:items-center">
 						<div className="text-center sm:text-left">
 							<Waypoints className="mx-auto mb-4 size-6 text-brand-ink sm:mx-0" />
-							<h3 className="mb-1 font-semibold text-ink">{DIFFERENTIATORS[0].title}</h3>
-							<p className="text-sm text-ink-2">{DIFFERENTIATORS[0].body}</p>
+							<h3 className="mb-3 font-semibold text-ink">{DIFFERENTIATORS[0].title}</h3>
+							<ul className="inline-block space-y-2 text-left text-sm text-ink-2">
+								{DIFFERENTIATORS[0].bullets?.map((b) => (
+									<li key={b} className="flex items-start gap-2">
+										<span className="mt-2 size-1 shrink-0 rounded-full bg-brand-ink" />
+										{b}
+									</li>
+								))}
+							</ul>
 						</div>
 						<div>
-							<Image
-								src="/screenshots/demo_ss_1_cropped.png"
-								alt="Architecture diagram with added, removed, and modified members highlighted directly on the class nodes"
-								width={866}
-								height={696}
-								className="w-full rounded-lg border border-line shadow-xl"
-							/>
-							<p className="mt-3 text-center text-xs text-ink-3">
-								Changes show up on the diagram —{' '}
-								<span className="text-success-2">green</span> added,{' '}
-								<span className="text-danger-2">red</span> removed,{' '}
-								<span className="text-warning-2">yellow</span> modified.
-							</p>
-						</div>
-					</div>
-
-					<div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-						<div className="lg:order-1">
 							<Image
 								src="/screenshots/pr_review_mockup_v2.png"
 								alt="kratai leaving a PR review comment that flags architectural drift, with a link back to the architecture diagram"
@@ -165,17 +155,30 @@ export default function LandingPage() {
 								className="w-full rounded-lg border border-line shadow-xl"
 							/>
 						</div>
-						<div className="text-center sm:text-left lg:order-2">
-							<GitPullRequest className="mx-auto mb-4 size-6 text-brand-ink sm:mx-0" />
-							<h3 className="mb-1 font-semibold text-ink">{DIFFERENTIATORS[1].title}</h3>
-							<p className="text-sm text-ink-2">{DIFFERENTIATORS[1].body}</p>
-						</div>
 					</div>
 
-					<div className="text-center">
-						<Users2 className="mx-auto mb-4 size-6 text-brand-ink" />
-						<h3 className="mb-1 font-semibold text-ink">{DIFFERENTIATORS[2].title}</h3>
-						<p className="text-sm text-ink-2">{DIFFERENTIATORS[2].body}</p>
+					<div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+						<div className="lg:order-1">
+							<Image
+								src="/screenshots/demo_ss_1_cropped.png"
+								alt="Architecture diagram with added, removed, and modified members highlighted directly on the class nodes"
+								width={866}
+								height={696}
+								className="w-full rounded-lg border border-line shadow-xl"
+							/>
+						</div>
+						<div className="text-center sm:text-left lg:order-2">
+							<Users2 className="mx-auto mb-4 size-6 text-brand-ink sm:mx-0" />
+							<h3 className="mb-3 font-semibold text-ink">{DIFFERENTIATORS[1].title}</h3>
+							<ul className="inline-block space-y-2 text-left text-sm text-ink-2">
+								{DIFFERENTIATORS[1].bullets?.map((b) => (
+									<li key={b} className="flex items-start gap-2">
+										<span className="mt-2 size-1 shrink-0 rounded-full bg-brand-ink" />
+										{b}
+									</li>
+								))}
+							</ul>
+						</div>
 					</div>
 				</div>
 			</section>
