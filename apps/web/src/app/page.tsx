@@ -32,17 +32,23 @@ const DIFFERENTIATORS: Array<{
 	icon: LucideIcon;
 	title: string;
 	body?: ReactNode;
-	bullets?: string[];
+	bullets?: { text: string; bold: string }[];
 }> = [
 	{
 		icon: Waypoints,
 		title: 'Catches architectural drift',
-		bullets: ['Detects bloated controllers', 'Detects over-engineered code'],
+		bullets: [
+			{ text: 'Detects', bold: 'bloated controllers' },
+			{ text: 'Detects', bold: 'over-engineered code' },
+		],
 	},
 	{
 		icon: Users2,
 		title: 'Built for humans and AI',
-		bullets: ['Every change maps to the diagram', 'AI agents get the same architectural context'],
+		bullets: [
+			{ text: 'Every change', bold: 'maps to the diagram' },
+			{ text: 'AI agents get the same', bold: 'architectural context' },
+		],
 	},
 ];
 
@@ -135,13 +141,13 @@ export default function LandingPage() {
 				<div className="mx-auto max-w-5xl space-y-20">
 					<div className="grid gap-12 lg:grid-cols-2 lg:items-center">
 						<div className="text-center sm:text-left">
-							<Waypoints className="mx-auto mb-4 size-6 text-brand-ink sm:mx-0" />
-							<h3 className="mb-3 font-semibold text-ink">{DIFFERENTIATORS[0].title}</h3>
-							<ul className="inline-block space-y-2 text-left text-sm text-ink-2">
-								{DIFFERENTIATORS[0].bullets?.map((b) => (
-									<li key={b} className="flex items-start gap-2">
-										<span className="mt-2 size-1 shrink-0 rounded-full bg-brand-ink" />
-										{b}
+							<Waypoints className="mx-auto mb-5 size-8 text-brand-ink sm:mx-0" />
+							<h3 className="mb-4 text-2xl font-bold text-ink md:text-3xl">{DIFFERENTIATORS[0].title}</h3>
+							<ul className="inline-block space-y-3 text-left text-base text-ink-2">
+								{DIFFERENTIATORS[0].bullets?.map((b, i) => (
+									<li key={i} className="flex items-start gap-3">
+										<span className="mt-2.5 size-1.5 shrink-0 rounded-full bg-brand-ink" />
+										{b.text} <strong className="font-semibold text-ink">{b.bold}</strong>
 									</li>
 								))}
 							</ul>
@@ -168,13 +174,13 @@ export default function LandingPage() {
 							/>
 						</div>
 						<div className="text-center sm:text-left lg:order-2">
-							<Users2 className="mx-auto mb-4 size-6 text-brand-ink sm:mx-0" />
-							<h3 className="mb-3 font-semibold text-ink">{DIFFERENTIATORS[1].title}</h3>
-							<ul className="inline-block space-y-2 text-left text-sm text-ink-2">
-								{DIFFERENTIATORS[1].bullets?.map((b) => (
-									<li key={b} className="flex items-start gap-2">
-										<span className="mt-2 size-1 shrink-0 rounded-full bg-brand-ink" />
-										{b}
+							<Users2 className="mx-auto mb-5 size-8 text-brand-ink sm:mx-0" />
+							<h3 className="mb-4 text-2xl font-bold text-ink md:text-3xl">{DIFFERENTIATORS[1].title}</h3>
+							<ul className="inline-block space-y-3 text-left text-base text-ink-2">
+								{DIFFERENTIATORS[1].bullets?.map((b, i) => (
+									<li key={i} className="flex items-start gap-3">
+										<span className="mt-2.5 size-1.5 shrink-0 rounded-full bg-brand-ink" />
+										{b.text} <strong className="font-semibold text-ink">{b.bold}</strong>
 									</li>
 								))}
 							</ul>
