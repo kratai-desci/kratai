@@ -131,30 +131,51 @@ export default function LandingPage() {
 
 			{/* Differentiators */}
 			<section className="px-6 pb-24">
-				<div className="mx-auto grid max-w-5xl gap-12 lg:grid-cols-2 lg:items-center">
-					<div className="grid gap-8">
-						{DIFFERENTIATORS.map((d) => (
-							<div key={d.title} className="text-center sm:text-left">
-								<d.icon className="mx-auto mb-4 size-6 text-brand-ink sm:mx-0" />
-								<h3 className="mb-1 font-semibold text-ink">{d.title}</h3>
-								<p className="text-sm text-ink-2">{d.body}</p>
-							</div>
-						))}
+				<div className="mx-auto max-w-5xl space-y-20">
+					<div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+						<div className="text-center sm:text-left">
+							<Waypoints className="mx-auto mb-4 size-6 text-brand-ink sm:mx-0" />
+							<h3 className="mb-1 font-semibold text-ink">{DIFFERENTIATORS[0].title}</h3>
+							<p className="text-sm text-ink-2">{DIFFERENTIATORS[0].body}</p>
+						</div>
+						<div>
+							<Image
+								src="/screenshots/demo_ss_1_cropped.png"
+								alt="Architecture diagram with added, removed, and modified members highlighted directly on the class nodes"
+								width={866}
+								height={696}
+								className="w-full rounded-lg border border-line shadow-xl"
+							/>
+							<p className="mt-3 text-center text-xs text-ink-3">
+								Changes show up on the diagram —{' '}
+								<span className="text-success-2">green</span> added,{' '}
+								<span className="text-danger-2">red</span> removed,{' '}
+								<span className="text-warning-2">yellow</span> modified.
+							</p>
+						</div>
 					</div>
-					<div>
-						<Image
-							src="/screenshots/demo_ss_1_cropped.png"
-							alt="Architecture diagram with added, removed, and modified members highlighted directly on the class nodes"
-							width={866}
-							height={696}
-							className="w-full rounded-lg border border-line shadow-xl"
-						/>
-						<p className="mt-3 text-center text-xs text-ink-3">
-							Changes show up on the diagram —{' '}
-							<span className="text-success-2">green</span> added,{' '}
-							<span className="text-danger-2">red</span> removed,{' '}
-							<span className="text-warning-2">yellow</span> modified.
-						</p>
+
+					<div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+						<div className="lg:order-1">
+							<Image
+								src="/screenshots/pr_review_mockup_v2.png"
+								alt="kratai leaving a PR review comment that flags architectural drift, with a link back to the architecture diagram"
+								width={1304}
+								height={1114}
+								className="w-full rounded-lg border border-line shadow-xl"
+							/>
+						</div>
+						<div className="text-center sm:text-left lg:order-2">
+							<GitPullRequest className="mx-auto mb-4 size-6 text-brand-ink sm:mx-0" />
+							<h3 className="mb-1 font-semibold text-ink">{DIFFERENTIATORS[1].title}</h3>
+							<p className="text-sm text-ink-2">{DIFFERENTIATORS[1].body}</p>
+						</div>
+					</div>
+
+					<div className="text-center">
+						<Users2 className="mx-auto mb-4 size-6 text-brand-ink" />
+						<h3 className="mb-1 font-semibold text-ink">{DIFFERENTIATORS[2].title}</h3>
+						<p className="text-sm text-ink-2">{DIFFERENTIATORS[2].body}</p>
 					</div>
 				</div>
 			</section>
