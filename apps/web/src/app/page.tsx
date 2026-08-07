@@ -68,9 +68,9 @@ const PLANS: Array<{
 		price: '$0',
 		priceNote: 'Free forever',
 		features: [
-			{ text: '1 saved diagram' },
-			{ text: 'Full config panel — folders, filters, HTTP + framework detection' },
-			{ text: 'Export as Markdown' },
+			{ text: '1 architecture diagram — the map every PR gets reviewed against' },
+			{ text: 'Fine-tune what gets mapped — folders, filters, framework detection' },
+			{ text: 'Export the architecture for any AI agent' },
 		],
 	},
 	{
@@ -80,8 +80,8 @@ const PLANS: Array<{
 		priceNote: 'or $30/year — 50% off, limited time',
 		highlight: true,
 		features: [
-			{ text: 'Unlimited saved diagrams' },
-			{ text: 'Share diagrams with other users', soon: true },
+			{ text: 'Unlimited diagrams — review PRs across every repo' },
+			{ text: 'Share review context with your team', soon: true },
 			{ text: 'Desktop app access', soon: true },
 		],
 	},
