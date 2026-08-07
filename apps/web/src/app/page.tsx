@@ -1,4 +1,4 @@
-import { LogIn, Users2, Waypoints } from 'lucide-react';
+import { Check, Clock, LogIn, Users2, Waypoints } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { Metadata } from 'next';
 import Image from 'next/image';
@@ -8,7 +8,9 @@ import type { ReactNode } from 'react';
 import { isSignInEnabled } from '@/1_application/auth';
 import { signInAction } from '@/1_application/authActions';
 import { TrackEvent } from '@/components/analytics/TrackEvent';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 // Without this, Next statically prerenders this page once at `next build`
 // time, baking in whatever isSignInEnabled() (AUTH_GITHUB_ID/SECRET) happens
@@ -48,6 +50,38 @@ const DIFFERENTIATORS: Array<{
 		bullets: [
 			{ text: 'Every change', bold: 'maps to the diagram' },
 			{ text: 'AI agents get the same', bold: 'architectural context' },
+		],
+	},
+];
+
+const PLANS: Array<{
+	name: string;
+	price: string;
+	priceSuffix?: string;
+	priceNote: string;
+	highlight?: boolean;
+	features: { text: string; soon?: boolean }[];
+}> = [
+	{
+		name: 'Free',
+		price: '$0',
+		priceNote: 'Free forever',
+		features: [
+			{ text: '1 saved diagram' },
+			{ text: 'Full config panel — folders, filters, HTTP + framework detection' },
+			{ text: 'Export as Markdown' },
+		],
+	},
+	{
+		name: 'Pro',
+		price: '$5',
+		priceSuffix: '/month',
+		priceNote: 'or $30/year — 50% off, limited time',
+		highlight: true,
+		features: [
+			{ text: 'Unlimited saved diagrams' },
+			{ text: 'Share diagrams with other users', soon: true },
+			{ text: 'Desktop app access', soon: true },
 		],
 	},
 ];
@@ -100,7 +134,7 @@ export default function LandingPage() {
 					</div>
 					<div className="flex items-center gap-4 sm:gap-8">
 						<Link
-							href="/pricing"
+							href="#pricing"
 							className="hidden text-sm font-medium text-ink-2 hover:text-brand-ink sm:inline"
 						>
 							Pricing
@@ -208,6 +242,59 @@ export default function LandingPage() {
 				</div>
 			</section>
 
+			{/* Pricing */}
+			<section id="pricing" className="scroll-mt-20 border-t border-line px-6 py-24">
+				<div className="mx-auto max-w-4xl">
+					<div className="mb-12 text-center">
+						<h2 className="mb-3 text-3xl font-bold text-ink md:text-4xl">Simple pricing</h2>
+						<p className="text-lg text-ink-2">Start free. Upgrade when you outgrow it.</p>
+					</div>
+					<div className="grid gap-6 sm:grid-cols-2">
+						{PLANS.map((plan) => (
+							<Card
+								key={plan.name}
+								className={`flex flex-col gap-6 ${plan.highlight ? 'border-brand/40' : ''}`}
+							>
+								<div>
+									<h3 className="mb-2 text-xl font-semibold text-ink">{plan.name}</h3>
+									<p className="text-3xl font-bold text-ink">
+										{plan.price}
+										{plan.priceSuffix && (
+											<span className="text-base font-normal text-ink-3">{plan.priceSuffix}</span>
+										)}
+									</p>
+									<div className="mt-2">
+										<Badge variant={plan.highlight ? 'warning' : 'neutral'}>{plan.priceNote}</Badge>
+									</div>
+								</div>
+								<ul className="flex flex-1 flex-col gap-3 text-sm text-ink-2">
+									{plan.features.map((f) => (
+										<li key={f.text} className="flex items-center justify-between gap-2">
+											<span className="flex items-center gap-2">
+												{f.soon ? (
+													<Clock className="size-4 shrink-0 text-ink-3" />
+												) : (
+													<Check className="size-4 shrink-0 text-success-2" />
+												)}
+												<span className={f.soon ? 'text-ink-3' : ''}>{f.text}</span>
+											</span>
+											{f.soon && <Badge variant="neutral">Coming soon</Badge>}
+										</li>
+									))}
+								</ul>
+								<SignInCTA variant={plan.highlight ? 'primary' : 'ghost'}>
+									<LogIn className="size-4" />
+									Try kratai Free
+								</SignInCTA>
+								{plan.highlight && (
+									<p className="-mt-4 text-center text-xs text-ink-3">Upgrade anytime after signing in.</p>
+								)}
+							</Card>
+						))}
+					</div>
+				</div>
+			</section>
+
 			{/* Stack */}
 			<section className="border-t border-line px-6 py-12">
 				<p className="mx-auto max-w-5xl text-center text-sm text-ink-3">{STACK.join(' · ')}</p>
@@ -238,7 +325,7 @@ export default function LandingPage() {
 						<span className="text-sm text-ink-2">PR review on the architecture.</span>
 					</div>
 					<div className="flex items-center gap-6 text-sm text-ink-2">
-						<Link href="/pricing" className="hover:text-brand-ink">
+						<Link href="#pricing" className="hover:text-brand-ink">
 							Pricing
 						</Link>
 						<Link href="/dashboard" className="hover:text-brand-ink">

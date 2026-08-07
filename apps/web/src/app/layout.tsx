@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
-		<html lang="en" suppressHydrationWarning>
+		<html lang="en" suppressHydrationWarning className="scroll-smooth">
 			{GA_MEASUREMENT_ID && (
 				// A beforeInteractive Script rendered as a sibling of <body> (inside
 				// <html> but outside any <head>) doesn't get hoisted correctly here -
