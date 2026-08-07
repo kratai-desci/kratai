@@ -68,9 +68,12 @@ const PLANS: Array<{
 		price: '$0',
 		priceNote: 'Free forever',
 		features: [
-			{ text: '1 architecture diagram — the map every PR gets reviewed against' },
-			{ text: 'Fine-tune what gets mapped — folders, filters, framework detection' },
-			{ text: 'Export the architecture for any AI agent' },
+			{ text: '1 repo connected for PR review' },
+			{ text: 'Diagrams generated from real code' },
+			{ text: 'Git diff highlighting on the diagram' },
+			{ text: 'MCP server — AI agents get your real architecture context' },
+			{ text: 'Navigate straight to the code' },
+			{ text: 'Linters and SAST tools support' },
 		],
 	},
 	{
@@ -80,7 +83,10 @@ const PLANS: Array<{
 		priceNote: 'or $30/year — 50% off, limited time',
 		highlight: true,
 		features: [
-			{ text: 'Unlimited diagrams — review PRs across every repo' },
+			{ text: 'All Free plan features' },
+			{ text: 'Unlimited repos — review PRs everywhere you work' },
+			{ text: 'Framework enrichment — Spring, Django, Next.js, and more' },
+			{ text: 'Multiple saved views per repo — API layer, domain, or custom slices' },
 			{ text: 'Share review context with your team', soon: true },
 			{ text: 'Desktop app access', soon: true },
 		],
