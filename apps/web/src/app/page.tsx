@@ -52,19 +52,29 @@ const DIFFERENTIATORS: Array<{
 	},
 ];
 
-function SignInCTA({ children, size = 'default' }: { children: ReactNode; size?: 'default' | 'sm' }) {
+function SignInCTA({
+	children,
+	size = 'default',
+	variant = 'primary',
+	className,
+}: {
+	children: ReactNode;
+	size?: 'default' | 'sm';
+	variant?: 'primary' | 'ghost';
+	className?: string;
+}) {
 	const signInEnabled = isSignInEnabled();
 	if (signInEnabled) {
 		return (
 			<form action={signInAction}>
-				<Button type="submit" size={size}>
+				<Button type="submit" size={size} variant={variant} className={className}>
 					{children}
 				</Button>
 			</form>
 		);
 	}
 	return (
-		<Button asChild size={size}>
+		<Button asChild size={size} variant={variant} className={className}>
 			<Link href="/dashboard">{children}</Link>
 		</Button>
 	);
@@ -95,10 +105,15 @@ export default function LandingPage() {
 						>
 							Pricing
 						</Link>
+						<span className="hidden sm:inline-block">
+							<SignInCTA size="sm" variant="ghost" className="h-auto p-0 text-sm font-medium hover:bg-transparent">
+								Login
+							</SignInCTA>
+						</span>
 						<SignInCTA size="sm">
 							<LogIn className="size-4" />
-							<span className="hidden sm:inline">Sign in with GitHub</span>
-							<span className="sm:hidden">Sign in</span>
+							<span className="hidden sm:inline">Try kratai Free</span>
+							<span className="sm:hidden">Try Free</span>
 						</SignInCTA>
 					</div>
 				</div>
@@ -117,7 +132,7 @@ export default function LandingPage() {
 					<div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
 						<SignInCTA>
 							<LogIn className="size-4" />
-							Sign in with GitHub
+							Try kratai Free
 						</SignInCTA>
 					</div>
 					<p className="mt-6 text-xs text-ink-3">Free to start, no credit card.</p>
@@ -147,7 +162,9 @@ export default function LandingPage() {
 								{DIFFERENTIATORS[0].bullets?.map((b, i) => (
 									<li key={i} className="flex items-start gap-3">
 										<span className="mt-2.5 size-1.5 shrink-0 rounded-full bg-brand-ink" />
-										{b.text} <strong className="font-semibold text-ink">{b.bold}</strong>
+										<span>
+											{b.text} <strong className="font-semibold text-ink">{b.bold}</strong>
+										</span>
 									</li>
 								))}
 							</ul>
@@ -180,7 +197,9 @@ export default function LandingPage() {
 								{DIFFERENTIATORS[1].bullets?.map((b, i) => (
 									<li key={i} className="flex items-start gap-3">
 										<span className="mt-2.5 size-1.5 shrink-0 rounded-full bg-brand-ink" />
-										{b.text} <strong className="font-semibold text-ink">{b.bold}</strong>
+										<span>
+											{b.text} <strong className="font-semibold text-ink">{b.bold}</strong>
+										</span>
 									</li>
 								))}
 							</ul>
@@ -192,6 +211,17 @@ export default function LandingPage() {
 			{/* Stack */}
 			<section className="border-t border-line px-6 py-12">
 				<p className="mx-auto max-w-5xl text-center text-sm text-ink-3">{STACK.join(' · ')}</p>
+			</section>
+
+			{/* Closing CTA */}
+			<section className="border-t border-line px-6 py-24 text-center">
+				<h2 className="mb-8 text-3xl font-bold text-ink md:text-4xl">
+					Ready to Review <span className="text-brand-ink">on the Architecture</span>?
+				</h2>
+				<SignInCTA>
+					<LogIn className="size-4" />
+					Try kratai Free
+				</SignInCTA>
 			</section>
 
 			{/* Footer */}
