@@ -8,6 +8,7 @@ import type { ReactNode } from 'react';
 import { isSignInEnabled } from '@/1_application/auth';
 import { signInAction } from '@/1_application/authActions';
 import { TrackEvent } from '@/components/analytics/TrackEvent';
+import { ScrollLink } from '@/components/landing/ScrollLink';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -133,12 +134,18 @@ export default function LandingPage() {
 						<span className="text-lg font-semibold text-ink sm:text-xl">kratai</span>
 					</div>
 					<div className="flex items-center gap-4 sm:gap-8">
-						<Link
+						<ScrollLink
+							href="#features"
+							className="hidden text-sm font-medium text-ink-2 hover:text-brand-ink sm:inline"
+						>
+							Features
+						</ScrollLink>
+						<ScrollLink
 							href="#pricing"
 							className="hidden text-sm font-medium text-ink-2 hover:text-brand-ink sm:inline"
 						>
 							Pricing
-						</Link>
+						</ScrollLink>
 						<span className="hidden sm:inline-block">
 							<SignInCTA size="sm" variant="ghost" className="h-auto p-0 text-sm font-medium hover:bg-transparent">
 								Login
@@ -186,7 +193,7 @@ export default function LandingPage() {
 			</section>
 
 			{/* Differentiators */}
-			<section className="px-6 pb-24">
+			<section id="features" className="scroll-mt-20 px-6 pb-24">
 				<div className="mx-auto max-w-5xl space-y-20">
 					<div className="grid gap-12 lg:grid-cols-2 lg:items-center">
 						<div className="text-center sm:text-left">
@@ -242,6 +249,11 @@ export default function LandingPage() {
 				</div>
 			</section>
 
+			{/* Stack */}
+			<section className="border-t border-line px-6 py-12">
+				<p className="mx-auto max-w-5xl text-center text-sm text-ink-3">{STACK.join(' · ')}</p>
+			</section>
+
 			{/* Pricing */}
 			<section id="pricing" className="scroll-mt-20 border-t border-line px-6 py-24">
 				<div className="mx-auto max-w-4xl">
@@ -295,11 +307,6 @@ export default function LandingPage() {
 				</div>
 			</section>
 
-			{/* Stack */}
-			<section className="border-t border-line px-6 py-12">
-				<p className="mx-auto max-w-5xl text-center text-sm text-ink-3">{STACK.join(' · ')}</p>
-			</section>
-
 			{/* Closing CTA */}
 			<section className="border-t border-line px-6 py-24 text-center">
 				<h2 className="mb-8 text-3xl font-bold text-ink md:text-4xl">
@@ -325,9 +332,9 @@ export default function LandingPage() {
 						<span className="text-sm text-ink-2">PR review on the architecture.</span>
 					</div>
 					<div className="flex items-center gap-6 text-sm text-ink-2">
-						<Link href="#pricing" className="hover:text-brand-ink">
+						<ScrollLink href="#pricing" className="hover:text-brand-ink">
 							Pricing
-						</Link>
+						</ScrollLink>
 						<Link href="/dashboard" className="hover:text-brand-ink">
 							Dashboard
 						</Link>
