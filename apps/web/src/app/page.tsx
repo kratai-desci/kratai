@@ -133,7 +133,7 @@ function SignInCTA({
 }: {
 	children: ReactNode;
 	size?: 'default' | 'sm';
-	variant?: 'primary' | 'ghost';
+	variant?: 'primary' | 'secondary' | 'ghost';
 	className?: string;
 }) {
 	const signInEnabled = isSignInEnabled();
@@ -329,7 +329,7 @@ export default function LandingPage() {
 										</li>
 									))}
 								</ul>
-								<SignInCTA variant={plan.highlight ? 'primary' : 'ghost'}>
+								<SignInCTA variant={plan.highlight ? 'primary' : 'secondary'}>
 									<LogIn className="size-4" />
 									Try kratai Free
 								</SignInCTA>
