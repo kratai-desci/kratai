@@ -17,11 +17,13 @@ export function DiagramFrame({
 	viewId,
 	repoFullName,
 	branch,
+	settingsHref,
 }: {
 	html: string;
 	viewId: string;
 	repoFullName: string;
 	branch: string;
+	settingsHref?: string;
 }) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const router = useRouter();
@@ -42,7 +44,7 @@ export function DiagramFrame({
 					break;
 				}
 				case 'openSettings':
-					router.push(`/configure?viewId=${viewId}`);
+					router.push(settingsHref ?? `/configure?viewId=${viewId}`);
 					break;
 				case 'openFile':
 					if (message.filePath) {
@@ -69,7 +71,7 @@ export function DiagramFrame({
 
 		window.addEventListener('message', handleMessage);
 		return () => window.removeEventListener('message', handleMessage);
-	}, [viewId, repoFullName, branch, router]);
+	}, [viewId, repoFullName, branch, router, settingsHref]);
 
 	return (
 		<iframe

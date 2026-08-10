@@ -9,18 +9,35 @@ import { githubCommitUrl, shortSha } from '@/1_application/githubUrls';
 import type { WebDiagramView } from '@/2_domain';
 import { cn } from '@/lib/utils';
 
-export function DiagramSidebar({ views }: { views: WebDiagramView[] }) {
+// viewLinkMode is a plain string (not a function prop) because this is a
+// Client Component - Server Component callers (e.g. /mock/repo pages)
+// can't pass closures across that boundary.
+function buildViewHref(mode: 'diagram' | 'repo', view: WebDiagramView): string {
+	return mode === 'repo' ? `/mock/repo/${encodeURIComponent(view.repoFullName)}` : `/diagrams/${view.id}`;
+}
+
+export function DiagramSidebar({
+	views,
+	dashboardHref = '/dashboard',
+	newHref = '/new',
+	viewLinkMode = 'diagram',
+}: {
+	views: WebDiagramView[];
+	dashboardHref?: string;
+	newHref?: string;
+	viewLinkMode?: 'diagram' | 'repo';
+}) {
 	const pathname = usePathname();
 	const groups = groupViewsByRepoAndBranch(views);
 
 	return (
 		<aside className="flex w-64 shrink-0 flex-col border-r border-line bg-surface-2">
 			<div className="flex items-center justify-between border-b border-line px-4 py-3">
-				<Link href="/dashboard" className="text-sm font-medium text-ink-2 hover:text-brand-ink">
+				<Link href={dashboardHref} className="text-sm font-medium text-ink-2 hover:text-brand-ink">
 					← Dashboard
 				</Link>
 				<Link
-					href="/new"
+					href={newHref}
 					className="rounded-md p-1 text-ink-3 transition-colors hover:bg-surface hover:text-brand-ink"
 					aria-label="New diagram"
 				>
@@ -42,7 +59,7 @@ export function DiagramSidebar({ views }: { views: WebDiagramView[] }) {
 						</div>
 						<ul className="flex flex-col gap-0.5">
 							{group.views.map((view) => {
-								const href = `/diagrams/${view.id}`;
+								const href = buildViewHref(viewLinkMode, view);
 								const isActive = pathname === href;
 								return (
 									<li
