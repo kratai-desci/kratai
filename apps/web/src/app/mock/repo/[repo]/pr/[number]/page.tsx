@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 
 import sampleDiagram from '@/3_infrastructure/fixtures/sample-diagram.json';
 import { getMockPr, mockRepoHref, mockSettingsHref } from '@/app/mock/_data';
+import { hideDiagramToolbar } from '@/app/mock/_diagramHtml';
 import { PrSidebar } from '@/app/mock/_components/PrSidebar';
 
 // UI-only mock of the PR-review product experience - flagship screen for
@@ -70,7 +71,8 @@ export default async function MockPrPage({
 		gitDiff: { enabled: isDriftScenario },
 	};
 	const diagramData = isDriftScenario ? buildScenarioDiagram() : (sampleDiagram as DiagramData);
-	const { html } = generateDiagramHtml(diagramData, repo, config);
+	const { html: rawHtml } = generateDiagramHtml(diagramData, repo, config);
+	const html = hideDiagramToolbar(rawHtml);
 
 	return (
 		<div className="flex h-full min-h-0 bg-surface text-ink">

@@ -7,6 +7,7 @@ import { DiagramFrame } from '@/components/diagram/DiagramFrame';
 
 import sampleDiagram from '@/3_infrastructure/fixtures/sample-diagram.json';
 import { getMockRepo, mockLatestPrHref, mockSettingsHref } from '@/app/mock/_data';
+import { hideDiagramToolbar } from '@/app/mock/_diagramHtml';
 import { PrSidebar } from '@/app/mock/_components/PrSidebar';
 
 // Repo-level diagram view, no PR selected - the architecture on its own,
@@ -21,7 +22,8 @@ export default async function MockRepoPage({ params }: { params: Promise<{ repo:
 	const repoData = getMockRepo(repo);
 	const branch = repoData?.branch ?? 'main';
 
-	const { html } = generateDiagramHtml(sampleDiagram as DiagramData, repo, MOCK_CONFIG);
+	const { html: rawHtml } = generateDiagramHtml(sampleDiagram as DiagramData, repo, MOCK_CONFIG);
+	const html = hideDiagramToolbar(rawHtml);
 
 	return (
 		<div className="flex h-full min-h-0 bg-surface text-ink">
