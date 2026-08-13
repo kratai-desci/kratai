@@ -3,7 +3,21 @@ import { FolderBoxRenderer } from './components/folderBoxRenderer';
 
 export class ClassDiagramView {
 	
-	static generate(nodes: ReactFlowNode[], edges: ReactFlowEdge[], workspaceName: string, config: KrataiConfig, iconUri?: string): string {
+	/**
+	 * diagramOnly hides the Save as MD / Settings buttons - both act on a
+	 * persisted view (an export endpoint keyed by view id, a config panel
+	 * that edits saved config) that doesn't exist for an anonymous/unsaved
+	 * preview (see apps/web's app/try flow). Zoom stays available either
+	 * way since it's a pure view interaction, nothing to persist.
+	 */
+	static generate(
+		nodes: ReactFlowNode[],
+		edges: ReactFlowEdge[],
+		workspaceName: string,
+		config: KrataiConfig,
+		iconUri?: string,
+		diagramOnly?: boolean
+	): string {
 		// Step 1: Build folder structure
 		const root = FolderStructureBuilder.build(nodes);
 		console.log('=== Folder Structure (Flat Layout with Custom Order) ===');
@@ -26,7 +40,8 @@ export class ClassDiagramView {
 			FolderStructureBuilder.countFolders(root),
 			folderHTML,
 			edges,
-			iconUri
+			iconUri,
+			diagramOnly
 		);
 	}
 
@@ -37,7 +52,8 @@ export class ClassDiagramView {
 		folderCount: number,
 		folderHTML: string,
 		edges: ReactFlowEdge[],
-		iconUri?: string
+		iconUri?: string,
+		diagramOnly?: boolean
 	): string {
 		// Properly encode edges for JavaScript embedding
 		const edgesJSON = JSON.stringify(edges)
@@ -271,8 +287,8 @@ export class ClassDiagramView {
         <div class="header-controls">
             <button onclick="zoomIn()">Zoom In</button>
             <button onclick="zoomOut()">Zoom Out</button>
-            <button onclick="saveAsMD()">💾 Save as MD</button>
-            <button onclick="openSettings()">⚙️ Settings</button>
+            ${diagramOnly ? '' : '<button onclick="saveAsMD()">💾 Save as MD</button>'}
+            ${diagramOnly ? '' : '<button onclick="openSettings()">⚙️ Settings</button>'}
         </div>
     </div>
     

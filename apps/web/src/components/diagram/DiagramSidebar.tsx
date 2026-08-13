@@ -19,13 +19,19 @@ function buildViewHref(mode: 'diagram' | 'repo', view: WebDiagramView): string {
 export function DiagramSidebar({
 	views,
 	dashboardHref = '/dashboard',
+	dashboardLabel = 'Dashboard',
 	newHref = '/new',
 	viewLinkMode = 'diagram',
+	emptyMessage = 'No diagrams yet.',
 }: {
 	views: WebDiagramView[];
 	dashboardHref?: string;
+	/** e.g. "Home" for the anonymous "try a public repo" flow (app/try),
+	 * which has no dashboard to go back to. */
+	dashboardLabel?: string;
 	newHref?: string;
 	viewLinkMode?: 'diagram' | 'repo';
+	emptyMessage?: string;
 }) {
 	const pathname = usePathname();
 	const groups = groupViewsByRepoAndBranch(views);
@@ -34,7 +40,7 @@ export function DiagramSidebar({
 		<aside className="flex w-64 shrink-0 flex-col border-r border-line bg-surface-2">
 			<div className="flex items-center justify-between border-b border-line px-4 py-3">
 				<Link href={dashboardHref} className="text-sm font-medium text-ink-2 hover:text-brand-ink">
-					← Dashboard
+					← {dashboardLabel}
 				</Link>
 				<Link
 					href={newHref}
@@ -46,7 +52,7 @@ export function DiagramSidebar({
 			</div>
 
 			<nav className="flex-1 overflow-y-auto px-2 py-3">
-				{groups.length === 0 && <p className="px-2 text-sm text-ink-3">No diagrams yet.</p>}
+				{groups.length === 0 && <p className="px-2 text-sm text-ink-3">{emptyMessage}</p>}
 
 				{groups.map((group) => (
 					<div key={group.key} className="mb-4">

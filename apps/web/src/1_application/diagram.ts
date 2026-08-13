@@ -188,10 +188,13 @@ export interface GeneratedDiagram {
 export function generateDiagramHtml(
 	diagramData: DiagramData,
 	name: string,
-	config: KrataiConfig
+	config: KrataiConfig,
+	/** Hides the Save as MD / Settings buttons - for app/try's anonymous
+	 * preview, which has no saved view for either to act on. */
+	diagramOnly?: boolean
 ): GeneratedDiagram {
 	const { nodes, edges } = DiagramGeneratorService.generateReactFlowData(diagramData);
-	const html = ClassDiagramView.generate(nodes, edges, name, config);
+	const html = ClassDiagramView.generate(nodes, edges, name, config, undefined, diagramOnly);
 
 	return {
 		html,

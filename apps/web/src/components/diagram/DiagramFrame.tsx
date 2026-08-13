@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 
+import { signInAction } from '@/1_application/authActions';
 import { githubFileUrl } from '@/1_application/githubUrls';
 
 interface DiagramMessage {
@@ -18,17 +19,30 @@ export function DiagramFrame({
 	repoFullName,
 	branch,
 	settingsHref,
+	signInCallbackUrl,
 }: {
 	html: string;
-	viewId: string;
+	/** Absent for an anonymous (unsaved) diagram - see app/try. Export and
+	 * settings have nothing to operate on without a saved view, so both
+	 * trigger GitHub sign-in instead in that case (the whole point of
+	 * showing an anonymous visitor the real authenticated UI, buttons and
+	 * all, is that every action on it leads to signing up). */
+	viewId?: string;
 	repoFullName: string;
 	branch: string;
 	settingsHref?: string;
+	signInCallbackUrl?: string;
 }) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const router = useRouter();
 
 	useEffect(() => {
+		function triggerSignIn() {
+			const formData = new FormData();
+			if (signInCallbackUrl) formData.set('callbackUrl', signInCallbackUrl);
+			void signInAction(formData);
+		}
+
 		function handleMessage(event: MessageEvent<DiagramMessage>) {
 			// Only accept messages from our own iframe.
 			if (event.source !== iframeRef.current?.contentWindow) return;
@@ -36,6 +50,10 @@ export function DiagramFrame({
 			const message = event.data;
 			switch (message?.command) {
 				case 'saveAsMD': {
+					if (!viewId) {
+						triggerSignIn();
+						break;
+					}
 					const link = document.createElement('a');
 					link.href = `/api/diagrams/${viewId}/export`;
 					document.body.appendChild(link);
@@ -44,6 +62,10 @@ export function DiagramFrame({
 					break;
 				}
 				case 'openSettings':
+					if (!viewId) {
+						triggerSignIn();
+						break;
+					}
 					router.push(settingsHref ?? `/configure?viewId=${viewId}`);
 					break;
 				case 'openFile':
@@ -71,7 +93,7 @@ export function DiagramFrame({
 
 		window.addEventListener('message', handleMessage);
 		return () => window.removeEventListener('message', handleMessage);
-	}, [viewId, repoFullName, branch, router, settingsHref]);
+	}, [viewId, repoFullName, branch, router, settingsHref, signInCallbackUrl]);
 
 	return (
 		<iframe

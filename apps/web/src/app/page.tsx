@@ -1,13 +1,4 @@
-import {
-	Bot,
-	Check,
-	FileCode2,
-	Layers,
-	LogIn,
-	MousePointerClick,
-	Server,
-	ShieldCheck,
-} from 'lucide-react';
+import { Bot, Check, FileCode2, Layers, LogIn, MousePointerClick, Server, ShieldCheck } from 'lucide-react';
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -16,6 +7,7 @@ import type { ReactNode } from 'react';
 import { isSignInEnabled } from '@/1_application/auth';
 import { signInAction } from '@/1_application/authActions';
 import { TrackEvent } from '@/components/analytics/TrackEvent';
+import { TryRepoForm } from '@/components/try/TryRepoForm';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
@@ -132,6 +124,13 @@ export default function LandingPage() {
 						</SignInCTA>
 					</div>
 					<p className="mt-6 text-xs text-ink-3">Free to start, no credit card.</p>
+
+					<div className="mx-auto mt-12 max-w-lg">
+						<p className="mb-3 text-sm text-ink-3">
+							Or paste a public repo and see it right now — no sign-in
+						</p>
+						<TryRepoForm />
+					</div>
 
 					<div className="mt-16">
 						<Image
