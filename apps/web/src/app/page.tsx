@@ -75,7 +75,8 @@ export default function LandingPage() {
 						/>
 						<span className="text-xl font-semibold text-ink">kratai</span>
 					</div>
-					<div className="hidden items-center gap-8 md:flex">
+					<div className="hidden items-center gap-2 md:flex">
+						<span className="text-sm text-ink-3">Have a private repo?</span>
 						<SignInCTA size="sm">
 							<LogIn className="size-4" />
 							Sign in with GitHub
@@ -102,14 +103,6 @@ export default function LandingPage() {
 
 				<div className="w-full max-w-xl">
 					<TryRepoForm size="hero" autoFocus />
-				</div>
-
-				<div className="flex items-center gap-2 text-sm text-ink-3">
-					<span>Have a private repo?</span>
-					<SignInCTA size="sm">
-						<LogIn className="size-4" />
-						Sign in with GitHub
-					</SignInCTA>
 				</div>
 			</section>
 
@@ -180,6 +173,18 @@ export default function LandingPage() {
 						</div>
 					</div>
 				</div>
+			</section>
+
+			{/* CTA - repeats the hero's private-repo sign-in prompt, since this is
+			    the only ask left by the time someone scrolls this far without
+			    having already pasted a repo up top. */}
+			<section className="bg-surface-2 px-6 py-24 text-center">
+				<h2 className="mb-3 text-2xl font-bold text-ink md:text-3xl">Have a private repo?</h2>
+				<p className="mb-6 text-lg text-ink-2">Free to start, no credit card.</p>
+				<SignInCTA>
+					<LogIn className="size-4" />
+					Sign in with GitHub
+				</SignInCTA>
 			</section>
 
 			{/* Footer */}

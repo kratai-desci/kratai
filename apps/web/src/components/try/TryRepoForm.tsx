@@ -97,7 +97,7 @@ export function TryRepoForm({
 						key={repo}
 						type="button"
 						onClick={() => go(repo)}
-						className="rounded-full border border-line px-3 py-1 text-ink-2 transition-colors hover:border-brand hover:text-brand-ink"
+						className="rounded-full bg-brand px-3 py-1 font-medium text-on-brand transition-all duration-150 ease-out hover:-translate-y-px hover:bg-brand-gold hover:shadow-[0_4px_12px_rgba(244,208,63,0.3)]"
 					>
 						{repo}
 					</button>
