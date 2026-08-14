@@ -24,12 +24,7 @@ import { cn } from '@/lib/utils';
  *   real relationships, but 10s-2min+ to clone+parse - the opposite failure
  *   mode, too slow for a click-to-instant-result demo.
  */
-const EXAMPLE_REPOS = [
-	'TooTallNate/Java-WebSocket',
-	'nestjs/typescript-starter',
-	'pallets/flask',
-	'sindresorhus/p-queue',
-];
+const EXAMPLE_REPOS = ['nestjs/typescript-starter', 'pallets/flask', 'sindresorhus/p-queue'];
 
 export function TryRepoForm({
 	autoFocus,
