@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { parseRepoInput } from '@/1_application/githubUrls';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { trackEvent } from '@/lib/analytics/gtag';
 import { cn } from '@/lib/utils';
 
 /**
@@ -54,6 +55,7 @@ export function TryRepoForm({
 			setError("That doesn't look like a public GitHub repo - try owner/repo or a full github.com URL.");
 			return;
 		}
+		trackEvent('try_public_repo', { repo: repoFullName });
 		go(repoFullName);
 	}
 
@@ -91,7 +93,10 @@ export function TryRepoForm({
 					<button
 						key={repo}
 						type="button"
-						onClick={() => go(repo)}
+						onClick={() => {
+							trackEvent('try_example_repo', { repo });
+							go(repo);
+						}}
 						className="rounded-full bg-brand px-3 py-1 font-medium text-on-brand transition-all duration-150 ease-out hover:-translate-y-px hover:bg-brand-gold hover:shadow-[0_4px_12px_rgba(244,208,63,0.3)]"
 					>
 						{repo}

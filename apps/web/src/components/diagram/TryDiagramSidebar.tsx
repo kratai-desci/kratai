@@ -1,8 +1,9 @@
-import { GitBranch, GitCommitHorizontal, Plus } from 'lucide-react';
+import { GitBranch, GitCommitHorizontal } from 'lucide-react';
 import Link from 'next/link';
 
-import { signInAction } from '@/1_application/authActions';
 import { githubCommitUrl, shortSha } from '@/1_application/githubUrls';
+
+import { TrySidebarCreateButton } from './TrySidebarCreateButton';
 
 /**
  * Anonymous counterpart to DiagramSidebar, for app/try/[owner]/[repo] - same
@@ -37,27 +38,7 @@ export function TryDiagramSidebar({
 				<Link href="/" className="text-sm font-medium text-ink-2 hover:text-brand-ink">
 					← Home
 				</Link>
-				{createHref ? (
-					<Link
-						href={createHref}
-						className="rounded-md p-1 text-ink-3 transition-colors hover:bg-surface hover:text-brand-ink"
-						aria-label="New diagram"
-					>
-						<Plus className="size-4" />
-					</Link>
-				) : (
-					<form action={signInAction}>
-						<input type="hidden" name="callbackUrl" value={callbackUrl} />
-						<button
-							type="submit"
-							title="Sign in with GitHub to create a diagram"
-							className="rounded-md p-1 text-ink-3 transition-colors hover:bg-surface hover:text-brand-ink"
-							aria-label="Create diagram"
-						>
-							<Plus className="size-4" />
-						</button>
-					</form>
-				)}
+				<TrySidebarCreateButton repo={repoFullName} createHref={createHref} callbackUrl={callbackUrl} />
 			</div>
 
 			<nav className="flex-1 overflow-y-auto px-2 py-3">

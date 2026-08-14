@@ -1,13 +1,12 @@
-import { Users } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 
 import { getSession, isSignInEnabled } from '@/1_application/auth';
-import { signInAction } from '@/1_application/authActions';
 import { parseRepoInput } from '@/1_application/githubUrls';
 import { generatePublicDiagram } from '@/1_application/publicDiagram';
 import { DiagramFrame } from '@/components/diagram/DiagramFrame';
 import { DownloadMarkdownButton } from '@/components/diagram/DownloadMarkdownButton';
+import { ShareWithTeamButton } from '@/components/diagram/ShareWithTeamButton';
 import { TryDiagramSidebar } from '@/components/diagram/TryDiagramSidebar';
 import { Button } from '@/components/ui/button';
 
@@ -80,20 +79,9 @@ export default async function TryRepoPage({ params }: TryRepoPageProps) {
 						<DownloadMarkdownButton
 							markdown={result.markdown}
 							fileName={`${result.repoFullName.split('/')[1]}.md`}
+							repo={result.repoFullName}
 						/>
-						{isSignInEnabled() && (
-							// Team sharing doesn't exist yet - this button's only job is
-							// funneling interest into sign-up, same as everything else
-							// here, not gating a real feature. No callbackUrl (unlike the
-							// other sign-in triggers on this page) - signInAction defaults
-							// to /dashboard, which is where this one should land.
-							<form action={signInAction}>
-								<Button type="submit" size="sm">
-									<Users className="size-4" />
-									Share with team
-								</Button>
-							</form>
-						)}
+						{isSignInEnabled() && <ShareWithTeamButton repo={result.repoFullName} />}
 					</div>
 				</div>
 				<div className="min-h-0 flex-1">

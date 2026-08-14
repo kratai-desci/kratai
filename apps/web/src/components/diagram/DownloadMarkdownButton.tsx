@@ -3,6 +3,7 @@
 import { Download } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { trackEvent } from '@/lib/analytics/gtag';
 
 /**
  * Markdown is already computed server-side (see generatePublicDiagram) and
@@ -10,8 +11,17 @@ import { Button } from '@/components/ui/button';
  * server round-trip needed (unlike the authenticated /api/diagrams/[viewId]/
  * export route, there's no viewId here to fetch by).
  */
-export function DownloadMarkdownButton({ markdown, fileName }: { markdown: string; fileName: string }) {
+export function DownloadMarkdownButton({
+	markdown,
+	fileName,
+	repo,
+}: {
+	markdown: string;
+	fileName: string;
+	repo: string;
+}) {
 	function handleDownload() {
+		trackEvent('try_export_md', { repo });
 		const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
 		const url = URL.createObjectURL(blob);
 		const link = document.createElement('a');
