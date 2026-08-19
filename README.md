@@ -77,12 +77,46 @@ Choose exactly what to show — select folders, filter relationship types, and c
 
 ## 🚀 Getting Started
 
-### Quick Start (30 seconds)
+### VS Code (Copilot)
 
 1. Install from [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=kratai-core.kratai)
 2. Open any TypeScript/JavaScript/Python/PHP project
 3. Click the kratai icon in the sidebar
 4. Click "Create New Diagram" → Generate
+
+The MCP server and skill are bundled and auto-registered — nothing else to configure.
+
+### Claude Code, Cursor, or OpenCode
+
+```bash
+npx @kratai/cli init
+```
+
+Wires up an MCP server entry (`.mcp.json` / `.cursor/mcp.json` / `opencode.json`,
+whichever applies) plus an `AGENTS.md` and, for Claude Code, a project skill at
+`.claude/skills/kratai/`. Pass `--target claude|cursor|opencode` to wire up
+just one. Safe to re-run — merges into existing config instead of overwriting it.
+
+No agent, or no MCP configured? Generate a diagram straight from the shell:
+
+```bash
+npx @kratai/cli analyze --format md   # architecture summary, no VS Code needed
+npx @kratai/cli analyze               # interactive HTML diagram
+```
+
+---
+
+## 📦 Repository Structure
+
+```
+packages/
+├── core/              analysis engine + diagram-spec generator (deterministic, zero LLM calls)
+├── diagram-view/       the interactive class diagram renderer, shared by cli + vscode-extension
+├── cli/                 kratai analyze / kratai init - installable CLI
+├── mcp-server/           structured architecture data for AI agents over MCP
+├── skill/                 shared Architecture-Aware SKILL.md
+└── vscode-extension/       richest renderer: live diagrams, git-diff highlighting, click-to-code
+```
 
 ---
 

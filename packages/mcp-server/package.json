@@ -1,11 +1,17 @@
 {
   "name": "@kratai/mcp-server",
   "version": "1.0.0",
-  "private": true,
   "description": "Standalone MCP server exposing kratai architecture diagrams to AI agents.",
   "type": "module",
   "bin": {
     "kratai-mcp": "./out/server.mjs"
+  },
+  "files": [
+    "out",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "typecheck": "tsc -p ./ --noEmit",

@@ -15,7 +15,7 @@ ACTIVE ON EVERY CODING TASK. No drift back to ad-hoc coding without thinking. Ar
 
 ## Session Start: Understand Architecture
 
-At beginning of session, BEFORE any coding, load architecture once. Use kratai tools to generate project state overview without wasting tokens reading files directly. If MCP unavailable: Tell user "Kratai MCP not available. Check config." Apply principles without tools.
+At beginning of session, BEFORE any coding, load architecture once. Use kratai tools to generate project state overview without wasting tokens reading files directly. If MCP unavailable but a shell is available: run `npx @kratai/cli analyze --format md` and read its output instead - same data, no MCP required. If neither is available: Tell user "Kratai MCP not available. Check config." Apply principles without tools.
 
 ```typescript
 tool_search("kratai") // 1. Load tools
@@ -46,7 +46,7 @@ The ladder runs *after* you understand the architecture, not instead of it. Use 
 ## Rules
 
 - Always fetch diagram at session start (once only, then cache)
-- Never read diagram JSON MD files (use MCP tools only)
+- Never read stale exported diagram files lying around the repo - use MCP tools, or `kratai analyze` output if MCP is unavailable, never a leftover export
 - No unrequested abstractions: no interface with one implementation, no factory for one product, no config for a value that never changes.
 - No boilerplate, no scaffolding "for later", later can scaffold for itself.
 - Fewest files possible. Shortest working diff wins 

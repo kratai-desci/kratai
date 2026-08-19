@@ -1,10 +1,30 @@
 {
   "name": "@kratai/cli",
-  "version": "0.0.0",
-  "private": true,
-  "description": "PLACEHOLDER - not implemented yet. Installable CLI (kratai analyze, etc.) that imports @kratai/core + @kratai/diagram-view to generate a self-contained static HTML bundle, browser-viewable with no VS Code needed. Settings come from kratai.config.json / CLI flags at generation time, not an in-page config panel - there's no backend to save to.",
+  "version": "0.1.0",
+  "description": "Installable CLI - generates a self-contained static HTML architecture diagram from your codebase, no VS Code or backend needed. Also wires kratai's MCP server + skill into Claude Code, Cursor, and OpenCode via `kratai init`.",
+  "type": "module",
+  "bin": {
+    "kratai": "./out/cli.mjs"
+  },
+  "files": [
+    "out",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ./ --noEmit",
+    "build": "npm run typecheck && node esbuild.js && node copy-skill.js",
+    "watch": "tsc -watch -p ./",
+    "start": "node ./out/cli.mjs"
+  },
   "dependencies": {
     "@kratai/core": "*",
     "@kratai/diagram-view": "*"
+  },
+  "devDependencies": {
+    "@types/node": "22.x",
+    "esbuild": "^0.24.0"
   }
 }
