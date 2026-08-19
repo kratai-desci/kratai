@@ -115,7 +115,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run bundle",
-    "bundle": "npm run typecheck && node esbuild.js && node copy-mcp-server.js",
+    "bundle": "npm run typecheck && node esbuild.js && node copy-mcp-server.js && node copy-skill.js",
     "typecheck": "tsc -p ./ --noEmit",
     "compile": "tsc -p ./",
     "build": "tsc -p ./",
@@ -136,7 +136,7 @@
   },
   "dependencies": {
     "@kratai/core": "*",
-    "@kratai/viewer": "*",
+    "@kratai/diagram-view": "*",
     "@kratai/mcp-server": "*"
   }
 }

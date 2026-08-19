@@ -1,6 +1,8 @@
 out
 dist
 node_modules
+# Copied at build time from packages/skill/SKILL.md - see copy-skill.js
+packages/vscode-extension/skills/
 .vscode-test/
 *.vsix
 config.json

@@ -10,7 +10,7 @@ import {
 	KrataiConfig,
 	MarkdownExporter
 } from '@kratai/core';
-import { ClassDiagramView } from '@kratai/viewer';
+import { ClassDiagramView } from '@kratai/diagram-view';
 
 export async function generateClassDiagram(context: vscode.ExtensionContext): Promise<void> {
 	// Check if workspace is opened

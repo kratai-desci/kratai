@@ -1,0 +1,10 @@
+{
+  "name": "@kratai/cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "PLACEHOLDER - not implemented yet. Installable CLI (kratai analyze, etc.) that imports @kratai/core + @kratai/diagram-view to generate a self-contained static HTML bundle, browser-viewable with no VS Code needed. Settings come from kratai.config.json / CLI flags at generation time, not an in-page config panel - there's no backend to save to.",
+  "dependencies": {
+    "@kratai/core": "*",
+    "@kratai/diagram-view": "*"
+  }
+}

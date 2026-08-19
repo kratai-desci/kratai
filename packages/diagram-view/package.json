@@ -1,5 +1,5 @@
 {
-  "name": "@kratai/viewer",
+  "name": "@kratai/diagram-view",
   "version": "1.0.0",
   "private": true,
   "description": "Framework-agnostic interactive class diagram HTML/CSS/SVG/JS view, shared by every kratai host app.",

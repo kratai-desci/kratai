@@ -2,7 +2,7 @@ import 'server-only';
 
 import type { ConfigFolderNode, DiagramData, KrataiConfig } from '@kratai/core';
 import { DiagramGeneratorService } from '@kratai/core';
-import { ClassDiagramView } from '@kratai/viewer';
+import { ClassDiagramView } from '@kratai/diagram-view';
 
 import { getDiagramSource } from '@/3_infrastructure/diagramSource';
 

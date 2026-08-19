@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src 'self' data:;">
+	<title>kratai</title>
+	<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+	<div id="app">
+		<aside id="sidebar">
+			<div id="workspace-switcher">
+				<button id="open-workspace-btn">📂 Open Folder</button>
+				<div id="workspace-path"></div>
+			</div>
+
+			<button id="new-diagram-btn" class="primary" disabled>➕ Create New Diagram</button>
+			<button id="git-changes-btn" disabled>🔀 Show Git Changes</button>
+
+			<div class="sidebar-section">
+				<h3>My Diagrams</h3>
+				<ul id="diagrams-list"></ul>
+			</div>
+
+			<div class="sidebar-section">
+				<h3>Exported Files</h3>
+				<ul id="exports-list"></ul>
+			</div>
+		</aside>
+
+		<main id="content">
+			<div id="empty-state">
+				<h2>🐰 kratai</h2>
+				<p>Open a folder to get started.</p>
+			</div>
+			<iframe id="content-frame" sandbox="allow-scripts" style="display:none"></iframe>
+		</main>
+	</div>
+
+	<script src="renderer.js"></script>
+</body>
+</html>

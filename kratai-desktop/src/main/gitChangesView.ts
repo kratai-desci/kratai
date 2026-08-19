@@ -1,10 +1,10 @@
 import { GitComparisonResult } from '@kratai/core';
 
 export class GitChangesView {
-	
+
 	static generate(result: GitComparisonResult, iconUri?: string): string {
 		const { workspaceName, currentBranch, compareTarget, changes } = result;
-		
+
 		const totalChanges = changes.length;
 		const modified = changes.filter(c => c.status === 'modified').length;
 		const added = changes.filter(c => c.status === 'added').length;
@@ -109,15 +109,15 @@ export class GitChangesView {
         .change-item:hover {
             background: #f5f5f5;
         }
-        .change-item.modified { 
+        .change-item.modified {
             border-left-color: #f57c00;
             background: #fff9c4;
         }
-        .change-item.added { 
+        .change-item.added {
             border-left-color: #388e3c;
             background: #c8e6c9;
         }
-        .change-item.deleted { 
+        .change-item.deleted {
             border-left-color: #d32f2f;
             background: #ffcdd2;
         }
@@ -176,7 +176,7 @@ export class GitChangesView {
             </div>
         </div>
     </div>
-    
+
     <div class="content">
         ${totalChanges === 0 ? `
             <div class="no-changes">
@@ -202,12 +202,12 @@ export class GitChangesView {
                     <div class="label">Deleted</div>
                 </div>
             </div>
-            
+
             <div class="diff-summary">
-                <span class="additions">+${totalAdditions}</span> • 
+                <span class="additions">+${totalAdditions}</span> •
                 <span class="deletions">-${totalDeletions}</span>
             </div>
-            
+
             <div class="changes-section">
                 <h2>Changed Files</h2>
                 ${changes.map(change => `
