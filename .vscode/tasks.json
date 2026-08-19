@@ -6,7 +6,7 @@
 		{
 			"type": "npm",
 			"script": "watch",
-			"path": "apps/vsextension",
+			"path": "packages/vscode-extension",
 			"problemMatcher": "$tsc-watch",
 			"isBackground": true,
 			"presentation": {
