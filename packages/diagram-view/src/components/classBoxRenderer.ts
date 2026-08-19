@@ -1,7 +1,7 @@
 import { ClassInfo } from '@kratai/core';
 
 export class ClassBoxRenderer {
-	constructor(private boxWidth: number) {}
+	constructor(private boxWidth: number, private hasLiveHost: boolean = false) {}
 
 	render(classInfo: ClassInfo, relationshipMap?: Map<string, Array<{target: string, type: string}>>): string {
 		const className = classInfo.name;
@@ -32,7 +32,7 @@ export class ClassBoxRenderer {
 				box-sizing: border-box;
 				position: relative;
 			">
-				<button class="open-file-btn" title="Open in Editor">⋮</button>
+				${this.hasLiveHost ? '<button class="open-file-btn" title="Open in Editor">⋮</button>' : ''}
 				${this.renderHeader(classInfo, isModule, safeDisplayName)}
 				${this.renderProperties(classInfo, isModule)}
 				${this.renderMethods(classInfo, isModule)}
@@ -85,12 +85,12 @@ export class ClassBoxRenderer {
 			const safeFilePath = this.escapeHtml(classInfo.filePath);
 			const lineNumber = prop.lineNumber || 1;
 			const endLineNumber = prop.endLineNumber || lineNumber;
-			
+			const clickableAttrs = this.hasLiveHost
+				? `class="member-item clickable" style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; background: ${changeBgColor}; cursor: pointer;" title="${safeName}: ${safeType} (click to open)" onclick="openMember(event, '${safeFilePath}', ${lineNumber}, ${endLineNumber}, '${safeName}')"`
+				: `class="member-item" style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; background: ${changeBgColor};"`;
+
 			return `
-			<div class="member-item clickable" 
-				 style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; background: ${changeBgColor}; cursor: pointer;" 
-				 title="${safeName}: ${safeType} (click to open)"
-				 onclick="openMember(event, '${safeFilePath}', ${lineNumber}, ${endLineNumber}, '${safeName}')">
+			<div ${clickableAttrs}>
 				<span style="color: ${this.getVisibilityColor(prop.visibility)};">
 					${this.getVisibilitySymbol(prop.visibility)}
 				</span>
@@ -126,12 +126,13 @@ export class ClassBoxRenderer {
 			const safeFilePath = this.escapeHtml(classInfo.filePath);
 			const lineNumber = method.lineNumber || 1;
 			const endLineNumber = method.endLineNumber || lineNumber;
-			
+			const bgStyle = changeBgColor !== 'transparent' ? `background: ${changeBgColor};` : 'background: rgba(100, 150, 200, 0.05);';
+			const clickableAttrs = this.hasLiveHost
+				? `class="member-item clickable" style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; ${bgStyle} cursor: pointer;" title="${safeName}(${paramNames}) (click to open)" onclick="openMember(event, '${safeFilePath}', ${lineNumber}, ${endLineNumber}, '${safeName}')"`
+				: `class="member-item" style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; ${bgStyle}"`;
+
 			return `
-			<div class="member-item clickable" 
-				 style="padding: 3px 8px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; ${changeBgColor !== 'transparent' ? `background: ${changeBgColor};` : 'background: rgba(100, 150, 200, 0.05);'} cursor: pointer;" 
-				 title="${safeName}(${paramNames}) (click to open)"
-				 onclick="openMember(event, '${safeFilePath}', ${lineNumber}, ${endLineNumber}, '${safeName}')">
+			<div ${clickableAttrs}>
 				<span style="color: ${this.getVisibilityColor(method.visibility)};">
 					${this.getVisibilitySymbol(method.visibility)}
 				</span>

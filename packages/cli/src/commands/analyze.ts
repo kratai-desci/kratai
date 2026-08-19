@@ -50,7 +50,7 @@ export async function runAnalyze(options: AnalyzeOptions): Promise<void> {
 		? MarkdownExporter.toMarkdown(diagramData, diagramName)
 		: (() => {
 			const { nodes, edges } = DiagramGeneratorService.generateReactFlowData(diagramData);
-			return ClassDiagramView.generate(nodes, edges, diagramName, config, undefined, true);
+			return ClassDiagramView.generate(nodes, edges, diagramName, config, undefined, false);
 		})();
 
 	const outputPath = path.resolve(options.output || `kratai-diagram.${options.format}`);

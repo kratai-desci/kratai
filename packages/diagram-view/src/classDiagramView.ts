@@ -4,11 +4,16 @@ import { FolderBoxRenderer } from './components/folderBoxRenderer';
 export class ClassDiagramView {
 	
 	/**
-	 * diagramOnly hides the Save as MD / Settings buttons - both act on a
-	 * persisted view (an export endpoint keyed by view id, a config panel
-	 * that edits saved config) that doesn't exist for an anonymous/unsaved
-	 * preview (see apps/web's app/try flow). Zoom stays available either
-	 * way since it's a pure view interaction, nothing to persist.
+	 * hasLiveHost gates every affordance that needs something on the other
+	 * end of postMessage to act on it: the Save as MD / Settings header
+	 * buttons, the per-class "open file" hover button, and click-to-open on
+	 * property/method rows. Without a live host (e.g. a standalone HTML file
+	 * opened directly - no listening parent frame) those would be dead
+	 * clicks, so default is false - a caller that forgets to pass this gets
+	 * the safe behavior rather than a diagram full of buttons that silently
+	 * do nothing. Zoom/pan/focus-highlight/relationship-line layout stay
+	 * always-on regardless - pure client-side rendering, no host needed, so
+	 * every outlet looks and behaves the same.
 	 */
 	static generate(
 		nodes: ReactFlowNode[],
@@ -16,7 +21,7 @@ export class ClassDiagramView {
 		workspaceName: string,
 		config: KrataiConfig,
 		iconUri?: string,
-		diagramOnly?: boolean
+		hasLiveHost?: boolean
 	): string {
 		// Step 1: Build folder structure
 		const root = FolderStructureBuilder.build(nodes);
@@ -25,7 +30,7 @@ export class ClassDiagramView {
 		console.log(`\n📊 Total: ${nodes.length} classes, ${FolderStructureBuilder.countFolders(root)} folders`);
 
 		// Step 2: Render with flat layout and custom folder ordering
-		const folderRenderer = new FolderBoxRenderer(config);
+		const folderRenderer = new FolderBoxRenderer(config, hasLiveHost);
 		const folderHTML = folderRenderer.renderAll(root);
 
 		console.log(`\n✅ Generated HTML with flat folder layout`);
@@ -41,7 +46,7 @@ export class ClassDiagramView {
 			folderHTML,
 			edges,
 			iconUri,
-			diagramOnly
+			hasLiveHost
 		);
 	}
 
@@ -53,7 +58,7 @@ export class ClassDiagramView {
 		folderHTML: string,
 		edges: ReactFlowEdge[],
 		iconUri?: string,
-		diagramOnly?: boolean
+		hasLiveHost?: boolean
 	): string {
 		// Properly encode edges for JavaScript embedding
 		const edgesJSON = JSON.stringify(edges)
@@ -287,8 +292,8 @@ export class ClassDiagramView {
         <div class="header-controls">
             <button onclick="zoomIn()">Zoom In</button>
             <button onclick="zoomOut()">Zoom Out</button>
-            ${diagramOnly ? '' : '<button onclick="saveAsMD()">💾 Save as MD</button>'}
-            ${diagramOnly ? '' : '<button onclick="openSettings()">⚙️ Settings</button>'}
+            ${hasLiveHost ? '<button onclick="saveAsMD()">💾 Save as MD</button>' : ''}
+            ${hasLiveHost ? '<button class="settings-btn" onclick="openSettings()">⚙️ Settings</button>' : ''}
         </div>
     </div>
     

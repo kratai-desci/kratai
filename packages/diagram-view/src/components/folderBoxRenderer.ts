@@ -188,9 +188,11 @@ const LAYER_WEIGHTS: Record<string, number> = {
 
 export class FolderBoxRenderer {
 	private config: KrataiConfig;
+	private hasLiveHost: boolean;
 
-	constructor(config: KrataiConfig) {
+	constructor(config: KrataiConfig, hasLiveHost: boolean = false) {
 		this.config = config;
+		this.hasLiveHost = hasLiveHost;
 	}
 	
 	renderAll(folder: DiagramFolderNode): string {
@@ -402,7 +404,7 @@ export class FolderBoxRenderer {
 					padding: 20px;
 				">
 					${folder.classes.map(node => {
-						const classRenderer = new (require('./classBoxRenderer').ClassBoxRenderer)(260);
+						const classRenderer = new (require('./classBoxRenderer').ClassBoxRenderer)(260, this.hasLiveHost);
 						return classRenderer.render(node.data.classInfo);
 					}).join('\n')}
 				</div>
