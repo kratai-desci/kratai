@@ -2,9 +2,7 @@
   "name": "kratai-monorepo",
   "private": true,
   "workspaces": [
-    "packages/*",
-    "kratai-web",
-    "kratai-desktop"
+    "packages/*"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
