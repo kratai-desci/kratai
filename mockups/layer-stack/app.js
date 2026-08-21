@@ -89,8 +89,12 @@
 		var blocks = kids.map(function (child) {
 			if (expanded[child.path] && hasKids(child)) {
 				child._isHeader = true;
+				// layoutChildren(child) already returns its own contents
+				// correctly block-sorted (atomic sub-blocks intact) - re-sorting
+				// that flat by each element's own _avgWeight would split a
+				// nested header away from its own children, since a header's
+				// weight is an *average* that can fall numerically between them
 				var inner = layoutChildren(child);
-				inner.sort(function (a, b) { return a._avgWeight - b._avgWeight; });
 				inner.push(child); // header always tops its own block
 				return { weight: child._avgWeight, nodes: inner };
 			}
@@ -131,7 +135,38 @@
 	var collapseAllBtn = document.getElementById('collapse-all');
 	var visibleNodes = []; // frontier nodes, for per-frame HUD label positioning
 
+	// Tiny tween runner: each entry gets its progress (0..1, eased) fed to
+	// onUpdate every frame in tick() until it completes. Used so newly
+	// revealed sheets/lines grow and fade in on drill-in instead of just
+	// appearing, without needing a full old-state/new-state diff+morph.
+	var tweens = [];
+	function tween(duration, onUpdate) {
+		tweens.push({ start: performance.now(), duration: duration, onUpdate: onUpdate });
+	}
+	function stepTweens() {
+		if (!tweens.length) return;
+		var now = performance.now();
+		tweens = tweens.filter(function (tw) {
+			var t = Math.min(1, (now - tw.start) / tw.duration);
+			var eased = 1 - Math.pow(1 - t, 3);
+			tw.onUpdate(eased);
+			return t < 1;
+		});
+	}
+
 	function renderTree() {
+		// which paths were already on screen before this render (and where),
+		// so newly revealed nodes/lines can grow in while nodes that were
+		// already visible slide smoothly from their old height to their new
+		// one instead of jumping - expanding pushes siblings apart, collapsing
+		// closes the gap, both are just "the height changed" to this code.
+		var previousPaths = {}, previousY = {};
+		visibleNodes.forEach(function (node) {
+			var key = node.path + (node._isSelf ? ':self' : '');
+			previousPaths[key] = true;
+			previousY[key] = node._y;
+		});
+
 		var frontier = layoutChildren(root);
 
 		var n = frontier.length;
@@ -185,11 +220,29 @@
 		}
 		while (hud.firstChild) hud.removeChild(hud.firstChild);
 
+		// a newly revealed node's animation origin is its nearest expanded
+		// ancestor (the header someone just clicked) - it starts at that
+		// header's position/size and eases into its own, like a copy peeling
+		// off the parent, rather than growing out of nothing
+		var headersByPath = {};
+		frontier.forEach(function (node) { if (node._isHeader) headersByPath[node.path] = node; });
+		function findOriginHeader(node) {
+			var parts = node.path.split('/');
+			for (var i = parts.length - 1; i >= 1; i--) {
+				var p = parts.slice(0, i).join('/');
+				if (headersByPath[p]) return headersByPath[p];
+			}
+			return null;
+		}
+
 		frontier.forEach(function (node, i) {
 			// populated below once the beam meshes are built (after this loop);
 			// the hover listener reads it later, at interaction time, so the
 			// fill-in order doesn't matter
 			node._beamMats = [];
+
+			var key = node.path + (node._isSelf ? ':self' : '');
+			var isNew = !previousPaths[key];
 
 			// color reflects folder depth, not stack position - two sheets at
 			// the same tree level always match. A fixed step per level (not
@@ -198,6 +251,55 @@
 			// instead of every expand/collapse rescaling where things land.
 			var t = Math.min(1, node._indent * INDENT_COLOR_STEP);
 			var color = lerpColor(t);
+
+			// mesh + border share a group, animated as one unit
+			var group = new THREE.Group();
+			var origin = isNew ? findOriginHeader(node) : null;
+			var startY = !isNew ? (previousY[key] !== undefined ? previousY[key] : node._y)
+				: (origin ? origin._y : node._y);
+			node._animY = startY;
+			group.position.set(0, startY, 0);
+			rigGL.add(group);
+
+			if (isNew && origin) {
+				// peels off the header that was just clicked: starts at that
+				// header's position and (roughly) its size, then eases into
+				// its own spot/size - reads as "a copy of the parent split
+				// off and moved out", not "appeared from nothing"
+				var startScale = Math.max(origin._w, origin._d) / Math.max(node._w, node._d);
+				group.scale.setScalar(startScale);
+				if (!reduceMotion) {
+					var targetY1 = node._y;
+					tween(380, function (e) {
+						var y = startY + (targetY1 - startY) * e;
+						node._animY = y;
+						group.position.y = y;
+						group.scale.setScalar(startScale + (1 - startScale) * e);
+					});
+				} else {
+					node._animY = node._y;
+					group.position.y = node._y;
+					group.scale.setScalar(1);
+				}
+			} else if (isNew) {
+				// no parent to peel off (e.g. the very first render) - just
+				// grow in place
+				if (!reduceMotion) {
+					group.scale.setScalar(0.01);
+					tween(380, function (e) { group.scale.setScalar(0.01 + e * 0.99); });
+				}
+			} else if (startY !== node._y && !reduceMotion) {
+				// a sheet that was already visible but whose height changed
+				// (a sibling was expanded/collapsed above or below it) slides
+				// to its new spot instead of jumping; node._animY tracks the
+				// in-flight value so the HUD label follows the same motion
+				var targetY2 = node._y;
+				tween(380, function (e) {
+					var y = startY + (targetY2 - startY) * e;
+					node._animY = y;
+					group.position.y = y;
+				});
+			}
 
 			var baseOpacity = node._isHeader ? 0.1 : 0.22;
 			var geo = new THREE.PlaneGeometry(node._w, node._d);
@@ -208,9 +310,8 @@
 			});
 			var mesh = new THREE.Mesh(geo, mat);
 			mesh.rotation.x = -Math.PI / 2;
-			mesh.position.set(0, node._y, 0);
 			mesh.renderOrder = 0;
-			rigGL.add(mesh);
+			group.add(mesh);
 
 			var borderMat = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.85, depthWrite: false });
 			var border = new THREE.LineLoop(
@@ -220,9 +321,8 @@
 				]),
 				borderMat
 			);
-			border.position.set(0, node._y, 0);
 			border.renderOrder = 1;
-			rigGL.add(border);
+			group.add(border);
 
 			// so the label's hover handler can brighten this exact sheet
 			node._sheetMat = mat;
@@ -297,6 +397,18 @@
 
 			hud.appendChild(face);
 			node._labelEl = face;
+
+			if (isNew && !origin && !reduceMotion) {
+				// no parent header to slide out from (e.g. first render) -
+				// fall back to a simple grow/fade in place
+				face.style.opacity = '0';
+				face.style.transform = 'translateY(-50%) scale(0.6)';
+				requestAnimationFrame(function () {
+					face.style.transition = 'opacity 0.32s ease-out, transform 0.32s cubic-bezier(0.2,0.8,0.3,1.4)';
+					face.style.opacity = '1';
+					face.style.transform = 'translateY(-50%) scale(1)';
+				});
+			}
 		});
 
 		// A cone arrowhead at the tip, oriented along the beam - built once
@@ -353,6 +465,16 @@
 			var arrowOpacity = LINE_OPACITY;
 			var arrowMat = makeArrow(end, dir, arrowColor, arrowOpacity, coneRad, coneLen);
 
+			// fade in if either end just appeared this render, same as the
+			// sheets themselves - a line snapping in ahead of the sheet it's
+			// attached to still growing would look off
+			var lineIsNew = !previousPaths[l.source.path + (l.source._isSelf ? ':self' : '')] ||
+				!previousPaths[l.target.path + (l.target._isSelf ? ':self' : '')];
+			if (lineIsNew && !reduceMotion) {
+				mat.opacity = 0; arrowMat.opacity = 0;
+				tween(380, function (e) { mat.opacity = e * LINE_OPACITY; arrowMat.opacity = e * arrowOpacity; });
+			}
+
 			// let either endpoint's label hover highlight this line (and its
 			// arrowhead) too - swap to white. Line and arrow now have
 			// different base colors/opacities, so each material tracks its
@@ -392,7 +514,7 @@
 		var w = stage.clientWidth, h = stage.clientHeight;
 		var v = new THREE.Vector3();
 		visibleNodes.forEach(function (node) {
-			v.set(0, node._y, 0).project(camera);
+			v.set(0, node._animY, 0).project(camera);
 			var px = (v.x * 0.5 + 0.5) * w;
 			var py = (-v.y * 0.5 + 0.5) * h;
 			node._labelEl.style.left = (px + LABEL_OFFSET_X + node._indent * INDENT_STEP_X) + 'px';
@@ -444,6 +566,7 @@
 		if (autoRotate) rotY += 0.0014;
 		applyRig();
 		updateHud();
+		stepTweens();
 		rendererGL.render(sceneGL, camera);
 		requestAnimationFrame(tick);
 	}
