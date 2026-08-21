@@ -1,0 +1,209 @@
+<title>Layer Stack</title>
+<style>
+	:root {
+		--bg: #EEF2FA;
+		--surface: #FFFFFF;
+		--surface-2: #F4F7FD;
+		--text: #17203A;
+		--text-dim: #5C6785;
+		--border: #D7DEEC;
+		--accent: #3459E0;
+		--accent-2: #14A6B8;
+		--glow: rgba(52, 89, 224, 0.35);
+	}
+	@media (prefers-color-scheme: dark) {
+		:root:not([data-theme="light"]) {
+			--bg: #0A0E19;
+			--surface: #121729;
+			--surface-2: #171F38;
+			--text: #E8ECFB;
+			--text-dim: #8B93B4;
+			--border: #262E4E;
+			--accent: #6D93F5;
+			--accent-2: #4FDCEA;
+			--glow: rgba(109, 147, 245, 0.45);
+		}
+	}
+	:root[data-theme="dark"] {
+		--bg: #0A0E19;
+		--surface: #121729;
+		--surface-2: #171F38;
+		--text: #E8ECFB;
+		--text-dim: #8B93B4;
+		--border: #262E4E;
+		--accent: #6D93F5;
+		--accent-2: #4FDCEA;
+		--glow: rgba(109, 147, 245, 0.45);
+	}
+
+	* { box-sizing: border-box; }
+	html, body { margin: 0; padding: 0; height: 100%; }
+	body {
+		background: var(--bg);
+		color: var(--text);
+		font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+		min-height: 100vh;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+	}
+	#errbox {
+		display: none;
+		position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+		z-index: 999; max-width: 560px;
+		background: #3a1420; border: 1px solid #d6455b; color: #fff;
+		border-radius: 10px; padding: 10px 14px; font-size: 12px;
+		font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	}
+	#errbox strong { color: #ff8fa3; }
+
+	#topbar {
+		flex-shrink: 0;
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 24px;
+		padding: 16px 22px;
+		border-bottom: 1px solid var(--border);
+		background: var(--surface);
+		z-index: 10;
+	}
+	#topbar h1 {
+		margin: 0;
+		font-size: 15px;
+		font-weight: 650;
+		letter-spacing: 0.01em;
+	}
+	#topbar .badge {
+		display: inline-block;
+		margin-left: 10px;
+		padding: 2px 8px;
+		font-size: 10.5px;
+		font-weight: 650;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--accent);
+		border: 1px solid var(--accent);
+		border-radius: 100px;
+		vertical-align: middle;
+	}
+	#topbar .sub {
+		margin: 3px 0 0 0;
+		font-size: 12.5px;
+		color: var(--text-dim);
+		font-variant-numeric: tabular-nums;
+		font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	}
+	#collapse-all {
+		display: none;
+		margin-top: 6px;
+		font-size: 11px;
+		font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+		color: var(--accent);
+		background: none;
+		border: 1px solid var(--accent);
+		border-radius: 100px;
+		padding: 3px 10px;
+		cursor: pointer;
+	}
+	#collapse-all:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+	#stage {
+		position: relative;
+		flex: 1;
+		min-height: 0;
+	}
+	#stage canvas {
+		position: absolute;
+		inset: 0;
+	}
+	#hud {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+		overflow: hidden;
+	}
+
+	.slab-face {
+		position: absolute;
+		left: 0; top: 0;
+		transform: translateY(-50%);
+		display: flex; flex-direction: row; align-items: baseline;
+		gap: 5px;
+		padding: 2px 8px;
+		pointer-events: auto;
+		background: color-mix(in srgb, var(--surface) 84%, transparent);
+		border: 1px solid var(--border);
+		border-radius: 100px;
+		backdrop-filter: blur(6px);
+		white-space: nowrap;
+		line-height: 1.2;
+		transition: border-color 0.15s ease, background 0.15s ease;
+	}
+	.slab-face.drillable { cursor: pointer; }
+	.slab-face.drillable:hover { border-color: var(--accent); background: var(--surface); }
+	.slab-face.drillable .slab-label::after { content: ' \25B8'; opacity: 0.55; }
+	.slab-face.leaf { cursor: default; }
+	.slab-face.self { opacity: 0.75; }
+	.slab-face.self .slab-label { font-style: italic; font-weight: 500; }
+	.slab-face.header { cursor: pointer; }
+	.slab-face.header .slab-label::after { content: ' \25BE'; opacity: 0.55; }
+	.slab-label {
+		font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+		font-size: 8.5px;
+		font-weight: 650;
+		color: var(--text);
+	}
+	.slab-count {
+		font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+		font-size: 7.5px;
+		color: var(--text-dim, var(--text));
+		opacity: 0.8;
+	}
+
+	#legend {
+		position: absolute;
+		left: 18px;
+		bottom: 18px;
+		z-index: 10;
+		background: color-mix(in srgb, var(--surface) 88%, transparent);
+		border: 1px solid var(--border);
+		border-radius: 12px;
+		padding: 12px 14px;
+		font-size: 11.5px;
+		color: var(--text-dim);
+		backdrop-filter: blur(10px);
+		line-height: 1.6;
+		max-width: 230px;
+	}
+	#legend strong { color: var(--text); }
+	#legend .row { display: flex; align-items: center; gap: 7px; margin-top: 2px; }
+	#legend .swatch { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+
+	#hint {
+		position: absolute;
+		right: 18px;
+		bottom: 18px;
+		z-index: 10;
+		font-size: 11px;
+		color: var(--text-dim);
+		font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	}
+</style>
+
+<div id="errbox"><strong>Render error &mdash;</strong> <span id="errmsg"></span></div>
+<div id="topbar">
+	<div>
+		<h1>nextjs-layered-app &mdash; layer stack<span class="badge">Design mockup</span></h1>
+		<p class="sub" id="stats">loading real kratai data&hellip;</p>
+		<button type="button" id="collapse-all">Collapse all</button>
+	</div>
+</div>
+<div id="stage">
+	<div id="legend">
+		<div><strong>Abstract overview, not detail</strong></div>
+		<div class="row">Sheet size = class count</div>
+		<div class="row">Each line = one class-to-class relationship</div>
+		<div class="row">&#9654; arrow points from referencer to referenced</div>
+	</div>
+	<div id="hint">drag to rotate &middot; scroll to zoom &middot; click a layer to expand/collapse</div>
+</div>
