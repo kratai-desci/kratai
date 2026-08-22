@@ -335,15 +335,9 @@
 				+ (node._isHeader ? ' header' : (drillable ? ' drillable' : ' leaf'))
 				+ (node._isSelf ? ' self' : '');
 
-			// tint by tree depth, not expand-state: a header sits at its own
-			// natural depth and stays the same plain white whether expanded
-			// or not, while its indented children shift a touch darker per
-			// nesting level - the color reflects where you are in the tree,
-			// not whether you clicked something
-			if (node._indent > 0) {
-				var darken = Math.min(30, node._indent * 10);
-				face.style.background = 'color-mix(in srgb, black ' + darken + '%, var(--surface))';
-			}
+			// all labels share the same plain background regardless of
+			// depth - indentation and color already show where you are in
+			// the tree, no need for a third depth signal on the label itself
 
 			// hovering the label brightens the sheet it refers to and every
 			// relationship line attached to it (full white), plus a softer
