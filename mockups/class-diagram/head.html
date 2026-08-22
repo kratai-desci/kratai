@@ -101,19 +101,37 @@
 	}
 	#world.no-anim { transition: none; }
 
-	#lines { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
-	#lines path { transition: opacity 0.25s ease, stroke-width 0.25s ease; }
-	#lines path.dimmed { opacity: 0.08; }
-	#lines path.hi { opacity: 1 !important; }
+	#lines { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; z-index: 5; }
+	#lines .relationship-line {
+		stroke: var(--text-dim);
+		color: var(--text-dim);
+		stroke-width: 1.4px;
+		fill: none;
+		transition: opacity 0.25s ease, stroke-width 0.25s ease, stroke 0.25s ease, color 0.25s ease;
+	}
+	#lines .relationship-line.dimmed { opacity: 0.08; }
+	#lines .relationship-line.hi {
+		opacity: 1 !important;
+		stroke: var(--text) !important;
+		color: var(--text) !important;
+		stroke-width: 2px !important;
+	}
 
 	.folder {
+		/* Deliberately no z-index, position, or backdrop-filter here - any of
+		   those would force .folder into its own stacking context (backdrop-
+		   filter does this independently of z-index/position, which is what
+		   broke this the first time), trapping .class-box's z-index 10 inside
+		   a losing sub-context that can never out-rank #lines's z-index 5
+		   despite the higher number. #lines only needs to beat this element's
+		   plain in-flow paint order to sit above the folder background - no
+		   stacking context needed on either side for that part to work. */
 		background: var(--surface);
 		background: color-mix(in srgb, var(--surface) 88%, transparent);
 		border: 1px solid var(--border);
 		border-radius: 16px;
 		padding: 16px 18px 20px;
 		margin: 0 28px 28px;
-		backdrop-filter: blur(6px);
 	}
 	.folder-head {
 		display: flex; align-items: center; gap: 9px;
@@ -139,6 +157,7 @@
 		overflow: hidden;
 		transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, opacity 0.25s ease;
 		position: relative;
+		z-index: 10;
 	}
 	.class-box::before {
 		content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
@@ -151,7 +170,7 @@
 		transform: translateY(-3px);
 		border-color: var(--accent);
 		box-shadow: 0 10px 24px var(--glow);
-		z-index: 5;
+		z-index: 15;
 	}
 	.class-box.dimmed { opacity: 0.28; }
 
@@ -182,6 +201,9 @@
 	.row .rname { color: var(--text); overflow: hidden; text-overflow: ellipsis; }
 	.row .rtype { color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; }
 	.row.more { color: var(--text-faint); font-style: italic; opacity: 0.85; }
+	.row.status-added { background: var(--added-bg); }
+	.row.status-deleted { background: var(--deleted-bg); }
+	.row.status-modified { background: var(--modified-bg); }
 	.row.empty { color: var(--text-faint); font-style: italic; }
 
 	#errbox {
@@ -202,8 +224,12 @@
 		font-size: 11px; color: var(--text-dim); backdrop-filter: blur(10px); line-height: 1.7;
 	}
 	#legend strong { color: var(--text); display: block; margin-bottom: 4px; font-size: 11.5px; }
+	#legend strong.group { margin-top: 10px; }
 	#legend .row2 { display: flex; align-items: center; gap: 7px; }
-	#legend .ln { width: 16px; height: 2px; border-radius: 2px; flex-shrink: 0; }
+	#legend .ln { width: 16px; height: 2px; border-radius: 2px; flex-shrink: 0; background: var(--text-dim); }
+	#legend .ln.dashed { background: none; border-top: 2px dashed var(--text-dim); height: 0; }
+	#legend .mk { width: 14px; height: 10px; flex-shrink: 0; color: var(--text-dim); }
+	#legend .dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
 
 	#hint {
 		position: absolute; right: 18px; bottom: 18px; z-index: 20;
@@ -238,9 +264,13 @@
 	</div>
 	<div id="legend">
 		<strong>Relationships</strong>
-		<div class="row2"><span class="ln" style="background:var(--accent)"></span> extends / implements</div>
-		<div class="row2"><span class="ln" style="background:var(--accent-2)"></span> calls</div>
-		<div class="row2"><span class="ln" style="background:var(--text-faint)"></span> uses / imports</div>
+		<div class="row2"><svg class="mk" viewBox="0 0 14 10"><polygon points="0,1 0,9 12,5" fill="var(--surface)" stroke="currentColor" stroke-width="1.3"/></svg> extends / implements &mdash; inheritance</div>
+		<div class="row2"><svg class="mk" viewBox="0 0 14 10"><polyline points="0,0 11,5 0,10" fill="none" stroke="currentColor" stroke-width="1.3"/></svg> uses / has &mdash; dependency</div>
+		<div class="row2"><span class="ln"></span> solid = structural &middot; <span class="ln dashed"></span> dashed = depends-on</div>
+		<strong class="group">Change status</strong>
+		<div class="row2"><span class="dot" style="background:var(--added)"></span> added</div>
+		<div class="row2"><span class="dot" style="background:var(--deleted)"></span> deleted</div>
+		<div class="row2"><span class="dot" style="background:var(--modified)"></span> modified</div>
 	</div>
 	<div id="zoomctl">
 		<button id="zin">+</button>

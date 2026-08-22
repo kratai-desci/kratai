@@ -33,11 +33,13 @@ async function main() {
 				filePath: ci.filePath,
 				changeStatus: ci.changeStatus || 'unchanged',
 				properties: (ci.properties || []).map(p => ({
-					name: p.name, type: p.type, visibility: p.visibility
+					name: p.name, type: p.type, visibility: p.visibility,
+					changeStatus: p.changeStatus || 'unchanged'
 				})),
 				methods: (ci.methods || []).map(m => ({
 					name: m.name, visibility: m.visibility,
-					params: (m.parameters || []).map(p => p.name)
+					params: (m.parameters || []).map(p => p.name),
+					changeStatus: m.changeStatus || 'unchanged'
 				}))
 			};
 		})

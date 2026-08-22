@@ -142,7 +142,7 @@
           "isInterface": false,
           "isAbstract": false,
           "filePath": "lib/l2_services/test.service.ts",
-          "changeStatus": "unchanged",
+          "changeStatus": "added",
           "properties": [
             {
               "name": "repository",
@@ -180,12 +180,13 @@
           "isInterface": false,
           "isAbstract": false,
           "filePath": "lib/l3_data/repositories/user.repository.ts",
-          "changeStatus": "unchanged",
+          "changeStatus": "modified",
           "properties": [
             {
               "name": "dataPath",
               "type": "string",
-              "visibility": "private"
+              "visibility": "private",
+              "changeStatus": "modified"
             }
           ],
           "methods": [
@@ -220,7 +221,8 @@
               "visibility": "public",
               "params": [
                 "email"
-              ]
+              ],
+              "changeStatus": "added"
             },
             {
               "name": "findAll",
@@ -232,7 +234,8 @@
               "visibility": "public",
               "params": [
                 "id"
-              ]
+              ],
+              "changeStatus": "deleted"
             }
           ]
         }
@@ -398,7 +401,7 @@
           "isInterface": true,
           "isAbstract": false,
           "filePath": "lib/l3_data/types/user.types.ts",
-          "changeStatus": "unchanged",
+          "changeStatus": "deleted",
           "properties": [
             {
               "name": "name",
@@ -804,6 +807,11 @@
       "source": "app/page.tsx__[page]",
       "target": "lib/l3_data/types/user.types.ts__PublicUserDTO",
       "type": "uses"
+    },
+    {
+      "source": "lib/l3_data/types/user.types.ts__PublicUserDTO",
+      "target": "lib/l3_data/types/user.types.ts__UserData",
+      "type": "extends"
     }
   ]
 }
