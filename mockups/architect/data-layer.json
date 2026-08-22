@@ -14,7 +14,8 @@
           "methodCount": 1,
           "propertyCount": 0
         }
-      ]
+      ],
+      "loc": 35
     },
     {
       "path": "app/api/admin/users/[id]",
@@ -29,7 +30,8 @@
           "methodCount": 1,
           "propertyCount": 0
         }
-      ]
+      ],
+      "loc": 40
     },
     {
       "path": "app/api/admin/users/[id]/ban",
@@ -44,7 +46,8 @@
           "methodCount": 1,
           "propertyCount": 0
         }
-      ]
+      ],
+      "loc": 35
     },
     {
       "path": "app/api/admin/users/[id]/promote",
@@ -59,7 +62,8 @@
           "methodCount": 1,
           "propertyCount": 0
         }
-      ]
+      ],
+      "loc": 35
     },
     {
       "path": "app/api/auth/login",
@@ -74,7 +78,8 @@
           "methodCount": 1,
           "propertyCount": 0
         }
-      ]
+      ],
+      "loc": 45
     },
     {
       "path": "app/api/auth/logout",
@@ -89,7 +94,8 @@
           "methodCount": 1,
           "propertyCount": 0
         }
-      ]
+      ],
+      "loc": 20
     },
     {
       "path": "app/api/auth/register",
@@ -104,7 +110,8 @@
           "methodCount": 1,
           "propertyCount": 0
         }
-      ]
+      ],
+      "loc": 55
     },
     {
       "path": "app/api/users/[id]",
@@ -119,7 +126,8 @@
           "methodCount": 2,
           "propertyCount": 0
         }
-      ]
+      ],
+      "loc": 60
     },
     {
       "path": "app/api/users/[id]/password",
@@ -134,7 +142,8 @@
           "methodCount": 1,
           "propertyCount": 0
         }
-      ]
+      ],
+      "loc": 40
     },
     {
       "path": "lib/l3_data/types",
@@ -189,7 +198,8 @@
           "methodCount": 0,
           "propertyCount": 2
         }
-      ]
+      ],
+      "loc": 110
     },
     {
       "path": "lib/l3_data/repositories",
@@ -204,7 +214,8 @@
           "methodCount": 7,
           "propertyCount": 1
         }
-      ]
+      ],
+      "loc": 240
     },
     {
       "path": "lib/l2_services",
@@ -227,7 +238,8 @@
           "methodCount": 2,
           "propertyCount": 1
         }
-      ]
+      ],
+      "loc": 480
     },
     {
       "path": "app",
@@ -250,7 +262,8 @@
           "methodCount": 1,
           "propertyCount": 0
         }
-      ]
+      ],
+      "loc": 90
     }
   ],
   "relationships": [
@@ -414,6 +427,13 @@
       "type": "uses",
       "sourceFolder": "app",
       "targetFolder": "lib/l3_data/types"
+    },
+    {
+      "source": "lib/l3_data/repositories/user.repository.ts__UserRepository",
+      "target": "lib/l2_services/auth.service.ts__AuthService",
+      "type": "uses",
+      "sourceFolder": "lib/l3_data/repositories",
+      "targetFolder": "lib/l2_services"
     }
   ]
 }

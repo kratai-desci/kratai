@@ -27,10 +27,9 @@ let reporter: any | undefined;
 let isVSCodeContext = false;
 
 // Detect if we're running in VS Code context. The module name is built at
-// runtime (not a string literal) so bundlers used by other hosts (Next.js's
-// webpack/Turbopack in apps/web, esbuild in apps/mcp-server) can't
-// statically discover and try to pre-bundle a module that only resolves
-// inside a real VS Code extension host.
+// runtime (not a string literal) so bundlers used by other hosts (e.g.
+// @kratai/cli's esbuild) can't statically discover and try to pre-bundle a
+// module that only resolves inside a real VS Code extension host.
 try {
 	const vscodeModuleName = ['vsc', 'ode'].join('');
 	require.resolve(vscodeModuleName);
@@ -89,28 +88,6 @@ export class TelemetryService {
 
 	static trackOpenSettings(): void {
 		reporter?.sendTelemetryEvent('openSettings');
-	}
-
-	// MCP Server usage events
-	static trackMcpListDiagrams(diagramCount: number): void {
-		reporter?.sendTelemetryEvent('mcpListDiagrams', {}, {
-			diagramCount
-		});
-	}
-
-	static trackMcpGetDiagram(classCount: number, relationshipCount: number): void {
-		reporter?.sendTelemetryEvent('mcpGetDiagram', {}, {
-			classCount,
-			relationshipCount
-		});
-	}
-
-	static trackMcpCreateDiagram(classCount: number, relationshipCount: number, folderCount: number): void {
-		reporter?.sendTelemetryEvent('mcpCreateDiagram', {}, {
-			classCount,
-			relationshipCount,
-			folderCount
-		});
 	}
 
 	static trackError(command: string, error: string): void {

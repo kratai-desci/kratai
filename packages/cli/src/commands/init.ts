@@ -2,8 +2,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { setupClaudeCode } from '../targets/claudeCode.js';
-import { setupCursor } from '../targets/cursor.js';
-import { setupOpenCode } from '../targets/opencode.js';
 import { setupAgentsMd } from '../targets/agentsMd.js';
 
 // esbuild bundles this into a single out/cli.mjs, so import.meta.url here
@@ -11,13 +9,15 @@ import { setupAgentsMd } from '../targets/agentsMd.js';
 // path - out/SKILL.md (copied alongside it by copy-skill.js) is a sibling.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export type InitTarget = 'claude' | 'cursor' | 'opencode' | 'all';
-
 export interface InitOptions {
 	path: string;
-	target: InitTarget;
 }
 
+// No per-host branching anymore - AGENTS.md alone already covers Cursor
+// (reads it natively) and OpenCode (falls back to it), so the only thing
+// left that's Claude-Code-specific is also dropping a copy of the skill
+// into .claude/skills/kratai/, which is harmless to write even for a
+// non-Claude-Code project.
 export function runInit(options: InitOptions): void {
 	const workspacePath = path.resolve(options.path);
 
@@ -31,21 +31,8 @@ export function runInit(options: InitOptions): void {
 	}
 	const skillContent = fs.readFileSync(skillPath, 'utf-8');
 
-	const targets: Exclude<InitTarget, 'all'>[] = options.target === 'all'
-		? ['claude', 'cursor', 'opencode']
-		: [options.target];
-
-	if (targets.includes('claude')) {
-		setupClaudeCode(workspacePath, skillContent);
-	}
-	if (targets.includes('cursor')) {
-		setupCursor(workspacePath);
-	}
-	if (targets.includes('opencode')) {
-		setupOpenCode(workspacePath);
-	}
-
+	setupClaudeCode(workspacePath, skillContent);
 	setupAgentsMd(workspacePath, skillContent);
 
-	console.log(`\nkratai wired up for: ${targets.join(', ')} in ${workspacePath}`);
+	console.log(`\nkratai wired up in ${workspacePath}`);
 }

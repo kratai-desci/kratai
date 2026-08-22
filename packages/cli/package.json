@@ -1,7 +1,7 @@
 {
   "name": "@kratai/cli",
   "version": "0.1.0",
-  "description": "Installable CLI - generates a self-contained static HTML architecture diagram from your codebase, no VS Code or backend needed. Also wires kratai's MCP server + skill into Claude Code, Cursor, and OpenCode via `kratai init`.",
+  "description": "Installable CLI - generates a self-contained static HTML architecture diagram from your codebase, no VS Code or backend needed. Also wires kratai's skill into Claude Code, Cursor, and OpenCode via `kratai init`.",
   "type": "module",
   "bin": {
     "kratai": "./out/cli.mjs"

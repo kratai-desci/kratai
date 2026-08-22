@@ -15,14 +15,8 @@ ACTIVE ON EVERY CODING TASK. No drift back to ad-hoc coding without thinking. Ar
 
 ## Session Start: Understand Architecture
 
-At beginning of session, BEFORE any coding, load architecture once. Use kratai tools to generate project state overview without wasting tokens reading files directly. If MCP unavailable but a shell is available: run `npx @kratai/cli analyze --format md` and read its output instead - same data, no MCP required. If neither is available: Tell user "Kratai MCP not available. Check config." Apply principles without tools.
+At beginning of session, BEFORE any coding, load architecture once. Run `npx @kratai/cli analyze --format md` and read its output instead of wasting tokens reading files directly - same architecture data a human sees, produced by static analysis, no LLM calls. If no shell is available: apply the principles below without tooling.
 
-```typescript
-tool_search("kratai") // 1. Load tools
-kratai_list_diagrams() // 2. Check what diagrams exist
-kratai_get_diagram({diagramId}) // 3. Get specific diagram
-kratai_create_overview_diagram() // 4. Create default overview if none exist
-```
 Cache in memory:
 - Architecture pattern (layered/hexagonal/clean)
 - Folder structure (controllers/services/repositories)
@@ -41,12 +35,12 @@ Stop at the first rung that holds:
 3. **Should this behavior live in its own focused class to maintain clear responsibilities?** Create a new class following the Single Responsibility Principle.
 4. **Can an already-installed dependency solve this cleanly?** If yes → use the existing dependency. Only add a new dependency if it is genuinely better than writing a few lines yourself.
 
-The ladder runs *after* you understand the architecture, not instead of it. Use kratai tools to get architecture overview (cached from session start), check existing classes and their responsibilities, then climb. Two rungs work → take the higher one. The first solution that holds is the right one.
+The ladder runs *after* you understand the architecture, not instead of it. Use the architecture overview (cached from session start), check existing classes and their responsibilities, then climb. Two rungs work → take the higher one. The first solution that holds is the right one.
 
 ## Rules
 
 - Always fetch diagram at session start (once only, then cache)
-- Never read stale exported diagram files lying around the repo - use MCP tools, or `kratai analyze` output if MCP is unavailable, never a leftover export
+- Never read stale exported diagram files lying around the repo - always regenerate with `kratai analyze`, never a leftover export
 - No unrequested abstractions: no interface with one implementation, no factory for one product, no config for a value that never changes.
 - No boilerplate, no scaffolding "for later", later can scaffold for itself.
 - Fewest files possible. Shortest working diff wins 

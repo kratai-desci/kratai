@@ -2,9 +2,8 @@
 
 Exploratory redesigns of kratai's diagram output. These are **not** part of
 the real product — nothing here is imported by `packages/*`, and none of it
-is wired into the VS Code extension, CLI, or MCP server. They exist purely to
-try out visual directions before any of this becomes real implementation
-work.
+is wired into the CLI. They exist purely to try out visual directions before
+any of this becomes real implementation work.
 
 Each mockup is a standalone, self-contained HTML page (no build step, no
 dependencies beyond what's vendored in the folder) built from real data

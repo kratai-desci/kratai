@@ -339,10 +339,15 @@
 		font-size: 11px; color: var(--text-faint);
 		font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 	}
-	#zoomctl {
-		position: absolute; right: 18px; top: 18px; z-index: 20;
-		display: flex; flex-direction: column; gap: 4px;
+	/* class-diagram's zoom buttons share the top-right corner with the
+	   concerns panel below - stacked in a column so the panel's height
+	   (which varies with how many concerns are found) never has to be
+	   hardcoded against the buttons' position. */
+	#topright-class {
+		position: absolute; top: 18px; right: 18px; z-index: 20;
+		display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
 	}
+	#zoomctl { display: flex; flex-direction: column; gap: 4px; }
 	#zoomctl button {
 		width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
 		background: var(--surface);
@@ -351,6 +356,36 @@
 		font-size: 15px; cursor: pointer; backdrop-filter: blur(10px);
 	}
 	#zoomctl button:hover { border-color: var(--accent); color: var(--accent); }
+
+	/* ---- architecture concerns panel: same quiet treatment as #layer-list
+	   (same background/border/radius/padding) rather than calling attention
+	   to itself - the small dot on each row is the only hint of yellow. ---- */
+	.concerns-panel {
+		display: none;
+		z-index: 10;
+		flex-direction: column;
+		gap: 1px;
+		width: 240px;
+		max-height: calc(100% - 32px);
+		overflow-y: auto;
+		background: color-mix(in srgb, var(--surface) 92%, transparent);
+		border: 1px solid var(--border);
+		border-radius: 12px;
+		padding: 6px;
+		backdrop-filter: blur(10px);
+	}
+	.concerns-panel strong.title {
+		display: block; color: var(--text-dim); font-size: 9.5px;
+		font-weight: 650; text-transform: uppercase; letter-spacing: 0.05em;
+		padding: 4px 8px 5px;
+	}
+	.concern-row { display: flex; align-items: flex-start; gap: 7px; padding: 5px 8px; border-radius: 7px; }
+	.concern-dot {
+		width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
+		background: var(--modified);
+	}
+	.concern-row .concern-text strong { color: var(--text); font-size: 10.5px; font-weight: 650; }
+	.concern-row .concern-detail { display: block; color: var(--text-dim); font-size: 9.5px; opacity: 0.85; }
 </style>
 
 <div id="errbox"><strong>Render error &mdash;</strong> <span id="errmsg"></span></div>
@@ -368,10 +403,11 @@
 	<div id="stage" class="view active">
 		<div id="legend-layer">
 			<div><strong>Abstract overview, not detail</strong></div>
-			<div class="row">Sheet size = class count</div>
+			<div class="row">Sheet size = lines of code</div>
 			<div class="row">Each line = one class-to-class relationship</div>
 			<div class="row">&#9654; arrow points from referencer to referenced</div>
 		</div>
+		<div id="concerns-layer" class="concerns-panel" style="position:absolute; top:18px; right:18px;"></div>
 		<div id="hint-layer">drag to rotate &middot; scroll to zoom &middot; click a layer to expand/collapse</div>
 	</div>
 	<div id="viewport" class="view">
@@ -389,9 +425,12 @@
 			<div class="row2"><span class="dot" style="background:var(--deleted)"></span> deleted</div>
 			<div class="row2"><span class="dot" style="background:var(--modified)"></span> modified</div>
 		</div>
-		<div id="zoomctl">
-			<button id="zin">+</button>
-			<button id="zout">&minus;</button>
+		<div id="topright-class">
+			<div id="concerns-class" class="concerns-panel"></div>
+			<div id="zoomctl">
+				<button id="zin">+</button>
+				<button id="zout">&minus;</button>
+			</div>
 		</div>
 		<div id="hint-class">scroll to zoom &middot; drag to pan &middot; hover a class</div>
 	</div>

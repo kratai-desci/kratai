@@ -6,7 +6,7 @@
 kratai turns your codebase into **living architecture diagrams** — the single source of truth.  
 Maintain architectural control while AI agents code, and **dramatically reduce token usage** by giving them structured, accurate system information instead of expensive raw file dumps.
 
-**Early benchmarks** with AI agents using kratai’s architecture context (via MCP + SKILL) showed:
+**Early benchmarks** with AI agents using kratai’s architecture context (via SKILL) showed:
 - **~49% fewer output tokens**
 - **~66% reduction in total input tokens**
 - **~58% lower billing units**
@@ -20,10 +20,9 @@ Maintain architectural control while AI agents code, and **dramatically reduce t
 
 ## ✨ Key Features
 
-### 🤖 **AI Integration via SKILL & Local MCP Server**
+### 🤖 **AI Integration via SKILL**
 
 - **Architecture-Aware SKILL** — Pre-configured skill teaches AI to analyze existing patterns and follow your design principles automatically. No manual prompting required.
-- **Local MCP Server** — Built-in Model Context Protocol server gives AI agents direct access to your architecture diagrams. AI can query your system structure before generating code, understanding the full context.
 - **Fundamental Software Engineering Principles** — Ensure coding AIs consider foundational software engineering principles (KISS, DRY, SRP, high cohesion, low coupling) to produce minimal lines of code and maintain architectural integrity.
 
 ### 📊 **Architecture Intelligence**
@@ -53,12 +52,12 @@ kratai contributes to this approach by giving developers clear **visibility and 
 ## 📸 Visual Tour
 
 ### 1. Built-in Coding Agent & SKILL
-Pre-configured SKILL teaches AI to follow your design principles automatically. Local MCP server provides direct access to architecture data — no manual setup required.
+Pre-configured SKILL teaches AI to follow your design principles automatically — no manual setup required.
 
 <img src="https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_4.png" alt="AI uses kratai skill" width="50%">
 
 ### 2. AI Understands Your Architecture
-AI agents query your architecture before generating code. No expensive context dumps — AI gets structured, accurate system information through MCP server.
+AI agents load your architecture before generating code, via `kratai analyze --format md`. No expensive context dumps — just structured, accurate system information.
 
 ![Screenshot 1 - Class Diagram](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_1.png)
 
@@ -77,27 +76,18 @@ Choose exactly what to show — select folders, filter relationship types, and c
 
 ## 🚀 Getting Started
 
-### VS Code (Copilot)
-
-1. Install from [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=kratai-core.kratai)
-2. Open any TypeScript/JavaScript/Python/PHP project
-3. Click the kratai icon in the sidebar
-4. Click "Create New Diagram" → Generate
-
-The MCP server and skill are bundled and auto-registered — nothing else to configure.
-
 ### Claude Code, Cursor, or OpenCode
 
 ```bash
 npx @kratai/cli init
 ```
 
-Wires up an MCP server entry (`.mcp.json` / `.cursor/mcp.json` / `opencode.json`,
-whichever applies) plus an `AGENTS.md` and, for Claude Code, a project skill at
-`.claude/skills/kratai/`. Pass `--target claude|cursor|opencode` to wire up
-just one. Safe to re-run — merges into existing config instead of overwriting it.
+Writes an `AGENTS.md` block (read natively by Cursor/Codex, used as a fallback
+by OpenCode/Claude Code) plus a project skill at `.claude/skills/kratai/` for
+Claude Code. Safe to re-run — merges into existing files instead of overwriting them.
 
-No agent, or no MCP configured? Generate a diagram straight from the shell:
+Then, at the start of any session, the agent runs this itself to load your
+architecture:
 
 ```bash
 npx @kratai/cli analyze --format md   # architecture summary, no VS Code needed
@@ -111,11 +101,9 @@ npx @kratai/cli analyze               # interactive HTML diagram
 ```
 packages/
 ├── core/              analysis engine + diagram-spec generator (deterministic, zero LLM calls)
-├── diagram-view/       the interactive class diagram renderer, shared by cli + vscode-extension
+├── diagram-view/       the interactive class diagram renderer, used by the CLI's HTML output
 ├── cli/                 kratai analyze / kratai init - installable CLI
-├── mcp-server/           structured architecture data for AI agents over MCP
-├── skill/                 shared Architecture-Aware SKILL.md
-└── vscode-extension/       richest renderer: live diagrams, git-diff highlighting, click-to-code
+└── skill/                 shared Architecture-Aware SKILL.md
 ```
 
 ---

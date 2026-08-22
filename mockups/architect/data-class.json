@@ -168,7 +168,8 @@
             }
           ]
         }
-      ]
+      ],
+      "loc": 480
     },
     {
       "path": "lib/l3_data/repositories",
@@ -239,7 +240,8 @@
             }
           ]
         }
-      ]
+      ],
+      "loc": 240
     },
     {
       "path": "lib/l3_data/types",
@@ -416,7 +418,8 @@
           ],
           "methods": []
         }
-      ]
+      ],
+      "loc": 110
     },
     {
       "path": "app",
@@ -462,7 +465,8 @@
             }
           ]
         }
-      ]
+      ],
+      "loc": 90
     },
     {
       "path": "app/api/admin/users",
@@ -484,7 +488,8 @@
             }
           ]
         }
-      ]
+      ],
+      "loc": 35
     },
     {
       "path": "app/api/admin/users/[id]",
@@ -509,7 +514,8 @@
             }
           ]
         }
-      ]
+      ],
+      "loc": 40
     },
     {
       "path": "app/api/admin/users/[id]/ban",
@@ -534,7 +540,8 @@
             }
           ]
         }
-      ]
+      ],
+      "loc": 35
     },
     {
       "path": "app/api/admin/users/[id]/promote",
@@ -559,7 +566,8 @@
             }
           ]
         }
-      ]
+      ],
+      "loc": 35
     },
     {
       "path": "app/api/auth/login",
@@ -583,7 +591,8 @@
             }
           ]
         }
-      ]
+      ],
+      "loc": 45
     },
     {
       "path": "app/api/auth/logout",
@@ -607,7 +616,8 @@
             }
           ]
         }
-      ]
+      ],
+      "loc": 20
     },
     {
       "path": "app/api/auth/register",
@@ -631,7 +641,8 @@
             }
           ]
         }
-      ]
+      ],
+      "loc": 55
     },
     {
       "path": "app/api/users/[id]",
@@ -664,7 +675,8 @@
             }
           ]
         }
-      ]
+      ],
+      "loc": 60
     },
     {
       "path": "app/api/users/[id]/password",
@@ -689,7 +701,8 @@
             }
           ]
         }
-      ]
+      ],
+      "loc": 40
     }
   ],
   "relationships": [
@@ -812,6 +825,11 @@
       "source": "lib/l3_data/types/user.types.ts__PublicUserDTO",
       "target": "lib/l3_data/types/user.types.ts__UserData",
       "type": "extends"
+    },
+    {
+      "source": "lib/l3_data/repositories/user.repository.ts__UserRepository",
+      "target": "lib/l2_services/auth.service.ts__AuthService",
+      "type": "uses"
     }
   ]
 }

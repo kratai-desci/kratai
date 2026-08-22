@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { runAnalyze } from './commands/analyze.js';
-import { runInit, InitTarget } from './commands/init.js';
+import { runInit } from './commands/init.js';
 
 const VERSION = '0.1.0';
 
@@ -21,10 +21,10 @@ analyze - generate a diagram (HTML for a browser, or Markdown for an AI agent)
       --no-git-diff      Disable git diff highlighting
       --open             Open the generated file in your default app
 
-init - wire kratai's MCP server + skill into an AI coding agent
-      --target <t>       "claude", "cursor", "opencode", or "all" - default: all
-                          Always also writes/merges AGENTS.md (read by Cursor/Codex,
-                          used as a fallback by OpenCode/Claude Code)
+init - wire kratai's skill into an AI coding agent
+                          Writes .claude/skills/kratai/SKILL.md and merges an
+                          AGENTS.md block (read natively by Cursor/Codex, used
+                          as a fallback by OpenCode/Claude Code)
 
   -h, --help              Show this help
   -v, --version           Show version
@@ -88,7 +88,6 @@ async function main(): Promise<void> {
 		const { values, positionals } = parseArgs({
 			args: rest,
 			options: {
-				target: { type: 'string', default: 'all' },
 				help: { type: 'boolean', short: 'h' }
 			},
 			allowPositionals: true
@@ -99,16 +98,8 @@ async function main(): Promise<void> {
 			return;
 		}
 
-		const validTargets: InitTarget[] = ['claude', 'cursor', 'opencode', 'all'];
-		if (!validTargets.includes(values.target as InitTarget)) {
-			console.error(`Invalid --target "${values.target}" - expected one of ${validTargets.join(', ')}.\n`);
-			process.exitCode = 1;
-			return;
-		}
-
 		runInit({
-			path: positionals[0] || process.cwd(),
-			target: values.target as InitTarget
+			path: positionals[0] || process.cwd()
 		});
 		return;
 	}
