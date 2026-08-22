@@ -17,6 +17,11 @@ extracted from a sample project via `@kratai/core`.
 - **`class-diagram/`** — a redesigned 2D class diagram (pan/zoom, relationship
   lines, git-status coloring). Same pattern: edit `head.html` / `app.js`,
   then `python3 build.py`.
+- **`architect/`** — in progress: a unified control-center view merging the
+  layer-stack and class-diagram into one coherent architecture explorer, plus
+  in-page editing of the folder visibility/ordering config. Started as a copy
+  of `layer-stack/`. Same pattern: edit `head.html` / `app.js`, then
+  `python3 build.py`.
 
 ## Regenerating the data
 
