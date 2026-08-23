@@ -87,18 +87,7 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 	.view-panel + .view-panel { border-left: 1px solid var(--border); }
 	#view-container:not(.split) .view-panel + .view-panel { border-left: none; border-top: 1px solid var(--border); }
 
-	#class-frame { width: 100%; height: 100%; border: none; display: block; }
-
-	#stack-panel {
-		width: 100%; height: 100%;
-		display: flex; align-items: center; justify-content: center;
-		background-image: radial-gradient(color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1px);
-		background-size: 22px 22px;
-	}
-	#stack-panel p {
-		color: var(--text-faint); font-size: 13px;
-		font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-	}
+	#class-frame, #stack-frame { width: 100%; height: 100%; border: none; display: block; }
 </style>
 </head>
 <body>
@@ -111,7 +100,7 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 	</div>
 	<div id="view-container">
 		<div id="stack-panel" class="view-panel">
-			<p>Stack layer view - coming soon</p>
+			<iframe id="stack-frame" src="/stack-layer" title="Stack layer"></iframe>
 		</div>
 		<div class="view-panel">
 			<iframe id="class-frame" src="/class-diagram" title="Class diagram"></iframe>
@@ -124,7 +113,10 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 		// while a genuinely full-screen browser window on a normal desktop
 		// monitor clears it and gets the side-by-side split.
 		var WIDE_QUERY = '(min-width: 1440px)';
-		var mode = 'class';
+		// Only matters in narrow mode (wide always shows both regardless of
+		// mode) - stack layer opens first there since it's the higher-level
+		// view.
+		var mode = 'stack';
 
 		function isWide() {
 			return window.matchMedia(WIDE_QUERY).matches;

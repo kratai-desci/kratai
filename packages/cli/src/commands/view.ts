@@ -6,6 +6,8 @@ import { ClassDiagramView } from '@kratai/diagram-view';
 import { loadCliConfig } from '../config.js';
 import { openFile } from '../openFile.js';
 import { generateShellHTML } from '../viewShell.js';
+import { buildStackLayerData } from '../stackLayerData.js';
+import { generateStackLayerHTML } from '../stackLayerView.js';
 
 export interface ViewOptions {
 	path: string;
@@ -41,11 +43,11 @@ export async function runView(options: ViewOptions): Promise<void> {
 
 	const { nodes, edges } = DiagramGeneratorService.generateReactFlowData(diagramData);
 	// hasLiveHost stays false - the view server doesn't yet listen for the
-	// diagram's postMessage calls (Save/Settings/open-file), same as
-	// `analyze --format html`'s static output. Wire those up when the
-	// server actually handles them.
+	// diagram's postMessage calls (Save/Settings/open-file). Wire those up
+	// when the server actually handles them.
 	const classDiagramHtml = ClassDiagramView.generate(nodes, edges, diagramName, config, undefined, false);
 	const folderCount = FolderStructureBuilder.countFolders(FolderStructureBuilder.build(nodes));
+	const stackLayerHtml = generateStackLayerHTML(buildStackLayerData(diagramName, nodes, edges));
 	const shellHtml = generateShellHTML(diagramName, {
 		classCount: nodes.length,
 		folderCount,
@@ -53,7 +55,9 @@ export async function runView(options: ViewOptions): Promise<void> {
 	});
 
 	const server = http.createServer((req, res) => {
-		const html = req.url === '/class-diagram' ? classDiagramHtml : shellHtml;
+		const html = req.url === '/class-diagram' ? classDiagramHtml
+			: req.url === '/stack-layer' ? stackLayerHtml
+			: shellHtml;
 		res.writeHead(200, { 'Content-Type': 'text/html' });
 		res.end(html);
 	});

@@ -57,7 +57,7 @@ Pre-configured SKILL teaches AI to follow your design principles automatically �
 <img src="https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_4.png" alt="AI uses kratai skill" width="50%">
 
 ### 2. AI Understands Your Architecture
-AI agents load your architecture before generating code, via `kratai analyze --format md`. No expensive context dumps — just structured, accurate system information.
+AI agents load your architecture before generating code, via `kratai analyze`. No expensive context dumps — just structured, accurate system information.
 
 ![Screenshot 1 - Class Diagram](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_1.png)
 
@@ -90,8 +90,8 @@ Then, at the start of any session, the agent runs this itself to load your
 architecture:
 
 ```bash
-npx @kratai/cli analyze --format md   # architecture summary, no VS Code needed
-npx @kratai/cli analyze               # interactive HTML diagram
+npx @kratai/cli analyze   # Markdown architecture summary, for the agent to read
+npx @kratai/cli view      # live interactive diagram, for you to look at
 ```
 
 ---
@@ -101,8 +101,8 @@ npx @kratai/cli analyze               # interactive HTML diagram
 ```
 packages/
 ├── core/              analysis engine + diagram-spec generator (deterministic, zero LLM calls)
-├── diagram-view/       the interactive class diagram renderer, used by the CLI's HTML output
-├── cli/                 kratai analyze / kratai init - installable CLI
+├── diagram-view/       the interactive class diagram renderer, used by `kratai view`
+├── cli/                 kratai analyze / kratai init / kratai view - installable CLI
 └── skill/                 shared Architecture-Aware SKILL.md
 ```
 

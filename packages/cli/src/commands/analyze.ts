@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { CodeParserService, DiagramGeneratorService, GitDiffEnricher, MarkdownExporter } from '@kratai/core';
-import { ClassDiagramView } from '@kratai/diagram-view';
+import { CodeParserService, GitDiffEnricher, MarkdownExporter } from '@kratai/core';
 import { loadCliConfig } from '../config.js';
 import { openFile } from '../openFile.js';
 
@@ -11,7 +10,6 @@ export interface AnalyzeOptions {
 	configPath?: string;
 	name?: string;
 	folders?: string;
-	format: 'html' | 'md';
 	gitDiff: boolean;
 	open: boolean;
 }
@@ -46,14 +44,9 @@ export async function runAnalyze(options: AnalyzeOptions): Promise<void> {
 		throw new Error('No classes found - check your folder/extension filters.');
 	}
 
-	const content = options.format === 'md'
-		? MarkdownExporter.toMarkdown(diagramData, diagramName)
-		: (() => {
-			const { nodes, edges } = DiagramGeneratorService.generateReactFlowData(diagramData);
-			return ClassDiagramView.generate(nodes, edges, diagramName, config, undefined, false);
-		})();
+	const content = MarkdownExporter.toMarkdown(diagramData, diagramName);
 
-	const outputPath = path.resolve(options.output || `kratai-diagram.${options.format}`);
+	const outputPath = path.resolve(options.output || 'kratai-diagram.md');
 	fs.writeFileSync(outputPath, content, 'utf-8');
 
 	console.log(`Wrote ${diagramData.classes.length} classes, ${diagramData.relationships.length} relationships -> ${outputPath}`);

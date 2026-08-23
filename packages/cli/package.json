@@ -15,7 +15,7 @@
   },
   "scripts": {
     "typecheck": "tsc -p ./ --noEmit",
-    "build": "npm run typecheck && node esbuild.js && node copy-skill.js",
+    "build": "npm run typecheck && node esbuild.js && node copy-skill.js && node copy-vendor.js",
     "watch": "tsc -watch -p ./",
     "start": "node ./out/cli.mjs"
   },

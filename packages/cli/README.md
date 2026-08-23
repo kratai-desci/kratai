@@ -1,16 +1,21 @@
 # @kratai/cli
 
 Generates an architecture snapshot of your codebase, no VS Code and no
-backend required - either a self-contained, interactive static HTML diagram
-(good for sharing with anyone, including non-technical stakeholders, or for
-CI artifacts) or a Markdown summary (good for feeding straight to an AI
-agent as a file).
+separate backend required.
+
+- `kratai analyze` - a Markdown summary, for feeding straight to an AI agent
+  as a file, or archiving as a portable, serverless artifact (CI, sharing
+  with someone who doesn't have kratai installed).
+- `kratai view` - a live local web app for a human to explore the
+  architecture interactively (class diagram + 3D stack-layer view, switchable
+  side by side on a wide screen).
 
 ## Usage
 
 ```
 kratai init [path]
 kratai analyze [path] [options]
+kratai view [path] [options]
 ```
 
 `init` wires kratai into a project: writes `.claude/skills/kratai/SKILL.md`,
@@ -19,17 +24,25 @@ fallback by OpenCode/Claude Code), scaffolds `kratai.config.json` from smart
 defaults if it doesn't already exist, and adds `kratai.local.json` to
 `.gitignore`.
 
+### `analyze`
+
 | Flag | Description | Default |
 |---|---|---|
-| `-o, --output <file>` | Output file | `./kratai-diagram.<format>` |
+| `-o, --output <file>` | Output file | `./kratai-diagram.md` |
 | `-c, --config <file>` | Path to a `kratai.config.json` | `<path>/kratai.config.json` if present |
 | `--name <string>` | Diagram title | folder name |
 | `--folders <a,b,c>` | Only include these folders (comma-separated) | all folders |
-| `--format <html\|md>` | Output format - `html` for a browser, `md` for an AI agent/file | `html` |
 | `--no-git-diff` | Disable git diff highlighting | diff highlighting on |
 | `--open` | Open the generated file in your default app | off |
 | `-h, --help` | Show help | |
 | `-v, --version` | Show version | |
+
+### `view`
+
+| Flag | Description | Default |
+|---|---|---|
+| `-p, --port <number>` | Port to listen on | `4300` |
+| `--open` | Open the page in your default browser | off |
 
 ## Config file
 
@@ -51,6 +64,10 @@ flags for that run.
 
 ## Implementation
 
-Composes `@kratai/core` (parsing + git-diff enrichment) with either:
-- `@kratai/diagram-view`'s `ClassDiagramView.generate(...)` for `html` - `hasLiveHost` is left `false` since a static file has no live backend to act on, which hides the Save/Settings buttons and any click-to-open-file affordances
-- `@kratai/core`'s `MarkdownExporter.toMarkdown` for `md`
+Both commands share the same `@kratai/core` pipeline (parsing + git-diff
+enrichment), differing only in delivery:
+- `analyze` writes it out with `@kratai/core`'s `MarkdownExporter.toMarkdown`
+- `view` renders it live with `@kratai/diagram-view`'s `ClassDiagramView.generate(...)`
+  (embedded via iframe alongside the stack-layer view - see `src/viewShell.ts`) -
+  `hasLiveHost` is left `false` since the server doesn't yet listen for the
+  diagram's Save/Settings/open-file postMessage calls

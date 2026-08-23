@@ -11,7 +11,9 @@ ACTIVE ON EVERY CODING TASK. No drift back to ad-hoc coding without thinking. Ar
 
 ## Session Start: Understand Architecture
 
-At beginning of session, BEFORE any coding, load architecture once. Run `npx @kratai/cli analyze --format md` and read its output instead of wasting tokens reading files directly - same architecture data a human sees, produced by static analysis, no LLM calls. If no shell is available: apply the principles below without tooling.
+At beginning of session, BEFORE any coding, load architecture once. Run `npx @kratai/cli analyze` and read its output instead of wasting tokens reading files directly - compact Markdown from static analysis, no LLM calls. If no shell is available: apply the principles below without tooling.
+
+If the user asks to *see* the architecture themselves (not you understanding it to code), run `npx @kratai/cli view` instead - it opens a live, interactive diagram for them. `analyze`'s output is for you; `view` is for them.
 
 Cache in memory:
 - Architecture pattern (layered/hexagonal/clean)
