@@ -24,6 +24,7 @@ export interface StackLayerFolder {
 
 export interface StackLayerRelationship {
 	source: string;
+	target: string;
 	type: string;
 	sourceFolder: string;
 	targetFolder: string;

@@ -30,6 +30,16 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${data.workspaceName} - stack layer</title>
+<script>
+	// Runs before first paint to avoid a flash of the wrong theme.
+	// localStorage is shared with the shell/other views (same origin), so a
+	// choice made anywhere (see viewShell.ts's theme-toggle button) applies
+	// here too, even when this page is opened on its own.
+	try {
+		var krataiTheme = localStorage.getItem('kratai-theme');
+		if (krataiTheme) document.documentElement.setAttribute('data-theme', krataiTheme);
+	} catch (e) {}
+</script>
 <style>
 	:root {
 		--bg: #EEF2FA; --surface: #FFFFFF; --surface-2: #F4F7FD;

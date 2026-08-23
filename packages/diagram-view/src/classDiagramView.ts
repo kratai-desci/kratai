@@ -71,6 +71,16 @@ export class ClassDiagramView {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hierarchical Class Diagram (CSS Grid)</title>
+    <script>
+        // Runs before first paint to avoid a flash of the wrong theme.
+        // localStorage is shared with the shell/other views (same origin),
+        // so a choice made anywhere (see viewShell.ts's theme-toggle button)
+        // applies here too, even when this page is opened on its own.
+        try {
+            var krataiTheme = localStorage.getItem('kratai-theme');
+            if (krataiTheme) document.documentElement.setAttribute('data-theme', krataiTheme);
+        } catch (e) {}
+    </script>
     <style>
         :root {
             --bg: #EEF2FA;

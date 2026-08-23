@@ -27,6 +27,13 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${workspaceName} - kratai view</title>
+<script>
+	// Runs before first paint to avoid a flash of the wrong theme.
+	try {
+		var krataiTheme = localStorage.getItem('kratai-theme');
+		if (krataiTheme) document.documentElement.setAttribute('data-theme', krataiTheme);
+	} catch (e) {}
+</script>
 <style>
 	:root {
 		--bg: #EEF2FA; --surface: #FFFFFF; --surface-2: #F4F7FD;
@@ -80,6 +87,14 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 	#view-switch button.active { background: var(--accent); color: #fff; }
 	#view-switch button:not(.active):hover { color: var(--text); }
 
+	#topbar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+	#theme-toggle {
+		width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
+		background: var(--surface-2); color: var(--text-dim); cursor: pointer;
+		display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+	}
+	#theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
 	#view-container { flex: 1; min-height: 0; display: flex; }
 	#view-container.split { flex-direction: row; }
 	#view-container:not(.split) { flex-direction: column; }
@@ -96,7 +111,10 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 			<h1>${workspaceName}</h1>
 			<p class="sub">${stats.classCount} classes &bull; ${stats.folderCount} folders &bull; ${stats.edgeCount} relationships</p>
 		</div>
-		<div id="view-switch"></div>
+		<div id="topbar-actions">
+			<div id="view-switch"></div>
+			<button id="theme-toggle" title="Toggle theme"></button>
+		</div>
 	</div>
 	<div id="view-container">
 		<div id="stack-panel" class="view-panel">
@@ -173,6 +191,59 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 			var style = doc.createElement('style');
 			style.textContent = '#zoomctl { top: 18px !important; }';
 			doc.head.appendChild(style);
+			pushTheme('class-frame');
+		});
+		document.getElementById('stack-frame').addEventListener('load', function () {
+			pushTheme('stack-frame');
+		});
+
+		// ---- theme: light/dark, defaults to system, remembered once the
+		// user picks one explicitly (see storedTheme/THEME_KEY). Both
+		// embedded views read the same localStorage key on their own load
+		// (see the inline head script in classDiagramView.ts/
+		// stackLayerView.ts) - pushTheme here just keeps an *already*-loaded
+		// iframe in sync the moment the button is clicked, without needing
+		// to reload it. ----
+		var THEME_KEY = 'kratai-theme';
+		var SUN_ICON = '<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.3"/><g stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><line x1="7" y1="0.5" x2="7" y2="2"/><line x1="7" y1="12" x2="7" y2="13.5"/><line x1="0.5" y1="7" x2="2" y2="7"/><line x1="12" y1="7" x2="13.5" y2="7"/><line x1="2.5" y1="2.5" x2="3.5" y2="3.5"/><line x1="10.5" y1="10.5" x2="11.5" y2="11.5"/><line x1="2.5" y1="11.5" x2="3.5" y2="10.5"/><line x1="10.5" y1="3.5" x2="11.5" y2="2.5"/></g></svg>';
+		var MOON_ICON = '<svg width="14" height="14" viewBox="0 0 14 14"><path d="M9.5,1.5 A6,6 0 1 0 9.5,12.5 A5,5 0 1 1 9.5,1.5 Z" fill="currentColor"/></svg>';
+
+		function getStoredTheme() {
+			try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; }
+		}
+		function setStoredTheme(v) {
+			try { localStorage.setItem(THEME_KEY, v); } catch (e) {}
+		}
+		function effectiveTheme(stored) {
+			return stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+		}
+		function pushTheme(frameId) {
+			var frame = document.getElementById(frameId);
+			var doc = frame && frame.contentDocument;
+			if (!doc || !doc.documentElement) return;
+			if (storedTheme) doc.documentElement.setAttribute('data-theme', storedTheme);
+			else doc.documentElement.removeAttribute('data-theme');
+		}
+		function applyTheme() {
+			if (storedTheme) document.documentElement.setAttribute('data-theme', storedTheme);
+			else document.documentElement.removeAttribute('data-theme');
+
+			var effective = effectiveTheme(storedTheme);
+			var btn = document.getElementById('theme-toggle');
+			btn.innerHTML = effective === 'dark' ? SUN_ICON : MOON_ICON;
+			btn.title = effective === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+
+			pushTheme('class-frame');
+			pushTheme('stack-frame');
+		}
+
+		var storedTheme = getStoredTheme();
+		applyTheme();
+
+		document.getElementById('theme-toggle').addEventListener('click', function () {
+			storedTheme = effectiveTheme(storedTheme) === 'dark' ? 'light' : 'dark';
+			setStoredTheme(storedTheme);
+			applyTheme();
 		});
 
 		applyMode();
