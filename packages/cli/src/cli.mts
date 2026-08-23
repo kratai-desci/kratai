@@ -2,6 +2,7 @@
 import { parseArgs } from 'node:util';
 import { runAnalyze } from './commands/analyze.js';
 import { runInit } from './commands/init.js';
+import { runView } from './commands/view.js';
 
 const VERSION = '0.1.0';
 
@@ -11,6 +12,7 @@ function printHelp(): void {
 Usage:
   kratai analyze [path] [options]
   kratai init [path] [options]
+  kratai view [path] [options]
 
 analyze - generate a diagram (HTML for a browser, or Markdown for an AI agent)
   -o, --output <file>    Output file (default: ./kratai-diagram.<format>)
@@ -28,6 +30,10 @@ init - wire kratai's skill into an AI coding agent
                           kratai.config.json (shared, commit this) plus a
                           .gitignore entry for kratai.local.json (personal
                           overrides, never committed)
+
+view - run a local web app to explore the architecture (work in progress)
+  -p, --port <number>    Port to listen on (default: 4300)
+      --open              Open the page in your default browser
 
   -h, --help              Show this help
   -v, --version           Show version
@@ -103,6 +109,30 @@ async function main(): Promise<void> {
 
 		runInit({
 			path: positionals[0] || process.cwd()
+		});
+		return;
+	}
+
+	if (command === 'view') {
+		const { values, positionals } = parseArgs({
+			args: rest,
+			options: {
+				port: { type: 'string', short: 'p', default: '4300' },
+				open: { type: 'boolean', default: false },
+				help: { type: 'boolean', short: 'h' }
+			},
+			allowPositionals: true
+		});
+
+		if (values.help) {
+			printHelp();
+			return;
+		}
+
+		await runView({
+			path: positionals[0] || process.cwd(),
+			port: Number(values.port),
+			open: Boolean(values.open)
 		});
 		return;
 	}
