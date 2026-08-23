@@ -62,18 +62,20 @@ export function loadCliConfig(
 }
 
 /**
- * Persists custom folder order (the "hamburger" drag-reorder in `kratai
- * view`'s stack layer) to kratai.local.json - the same personal, gitignored
- * layer loadCliConfig already reads. Writes the full *effective* folders
- * map (base config + whatever local.json already had, with these paths'
- * order updated), not just the changed paths: kratai.local.json's own
- * `folders` key, if present, replaces the base config's `folders` wholesale
- * on load (a shallow `{ ...config, ...localConfig }` merge, not a deep
- * one) - writing only the delta here would silently drop any folder
- * settings that came from kratai.config.json itself the next time this
- * runs.
+ * Applies per-folder patches (order, hiddenInStack, ...) to kratai.local.json
+ * - the same personal, gitignored layer loadCliConfig already reads. Writes
+ * the full *effective* folders map (base config + whatever local.json
+ * already had, with these paths patched), not just the changed paths:
+ * kratai.local.json's own `folders` key, if present, replaces the base
+ * config's `folders` wholesale on load (a shallow `{ ...config,
+ * ...localConfig }` merge, not a deep one) - writing only the delta here
+ * would silently drop any folder settings that came from kratai.config.json
+ * itself the next time this runs. A path patched for the first time
+ * defaults to `selected: true` (included when parsing) - these UI-state
+ * patches never mean to exclude a folder from parsing, only to say
+ * something about how kratai view currently shows it.
  */
-export function saveFolderOrder(workspacePath: string, orders: Record<string, number>): void {
+function patchLocalFolders(workspacePath: string, patches: Record<string, Partial<FolderConfig>>): void {
 	const effectiveConfig = loadCliConfig(workspacePath, undefined, {});
 	const localConfigPath = path.join(workspacePath, 'kratai.local.json');
 	const existingLocal: Partial<KrataiConfig> = fs.existsSync(localConfigPath)
@@ -81,11 +83,32 @@ export function saveFolderOrder(workspacePath: string, orders: Record<string, nu
 		: {};
 
 	const folders: Record<string, FolderConfig> = { ...effectiveConfig.folders };
-	for (const [folderPath, order] of Object.entries(orders)) {
+	for (const [folderPath, patch] of Object.entries(patches)) {
 		const existingFolder = folders[folderPath];
-		folders[folderPath] = { ...existingFolder, selected: existingFolder?.selected ?? true, order };
+		folders[folderPath] = { ...existingFolder, selected: existingFolder?.selected ?? true, ...patch };
 	}
 
 	const nextLocal: Partial<KrataiConfig> = { ...existingLocal, folders };
 	fs.writeFileSync(localConfigPath, JSON.stringify(nextLocal, null, 2) + '\n', 'utf-8');
+}
+
+/** Persists custom folder order - the "hamburger" drag-reorder in `kratai view`'s stack layer. */
+export function saveFolderOrder(workspacePath: string, orders: Record<string, number>): void {
+	const patches: Record<string, Partial<FolderConfig>> = {};
+	for (const [folderPath, order] of Object.entries(orders)) {
+		patches[folderPath] = { order };
+	}
+	patchLocalFolders(workspacePath, patches);
+}
+
+/**
+ * Persists a single folder's stack-layer visibility - the eye toggle in
+ * `kratai view`'s stack layer. `folderPath` may be a real leaf/ancestor
+ * folder path, or that path suffixed with the client's own "::self" marker
+ * (see stackLayerView.ts's SELF_SUFFIX) for the narrower "hide just this
+ * folder's own classes, not its subfolders" case - both are opaque string
+ * keys as far as this function and the config file are concerned.
+ */
+export function saveFolderVisibility(workspacePath: string, folderPath: string, hidden: boolean): void {
+	patchLocalFolders(workspacePath, { [folderPath]: { hiddenInStack: hidden } });
 }

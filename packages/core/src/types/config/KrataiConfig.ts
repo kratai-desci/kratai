@@ -2,9 +2,12 @@
  * Configuration for individual folders in the diagram
  */
 export interface FolderConfig {
-	selected: boolean;              // Whether folder is included in diagram
+	selected: boolean;              // Whether folder is included when parsing the workspace at all
 	expanded?: boolean;             // UI state: whether folder is expanded in tree view
 	order?: number | null;          // Custom order (1, 2, 3...), null = alphabetical
+	hiddenInStack?: boolean;        // UI state: hidden from kratai view's stack layer specifically -
+	                                 // distinct from `selected`, which still gets this folder parsed
+	                                 // and shown in the class diagram, just not the 3D stack
 }
 
 export interface KrataiConfig {

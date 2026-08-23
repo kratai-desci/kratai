@@ -558,15 +558,15 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			return { path: f.path, name: f.name, score: f.score || 0, classCount: f.classes.length };
 		}));
 		var expandedGroups = {};
-		// Session-only, not persisted - unlike drag-reorder below, hide/show
-		// is purely a "what am I looking at right now" view state, not an
-		// architectural fact worth remembering across runs. Keyed by
-		// node.path for a whole node (and, if it's a group, everything
-		// nested under it); a group that also directly owns classes gets a
-		// second independent key (path + SELF_SUFFIX) so hiding its own
-		// classes doesn't have to hide its subfolders too.
+		// Persisted to kratai.local.json (see config.ts's saveFolderVisibility),
+		// same as drag-reorder below - seeded here from whatever was hidden
+		// last session. Keyed by node.path for a whole node (and, if it's a
+		// group, everything nested under it); a group that also directly
+		// owns classes gets a second independent key (path + SELF_SUFFIX) so
+		// hiding its own classes doesn't have to hide its subfolders too.
 		var hiddenNodes = {};
 		var SELF_SUFFIX = '::self';
+		(DATA.initialHidden || []).forEach(function (p) { hiddenNodes[p] = true; });
 
 		// Each real folder's position in DATA.folders (server-sorted by
 		// custom config order, then alphabetically) before any drag this
@@ -806,8 +806,14 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			vis.title = ownHidden ? 'Show in stack' : 'Hide from stack';
 			vis.addEventListener('click', function (e) {
 				e.stopPropagation();
-				hiddenNodes[hideKey] = !hiddenNodes[hideKey];
+				var nowHidden = !hiddenNodes[hideKey];
+				hiddenNodes[hideKey] = nowHidden;
 				renderStack(true);
+				fetch('/api/folder-visibility', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ path: hideKey, hidden: nowHidden })
+				}).catch(function () {});
 			});
 			row.appendChild(vis);
 

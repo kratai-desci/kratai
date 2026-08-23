@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as http from 'http';
 import { CodeParserService, DiagramGeneratorService, GitDiffEnricher, FolderStructureBuilder, MarkdownExporter } from '@kratai/core';
 import { ClassDiagramView } from '@kratai/diagram-view';
-import { loadCliConfig, saveFolderOrder } from '../config.js';
+import { loadCliConfig, saveFolderOrder, saveFolderVisibility } from '../config.js';
 import { openFile } from '../openFile.js';
 import { generateShellHTML } from '../viewShell.js';
 import { buildStackLayerData } from '../stackLayerData.js';
@@ -55,6 +55,24 @@ export async function runView(options: ViewOptions): Promise<void> {
 		edgeCount: edges.length
 	});
 
+	// Reads and parses a POST body, then hands it to `handle` - shared by
+	// every /api/* route below so each one only has to say what it does
+	// with the payload, not how to collect it.
+	function handleJsonPost<T>(req: http.IncomingMessage, res: http.ServerResponse, handle: (payload: T) => void): void {
+		let body = '';
+		req.on('data', chunk => { body += chunk; });
+		req.on('end', () => {
+			try {
+				handle(JSON.parse(body) as T);
+				res.writeHead(200, { 'Content-Type': 'application/json' });
+				res.end(JSON.stringify({ ok: true }));
+			} catch (error) {
+				res.writeHead(400, { 'Content-Type': 'application/json' });
+				res.end(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+			}
+		});
+	}
+
 	const server = http.createServer((req, res) => {
 		if (req.url === '/download.md') {
 			res.writeHead(200, {
@@ -65,18 +83,18 @@ export async function runView(options: ViewOptions): Promise<void> {
 			return;
 		}
 		if (req.method === 'POST' && req.url === '/api/folder-order') {
-			let body = '';
-			req.on('data', chunk => { body += chunk; });
-			req.on('end', () => {
-				try {
-					const payload = JSON.parse(body) as { orders?: Record<string, number> };
-					saveFolderOrder(workspacePath, payload.orders || {});
-					res.writeHead(200, { 'Content-Type': 'application/json' });
-					res.end(JSON.stringify({ ok: true }));
-				} catch (error) {
-					res.writeHead(400, { 'Content-Type': 'application/json' });
-					res.end(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
-				}
+			handleJsonPost<{ orders?: Record<string, number> }>(req, res, payload => {
+				saveFolderOrder(workspacePath, payload.orders || {});
+			});
+			return;
+		}
+		if (req.method === 'POST' && req.url === '/api/folder-visibility') {
+			handleJsonPost<{ path?: string; hidden?: boolean }>(req, res, payload => {
+				// A workspace-root leaf's own path is the empty string - a
+				// valid path, not a missing one, so check for undefined
+				// specifically rather than falsiness.
+				if (payload.path === undefined) throw new Error('Missing "path"');
+				saveFolderVisibility(workspacePath, payload.path, !!payload.hidden);
 			});
 			return;
 		}

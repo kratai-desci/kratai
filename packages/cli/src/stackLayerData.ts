@@ -33,6 +33,10 @@ export interface StackLayerData {
 	workspaceName: string;
 	folders: StackLayerFolder[];
 	relationships: StackLayerRelationship[];
+	// Paths (opaque strings - see stackLayerView.ts's SELF_SUFFIX) with
+	// hiddenInStack set in config, seeding the client's hiddenNodes on load
+	// so a hide toggle from a previous session survives a restart.
+	initialHidden: string[];
 }
 
 function collectLeafFolders(folder: DiagramFolderNode, leaves: DiagramFolderNode[]): void {
@@ -144,5 +148,9 @@ export function buildStackLayerData(workspaceName: string, nodes: ReactFlowNode[
 		}))
 		.filter((r): r is StackLayerRelationship => !!r.sourceFolder && !!r.targetFolder);
 
-	return { workspaceName, folders, relationships };
+	const initialHidden = Object.entries(config?.folders || {})
+		.filter(([, folderConfig]) => folderConfig.hiddenInStack)
+		.map(([folderPath]) => folderPath);
+
+	return { workspaceName, folders, relationships, initialHidden };
 }
