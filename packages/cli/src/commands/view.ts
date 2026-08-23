@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
-import { CodeParserService, DiagramGeneratorService } from '@kratai/core';
+import { CodeParserService, DiagramGeneratorService, GitDiffEnricher } from '@kratai/core';
 import { ClassDiagramView } from '@kratai/diagram-view';
 import { loadCliConfig } from '../config.js';
 import { openFile } from '../openFile.js';
@@ -24,6 +24,15 @@ export async function runView(options: ViewOptions): Promise<void> {
 
 	console.log(`Analyzing ${workspacePath}...`);
 	const diagramData = await CodeParserService.parseWorkspace(workspacePath, config);
+
+	if (config.gitDiff?.enabled !== false) {
+		try {
+			const baseCommit = config.gitDiff?.baseCommit || 'HEAD~1';
+			await GitDiffEnricher.enrichWithGitDiff(diagramData, workspacePath, baseCommit);
+		} catch (error) {
+			console.warn(`Skipping git diff highlighting: ${error instanceof Error ? error.message : error}`);
+		}
+	}
 
 	if (diagramData.classes.length === 0) {
 		throw new Error('No classes found - check your folder/extension filters.');
