@@ -1,5 +1,5 @@
 import { DiagramFolderNode, FolderStructureBuilder, KrataiConfig, ReactFlowEdge, ReactFlowNode } from '@kratai/core';
-import { foldSingleClassFolders, getLayerWeight, prefixFoldedClassName } from '@kratai/diagram-view';
+import { foldSingleClassFolders, prefixFoldedClassName } from '@kratai/diagram-view';
 
 export interface StackLayerClass {
 	id: string;
@@ -13,7 +13,6 @@ export interface StackLayerClass {
 export interface StackLayerFolder {
 	path: string;
 	name: string;
-	layerWeight: number;
 	// Sum of every class's (methods + total params) in this folder - kratai
 	// doesn't track per-class line counts, so this stands in for LOC as the
 	// "how much code is actually here" signal that sizes the folder's sheet
@@ -58,11 +57,20 @@ function getFolderOrder(path: string, config?: KrataiConfig): number | null {
 /**
  * Builds the data the stack-layer view needs: one entry per leaf folder (a
  * folder that directly contains classes) - the exact same set the class
- * diagram renders as folder boxes, in the exact same order (custom order,
- * then layer weight, then alphabetical) - plus each class's method/param
- * counts (used in place of LOC - see stackLayerView.ts - to size that
- * folder's sheet), and cross-folder relationships for the beam lines
- * connecting sheets.
+ * diagram renders as folder boxes - plus each class's method/param counts
+ * (used in place of LOC - see stackLayerView.ts - to size that folder's
+ * sheet), and cross-folder relationships for the beam lines connecting
+ * sheets.
+ *
+ * Ordering is deliberately plain: custom config order first, then
+ * alphabetical by path. An earlier version also tried a "smart" layer-
+ * weight heuristic (guessing architectural depth from path/folder-name
+ * patterns) as a middle tiebreak - dropped because everyone's mental model
+ * of "what's a low layer vs a high layer" differs, so a guess was as often
+ * wrong as right. Plain folder-structure order is at least predictable -
+ * it's literally the order you already see in your file tree - and
+ * stackLayerView.ts's drill-down tree makes that folder structure easy to
+ * navigate directly instead of needing the sort to encode it.
  */
 export function buildStackLayerData(workspaceName: string, nodes: ReactFlowNode[], edges: ReactFlowEdge[], config?: KrataiConfig): StackLayerData {
 	const root = FolderStructureBuilder.build(nodes);
@@ -110,7 +118,6 @@ export function buildStackLayerData(workspaceName: string, nodes: ReactFlowNode[
 			return {
 				path: f.fullPath,
 				name: f.name,
-				layerWeight: getLayerWeight(f.fullPath, f.name),
 				score,
 				classes
 			};
@@ -121,7 +128,6 @@ export function buildStackLayerData(workspaceName: string, nodes: ReactFlowNode[
 			if (orderA !== null && orderB !== null) return orderA - orderB;
 			if (orderA !== null) return -1;
 			if (orderB !== null) return 1;
-			if (a.layerWeight !== b.layerWeight) return a.layerWeight - b.layerWeight;
 			return a.path.localeCompare(b.path);
 		});
 

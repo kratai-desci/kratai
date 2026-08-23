@@ -7,14 +7,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Ported from mockups/architect/app.js's runLayer() (the 3D layer-stack
- * view), then flattened: one sheet per leaf folder - the exact same set
- * @kratai/diagram-view's class diagram renders as folder boxes, in the same
- * order - instead of a reconstructed full folder-path tree with click-to-
- * expand/collapse. The two views disagreed on what counts as a "layer"
- * before this (the class diagram already ignores empty organizational
- * folders; the stack didn't), so this keeps them showing the same
- * codebase the same way. Same drag-to-rotate/scroll-to-zoom interaction,
- * same "oversized layer" / "circular dependency" concerns detection.
+ * view). Sheets come from the exact same leaf-folder set @kratai/diagram-
+ * view's class diagram renders as folder boxes, in the same order
+ * (stackLayerData.ts) - the two views must never disagree on what counts
+ * as a "layer". Drill-down is rebuilt client-side on *top* of that flat,
+ * already-aligned list: paths are grouped into a tree by shared prefix,
+ * then chains of folders that never branch are compressed away, so a
+ * group only appears where two or more real layers actually diverge
+ * (this is what broke alignment the first time around - the original
+ * tree was built from every raw filesystem segment, including purely
+ * organizational folders with no classes of their own). Same drag-to-
+ * rotate/scroll-to-zoom interaction, same "oversized layer" / "circular
+ * dependency" concerns detection.
  *
  * One real substitution: the mockup sized each sheet by lines of code
  * (fake placeholder data - kratai doesn't track per-class line ranges).
@@ -146,6 +150,19 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		font-size: 9px; color: var(--text-dim); opacity: 0.8;
 		margin-left: auto; flex-shrink: 0;
 	}
+	.slab-chevron {
+		width: 10px; flex-shrink: 0; font-size: 8px; text-align: center;
+		color: var(--text-faint);
+	}
+	.slab-face.drillable { cursor: pointer; }
+	.slab-face.drillable .slab-label { font-weight: 800; }
+	.slab-vis {
+		width: 18px; height: 18px; flex-shrink: 0; margin-left: 4px;
+		display: flex; align-items: center; justify-content: center;
+		border-radius: 5px; color: var(--text-faint); cursor: pointer;
+	}
+	.slab-vis svg { width: 12px; height: 12px; }
+	.slab-vis:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
 
 	#hint-layer {
 		position: absolute; right: 18px; bottom: 18px; z-index: 10;
@@ -234,7 +251,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 				<button id="concerns-toggle" title="Show concerns" style="display:none">&#9888;</button>
 			</div>
 		</div>
-		<div id="hint-layer">drag to rotate &middot; scroll to zoom &middot; hover a layer to highlight</div>
+		<div id="hint-layer">drag to rotate &middot; scroll to zoom &middot; click a layer to drill in</div>
 	</div>
 
 	<script type="module">
@@ -383,7 +400,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		var stage = document.getElementById('stage');
 		var sceneGL = new THREE.Scene();
 		var camera = new THREE.PerspectiveCamera(32, stage.clientWidth / stage.clientHeight, 1, 6000);
-		var camDist = 1000;
+		var camDist = 1000, userZoomed = false;
 
 		var rendererGL = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 		rendererGL.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -405,7 +422,17 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		dl.position.set(300, 500, 400);
 		sceneGL.add(dl);
 
-		var frontierByPath = {};
+		// Sheets live in their own group and persist across renderStack()
+		// calls (see sheetsByPath below) so a drill/hide toggle can glide an
+		// unaffected sheet to its new stack position instead of wiping and
+		// replaying every sheet's entrance animation. Lines have no state
+		// worth keeping between renders - they're fully derived from
+		// wherever the sheets currently are - so they stay in a separate
+		// group that's simply cleared and rebuilt each time.
+		var sheetsGroup = new THREE.Group(); rigGL.add(sheetsGroup);
+		var linesGroup = new THREE.Group(); rigGL.add(linesGroup);
+
+		var frontierByPath = {}, leafToVisiblePath = {};
 		function highlightNode(node) {
 			if (!node || !node._sheetMat) return;
 			node._sheetMat.opacity = Math.min(1, node._sheetBaseOpacity + 0.4);
@@ -416,10 +443,35 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			node._sheetMat.opacity = node._sheetBaseOpacity;
 			node._borderMat.opacity = 0.85;
 		}
+		// A sheet's own highlight plus the beams (and beam partners) touching
+		// it - shared by hovering its list row and by the concerns panel, so
+		// both highlight paths look identical.
+		function highlightSheet(node) {
+			highlightNode(node);
+			(node._beamMats || []).forEach(function (r) {
+				r.items.forEach(function (it) { it.mat.opacity = 1; it.mat.color.set(0xffffff); });
+				var other = r.source === node ? r.target : r.source;
+				other._sheetMat.opacity = Math.min(1, other._sheetBaseOpacity + 0.18);
+				other._borderMat.opacity = Math.min(1, other._borderMat.opacity + 0.1);
+			});
+		}
+		function unhighlightSheet(node) {
+			unhighlightNode(node);
+			(node._beamMats || []).forEach(function (r) {
+				r.items.forEach(function (it) { it.mat.opacity = it.baseOpacity; it.mat.color.copy(it.baseColor); });
+				var other = r.source === node ? r.target : r.source;
+				other._sheetMat.opacity = other._sheetBaseOpacity;
+				other._borderMat.opacity = 0.85;
+			});
+		}
+		// A concern names a leaf folder path (the ground truth - see
+		// detectConcerns), which may currently be folded into a collapsed
+		// group; resolve through leafToVisiblePath to whichever sheet is
+		// actually on screen right now.
 		function highlightFolderPath(path, on) {
-			var node = frontierByPath[path];
+			var node = frontierByPath[leafToVisiblePath[path] || path];
 			if (!node) return;
-			if (on) highlightNode(node); else unhighlightNode(node);
+			if (on) highlightSheet(node); else unhighlightSheet(node);
 		}
 
 		var tweens = [];
@@ -437,127 +489,141 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			});
 		}
 
-		// ---- one sheet per leaf folder, already sorted server-side the same
-		// way the class diagram sorts its folder boxes (custom order, then
-		// layer weight, then alphabetical - see stackLayerData.ts). No tree,
-		// no expand/collapse: every real layer is visible from the start. ----
-		var frontier = DATA.folders.map(function (f) {
+		// ---- group the flat, already-aligned leaf-folder list into a tree
+		// by shared path prefix, then compress away any chain of folders
+		// that never branches - a group only survives where two or more
+		// real layers actually diverge, so this can never disagree with the
+		// class diagram's flat leaf set, only add optional structure on top
+		// of it. ----
+		function buildLayerTree(leaves) {
+			var root = { path: '', name: '', children: [], leaf: null };
+			leaves.forEach(function (leaf) {
+				var segs = leaf.path.split('/');
+				var node = root, acc = '';
+				segs.forEach(function (seg, idx) {
+					acc = acc ? acc + '/' + seg : seg;
+					var child = null;
+					for (var i = 0; i < node.children.length; i++) {
+						if (node.children[i].path === acc) { child = node.children[i]; break; }
+					}
+					if (!child) {
+						// A leaf living directly at the workspace root (no
+						// folder at all) has an empty path segment - name it
+						// like foldSingleClassFolders.ts does for the same
+						// case, instead of rendering a blank row.
+						child = { path: acc, name: seg || 'workspace', children: [], leaf: null };
+						node.children.push(child);
+					}
+					node = child;
+					if (idx === segs.length - 1) node.leaf = leaf;
+				});
+			});
+
+			function compress(node) {
+				node.children = node.children.map(compress);
+				while (!node.leaf && node.children.length === 1) node = node.children[0];
+				return node;
+			}
+			root.children = root.children.map(compress);
+
+			function aggregate(node) {
+				var score = node.leaf ? node.leaf.score : 0;
+				var classCount = node.leaf ? node.leaf.classCount : 0;
+				var leafCount = node.leaf ? 1 : 0;
+				node.children.forEach(function (c) {
+					aggregate(c);
+					score += c._aggScore; classCount += c._aggClassCount; leafCount += c._aggLeafCount;
+				});
+				node._aggScore = score; node._aggClassCount = classCount; node._aggLeafCount = leafCount;
+			}
+			root.children.forEach(aggregate);
+
+			return root;
+		}
+
+		var layerTree = buildLayerTree(DATA.folders.map(function (f) {
 			return { path: f.path, name: f.name, score: f.score || 0, classCount: f.classes.length };
-		});
-		var n = frontier.length;
-		var maxSheetSize = 0;
-		frontier.forEach(function (node, i) {
-			node._y = ((n - 1) / 2 - i) * LAYER_GAP;
-			// side ~ sqrt(score) so *area* (side^2) scales linearly with
-			// score, not the side length itself
-			var side = Math.min(MAX_SIZE, MIN_SIZE + Math.sqrt(node.score) * SIZE_PER_SCORE);
-			node._w = side; node._d = side;
-			maxSheetSize = Math.max(maxSheetSize, side);
-		});
-		var stackHeight = Math.max(1, (n - 1) * LAYER_GAP);
-		frontier.forEach(function (node) { frontierByPath[node.path] = node; });
+		}));
+		var expandedGroups = {};
+		// Session-only (not persisted - see stackLayerData.ts's docblock,
+		// this is the "show/hide" half of that discussion, drag-reorder is
+		// separate follow-up work). Keyed by node.path for a whole node
+		// (and, if it's a group, everything nested under it); a group that
+		// also directly owns classes gets a second independent key
+		// (path + SELF_SUFFIX) so hiding its own classes doesn't have to
+		// hide its subfolders too.
+		var hiddenNodes = {};
+		var SELF_SUFFIX = '::self';
 
-		var lines = DATA.relationships.map(function (r) {
-			var sn = frontierByPath[r.sourceFolder], tn = frontierByPath[r.targetFolder];
-			if (!sn || !tn || sn === tn) return null;
-			return { source: sn, target: tn };
-		}).filter(Boolean);
+		// Sheets and list rows that persist across a drill/hide toggle
+		// (same path key present before and after) reuse their existing
+		// THREE.js objects/DOM nodes instead of being torn down and
+		// recreated - see renderStack()'s diff below.
+		var sheetsByPath = {};
+		var previousRowKeys = {};
+		var REPOSITION_DURATION = 320, EXIT_DURATION = 260;
+		var renderGeneration = 0;
 
-		frontier.forEach(function (node, i) {
-			node._beamMats = [];
-
-			// color reflects sort position (shallow -> deep in the stack),
-			// not folder-tree depth - there's no tree anymore, but the same
-			// "top of the stack is one color, bottom is another" gradient
-			// still helps read the stack at a glance.
-			var t = n > 1 ? i / (n - 1) : 0;
-			var color = lerpColor(t);
-
-			var group = new THREE.Group();
-			group.position.set(0, node._y, 0);
-			rigGL.add(group);
-
-			if (!reduceMotion) {
-				group.scale.setScalar(0.01);
-				tween(380 + Math.min(i * 12, 400), function (e) { group.scale.setScalar(0.01 + e * 0.99); });
+		// Walk the tree honoring current expand/hide state into a flat list
+		// of visible sheets: a collapsed group is one aggregate sheet (sized
+		// and counted by everything nested under it); an expanded group
+		// that also directly owns classes shows those as their own sheet
+		// alongside its now-visible children. A hidden node (and everything
+		// under it) is skipped entirely - no sheet, no relationship lines.
+		function collectVisible(node, out, leafMap) {
+			if (hiddenNodes[node.path]) return;
+			if (!node.children.length) {
+				leafMap[node.path] = node.path;
+				out.push({ isGroup: false, path: node.path, name: node.name, score: node.leaf.score, classCount: node.leaf.classCount });
+				return;
 			}
-
-			var baseOpacity = 0.22;
-			var geo = new THREE.PlaneGeometry(node._w, node._d);
-			var mat = new THREE.MeshPhysicalMaterial({
-				color: color, transparent: true, opacity: baseOpacity,
-				roughness: 0.3, metalness: 0, side: THREE.DoubleSide,
-				depthWrite: false
-			});
-			var mesh = new THREE.Mesh(geo, mat);
-			mesh.rotation.x = -Math.PI / 2;
-			mesh.renderOrder = 0;
-			group.add(mesh);
-
-			var borderMat = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.85, depthWrite: false });
-			var border = new THREE.LineLoop(
-				new THREE.BufferGeometry().setFromPoints([
-					new THREE.Vector3(-node._w / 2, 0, -node._d / 2), new THREE.Vector3(node._w / 2, 0, -node._d / 2),
-					new THREE.Vector3(node._w / 2, 0, node._d / 2), new THREE.Vector3(-node._w / 2, 0, node._d / 2)
-				]),
-				borderMat
-			);
-			border.renderOrder = 1;
-			group.add(border);
-
-			node._sheetMat = mat;
-			node._sheetBaseOpacity = baseOpacity;
-			node._borderMat = borderMat;
-		});
-
-		frontier.forEach(function (node, i) {
-			var face = document.createElement('div');
-			face.className = 'slab-face';
-			face.title = node.path;
-
-			face.addEventListener('mouseenter', function () {
-				highlightNode(node);
-				node._beamMats.forEach(function (r) {
-					r.items.forEach(function (it) { it.mat.opacity = 1; it.mat.color.set(0xffffff); });
-					var other = r.source === node ? r.target : r.source;
-					other._sheetMat.opacity = Math.min(1, other._sheetBaseOpacity + 0.18);
-					other._borderMat.opacity = Math.min(1, other._borderMat.opacity + 0.1);
-				});
-			});
-			face.addEventListener('mouseleave', function () {
-				unhighlightNode(node);
-				node._beamMats.forEach(function (r) {
-					r.items.forEach(function (it) { it.mat.opacity = it.baseOpacity; it.mat.color.copy(it.baseColor); });
-					var other = r.source === node ? r.target : r.source;
-					other._sheetMat.opacity = other._sheetBaseOpacity;
-					other._borderMat.opacity = 0.85;
-				});
-			});
-
-			var label = document.createElement('div');
-			label.className = 'slab-label';
-			label.textContent = node.name;
-			face.appendChild(label);
-
-			var count = document.createElement('div');
-			count.className = 'slab-count';
-			count.textContent = node.classCount + (node.classCount === 1 ? ' class' : ' classes');
-			face.appendChild(count);
-
-			layerList.appendChild(face);
-
-			if (!reduceMotion) {
-				face.style.opacity = '0';
-				face.style.transform = 'scale(0.9)';
-				(function (delay) {
-					setTimeout(function () {
-						face.style.transition = 'opacity 0.32s ease-out, transform 0.32s cubic-bezier(0.2,0.8,0.3,1.4)';
-						face.style.opacity = '1';
-						face.style.transform = 'scale(1)';
-					}, delay);
-				})(Math.min(i * 12, 400));
+			if (!expandedGroups[node.path]) {
+				mapLeaves(node, node.path, leafMap);
+				out.push({ isGroup: true, path: node.path, name: node.name, score: node._aggScore, classCount: node._aggClassCount, leafCount: node._aggLeafCount });
+				return;
 			}
-		});
+			if (node.leaf && !hiddenNodes[node.path + SELF_SUFFIX]) {
+				leafMap[node.path] = node.path;
+				out.push({ isGroup: false, path: node.path, name: node.name, score: node.leaf.score, classCount: node.leaf.classCount });
+			}
+			node.children.forEach(function (c) { collectVisible(c, out, leafMap); });
+		}
+		function mapLeaves(node, targetPath, leafMap) {
+			if (node.leaf) leafMap[node.path] = targetPath;
+			node.children.forEach(function (c) { mapLeaves(c, targetPath, leafMap); });
+		}
+		// All *currently visible* sheets a tree node maps to - one sheet for
+		// a leaf or a collapsed group, or every descendant sheet at once for
+		// an expanded group (so hovering a group header while it's open
+		// highlights everything nested under it together).
+		function sheetsForNode(node) {
+			if (!node.children.length || !expandedGroups[node.path]) {
+				var s = frontierByPath[node.path];
+				return s ? [s] : [];
+			}
+			var result = [];
+			if (node.leaf) {
+				var self = frontierByPath[node.path];
+				if (self) result.push(self);
+			}
+			node.children.forEach(function (c) { result = result.concat(sheetsForNode(c)); });
+			return result;
+		}
+
+		function clearLines() {
+			while (linesGroup.children.length) {
+				var obj = linesGroup.children[0];
+				linesGroup.remove(obj);
+				if (obj.geometry) obj.geometry.dispose();
+				if (obj.material) obj.material.dispose();
+			}
+		}
+
+		function disposeSheet(s) {
+			sheetsGroup.remove(s.group);
+			s.mesh.geometry.dispose(); s.mat.dispose();
+			s.border.geometry.dispose(); s.borderMat.dispose();
+		}
 
 		function makeArrow(tipPos, dir, color, opacity, coneRadius, coneLength) {
 			var geo = new THREE.ConeGeometry(coneRadius, coneLength, 8);
@@ -566,56 +632,301 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
 			cone.position.copy(tipPos).addScaledVector(dir, -coneLength / 2);
 			cone.renderOrder = 3;
-			rigGL.add(cone);
+			linesGroup.add(cone);
 			return mat;
 		}
 
-		var LINE_RADIUS = 0.35, LINE_OPACITY = 0.4;
-		var lineColor = lerpColor(0.5);
-		lines.forEach(function (l, i) {
-			var angle = lines.length > 1 ? (i / lines.length) * Math.PI * 2 : 0;
-			var r = Math.min(l.source._w, l.target._w) / 2 * 0.5;
+		var EYE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+		var EYE_OFF_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a21.8 21.8 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a21.8 21.8 0 0 1-3.22 4.36M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 
-			var start = new THREE.Vector3(Math.cos(angle) * r, l.source._y, Math.sin(angle) * r);
-			var end = new THREE.Vector3(Math.cos(angle) * r, l.target._y, Math.sin(angle) * r);
+		// A group row's chevron + click-to-toggle; expanded groups recurse
+		// into their children indented beneath them (a real drill-down tree
+		// in the panel), rather than replacing themselves - so you can
+		// always collapse back to where you were. ancestorHidden is passed
+		// down so a row under a hidden folder reads as dimmed too, even
+		// though its own visibility flag is untouched (restoring the parent
+		// later reveals it again with no extra clicks needed).
+		function renderListRows(node, depth, ancestorHidden, newRowKeys, stagger) {
+			var isGroup = node.children.length > 0;
+			var hideKey = node.isSelf ? (node.path + SELF_SUFFIX) : node.path;
+			var ownHidden = !!hiddenNodes[hideKey];
+			var effectivelyHidden = ancestorHidden || ownHidden;
+			var targetOpacity = effectivelyHidden ? '0.35' : '1';
 
-			var curve = new THREE.LineCurve3(start, end);
-			var geo = new THREE.TubeGeometry(curve, 1, LINE_RADIUS, 6, false);
-			var mat = new THREE.MeshBasicMaterial({
-				color: lineColor, transparent: true, opacity: LINE_OPACITY, depthWrite: false
-			});
-			var lineMesh = new THREE.Mesh(geo, mat);
-			lineMesh.renderOrder = 2;
-			rigGL.add(lineMesh);
+			var rowKey = hideKey;
+			newRowKeys[rowKey] = true;
+			var isNewRow = !previousRowKeys[rowKey];
 
-			var dir = end.clone().sub(start).normalize();
-			var coneLen = Math.max(6, maxSheetSize * 0.025);
-			var coneRad = Math.max(1.6, maxSheetSize * 0.009);
-			var arrowMat = makeArrow(end, dir, lineColor, LINE_OPACITY, coneRad, coneLen);
+			var row = document.createElement('div');
+			row.className = 'slab-face' + (isGroup ? ' drillable' : '');
+			row.style.paddingLeft = (8 + depth * 14) + 'px';
+			row.title = node.path;
 
-			if (!reduceMotion) {
-				mat.opacity = 0; arrowMat.opacity = 0;
-				tween(380, function (e) { mat.opacity = e * LINE_OPACITY; arrowMat.opacity = e * LINE_OPACITY; });
+			row.addEventListener('mouseenter', function () { sheetsForNode(node).forEach(highlightSheet); });
+			row.addEventListener('mouseleave', function () { sheetsForNode(node).forEach(unhighlightSheet); });
+			if (isGroup) {
+				row.addEventListener('click', function () {
+					expandedGroups[node.path] = !expandedGroups[node.path];
+					renderStack(true);
+				});
 			}
 
-			var lineRef = {
-				source: l.source,
-				target: l.target,
-				items: [
-					{ mat: mat, baseColor: lineColor.clone(), baseOpacity: LINE_OPACITY },
-					{ mat: arrowMat, baseColor: lineColor.clone(), baseOpacity: LINE_OPACITY }
-				]
-			};
-			l.source._beamMats.push(lineRef);
-			l.target._beamMats.push(lineRef);
-		});
+			var chevron = document.createElement('div');
+			chevron.className = 'slab-chevron';
+			chevron.textContent = isGroup ? (expandedGroups[node.path] ? '\\u25BE' : '\\u25B8') : '';
+			row.appendChild(chevron);
 
-		camDist = Math.max(1000, stackHeight * 1.5 + maxSheetSize * 1.4);
+			var label = document.createElement('div');
+			label.className = 'slab-label';
+			label.textContent = node.name;
+			row.appendChild(label);
 
-		document.getElementById('layer-stats').textContent =
-			n + (n === 1 ? ' layer' : ' layers') + ' \\u00b7 ' +
-			frontier.reduce(function (s, node) { return s + node.classCount; }, 0) + ' classes \\u00b7 ' +
-			lines.length + (lines.length === 1 ? ' relationship' : ' relationships');
+			var count = document.createElement('div');
+			count.className = 'slab-count';
+			count.textContent = isGroup
+				? (node._aggLeafCount + (node._aggLeafCount === 1 ? ' layer' : ' layers'))
+				: (node.leaf.classCount + (node.leaf.classCount === 1 ? ' class' : ' classes'));
+			row.appendChild(count);
+
+			var vis = document.createElement('div');
+			vis.className = 'slab-vis';
+			vis.innerHTML = ownHidden ? EYE_OFF_SVG : EYE_SVG;
+			vis.title = ownHidden ? 'Show in stack' : 'Hide from stack';
+			vis.addEventListener('click', function (e) {
+				e.stopPropagation();
+				hiddenNodes[hideKey] = !hiddenNodes[hideKey];
+				renderStack(true);
+			});
+			row.appendChild(vis);
+
+			layerList.appendChild(row);
+
+			if (isNewRow && stagger.animate && !reduceMotion) {
+				row.style.opacity = '0';
+				row.style.transform = 'scale(0.9)';
+				(function (delay) {
+					setTimeout(function () {
+						row.style.transition = 'opacity 0.28s ease-out, transform 0.28s cubic-bezier(0.2,0.8,0.3,1.4)';
+						row.style.opacity = targetOpacity;
+						row.style.transform = 'scale(1)';
+					}, delay);
+				})(Math.min(stagger.i++ * 12, 400));
+			} else {
+				row.style.opacity = targetOpacity;
+			}
+
+			if (isGroup && expandedGroups[node.path]) {
+				var childAncestorHidden = effectivelyHidden;
+				if (node.leaf) renderListRows({ path: node.path, name: node.name, children: [], leaf: node.leaf, isSelf: true }, depth + 1, childAncestorHidden, newRowKeys, stagger);
+				node.children.forEach(function (c) { renderListRows(c, depth + 1, childAncestorHidden, newRowKeys, stagger); });
+			}
+		}
+
+		var LINE_RADIUS = 0.35, LINE_OPACITY = 0.4;
+
+		function renderStack(animate) {
+			var myGeneration = ++renderGeneration;
+
+			var visible = [];
+			leafToVisiblePath = {};
+			layerTree.children.forEach(function (c) { collectVisible(c, visible, leafToVisiblePath); });
+
+			frontierByPath = {};
+			var n = visible.length;
+			var maxSheetSize = 0;
+			visible.forEach(function (node, i) {
+				node._y = ((n - 1) / 2 - i) * LAYER_GAP;
+				// side ~ sqrt(score) so *area* (side^2) scales linearly with
+				// score, not the side length itself
+				var side = Math.min(MAX_SIZE, MIN_SIZE + Math.sqrt(node.score) * SIZE_PER_SCORE);
+				node._w = side; node._d = side;
+				maxSheetSize = Math.max(maxSheetSize, side);
+				frontierByPath[node.path] = node;
+			});
+			var stackHeight = Math.max(1, (n - 1) * LAYER_GAP);
+
+			var lines = DATA.relationships.map(function (r) {
+				var sp = leafToVisiblePath[r.sourceFolder], tp = leafToVisiblePath[r.targetFolder];
+				var sn = sp ? frontierByPath[sp] : null, tn = tp ? frontierByPath[tp] : null;
+				if (!sn || !tn || sn === tn) return null;
+				return { source: sn, target: tn };
+			}).filter(Boolean);
+
+			// ---- sheets: reuse whatever's already on screen. A sheet whose
+			// path key survives between renders just glides to its new
+			// stack position (its size/score can't have changed - a
+			// surviving node's own class count is untouched by anything
+			// that toggles elsewhere); only genuinely new sheets grow in,
+			// only genuinely removed ones shrink away. This is what makes
+			// a drill/hide toggle read as "one layer moves, another
+			// appears/disappears" instead of the whole stack reloading. ----
+			var seenPaths = {};
+			visible.forEach(function (node, i) {
+				node._beamMats = [];
+
+				// color reflects sort position (shallow -> deep in the
+				// stack), not folder-tree depth - a quick "top of the stack
+				// is one color, bottom is another" gradient to read the
+				// stack at a glance regardless of how much is drilled in.
+				var t = n > 1 ? i / (n - 1) : 0;
+				var color = lerpColor(t);
+				seenPaths[node.path] = true;
+
+				var existing = sheetsByPath[node.path];
+				if (existing) {
+					existing.mat.color.copy(color);
+					existing.borderMat.color.copy(color);
+					var fromY = existing.group.position.y, toY = node._y;
+					if (animate && !reduceMotion && fromY !== toY) {
+						tween(REPOSITION_DURATION, function (e) { existing.group.position.y = fromY + (toY - fromY) * e; });
+					} else {
+						existing.group.position.y = toY;
+					}
+					// A folder that both owns classes directly and has
+					// subfolders reuses this same path key whether it's
+					// showing as a collapsed group's aggregate sheet or (once
+					// expanded) its own "self" sheet - keep the opacity
+					// consistent with whichever it currently is.
+					var targetBaseOpacity = node.isGroup ? 0.32 : 0.22;
+					if (existing.baseOpacity !== targetBaseOpacity) {
+						existing.baseOpacity = targetBaseOpacity;
+						existing.mat.opacity = targetBaseOpacity;
+					}
+					node._sheetMat = existing.mat;
+					node._sheetBaseOpacity = existing.baseOpacity;
+					node._borderMat = existing.borderMat;
+					return;
+				}
+
+				// Collapsed groups sit a touch more opaque than a single
+				// real layer - a quiet visual hint that there's more folded
+				// into this sheet than one folder's worth of classes.
+				var baseOpacity = node.isGroup ? 0.32 : 0.22;
+				var group = new THREE.Group();
+				group.position.set(0, node._y, 0);
+				sheetsGroup.add(group);
+
+				if (animate && !reduceMotion) {
+					group.scale.setScalar(0.01);
+					tween(380 + Math.min(i * 12, 400), function (e) { group.scale.setScalar(0.01 + e * 0.99); });
+				}
+
+				var geo = new THREE.PlaneGeometry(node._w, node._d);
+				var mat = new THREE.MeshPhysicalMaterial({
+					color: color, transparent: true, opacity: baseOpacity,
+					roughness: 0.3, metalness: 0, side: THREE.DoubleSide,
+					depthWrite: false
+				});
+				var mesh = new THREE.Mesh(geo, mat);
+				mesh.rotation.x = -Math.PI / 2;
+				mesh.renderOrder = 0;
+				group.add(mesh);
+
+				var borderMat = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.85, depthWrite: false });
+				var border = new THREE.LineLoop(
+					new THREE.BufferGeometry().setFromPoints([
+						new THREE.Vector3(-node._w / 2, 0, -node._d / 2), new THREE.Vector3(node._w / 2, 0, -node._d / 2),
+						new THREE.Vector3(node._w / 2, 0, node._d / 2), new THREE.Vector3(-node._w / 2, 0, node._d / 2)
+					]),
+					borderMat
+				);
+				border.renderOrder = 1;
+				group.add(border);
+
+				sheetsByPath[node.path] = { group: group, mesh: mesh, mat: mat, border: border, borderMat: borderMat, baseOpacity: baseOpacity };
+				node._sheetMat = mat;
+				node._sheetBaseOpacity = baseOpacity;
+				node._borderMat = borderMat;
+			});
+
+			// Sheets left over from the previous render that didn't survive
+			// this one shrink away instead of just vanishing.
+			Object.keys(sheetsByPath).forEach(function (path) {
+				if (seenPaths[path]) return;
+				var s = sheetsByPath[path];
+				delete sheetsByPath[path];
+				if (!animate || reduceMotion) { disposeSheet(s); return; }
+				tween(EXIT_DURATION, function (e) {
+					s.group.scale.setScalar(Math.max(0.01, 1 - e));
+					s.mat.opacity = s.baseOpacity * (1 - e);
+					s.borderMat.opacity = 0.85 * (1 - e);
+					if (e >= 1) disposeSheet(s);
+				});
+			});
+
+			// Lines have no identity worth preserving - fully derived from
+			// wherever the sheets currently are - so they're simply rebuilt.
+			// Delayed until sheets have (roughly) finished gliding to their
+			// new positions, so a line doesn't appear anchored to where a
+			// sheet is *going* while it's still visibly on its way there;
+			// the generation check drops this if another toggle landed
+			// first.
+			function buildLines() {
+				if (myGeneration !== renderGeneration) return;
+				clearLines();
+				var lineColor = lerpColor(0.5);
+				lines.forEach(function (l, i) {
+					var angle = lines.length > 1 ? (i / lines.length) * Math.PI * 2 : 0;
+					var r = Math.min(l.source._w, l.target._w) / 2 * 0.5;
+
+					var start = new THREE.Vector3(Math.cos(angle) * r, l.source._y, Math.sin(angle) * r);
+					var end = new THREE.Vector3(Math.cos(angle) * r, l.target._y, Math.sin(angle) * r);
+
+					var curve = new THREE.LineCurve3(start, end);
+					var geo = new THREE.TubeGeometry(curve, 1, LINE_RADIUS, 6, false);
+					var mat = new THREE.MeshBasicMaterial({
+						color: lineColor, transparent: true, opacity: LINE_OPACITY, depthWrite: false
+					});
+					var lineMesh = new THREE.Mesh(geo, mat);
+					lineMesh.renderOrder = 2;
+					linesGroup.add(lineMesh);
+
+					var dir = end.clone().sub(start).normalize();
+					var coneLen = Math.max(6, maxSheetSize * 0.025);
+					var coneRad = Math.max(1.6, maxSheetSize * 0.009);
+					var arrowMat = makeArrow(end, dir, lineColor, LINE_OPACITY, coneRad, coneLen);
+
+					mat.opacity = 0; arrowMat.opacity = 0;
+					tween(260, function (e) { mat.opacity = e * LINE_OPACITY; arrowMat.opacity = e * LINE_OPACITY; });
+
+					var lineRef = {
+						source: l.source,
+						target: l.target,
+						items: [
+							{ mat: mat, baseColor: lineColor.clone(), baseOpacity: LINE_OPACITY },
+							{ mat: arrowMat, baseColor: lineColor.clone(), baseOpacity: LINE_OPACITY }
+						]
+					};
+					l.source._beamMats.push(lineRef);
+					l.target._beamMats.push(lineRef);
+				});
+			}
+			if (animate && !reduceMotion) setTimeout(buildLines, REPOSITION_DURATION);
+			else buildLines();
+
+			// The DOM list itself is still cheaply rebuilt from scratch each
+			// render (a couple hundred nodes at most) - what actually reads
+			// as "reloading" is every row replaying its entrance animation,
+			// so renderListRows only does that for rows whose key is new
+			// since the last render (see previousRowKeys/isNewRow there).
+			layerList.innerHTML = '';
+			var newRowKeys = {};
+			layerTree.children.forEach(function (c) { renderListRows(c, 0, false, newRowKeys, { i: 0, animate: animate }); });
+			previousRowKeys = newRowKeys;
+
+			// Auto-fit the camera to whatever's currently drilled into,
+			// unless the user has already zoomed by hand - drilling in or
+			// back out shouldn't fight a zoom level they chose themselves.
+			if (!userZoomed) camDist = Math.max(1000, stackHeight * 1.5 + maxSheetSize * 1.4);
+
+			var totalClasses = DATA.folders.reduce(function (s, f) { return s + f.classes.length; }, 0);
+			document.getElementById('layer-stats').textContent =
+				n + (n === 1 ? ' layer' : ' layers') + ' \\u00b7 ' +
+				totalClasses + (totalClasses === 1 ? ' class' : ' classes') + ' \\u00b7 ' +
+				lines.length + (lines.length === 1 ? ' relationship' : ' relationships');
+		}
+
+		renderStack(true);
 
 		function placeCamera() {
 			camera.position.set(camDist * 0.78, camDist * 0.38, camDist * 0.46);
@@ -638,6 +949,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		});
 		stage.addEventListener('wheel', function (e) {
 			e.preventDefault();
+			userZoomed = true;
 			camDist = Math.max(280, Math.min(3000, camDist + e.deltaY * 1.0));
 		}, { passive: false });
 
