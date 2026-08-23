@@ -360,49 +360,17 @@ export class FolderBoxRenderer {
 		const safeFolderName = this.escapeHtml(folder.name);
 		const safeFolderPath = this.escapeHtml(folder.fullPath);
 		const classCount = folder.classes.length;
-		
+
 		return `
-			<div class="folder-container" data-folder="${safeFolderPath}" style="
-				margin: 20px;
-				border: 2px solid #333;
-				background: transparent;
-			">
-				<!-- Folder Header with Name and Full Path -->
-				<div class="folder-header" style="
-					padding: 8px 12px;
-					background: #ddd;
-					border-bottom: 2px solid #333;
-					color: #000;
-					font-weight: 600;
-					font-size: 13px;
-					display: flex;
-					align-items: center;
-					gap: 6px;
-				">
+			<div class="folder-container" data-folder="${safeFolderPath}">
+				<div class="folder-header">
 					<span>${folderIcon}</span>
-					<span>${safeFolderName}</span>
-					<span style="
-						font-weight: 400;
-						font-size: 11px;
-						color: #666;
-						margin-left: 4px;
-					">| ${safeFolderPath}</span>
-					${classCount > 0 ? `<span style="
-						background: #999;
-						padding: 2px 6px;
-						font-size: 11px;
-						margin-left: auto;
-						color: #fff;
-					">${classCount}</span>` : ''}
+					<span class="folder-name">${safeFolderName}</span>
+					<span class="folder-path">| ${safeFolderPath}</span>
+					${classCount > 0 ? `<span class="folder-count">${classCount}</span>` : ''}
 				</div>
-				
-				<!-- Folder Content: Classes in CSS Grid -->
-				<div class="classes-grid" data-folder-classes="${safeFolderPath}" style="
-					display: grid;
-					grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-					gap: 20px;
-					padding: 20px;
-				">
+
+				<div class="classes-grid" data-folder-classes="${safeFolderPath}">
 					${folder.classes.map(node => {
 						const classRenderer = new (require('./classBoxRenderer').ClassBoxRenderer)(260, this.hasLiveHost);
 						return classRenderer.render(node.data.classInfo);

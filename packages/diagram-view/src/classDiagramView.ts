@@ -72,122 +72,266 @@ export class ClassDiagramView {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hierarchical Class Diagram (CSS Grid)</title>
     <style>
+        :root {
+            --bg: #EEF2FA;
+            --surface: #FFFFFF;
+            --surface-2: #F4F7FD;
+            --text: #17203A;
+            --text-dim: #5C6785;
+            --text-faint: #94A0BE;
+            --border: #DCE3F2;
+            --accent: #3459E0;
+            --accent-2: #14A6B8;
+            --glow: rgba(52, 89, 224, 0.30);
+            --added: #1E9E5A;
+            --added-bg: rgba(30, 158, 90, 0.10);
+            --deleted: #D6455B;
+            --deleted-bg: rgba(214, 69, 91, 0.10);
+            --modified: #C98A1B;
+            --modified-bg: rgba(201, 138, 27, 0.12);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --bg: #0A0E19;
+                --surface: #131A2E;
+                --surface-2: #171F38;
+                --text: #E8ECFB;
+                --text-dim: #939CBE;
+                --text-faint: #5B6488;
+                --border: #262E4E;
+                --accent: #6D93F5;
+                --accent-2: #4FDCEA;
+                --glow: rgba(109, 147, 245, 0.38);
+                --added: #4ADE94;
+                --added-bg: rgba(74, 222, 148, 0.10);
+                --deleted: #F0728A;
+                --deleted-bg: rgba(240, 114, 138, 0.12);
+                --modified: #F0C05A;
+                --modified-bg: rgba(240, 192, 90, 0.12);
+            }
+        }
+        :root[data-theme="dark"] {
+            --bg: #0A0E19; --surface: #131A2E; --surface-2: #171F38;
+            --text: #E8ECFB; --text-dim: #939CBE; --text-faint: #5B6488; --border: #262E4E;
+            --accent: #6D93F5; --accent-2: #4FDCEA; --glow: rgba(109, 147, 245, 0.38);
+            --added: #4ADE94; --added-bg: rgba(74, 222, 148, 0.10);
+            --deleted: #F0728A; --deleted-bg: rgba(240, 114, 138, 0.12);
+            --modified: #F0C05A; --modified-bg: rgba(240, 192, 90, 0.12);
+        }
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
         body {
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
-            background: #f5f5f5;
-            min-height: 100vh;
+            font-family: ui-sans-serif, -apple-system, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            background-image: radial-gradient(color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1px);
+            background-size: 22px 22px;
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
         .header {
-            position: sticky;
-            top: 0;
-            background: #333;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-            border-bottom: 2px solid #ccc;
+            flex-shrink: 0;
+            background: var(--surface);
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
             z-index: 1000;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
+        .header-title { display: flex; align-items: center; gap: 16px; }
         .header-controls {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             align-items: center;
         }
         .header-controls button {
-            padding: 8px 16px;
-            border: 2px solid #ccc;
-            background: #2d2d30;
-            color: #e0e0e0;
-            border-radius: 4px;
+            padding: 7px 14px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 0.9em;
-            font-weight: 500;
+            font-size: 12.5px;
+            font-weight: 550;
+            transition: border-color 0.15s ease, color 0.15s ease;
         }
         .header-controls button:hover {
-            background: #3e3e42;
+            border-color: var(--accent);
+            color: var(--accent);
         }
         .header-controls .settings-btn {
-            border-color: #5dade2;
-            color: #5dade2;
+            border-color: var(--accent-2);
+            color: var(--accent-2);
         }
         .header-controls .settings-btn:hover {
-            background: #2c5a7c;
+            background: var(--surface-2);
         }
         .header h1 {
             margin: 0;
-            font-size: 1.5em;
-            color: #ffffff;
-            font-weight: 600;
+            font-size: 15px;
+            color: var(--text);
+            font-weight: 650;
         }
         .header p {
-            margin: 5px 0 0 0;
-            color: #cccccc;
-            font-size: 0.95em;
-        }
-        .stats {
-            background: #e0e0e0;
-            color: #333;
-            padding: 10px 20px;
-            border-radius: 4px;
-            font-size: 0.9em;
-            font-weight: 500;
+            margin: 3px 0 0 0;
+            color: var(--text-dim);
+            font-size: 12.5px;
+            font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+            font-variant-numeric: tabular-nums;
         }
         .uml-box {
             cursor: pointer;
-            background: white;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(10, 14, 25, 0.06);
+            font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+            font-size: 12px;
             position: relative;
             z-index: 10;
+            overflow: hidden;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, opacity 0.25s ease;
         }
+        .uml-box::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; height: 3px;
+            background: var(--accent);
+        }
+        .uml-box.change-added::before { background: var(--added); }
+        .uml-box.change-deleted::before { background: var(--deleted); }
+        .uml-box.change-modified::before { background: var(--modified); }
+        .uml-box.change-added .box-name { color: var(--added); }
+        .uml-box.change-deleted .box-name { color: var(--deleted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--deleted) 50%, transparent); }
+        .uml-box.change-modified .box-name { color: var(--modified); }
+        .uml-box:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent);
+            box-shadow: 0 8px 20px var(--glow);
+        }
+        .box-header {
+            padding: 10px 12px 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .box-header .stereo {
+            font-size: 9.5px; font-weight: 650; letter-spacing: 0.05em; text-transform: uppercase;
+            color: var(--accent-2); margin-bottom: 2px;
+        }
+        .box-header .box-name { font-size: 13px; font-weight: 650; color: var(--text); }
         .diagram-container {
             position: relative;
-            padding: 20px;
+            flex: 1;
+            min-height: 0;
+            padding: 28px;
             max-width: 100%;
-            overflow-x: auto;
+            overflow: auto;
+            background-image: radial-gradient(color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1px);
+            background-size: 22px 22px;
+        }
+        /* #diagram-world is the zoomable "world" - it holds the folder/class
+           content and gets the scale transform. #diagram (.diagram-container)
+           stays the fixed, unscaled, scrollable viewport around it, so
+           zooming out actually shrinks the world within a stable frame
+           (revealing more of it) instead of shrinking the frame itself. */
+        #diagram-world {
+            transform-origin: top left;
         }
         #relationship-svg {
+            /* No width/height here - JS sets those as attributes, sized to
+               the full scrollable content (container.scrollWidth/Height),
+               not just the visible viewport. A CSS width/height would win
+               over those attributes and cap the SVG's own box (which
+               defaults to overflow:hidden as the root <svg>) at the visible
+               viewport size, silently clipping any line drawn below/right
+               of whatever was visible at draw time. */
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
             pointer-events: none;
             z-index: 5;
+            color: var(--text);
         }
+        /* Deliberately no z-index/backdrop-filter on .folder-container - either
+           would force a new stacking context, trapping .uml-box's z-index
+           inside a losing sub-context that can never out-rank
+           #relationship-svg's z-index 5 despite the higher number (this exact
+           bug already happened once, in the layer-stack mockup). Plain
+           position:relative alone is safe - it only becomes a problem
+           combined with z-index or other stacking-context triggers like
+           backdrop-filter/opacity/transform. */
         .folder-container {
             position: relative;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px 18px 20px;
+            margin: 0 0 24px;
         }
         .folder-header {
             position: relative;
             z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
         }
-        
-        /* Method styling */
-        .method-item {
-            transition: background 0.15s ease;
+        .folder-header .folder-name { font-size: 13px; font-weight: 650; color: var(--text); }
+        .folder-header .folder-path {
+            font-size: 11.5px; color: var(--text-faint);
+            font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
         }
+        .folder-header .folder-count {
+            margin-left: auto;
+            font-size: 10.5px; color: var(--text-faint);
+            background: var(--surface-2); border-radius: 100px; padding: 2px 9px;
+            font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+        }
+        .classes-grid { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+
+        .section { border-top: 1px solid var(--border); padding: 6px 0; }
+        .section:first-child { border-top: none; }
+        .member-item {
+            display: flex; align-items: baseline; gap: 6px;
+            padding: 2.5px 12px; font-size: 10.5px;
+            white-space: nowrap; overflow: hidden;
+        }
+        .member-item .vis { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .vis.public { background: var(--accent-2); }
+        .vis.private { background: var(--deleted); opacity: 0.75; }
+        .vis.protected { background: var(--modified); opacity: 0.85; }
+        .member-item .rname { color: var(--text); overflow: hidden; text-overflow: ellipsis; }
+        .member-item .rtype { color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; }
+        .member-item.empty { color: var(--text-faint); font-style: italic; }
+        .member-item.status-added { background: var(--added-bg); }
+        .member-item.status-deleted { background: var(--deleted-bg); }
+        .member-item.status-modified { background: var(--modified-bg); }
+
         /* Member click-to-jump styles */
         .member-item.clickable {
-            transition: all 0.15s ease;
+            cursor: pointer;
+            transition: background 0.15s ease, transform 0.15s ease;
         }
         .member-item.clickable:hover {
-            background: rgba(100, 150, 200, 0.2) !important;
+            background: var(--surface-2) !important;
             transform: translateX(2px);
         }
-        
+
         /* Open File Button */
         .open-file-btn {
             position: absolute;
             top: 6px;
             right: 6px;
-            width: 24px;
-            height: 24px;
+            width: 22px;
+            height: 22px;
             background: transparent;
             border: none;
-            color: #999999;
-            font-size: 18px;
+            color: var(--text-faint);
+            font-size: 16px;
             font-weight: bold;
             line-height: 1;
             cursor: pointer;
@@ -207,65 +351,72 @@ export class ClassDiagramView {
             pointer-events: auto;
         }
         .open-file-btn:hover {
-            color: #000000;
-            transform: scale(1.2);
+            color: var(--accent);
+            transform: scale(1.15);
         }
         .open-file-btn:active {
             transform: scale(0.95);
         }
-        
+
         /* Focus/Highlight Styles */
         .uml-box.dimmed {
-            opacity: 0.25;
-            filter: grayscale(60%);
-            transition: opacity 0.3s ease, filter 0.3s ease;
+            opacity: 0.28;
+            transition: opacity 0.3s ease;
         }
         .uml-box.focused {
             opacity: 1 !important;
-            filter: none !important;
-            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.9) !important;
-            border-color: #000000 !important;
-            border-width: 3px !important;
+            border-color: var(--accent) !important;
+            box-shadow: 0 10px 24px var(--glow) !important;
             z-index: 100 !important;
             transition: all 0.3s ease;
         }
         .uml-box.related {
             opacity: 1 !important;
-            filter: none !important;
-            box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.7) !important;
-            border-color: #000000 !important;
-            border-width: 2px !important;
+            border-color: var(--accent) !important;
+            box-shadow: 0 4px 14px var(--glow) !important;
             z-index: 50 !important;
             transition: all 0.3s ease;
         }
+        .relationship-line {
+            /* --diagram-zoom is kept in sync with currentZoom by applyZoom()
+               (see script below) so line thickness scales with the content
+               instead of staying a fixed screen-pixel width while the boxes
+               around it grow/shrink - a constant width reads as "wrong" at
+               either zoom extreme (too bold when shrunk, too thin when
+               enlarged). Markers auto-scale with it too via markerUnits. */
+            stroke: var(--text-dim);
+            stroke-width: calc(1.4px * var(--diagram-zoom, 1));
+            fill: none;
+            transition: opacity 0.25s ease, stroke-width 0.25s ease, stroke 0.25s ease;
+        }
         .relationship-line.dimmed {
-            opacity: 0.15;
-            transition: opacity 0.3s ease;
+            opacity: 0.08;
         }
         .relationship-line.highlighted {
             opacity: 1 !important;
-            stroke: #000000 !important;
-            stroke-width: 2 !important;
-            transition: all 0.3s ease;
+            stroke: var(--text) !important;
+            stroke-width: calc(2px * var(--diagram-zoom, 1)) !important;
         }
         .focus-badge {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background: rgba(30, 30, 30, 0.95);
-            border: 1px solid #666666;
-            color: #FFFFFF;
-            padding: 12px 20px;
-            border-radius: 6px;
-            font-size: 13px;
+            background: var(--surface);
+            background: color-mix(in srgb, var(--surface) 90%, transparent);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 12.5px;
             font-weight: 500;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 8px 20px rgba(10, 14, 25, 0.16);
             z-index: 2000;
+            backdrop-filter: blur(10px);
             animation: slideIn 0.3s ease;
         }
         .focus-badge strong {
-            color: #FFFFFF;
-            font-weight: 600;
+            color: var(--accent);
+            font-weight: 650;
         }
         @keyframes slideIn {
             from {
@@ -277,31 +428,72 @@ export class ClassDiagramView {
                 opacity: 1;
             }
         }
-
+        #zoomctl {
+            position: fixed; right: 20px; top: 84px; z-index: 900;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        #zoomctl button {
+            width: 30px; height: 30px; border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            background: color-mix(in srgb, var(--surface) 90%, transparent);
+            color: var(--text); font-size: 15px; cursor: pointer;
+            backdrop-filter: blur(10px);
+        }
+        #zoomctl button:hover { border-color: var(--accent); color: var(--accent); }
+        #legend {
+            position: fixed; left: 20px; bottom: 20px; z-index: 900;
+            background: var(--surface);
+            background: color-mix(in srgb, var(--surface) 90%, transparent);
+            border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
+            font-size: 11px; color: var(--text-dim); backdrop-filter: blur(10px); line-height: 1.7;
+        }
+        #legend strong { color: var(--text); display: block; margin-bottom: 4px; font-size: 11.5px; }
+        #legend strong.group { margin-top: 10px; }
+        #legend .legend-row { display: flex; align-items: center; gap: 7px; }
+        #legend .ln { width: 16px; height: 2px; border-radius: 2px; flex-shrink: 0; background: var(--text-dim); }
+        #legend .ln.dashed { background: none; border-top: 2px dashed var(--text-dim); height: 0; }
+        #legend .mk { width: 14px; height: 10px; flex-shrink: 0; color: var(--text-dim); }
+        #legend .dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
     </style>
 </head>
 <body>
     <div class="header">
-        <div style="display:flex;align-items:center;gap:16px">
-            ${iconUri ? `<img src="${iconUri}" style="height:48px;width:48px;object-fit:contain;filter:invert(1);opacity:0.9;flex-shrink:0" />` : ''}
+        <div class="header-title">
+            ${iconUri ? `<img src="${iconUri}" style="height:40px;width:40px;object-fit:contain;opacity:0.85;flex-shrink:0" />` : ''}
             <div>
                 <h1>${workspaceName}</h1>
                 <p>${classCount} classes • ${folderCount} folders • ${edgeCount} relationships</p>
             </div>
         </div>
         <div class="header-controls">
-            <button onclick="zoomIn()">Zoom In</button>
-            <button onclick="zoomOut()">Zoom Out</button>
             ${hasLiveHost ? '<button onclick="saveAsMD()">💾 Save as MD</button>' : ''}
             ${hasLiveHost ? '<button class="settings-btn" onclick="openSettings()">⚙️ Settings</button>' : ''}
         </div>
     </div>
-    
+
     <div class="diagram-container" id="diagram">
         <svg id="relationship-svg"></svg>
-        ${folderHTML}
+        <div id="diagram-world">
+            ${folderHTML}
+        </div>
     </div>
-    
+
+    <div id="zoomctl">
+        <button onclick="zoomIn()" title="Zoom in">+</button>
+        <button onclick="zoomOut()" title="Zoom out">&minus;</button>
+    </div>
+    <div id="legend">
+        <strong>Relationships</strong>
+        <div class="legend-row"><svg class="mk" viewBox="0 0 14 10"><polygon points="0,1 0,9 12,5" fill="var(--surface)" stroke="currentColor" stroke-width="1.3"/></svg> extends / implements — inheritance</div>
+        <div class="legend-row"><svg class="mk" viewBox="0 0 14 10"><polyline points="0,0 11,5 0,10" fill="none" stroke="currentColor" stroke-width="1.3"/></svg> uses / has — dependency</div>
+        <div class="legend-row"><span class="ln"></span> solid = structural &middot; <span class="ln dashed"></span> dashed = depends-on</div>
+        <strong class="group">Change status</strong>
+        <div class="legend-row"><span class="dot" style="background:var(--added)"></span> added</div>
+        <div class="legend-row"><span class="dot" style="background:var(--deleted)"></span> deleted</div>
+        <div class="legend-row"><span class="dot" style="background:var(--modified)"></span> modified</div>
+    </div>
+
     <script>
         let EDGES = [];
         try {
@@ -353,21 +545,32 @@ export class ClassDiagramView {
             currentZoom = Math.min(currentZoom + 0.2, 3);
             applyZoom();
         }
-        
+
         function zoomOut() {
             currentZoom = Math.max(currentZoom - 0.2, 0.3);
             applyZoom();
         }
-        
+
         function resetZoom() {
             currentZoom = 1;
             applyZoom();
         }
-        
+
         function applyZoom() {
-            const diagram = document.getElementById('diagram');
-            diagram.style.transform = 'scale(' + currentZoom + ')';
-            diagram.style.transformOrigin = 'top left';
+            // Scale #diagram-world (the content), not #diagram (the fixed,
+            // scrollable viewport around it) - scaling the viewport itself
+            // would just shrink the visible frame in place rather than
+            // revealing more of the world within a stable frame.
+            const world = document.getElementById('diagram-world');
+            world.style.transform = 'scale(' + currentZoom + ')';
+            // Keeps .relationship-line's stroke-width (see CSS) proportional
+            // to the current zoom, since the SVG itself isn't scaled by the
+            // transform above (see drawRelationships).
+            document.getElementById('relationship-svg').style.setProperty('--diagram-zoom', currentZoom);
+            // Lines live outside #diagram-world (see drawRelationships), so
+            // they need to be recomputed against the boxes' new post-zoom
+            // positions rather than being carried along by the transform.
+            drawRelationships();
         }
         
         // Log stats on load
@@ -426,19 +629,19 @@ export class ClassDiagramView {
                     marker.setAttribute('refY', '5');
                     const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
                     polygon.setAttribute('points', '1,1 1,9 9,5');
-                    polygon.setAttribute('fill', 'white');
-                    polygon.setAttribute('stroke', '#000000');
+                    polygon.setAttribute('fill', 'var(--surface)');
+                    polygon.setAttribute('stroke', 'currentColor');
                     polygon.setAttribute('stroke-width', '1.5');
                     polygon.setAttribute('stroke-linejoin', 'miter');
                     marker.appendChild(polygon);
-                } 
+                }
                 else if (shape === 'filled-triangle') {
                     // Filled triangle for highlight state
                     marker.setAttribute('refX', '10');
                     marker.setAttribute('refY', '6');
                     const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
                     polygon.setAttribute('points', '0,0 0,12 10,6');
-                    polygon.setAttribute('fill', '#000000');
+                    polygon.setAttribute('fill', 'currentColor');
                     marker.appendChild(polygon);
                 }
                 else if (shape === 'open-arrow') {
@@ -448,7 +651,7 @@ export class ClassDiagramView {
                     const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
                     polyline.setAttribute('points', '0,0 9,6 0,12');
                     polyline.setAttribute('fill', 'none');
-                    polyline.setAttribute('stroke', '#000000');
+                    polyline.setAttribute('stroke', 'currentColor');
                     polyline.setAttribute('stroke-width', '1.5');
                     marker.appendChild(polyline);
                 }
@@ -565,8 +768,14 @@ export class ClassDiagramView {
             // as separate relationships that happen to line up in the same row/column.
             // Works for horizontal, vertical, and diagonal lines alike since it reasons
             // about the line's own direction rather than assuming a fixed axis.
-            const GAP_TOLERANCE = 20;   // px - segments within this gap still count as touching
-            const OFFSET_SPACING = 12;  // px - perpendicular distance between spread-out lines
+            // Coordinates here are post-zoom screen pixels (boxes live inside
+            // #diagram-world, which is scaled by currentZoom), so these
+            // thresholds must scale with it too - otherwise a fixed pixel
+            // gap means a much larger *real* distance once zoomed out,
+            // causing unrelated lines to falsely cluster and fan out way
+            // past their boxes.
+            const GAP_TOLERANCE = 20 * currentZoom;   // px - segments within this gap still count as touching
+            const OFFSET_SPACING = 12 * currentZoom;  // px - perpendicular distance between spread-out lines
 
             const lineMeta = rawLines.map(rawLine => {
                 const dx = rawLine.x2 - rawLine.x1;
@@ -648,9 +857,8 @@ export class ClassDiagramView {
 
             // ===== Pass 3: Draw the (possibly spread-out) straight lines =====
             lineMeta.forEach(lineInfo => {
-                // UML standard: all lines are black, differentiated by style (solid/dashed)
-                const color = '#000000';
-                const strokeWidth = '2';
+                // Stroke color/width come from the .relationship-line CSS rule
+                // (theme-aware) - only the dash pattern is set here, per edge type.
                 let dashArray = '';  // solid by default
 
                 // Dashed lines for: implements, uses (dependency)
@@ -667,8 +875,6 @@ export class ClassDiagramView {
                 line.setAttribute('y1', lineInfo.y1);
                 line.setAttribute('x2', lineInfo.x2);
                 line.setAttribute('y2', lineInfo.y2);
-                line.setAttribute('stroke', color);
-                line.setAttribute('stroke-width', strokeWidth);
                 if (dashArray) {
                     line.setAttribute('stroke-dasharray', dashArray);
                 }

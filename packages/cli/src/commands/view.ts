@@ -1,6 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
+import { CodeParserService, DiagramGeneratorService } from '@kratai/core';
+import { ClassDiagramView } from '@kratai/diagram-view';
+import { loadCliConfig } from '../config.js';
 import { openFile } from '../openFile.js';
 
 export interface ViewOptions {
@@ -16,13 +19,22 @@ export async function runView(options: ViewOptions): Promise<void> {
 		throw new Error(`Path not found: ${workspacePath}`);
 	}
 
-	const html = `<!doctype html>
-<html>
-<head><meta charset="utf-8"><title>kratai view</title></head>
-<body style="font-family: system-ui, sans-serif; padding: 2rem;">
-	<p>Target folder to parse: <code>${workspacePath}</code></p>
-</body>
-</html>`;
+	const config = loadCliConfig(workspacePath, undefined, {});
+	const diagramName = path.basename(workspacePath);
+
+	console.log(`Analyzing ${workspacePath}...`);
+	const diagramData = await CodeParserService.parseWorkspace(workspacePath, config);
+
+	if (diagramData.classes.length === 0) {
+		throw new Error('No classes found - check your folder/extension filters.');
+	}
+
+	const { nodes, edges } = DiagramGeneratorService.generateReactFlowData(diagramData);
+	// hasLiveHost stays false - the view server doesn't yet listen for the
+	// diagram's postMessage calls (Save/Settings/open-file), same as
+	// `analyze --format html`'s static output. Wire those up when the
+	// server actually handles them.
+	const html = ClassDiagramView.generate(nodes, edges, diagramName, config, undefined, false);
 
 	const server = http.createServer((_req, res) => {
 		res.writeHead(200, { 'Content-Type': 'text/html' });
