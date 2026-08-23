@@ -439,15 +439,23 @@ export class ClassDiagramView {
             background: color-mix(in srgb, var(--surface) 90%, transparent);
             color: var(--text); font-size: 15px; cursor: pointer;
             backdrop-filter: blur(10px);
+            display: flex; align-items: center; justify-content: center;
         }
         #zoomctl button:hover { border-color: var(--accent); color: var(--accent); }
+        #zoomctl button.active { border-color: var(--accent); color: var(--accent); }
+        /* Hidden by default and toggled open next to the zoom controls (see
+           toggleLegend) instead of permanently sitting over the diagram -
+           a bottom-left overlay was covering real content underneath it. */
         #legend {
-            position: fixed; left: 20px; bottom: 20px; z-index: 900;
+            display: none;
+            position: fixed; right: 62px; top: 84px; z-index: 900;
+            width: 220px;
             background: var(--surface);
             background: color-mix(in srgb, var(--surface) 90%, transparent);
             border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
             font-size: 11px; color: var(--text-dim); backdrop-filter: blur(10px); line-height: 1.7;
         }
+        #legend.open { display: block; }
         #legend strong { color: var(--text); display: block; margin-bottom: 4px; font-size: 11.5px; }
         #legend strong.group { margin-top: 10px; }
         #legend .legend-row { display: flex; align-items: center; gap: 7px; }
@@ -480,6 +488,10 @@ export class ClassDiagramView {
     </div>
 
     <div id="zoomctl">
+        <button id="legend-toggle" onclick="toggleLegend()" title="Show legend">&#9432;</button>
+        <button id="lines-toggle" class="active" onclick="toggleLines()" title="Hide relationship lines">
+            <svg width="14" height="14" viewBox="0 0 14 14"><line x1="2" y1="12" x2="12" y2="2" stroke="currentColor" stroke-width="1.6"/></svg>
+        </button>
         <button onclick="zoomIn()" title="Zoom in">+</button>
         <button onclick="zoomOut()" title="Zoom out">&minus;</button>
     </div>
@@ -554,6 +566,20 @@ export class ClassDiagramView {
         function resetZoom() {
             currentZoom = 1;
             applyZoom();
+        }
+
+        function toggleLegend() {
+            document.getElementById('legend').classList.toggle('open');
+            document.getElementById('legend-toggle').classList.toggle('active');
+        }
+
+        function toggleLines() {
+            const svg = document.getElementById('relationship-svg');
+            const nowHidden = svg.style.display !== 'none';
+            svg.style.display = nowHidden ? 'none' : '';
+            const btn = document.getElementById('lines-toggle');
+            btn.classList.toggle('active', !nowHidden);
+            btn.title = nowHidden ? 'Show relationship lines' : 'Hide relationship lines';
         }
 
         function applyZoom() {
