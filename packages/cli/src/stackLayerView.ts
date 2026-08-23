@@ -461,6 +461,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		var sceneGL = new THREE.Scene();
 		var camera = new THREE.PerspectiveCamera(32, stage.clientWidth / stage.clientHeight, 1, 6000);
 		var camDist = 500;
+		var userZoomed = false;
 
 		var rendererGL = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 		rendererGL.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -766,7 +767,13 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 				l.target._beamMats.push(lineRef);
 			});
 
-			camDist = Math.max(500, stackHeight * 1.35 + maxSheetSize * 1.2);
+			// Auto-fit the camera to frame the stack only until the user
+			// takes control via scroll (see the wheel handler below) -
+			// otherwise every expand/collapse (which calls renderTree again)
+			// would silently overwrite whatever zoom they'd set.
+			if (!userZoomed) {
+				camDist = Math.max(500, stackHeight * 1.35 + maxSheetSize * 1.2);
+			}
 			visibleNodes = frontier;
 
 			var totalClasses = frontier.reduce(function (s, node) {
@@ -800,6 +807,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		});
 		stage.addEventListener('wheel', function (e) {
 			e.preventDefault();
+			userZoomed = true;
 			camDist = Math.max(280, Math.min(3000, camDist + e.deltaY * 1.0));
 		}, { passive: false });
 
