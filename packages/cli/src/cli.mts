@@ -22,9 +22,12 @@ analyze - generate a diagram (HTML for a browser, or Markdown for an AI agent)
       --open             Open the generated file in your default app
 
 init - wire kratai's skill into an AI coding agent
-                          Writes .claude/skills/kratai/SKILL.md and merges an
+                          Writes .claude/skills/kratai/SKILL.md, merges an
                           AGENTS.md block (read natively by Cursor/Codex, used
-                          as a fallback by OpenCode/Claude Code)
+                          as a fallback by OpenCode/Claude Code), and scaffolds
+                          kratai.config.json (shared, commit this) plus a
+                          .gitignore entry for kratai.local.json (personal
+                          overrides, never committed)
 
   -h, --help              Show this help
   -v, --version           Show version

@@ -3,6 +3,7 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { setupClaudeCode } from '../targets/claudeCode.js';
 import { setupAgentsMd } from '../targets/agentsMd.js';
+import { setupConfigFile } from '../targets/configFile.js';
 
 // esbuild bundles this into a single out/cli.mjs, so import.meta.url here
 // resolves to that bundle's own location regardless of this file's original
@@ -33,6 +34,7 @@ export function runInit(options: InitOptions): void {
 
 	setupClaudeCode(workspacePath, skillContent);
 	setupAgentsMd(workspacePath, skillContent);
+	setupConfigFile(workspacePath);
 
 	console.log(`\nkratai wired up in ${workspacePath}`);
 }

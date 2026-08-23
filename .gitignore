@@ -10,3 +10,4 @@ config.json
 *.tsbuildinfo
 .env
 .env*.local
+kratai.local.json

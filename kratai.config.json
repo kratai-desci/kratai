@@ -1,0 +1,22 @@
+{
+  "selectedFolders": [
+    "."
+  ],
+  "selectedExtensions": [
+    ".ts",
+    ".tsx",
+    ".js",
+    ".jsx",
+    ".py",
+    ".java",
+    ".php",
+    ".html",
+    ".htm",
+    ".jsp",
+    ".jspx"
+  ],
+  "respectGitignore": true,
+  "followSymlinks": false,
+  "detectHttpCalls": true,
+  "frameworkEnrichment": true
+}
