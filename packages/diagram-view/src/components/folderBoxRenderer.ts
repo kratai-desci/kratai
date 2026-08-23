@@ -1,5 +1,6 @@
-import { DiagramFolderNode, FolderStructureBuilder, KrataiConfig } from '@kratai/core';
+import { DiagramFolderNode, FolderStructureBuilder, KrataiConfig, ReactFlowNode } from '@kratai/core';
 import { getLayerWeight } from '../layerWeight';
+import { foldSingleClassFolders, prefixFoldedClassName } from '../foldSingleClassFolders';
 
 export class FolderBoxRenderer {
 	private config: KrataiConfig;
@@ -13,10 +14,23 @@ export class FolderBoxRenderer {
 	renderAll(folder: DiagramFolderNode): string {
 		// Collect all leaf folders (folders with classes)
 		const leafFolders = this.collectLeafFolders(folder);
-		
+
+		// A leaf folder with exactly one class is usually routing structure
+		// (Next.js's app/auth/sign-in/page.tsx, app/auth/sign-up/page.tsx,
+		// ...), not a real architectural grouping - fold it into its parent
+		// as a class instead of giving it its own near-empty box.
+		const folded = foldSingleClassFolders<ReactFlowNode, DiagramFolderNode>(
+			leafFolders,
+			(node, originFolderName) => ({
+				...node,
+				data: { ...node.data, classInfo: { ...node.data.classInfo, name: prefixFoldedClassName(node.data.classInfo.name, originFolderName) } }
+			}),
+			(fullPath, name, classes) => ({ fullPath, name, children: new Map(), classes })
+		);
+
 		// Sort by custom order
-		const sortedFolders = this.sortFoldersByOrder(leafFolders);
-		
+		const sortedFolders = this.sortFoldersByOrder(folded);
+
 		// Render each leaf folder as a flat box
 		return sortedFolders.map(leafFolder => this.renderLeafFolder(leafFolder)).join('\n');
 	}

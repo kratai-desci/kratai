@@ -7,3 +7,4 @@ export * from './classDiagramView';
 export * from './components/classBoxRenderer';
 export * from './components/folderBoxRenderer';
 export * from './layerWeight';
+export * from './foldSingleClassFolders';

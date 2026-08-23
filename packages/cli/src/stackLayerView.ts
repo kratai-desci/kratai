@@ -6,10 +6,15 @@ import { StackLayerData } from './stackLayerData.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * Ported from mockups/architect/app.js's runLayer() (the 3D drill-down
- * layer-stack view) - same visuals, same interaction (drag to rotate,
- * scroll to zoom, click a layer to expand/collapse), same "oversized
- * layer" / "circular dependency" concerns detection.
+ * Ported from mockups/architect/app.js's runLayer() (the 3D layer-stack
+ * view), then flattened: one sheet per leaf folder - the exact same set
+ * @kratai/diagram-view's class diagram renders as folder boxes, in the same
+ * order - instead of a reconstructed full folder-path tree with click-to-
+ * expand/collapse. The two views disagreed on what counts as a "layer"
+ * before this (the class diagram already ignores empty organizational
+ * folders; the stack didn't), so this keeps them showing the same
+ * codebase the same way. Same drag-to-rotate/scroll-to-zoom interaction,
+ * same "oversized layer" / "circular dependency" concerns detection.
  *
  * One real substitution: the mockup sized each sheet by lines of code
  * (fake placeholder data - kratai doesn't track per-class line ranges).
@@ -110,7 +115,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 	/* Folder-browser style label list - a fixed panel reads more like a
 	   file explorer and stays comfortable to click/scan regardless of how
 	   the stack is rotated or zoomed. Visible by default (it's the primary
-	   expand/collapse control, not supplementary info like the legend/
+	   index into the stack, not supplementary info like the legend/
 	   concerns panels), hidden via the button when it's in the way. */
 	#layer-list {
 		display: flex; flex-direction: column; gap: 1px;
@@ -130,14 +135,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		white-space: nowrap; overflow: hidden; line-height: 1.2;
 		transition: background 0.15s ease;
 	}
-	.slab-face.drillable, .slab-face.header { cursor: pointer; }
-	.slab-face.drillable:hover, .slab-face.header:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-	.slab-face.drillable .slab-label::after { content: ' \\25B8'; opacity: 0.55; }
-	.slab-face.leaf { cursor: default; }
-	.slab-face.self { opacity: 0.75; }
-	.slab-face.self .slab-label { font-style: italic; font-weight: 500; }
-	.slab-face.header { background: color-mix(in srgb, var(--accent) 8%, transparent); }
-	.slab-face.header .slab-label::after { content: ' \\25BE'; opacity: 0.55; }
+	.slab-face:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 	.slab-label {
 		font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 		font-size: 10.5px; font-weight: 650; color: var(--text);
@@ -218,7 +216,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 	<div id="errbox"><strong>Render error &mdash;</strong> <span id="errmsg"></span></div>
 	<div id="stage">
 		<div id="topleft-layer">
-			<button id="layerlist-toggle" class="active" title="Hide folder list">
+			<button id="layerlist-toggle" class="active" title="Hide layer list">
 				<svg width="14" height="14" viewBox="0 0 14 14"><path d="M1,3.5 h4 l1.2,1.5 h6.3 v6.5 h-11.5 z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
 			</button>
 		</div>
@@ -236,7 +234,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 				<button id="concerns-toggle" title="Show concerns" style="display:none">&#9888;</button>
 			</div>
 		</div>
-		<div id="hint-layer">drag to rotate &middot; scroll to zoom &middot; click a layer to expand/collapse</div>
+		<div id="hint-layer">drag to rotate &middot; scroll to zoom &middot; hover a layer to highlight</div>
 	</div>
 
 	<script type="module">
@@ -381,91 +379,11 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			return new THREE.Color('rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')');
 		}
 
-		function median(nums) {
-			if (!nums.length) return 9999;
-			var sorted = nums.slice().sort(function (a, b) { return a - b; });
-			var mid = Math.floor(sorted.length / 2);
-			return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-		}
-
-		// ---- build the full folder tree once, with recursive (self + all
-		// descendants) class count, score, and layer weight cached per node.
-		// A collapsed parent's representative weight is the *median* of its
-		// own leaf folders, not the mean - a plain average lets a single
-		// outlier (e.g. "app" itself has no recognizable layer keyword, so it
-		// defaults to 9999) drag a whole subtree's rank down even when nine
-		// of its ten folders are a clean, low "100" api-layer weight. Median
-		// shrugs that off; mean doesn't. ----
-		var root = { path: '', children: {}, ownClassCount: 0, ownScore: 0, ownWeights: [] };
-		DATA.folders.forEach(function (f) {
-			var parts = f.path.split('/');
-			var node = root;
-			var acc = [];
-			parts.forEach(function (seg) {
-				acc.push(seg);
-				var p = acc.join('/');
-				if (!node.children[seg]) node.children[seg] = { path: p, children: {}, ownClassCount: 0, ownScore: 0, ownWeights: [] };
-				node = node.children[seg];
-			});
-			node.ownClassCount += f.classes.length;
-			node.ownScore += f.score || 0;
-			node.ownWeights.push(f.layerWeight);
-		});
-		(function computeAgg(node) {
-			var classCount = node.ownClassCount, score = node.ownScore, weights = node.ownWeights.slice();
-			Object.keys(node.children).forEach(function (k) {
-				var c = node.children[k];
-				computeAgg(c);
-				classCount += c._classCount;
-				score += c._score;
-				weights = weights.concat(c._weights);
-			});
-			node._classCount = classCount;
-			node._score = score;
-			node._weights = weights;
-			node._avgWeight = median(weights);
-		})(root);
-
-		// ---- expand/collapse state: which branches are opened in place.
-		// Root's direct children are always shown; expanding one swaps it
-		// for its own children without touching sibling branches, so
-		// drilling into /lib leaves /app right where it was. Seeded from
-		// config.folders[path].expanded (see stackLayerData.ts) so a
-		// project can commit a starting view instead of everyone opening
-		// the same folders by hand every time. ----
-		var expanded = {};
-		(DATA.initialExpanded || []).forEach(function (p) { expanded[p] = true; });
-
-		function hasKids(node) { return Object.keys(node.children).length > 0; }
-
-		// A node that's expanded stays in the frontier too, as a "header" row
-		// at its own position in the stack - same label, same spot, just
-		// flipped to an open state, so the one thing you clicked to drill in
-		// is also the thing you click to drill back out.
-		function layoutChildren(parentNode) {
-			var kids = Object.keys(parentNode.children).map(function (k) { return parentNode.children[k]; });
-			var blocks = kids.map(function (child) {
-				if (expanded[child.path] && hasKids(child)) {
-					child._isHeader = true;
-					var inner = layoutChildren(child);
-					inner.unshift(child);
-					return { weight: child._avgWeight, nodes: inner };
-				}
-				child._isHeader = false;
-				return { weight: child._avgWeight, nodes: [child] };
-			});
-			blocks.sort(function (a, b) { return a.weight - b.weight; });
-			var flat = [];
-			blocks.forEach(function (b) { flat = flat.concat(b.nodes); });
-			return flat;
-		}
-
-		// ---- scene / camera / renderer (built once, contents rebuilt per render) ----
+		// ---- scene / camera / renderer ----
 		var stage = document.getElementById('stage');
 		var sceneGL = new THREE.Scene();
 		var camera = new THREE.PerspectiveCamera(32, stage.clientWidth / stage.clientHeight, 1, 6000);
-		var camDist = 500;
-		var userZoomed = false;
+		var camDist = 1000;
 
 		var rendererGL = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 		rendererGL.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -487,17 +405,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		dl.position.set(300, 500, 400);
 		sceneGL.add(dl);
 
-		var visibleNodes = [];
-
 		var frontierByPath = {};
-		function coveringNode(folderPath) {
-			var parts = folderPath.split('/');
-			for (var i = parts.length; i >= 1; i--) {
-				var p = parts.slice(0, i).join('/');
-				if (frontierByPath[p]) return frontierByPath[p];
-			}
-			return null;
-		}
 		function highlightNode(node) {
 			if (!node || !node._sheetMat) return;
 			node._sheetMat.opacity = Math.min(1, node._sheetBaseOpacity + 0.4);
@@ -509,7 +417,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			node._borderMat.opacity = 0.85;
 		}
 		function highlightFolderPath(path, on) {
-			var node = coveringNode(path);
+			var node = frontierByPath[path];
 			if (!node) return;
 			if (on) highlightNode(node); else unhighlightNode(node);
 		}
@@ -529,276 +437,191 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			});
 		}
 
-		function renderTree() {
-			var previousPaths = {}, previousY = {};
-			visibleNodes.forEach(function (node) {
-				var key = node.path + (node._isSelf ? ':self' : '');
-				previousPaths[key] = true;
-				previousY[key] = node._y;
-			});
+		// ---- one sheet per leaf folder, already sorted server-side the same
+		// way the class diagram sorts its folder boxes (custom order, then
+		// layer weight, then alphabetical - see stackLayerData.ts). No tree,
+		// no expand/collapse: every real layer is visible from the start. ----
+		var frontier = DATA.folders.map(function (f) {
+			return { path: f.path, name: f.name, score: f.score || 0, classCount: f.classes.length };
+		});
+		var n = frontier.length;
+		var maxSheetSize = 0;
+		frontier.forEach(function (node, i) {
+			node._y = ((n - 1) / 2 - i) * LAYER_GAP;
+			// side ~ sqrt(score) so *area* (side^2) scales linearly with
+			// score, not the side length itself
+			var side = Math.min(MAX_SIZE, MIN_SIZE + Math.sqrt(node.score) * SIZE_PER_SCORE);
+			node._w = side; node._d = side;
+			maxSheetSize = Math.max(maxSheetSize, side);
+		});
+		var stackHeight = Math.max(1, (n - 1) * LAYER_GAP);
+		frontier.forEach(function (node) { frontierByPath[node.path] = node; });
 
-			var frontier = layoutChildren(root);
+		var lines = DATA.relationships.map(function (r) {
+			var sn = frontierByPath[r.sourceFolder], tn = frontierByPath[r.targetFolder];
+			if (!sn || !tn || sn === tn) return null;
+			return { source: sn, target: tn };
+		}).filter(Boolean);
 
-			var n = frontier.length;
-			var maxSheetSize = 0;
-			frontier.forEach(function (node, i) {
-				node._y = ((n - 1) / 2 - i) * LAYER_GAP;
-				node._indent = node._isSelf ? node.path.split('/').length : node.path.split('/').length - 1;
-				// side ~ sqrt(score) so *area* (side^2) scales linearly with
-				// score, not the side length itself
-				var side = Math.min(MAX_SIZE, MIN_SIZE + Math.sqrt(node._score) * SIZE_PER_SCORE);
-				node._w = side; node._d = side;
-				maxSheetSize = Math.max(maxSheetSize, side);
-			});
-			var stackHeight = Math.max(1, (n - 1) * LAYER_GAP);
+		frontier.forEach(function (node, i) {
+			node._beamMats = [];
 
-			frontierByPath = {};
-			frontier.forEach(function (node) { frontierByPath[node.path] = node; });
+			// color reflects sort position (shallow -> deep in the stack),
+			// not folder-tree depth - there's no tree anymore, but the same
+			// "top of the stack is one color, bottom is another" gradient
+			// still helps read the stack at a glance.
+			var t = n > 1 ? i / (n - 1) : 0;
+			var color = lerpColor(t);
 
-			var lines = DATA.relationships.map(function (r) {
-				if (!r.sourceFolder || !r.targetFolder) return null;
-				var sn = coveringNode(r.sourceFolder), tn = coveringNode(r.targetFolder);
-				if (!sn || !tn || sn === tn) return null;
-				return { source: sn, target: tn, rel: r };
-			}).filter(Boolean);
+			var group = new THREE.Group();
+			group.position.set(0, node._y, 0);
+			rigGL.add(group);
 
-			while (rigGL.children.length) {
-				var obj = rigGL.children.pop();
-				obj.geometry && obj.geometry.dispose();
-				obj.material && obj.material.dispose();
-			}
-			while (layerList.firstChild) layerList.removeChild(layerList.firstChild);
-
-			var headersByPath = {};
-			frontier.forEach(function (node) { if (node._isHeader) headersByPath[node.path] = node; });
-			function findOriginHeader(node) {
-				var parts = node.path.split('/');
-				for (var i = parts.length - 1; i >= 1; i--) {
-					var p = parts.slice(0, i).join('/');
-					if (headersByPath[p]) return headersByPath[p];
-				}
-				return null;
+			if (!reduceMotion) {
+				group.scale.setScalar(0.01);
+				tween(380 + Math.min(i * 12, 400), function (e) { group.scale.setScalar(0.01 + e * 0.99); });
 			}
 
-			frontier.forEach(function (node, i) {
-				node._beamMats = [];
+			var baseOpacity = 0.22;
+			var geo = new THREE.PlaneGeometry(node._w, node._d);
+			var mat = new THREE.MeshPhysicalMaterial({
+				color: color, transparent: true, opacity: baseOpacity,
+				roughness: 0.3, metalness: 0, side: THREE.DoubleSide,
+				depthWrite: false
+			});
+			var mesh = new THREE.Mesh(geo, mat);
+			mesh.rotation.x = -Math.PI / 2;
+			mesh.renderOrder = 0;
+			group.add(mesh);
 
-				var key = node.path + (node._isSelf ? ':self' : '');
-				var isNew = !previousPaths[key];
+			var borderMat = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.85, depthWrite: false });
+			var border = new THREE.LineLoop(
+				new THREE.BufferGeometry().setFromPoints([
+					new THREE.Vector3(-node._w / 2, 0, -node._d / 2), new THREE.Vector3(node._w / 2, 0, -node._d / 2),
+					new THREE.Vector3(node._w / 2, 0, node._d / 2), new THREE.Vector3(-node._w / 2, 0, node._d / 2)
+				]),
+				borderMat
+			);
+			border.renderOrder = 1;
+			group.add(border);
 
-				var t = Math.min(1, node._indent * 0.3);
-				var color = lerpColor(t);
+			node._sheetMat = mat;
+			node._sheetBaseOpacity = baseOpacity;
+			node._borderMat = borderMat;
+		});
 
-				var group = new THREE.Group();
-				var origin = isNew ? findOriginHeader(node) : null;
-				var startY = !isNew ? (previousY[key] !== undefined ? previousY[key] : node._y)
-					: (origin ? origin._y : node._y);
-				node._animY = startY;
-				node._faceIsNewNoOrigin = isNew && !origin;
-				group.position.set(0, startY, 0);
-				rigGL.add(group);
+		frontier.forEach(function (node, i) {
+			var face = document.createElement('div');
+			face.className = 'slab-face';
+			face.title = node.path;
 
-				if (isNew && origin) {
-					var startScale = Math.max(origin._w, origin._d) / Math.max(node._w, node._d);
-					group.scale.setScalar(startScale);
-					if (!reduceMotion) {
-						var targetY1 = node._y;
-						tween(380, function (e) {
-							var y = startY + (targetY1 - startY) * e;
-							node._animY = y;
-							group.position.y = y;
-							group.scale.setScalar(startScale + (1 - startScale) * e);
-						});
-					} else {
-						node._animY = node._y;
-						group.position.y = node._y;
-						group.scale.setScalar(1);
-					}
-				} else if (isNew) {
-					if (!reduceMotion) {
-						group.scale.setScalar(0.01);
-						tween(380, function (e) { group.scale.setScalar(0.01 + e * 0.99); });
-					}
-				} else if (startY !== node._y && !reduceMotion) {
-					var targetY2 = node._y;
-					tween(380, function (e) {
-						var y = startY + (targetY2 - startY) * e;
-						node._animY = y;
-						group.position.y = y;
-					});
-				}
-
-				var baseOpacity = node._isHeader ? 0.1 : 0.22;
-				var geo = new THREE.PlaneGeometry(node._w, node._d);
-				var mat = new THREE.MeshPhysicalMaterial({
-					color: color, transparent: true, opacity: baseOpacity,
-					roughness: 0.3, metalness: 0, side: THREE.DoubleSide,
-					depthWrite: false
+			face.addEventListener('mouseenter', function () {
+				highlightNode(node);
+				node._beamMats.forEach(function (r) {
+					r.items.forEach(function (it) { it.mat.opacity = 1; it.mat.color.set(0xffffff); });
+					var other = r.source === node ? r.target : r.source;
+					other._sheetMat.opacity = Math.min(1, other._sheetBaseOpacity + 0.18);
+					other._borderMat.opacity = Math.min(1, other._borderMat.opacity + 0.1);
 				});
-				var mesh = new THREE.Mesh(geo, mat);
-				mesh.rotation.x = -Math.PI / 2;
-				mesh.renderOrder = 0;
-				group.add(mesh);
-
-				var borderMat = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.85, depthWrite: false });
-				var border = new THREE.LineLoop(
-					new THREE.BufferGeometry().setFromPoints([
-						new THREE.Vector3(-node._w / 2, 0, -node._d / 2), new THREE.Vector3(node._w / 2, 0, -node._d / 2),
-						new THREE.Vector3(node._w / 2, 0, node._d / 2), new THREE.Vector3(-node._w / 2, 0, node._d / 2)
-					]),
-					borderMat
-				);
-				border.renderOrder = 1;
-				group.add(border);
-
-				node._sheetMat = mat;
-				node._sheetBaseOpacity = baseOpacity;
-				node._borderMat = borderMat;
+			});
+			face.addEventListener('mouseleave', function () {
+				unhighlightNode(node);
+				node._beamMats.forEach(function (r) {
+					r.items.forEach(function (it) { it.mat.opacity = it.baseOpacity; it.mat.color.copy(it.baseColor); });
+					var other = r.source === node ? r.target : r.source;
+					other._sheetMat.opacity = other._sheetBaseOpacity;
+					other._borderMat.opacity = 0.85;
+				});
 			});
 
-			frontier.forEach(function (node) {
-				var drillable = hasKids(node) && !node._isHeader;
-				var face = document.createElement('div');
-				face.className = 'slab-face'
-					+ (node._isHeader ? ' header' : (drillable ? ' drillable' : ' leaf'))
-					+ (node._isSelf ? ' self' : '');
+			var label = document.createElement('div');
+			label.className = 'slab-label';
+			label.textContent = node.name;
+			face.appendChild(label);
 
-				face.addEventListener('mouseenter', function () {
-					highlightNode(node);
-					node._beamMats.forEach(function (r) {
-						r.items.forEach(function (it) { it.mat.opacity = 1; it.mat.color.set(0xffffff); });
-						var other = r.source === node ? r.target : r.source;
-						other._sheetMat.opacity = Math.min(1, other._sheetBaseOpacity + 0.18);
-						other._borderMat.opacity = Math.min(1, other._borderMat.opacity + 0.1);
-					});
-				});
-				face.addEventListener('mouseleave', function () {
-					unhighlightNode(node);
-					node._beamMats.forEach(function (r) {
-						r.items.forEach(function (it) { it.mat.opacity = it.baseOpacity; it.mat.color.copy(it.baseColor); });
-						var other = r.source === node ? r.target : r.source;
-						other._sheetMat.opacity = other._sheetBaseOpacity;
-						other._borderMat.opacity = 0.85;
-					});
-				});
+			var count = document.createElement('div');
+			count.className = 'slab-count';
+			count.textContent = node.classCount + (node.classCount === 1 ? ' class' : ' classes');
+			face.appendChild(count);
 
-				face.style.paddingLeft = (8 + node._indent * 14) + 'px';
+			layerList.appendChild(face);
 
-				var label = document.createElement('div');
-				label.className = 'slab-label';
-				label.textContent = node._isSelf ? '(' + node.path.split('/').pop() + ')' : node.path.split('/').pop();
-				face.appendChild(label);
-
-				var displayCount = node._isHeader ? node.ownClassCount : node._classCount;
-				var count = document.createElement('div');
-				count.className = 'slab-count';
-				count.textContent = displayCount + (displayCount === 1 ? ' class' : ' classes');
-				face.appendChild(count);
-
-				if (node._isHeader) {
-					face.title = 'Click to collapse ' + node.path;
-					face.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
-					face.addEventListener('click', function () { delete expanded[node.path]; renderTree(); });
-				} else if (drillable) {
-					face.title = 'Click to expand ' + node.path;
-					face.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
-					face.addEventListener('click', function () { expanded[node.path] = true; renderTree(); });
-				}
-
-				layerList.appendChild(face);
-
-				if (node._faceIsNewNoOrigin && !reduceMotion) {
-					face.style.opacity = '0';
-					face.style.transform = 'scale(0.9)';
-					requestAnimationFrame(function () {
+			if (!reduceMotion) {
+				face.style.opacity = '0';
+				face.style.transform = 'scale(0.9)';
+				(function (delay) {
+					setTimeout(function () {
 						face.style.transition = 'opacity 0.32s ease-out, transform 0.32s cubic-bezier(0.2,0.8,0.3,1.4)';
 						face.style.opacity = '1';
 						face.style.transform = 'scale(1)';
-					});
-				}
-			});
-
-			function makeArrow(tipPos, dir, color, opacity, coneRadius, coneLength) {
-				var geo = new THREE.ConeGeometry(coneRadius, coneLength, 8);
-				var mat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: opacity, depthWrite: false });
-				var cone = new THREE.Mesh(geo, mat);
-				cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-				cone.position.copy(tipPos).addScaledVector(dir, -coneLength / 2);
-				cone.renderOrder = 3;
-				rigGL.add(cone);
-				return mat;
+					}, delay);
+				})(Math.min(i * 12, 400));
 			}
+		});
 
-			var LINE_RADIUS = 0.35, LINE_OPACITY = 0.4;
-			var lineColor = lerpColor(0.5);
-			lines.forEach(function (l, i) {
-				var angle = lines.length > 1 ? (i / lines.length) * Math.PI * 2 : 0;
-				var r = Math.min(l.source._w, l.target._w) / 2 * 0.5;
-
-				var start = new THREE.Vector3(Math.cos(angle) * r, l.source._y, Math.sin(angle) * r);
-				var end = new THREE.Vector3(Math.cos(angle) * r, l.target._y, Math.sin(angle) * r);
-
-				var curve = new THREE.LineCurve3(start, end);
-				var geo = new THREE.TubeGeometry(curve, 1, LINE_RADIUS, 6, false);
-				var mat = new THREE.MeshBasicMaterial({
-					color: lineColor, transparent: true, opacity: LINE_OPACITY, depthWrite: false
-				});
-				var lineMesh = new THREE.Mesh(geo, mat);
-				lineMesh.renderOrder = 2;
-				rigGL.add(lineMesh);
-
-				var dir = end.clone().sub(start).normalize();
-				var coneLen = Math.max(6, maxSheetSize * 0.025);
-				var coneRad = Math.max(1.6, maxSheetSize * 0.009);
-				var arrowMat = makeArrow(end, dir, lineColor, LINE_OPACITY, coneRad, coneLen);
-
-				var lineIsNew = !previousPaths[l.source.path + (l.source._isSelf ? ':self' : '')] ||
-					!previousPaths[l.target.path + (l.target._isSelf ? ':self' : '')];
-				if (lineIsNew && !reduceMotion) {
-					mat.opacity = 0; arrowMat.opacity = 0;
-					tween(380, function (e) { mat.opacity = e * LINE_OPACITY; arrowMat.opacity = e * LINE_OPACITY; });
-				}
-
-				var lineRef = {
-					source: l.source,
-					target: l.target,
-					items: [
-						{ mat: mat, baseColor: lineColor.clone(), baseOpacity: LINE_OPACITY },
-						{ mat: arrowMat, baseColor: lineColor.clone(), baseOpacity: LINE_OPACITY }
-					]
-				};
-				l.source._beamMats.push(lineRef);
-				l.target._beamMats.push(lineRef);
-			});
-
-			// Auto-fit the camera to frame the stack only until the user
-			// takes control via scroll (see the wheel handler below) -
-			// otherwise every expand/collapse (which calls renderTree again)
-			// would silently overwrite whatever zoom they'd set.
-			if (!userZoomed) {
-				// Floor raised from 500 to 1000 - for a typical small/collapsed
-				// stack the size-based term below stays under the floor, so
-				// the floor is what actually governs the initial view most of
-				// the time (this is the "too close" the user was seeing).
-				camDist = Math.max(1000, stackHeight * 1.5 + maxSheetSize * 1.4);
-			}
-			visibleNodes = frontier;
-
-			var totalClasses = frontier.reduce(function (s, node) {
-				return s + (node._isHeader ? node.ownClassCount : node._classCount);
-			}, 0);
-			document.getElementById('layer-stats').textContent =
-				n + (n === 1 ? ' folder' : ' folders') + ' visible \\u00b7 ' + totalClasses + ' classes \\u00b7 ' +
-				lines.length + (lines.length === 1 ? ' relationship' : ' relationships');
+		function makeArrow(tipPos, dir, color, opacity, coneRadius, coneLength) {
+			var geo = new THREE.ConeGeometry(coneRadius, coneLength, 8);
+			var mat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: opacity, depthWrite: false });
+			var cone = new THREE.Mesh(geo, mat);
+			cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+			cone.position.copy(tipPos).addScaledVector(dir, -coneLength / 2);
+			cone.renderOrder = 3;
+			rigGL.add(cone);
+			return mat;
 		}
+
+		var LINE_RADIUS = 0.35, LINE_OPACITY = 0.4;
+		var lineColor = lerpColor(0.5);
+		lines.forEach(function (l, i) {
+			var angle = lines.length > 1 ? (i / lines.length) * Math.PI * 2 : 0;
+			var r = Math.min(l.source._w, l.target._w) / 2 * 0.5;
+
+			var start = new THREE.Vector3(Math.cos(angle) * r, l.source._y, Math.sin(angle) * r);
+			var end = new THREE.Vector3(Math.cos(angle) * r, l.target._y, Math.sin(angle) * r);
+
+			var curve = new THREE.LineCurve3(start, end);
+			var geo = new THREE.TubeGeometry(curve, 1, LINE_RADIUS, 6, false);
+			var mat = new THREE.MeshBasicMaterial({
+				color: lineColor, transparent: true, opacity: LINE_OPACITY, depthWrite: false
+			});
+			var lineMesh = new THREE.Mesh(geo, mat);
+			lineMesh.renderOrder = 2;
+			rigGL.add(lineMesh);
+
+			var dir = end.clone().sub(start).normalize();
+			var coneLen = Math.max(6, maxSheetSize * 0.025);
+			var coneRad = Math.max(1.6, maxSheetSize * 0.009);
+			var arrowMat = makeArrow(end, dir, lineColor, LINE_OPACITY, coneRad, coneLen);
+
+			if (!reduceMotion) {
+				mat.opacity = 0; arrowMat.opacity = 0;
+				tween(380, function (e) { mat.opacity = e * LINE_OPACITY; arrowMat.opacity = e * LINE_OPACITY; });
+			}
+
+			var lineRef = {
+				source: l.source,
+				target: l.target,
+				items: [
+					{ mat: mat, baseColor: lineColor.clone(), baseOpacity: LINE_OPACITY },
+					{ mat: arrowMat, baseColor: lineColor.clone(), baseOpacity: LINE_OPACITY }
+				]
+			};
+			l.source._beamMats.push(lineRef);
+			l.target._beamMats.push(lineRef);
+		});
+
+		camDist = Math.max(1000, stackHeight * 1.5 + maxSheetSize * 1.4);
+
+		document.getElementById('layer-stats').textContent =
+			n + (n === 1 ? ' layer' : ' layers') + ' \\u00b7 ' +
+			frontier.reduce(function (s, node) { return s + node.classCount; }, 0) + ' classes \\u00b7 ' +
+			lines.length + (lines.length === 1 ? ' relationship' : ' relationships');
 
 		function placeCamera() {
 			camera.position.set(camDist * 0.78, camDist * 0.38, camDist * 0.46);
 			camera.lookAt(0, 0, 0);
 		}
 		placeCamera();
-
-		renderTree();
 
 		var rotY = 0.6, dragging = false, lastX = 0;
 		var autoRotate = !reduceMotion;
@@ -815,7 +638,6 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		});
 		stage.addEventListener('wheel', function (e) {
 			e.preventDefault();
-			userZoomed = true;
 			camDist = Math.max(280, Math.min(3000, camDist + e.deltaY * 1.0));
 		}, { passive: false });
 
