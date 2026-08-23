@@ -1,10 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
-import { CodeParserService, DiagramGeneratorService, GitDiffEnricher } from '@kratai/core';
+import { CodeParserService, DiagramGeneratorService, GitDiffEnricher, FolderStructureBuilder } from '@kratai/core';
 import { ClassDiagramView } from '@kratai/diagram-view';
 import { loadCliConfig } from '../config.js';
 import { openFile } from '../openFile.js';
+import { generateShellHTML } from '../viewShell.js';
 
 export interface ViewOptions {
 	path: string;
@@ -43,9 +44,16 @@ export async function runView(options: ViewOptions): Promise<void> {
 	// diagram's postMessage calls (Save/Settings/open-file), same as
 	// `analyze --format html`'s static output. Wire those up when the
 	// server actually handles them.
-	const html = ClassDiagramView.generate(nodes, edges, diagramName, config, undefined, false);
+	const classDiagramHtml = ClassDiagramView.generate(nodes, edges, diagramName, config, undefined, false);
+	const folderCount = FolderStructureBuilder.countFolders(FolderStructureBuilder.build(nodes));
+	const shellHtml = generateShellHTML(diagramName, {
+		classCount: nodes.length,
+		folderCount,
+		edgeCount: edges.length
+	});
 
-	const server = http.createServer((_req, res) => {
+	const server = http.createServer((req, res) => {
+		const html = req.url === '/class-diagram' ? classDiagramHtml : shellHtml;
 		res.writeHead(200, { 'Content-Type': 'text/html' });
 		res.end(html);
 	});
