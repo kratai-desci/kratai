@@ -151,9 +151,12 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		margin-left: auto; flex-shrink: 0;
 	}
 	.slab-chevron {
-		width: 10px; flex-shrink: 0; font-size: 8px; text-align: center;
+		width: 12px; height: 12px; flex-shrink: 0;
+		display: flex; align-items: center; justify-content: center;
 		color: var(--text-faint);
 	}
+	.slab-chevron svg { width: 11px; height: 11px; transition: transform 0.15s ease; }
+	.slab-chevron.expanded svg { transform: rotate(90deg); }
 	.slab-face.drillable { cursor: pointer; }
 	.slab-face.drillable .slab-label { font-weight: 800; }
 	.slab-vis {
@@ -163,6 +166,16 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 	}
 	.slab-vis svg { width: 12px; height: 12px; }
 	.slab-vis:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+	.slab-drag {
+		width: 16px; height: 18px; flex-shrink: 0;
+		display: flex; align-items: center; justify-content: center;
+		color: var(--text-faint);
+	}
+	.slab-drag[draggable] { cursor: grab; }
+	.slab-drag[draggable]:hover { color: var(--accent); }
+	.slab-drag[draggable]:active { cursor: grabbing; }
+	.slab-drag svg { width: 12px; height: 12px; }
+	.slab-face.drag-over { box-shadow: inset 0 2px 0 var(--accent); }
 
 	#hint-layer {
 		position: absolute; right: 18px; bottom: 18px; z-index: 10;
@@ -545,15 +558,60 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			return { path: f.path, name: f.name, score: f.score || 0, classCount: f.classes.length };
 		}));
 		var expandedGroups = {};
-		// Session-only (not persisted - see stackLayerData.ts's docblock,
-		// this is the "show/hide" half of that discussion, drag-reorder is
-		// separate follow-up work). Keyed by node.path for a whole node
-		// (and, if it's a group, everything nested under it); a group that
-		// also directly owns classes gets a second independent key
-		// (path + SELF_SUFFIX) so hiding its own classes doesn't have to
-		// hide its subfolders too.
+		// Session-only, not persisted - unlike drag-reorder below, hide/show
+		// is purely a "what am I looking at right now" view state, not an
+		// architectural fact worth remembering across runs. Keyed by
+		// node.path for a whole node (and, if it's a group, everything
+		// nested under it); a group that also directly owns classes gets a
+		// second independent key (path + SELF_SUFFIX) so hiding its own
+		// classes doesn't have to hide its subfolders too.
 		var hiddenNodes = {};
 		var SELF_SUFFIX = '::self';
+
+		// Each real folder's position in DATA.folders (server-sorted by
+		// custom config order, then alphabetically) before any drag this
+		// session - the stable tiebreak drag-reorder uses to keep folders
+		// that get dragged together in the same relative order they were
+		// already in, rather than however object key iteration happens to
+		// land them.
+		var originalRank = {};
+		DATA.folders.forEach(function (f, i) { originalRank[f.path] = i; });
+
+		function collectLeafPaths(node, out) {
+			if (node.leaf) out.push(node.path);
+			node.children.forEach(function (c) { collectLeafPaths(c, out); });
+		}
+
+		// Persists a sibling-array's current order to kratai.local.json (see
+		// config.ts's saveFolderOrder) so it survives past this session -
+		// unlike expand/hide state, "this is how these layers relate to
+		// each other" is exactly the kind of architectural framing worth
+		// remembering. Dragging a *group* moves everything folded into it
+		// as one block: every real leaf folder under a sibling gets that
+		// sibling's new rank as the high-order digits, with its own prior
+		// rank preserved as a tiebreak underneath, so folders dragged
+		// together keep their existing relative order instead of colliding
+		// on one shared value.
+		var ORDER_BUCKET = 100000;
+		function persistOrderFor(siblings) {
+			var orders = {};
+			siblings.forEach(function (sib, i) {
+				var leafPaths = [];
+				collectLeafPaths(sib, leafPaths);
+				leafPaths.forEach(function (p) { orders[p] = i * ORDER_BUCKET + (originalRank[p] || 0); });
+			});
+			fetch('/api/folder-order', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ orders: orders })
+			}).catch(function () {});
+		}
+
+		// Set for the duration of a drag (native HTML5 drag-and-drop) -
+		// which sibling array and index the drag started from, so a drop
+		// target can check it's a sibling of the same tree level (dragging
+		// across levels isn't supported) before reordering.
+		var dragSource = null;
 
 		// Sheets and list rows that persist across a drill/hide toggle
 		// (same path key present before and after) reuse their existing
@@ -638,6 +696,11 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 
 		var EYE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>';
 		var EYE_OFF_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a21.8 21.8 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a21.8 21.8 0 0 1-3.22 4.36M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+		var HAMBURGER_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>';
+		// One triangle, rotated by CSS (see .slab-chevron.expanded) rather
+		// than swapped for a different glyph: pointing right it reads as
+		// ">" (collapsed), rotated 90deg it reads as "v" (expanded).
+		var CHEVRON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 5 16 12 9 19"/></svg>';
 
 		// A group row's chevron + click-to-toggle; expanded groups recurse
 		// into their children indented beneath them (a real drill-down tree
@@ -645,8 +708,13 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		// always collapse back to where you were. ancestorHidden is passed
 		// down so a row under a hidden folder reads as dimmed too, even
 		// though its own visibility flag is untouched (restoring the parent
-		// later reveals it again with no extra clicks needed).
-		function renderListRows(node, depth, ancestorHidden, newRowKeys, stagger) {
+		// later reveals it again with no extra clicks needed). siblings is
+		// the array node actually lives in (layerTree.children at the root,
+		// or a parent node's own .children) - the object drag-reorder
+		// mutates directly - with index its current position in it; both
+		// are null for the synthetic self-pseudo-node, which isn't a real
+		// tree entry and so can't be dragged.
+		function renderListRows(node, depth, ancestorHidden, newRowKeys, stagger, siblings, index) {
 			var isGroup = node.children.length > 0;
 			var hideKey = node.isSelf ? (node.path + SELF_SUFFIX) : node.path;
 			var ownHidden = !!hiddenNodes[hideKey];
@@ -659,7 +727,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 
 			var row = document.createElement('div');
 			row.className = 'slab-face' + (isGroup ? ' drillable' : '');
-			row.style.paddingLeft = (8 + depth * 14) + 'px';
+			row.style.paddingLeft = (4 + depth * 14) + 'px';
 			row.title = node.path;
 
 			row.addEventListener('mouseenter', function () { sheetsForNode(node).forEach(highlightSheet); });
@@ -671,9 +739,53 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 				});
 			}
 
+			// Always reserve the handle's width, even on the synthetic
+			// self-row (siblings is null there, so it stays an empty
+			// spacer) - otherwise that one row's chevron/label would sit
+			// out of alignment with every draggable sibling around it.
+			var drag = document.createElement('div');
+			drag.className = 'slab-drag';
+			if (siblings) {
+				drag.innerHTML = HAMBURGER_SVG;
+				drag.title = 'Drag to reorder';
+				drag.draggable = true;
+				drag.addEventListener('click', function (e) { e.stopPropagation(); });
+				drag.addEventListener('dragstart', function (e) {
+					e.stopPropagation();
+					dragSource = { siblings: siblings, index: index };
+					e.dataTransfer.effectAllowed = 'move';
+					e.dataTransfer.setData('text/plain', node.path);
+					try { e.dataTransfer.setDragImage(row, 14, 14); } catch (err) { /* not all browsers support a custom drag image */ }
+				});
+				drag.addEventListener('dragend', function () {
+					dragSource = null;
+					var overRows = layerList.querySelectorAll('.drag-over');
+					for (var i = 0; i < overRows.length; i++) overRows[i].classList.remove('drag-over');
+				});
+
+				row.addEventListener('dragover', function (e) {
+					if (!dragSource || dragSource.siblings !== siblings) return;
+					e.preventDefault();
+					e.dataTransfer.dropEffect = 'move';
+					row.classList.add('drag-over');
+				});
+				row.addEventListener('dragleave', function () { row.classList.remove('drag-over'); });
+				row.addEventListener('drop', function (e) {
+					if (!dragSource || dragSource.siblings !== siblings) return;
+					e.preventDefault();
+					row.classList.remove('drag-over');
+					var from = dragSource.index, to = index;
+					dragSource = null;
+					if (from === to) return;
+					var moved = siblings.splice(from, 1)[0];
+					siblings.splice(to, 0, moved);
+					persistOrderFor(siblings);
+					renderStack(true);
+				});
+			}
 			var chevron = document.createElement('div');
-			chevron.className = 'slab-chevron';
-			chevron.textContent = isGroup ? (expandedGroups[node.path] ? '\\u25BE' : '\\u25B8') : '';
+			chevron.className = 'slab-chevron' + (isGroup && expandedGroups[node.path] ? ' expanded' : '');
+			chevron.innerHTML = isGroup ? CHEVRON_SVG : '';
 			row.appendChild(chevron);
 
 			var label = document.createElement('div');
@@ -699,6 +811,10 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			});
 			row.appendChild(vis);
 
+			// Drag handle sits last, behind the eye toggle - a trailing
+			// grip rather than the row's leading element.
+			row.appendChild(drag);
+
 			layerList.appendChild(row);
 
 			if (isNewRow && stagger.animate && !reduceMotion) {
@@ -717,8 +833,8 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 
 			if (isGroup && expandedGroups[node.path]) {
 				var childAncestorHidden = effectivelyHidden;
-				if (node.leaf) renderListRows({ path: node.path, name: node.name, children: [], leaf: node.leaf, isSelf: true }, depth + 1, childAncestorHidden, newRowKeys, stagger);
-				node.children.forEach(function (c) { renderListRows(c, depth + 1, childAncestorHidden, newRowKeys, stagger); });
+				if (node.leaf) renderListRows({ path: node.path, name: node.name, children: [], leaf: node.leaf, isSelf: true }, depth + 1, childAncestorHidden, newRowKeys, stagger, null, -1);
+				node.children.forEach(function (c, idx) { renderListRows(c, depth + 1, childAncestorHidden, newRowKeys, stagger, node.children, idx); });
 			}
 		}
 
@@ -911,7 +1027,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			// since the last render (see previousRowKeys/isNewRow there).
 			layerList.innerHTML = '';
 			var newRowKeys = {};
-			layerTree.children.forEach(function (c) { renderListRows(c, 0, false, newRowKeys, { i: 0, animate: animate }); });
+			layerTree.children.forEach(function (c, idx) { renderListRows(c, 0, false, newRowKeys, { i: 0, animate: animate }, layerTree.children, idx); });
 			previousRowKeys = newRowKeys;
 
 			// Auto-fit the camera to whatever's currently drilled into,

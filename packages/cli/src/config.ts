@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { ConfigService, KrataiConfig } from '@kratai/core';
+import { ConfigService, FolderConfig, KrataiConfig } from '@kratai/core';
 
 export interface ConfigOverrides {
 	folders?: string[];
@@ -59,4 +59,33 @@ export function loadCliConfig(
 	}
 
 	return config;
+}
+
+/**
+ * Persists custom folder order (the "hamburger" drag-reorder in `kratai
+ * view`'s stack layer) to kratai.local.json - the same personal, gitignored
+ * layer loadCliConfig already reads. Writes the full *effective* folders
+ * map (base config + whatever local.json already had, with these paths'
+ * order updated), not just the changed paths: kratai.local.json's own
+ * `folders` key, if present, replaces the base config's `folders` wholesale
+ * on load (a shallow `{ ...config, ...localConfig }` merge, not a deep
+ * one) - writing only the delta here would silently drop any folder
+ * settings that came from kratai.config.json itself the next time this
+ * runs.
+ */
+export function saveFolderOrder(workspacePath: string, orders: Record<string, number>): void {
+	const effectiveConfig = loadCliConfig(workspacePath, undefined, {});
+	const localConfigPath = path.join(workspacePath, 'kratai.local.json');
+	const existingLocal: Partial<KrataiConfig> = fs.existsSync(localConfigPath)
+		? JSON.parse(fs.readFileSync(localConfigPath, 'utf-8'))
+		: {};
+
+	const folders: Record<string, FolderConfig> = { ...effectiveConfig.folders };
+	for (const [folderPath, order] of Object.entries(orders)) {
+		const existingFolder = folders[folderPath];
+		folders[folderPath] = { ...existingFolder, selected: existingFolder?.selected ?? true, order };
+	}
+
+	const nextLocal: Partial<KrataiConfig> = { ...existingLocal, folders };
+	fs.writeFileSync(localConfigPath, JSON.stringify(nextLocal, null, 2) + '\n', 'utf-8');
 }

@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as http from 'http';
 import { CodeParserService, DiagramGeneratorService, GitDiffEnricher, FolderStructureBuilder, MarkdownExporter } from '@kratai/core';
 import { ClassDiagramView } from '@kratai/diagram-view';
-import { loadCliConfig } from '../config.js';
+import { loadCliConfig, saveFolderOrder } from '../config.js';
 import { openFile } from '../openFile.js';
 import { generateShellHTML } from '../viewShell.js';
 import { buildStackLayerData } from '../stackLayerData.js';
@@ -62,6 +62,22 @@ export async function runView(options: ViewOptions): Promise<void> {
 				'Content-Disposition': `attachment; filename="${diagramName}.md"`
 			});
 			res.end(markdown);
+			return;
+		}
+		if (req.method === 'POST' && req.url === '/api/folder-order') {
+			let body = '';
+			req.on('data', chunk => { body += chunk; });
+			req.on('end', () => {
+				try {
+					const payload = JSON.parse(body) as { orders?: Record<string, number> };
+					saveFolderOrder(workspacePath, payload.orders || {});
+					res.writeHead(200, { 'Content-Type': 'application/json' });
+					res.end(JSON.stringify({ ok: true }));
+				} catch (error) {
+					res.writeHead(400, { 'Content-Type': 'application/json' });
+					res.end(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+				}
+			});
 			return;
 		}
 		const html = req.url === '/class-diagram' ? classDiagramHtml
