@@ -47,7 +47,7 @@ export async function runView(options: ViewOptions): Promise<void> {
 	// when the server actually handles them.
 	const classDiagramHtml = ClassDiagramView.generate(nodes, edges, diagramName, config, undefined, false);
 	const folderCount = FolderStructureBuilder.countFolders(FolderStructureBuilder.build(nodes));
-	const stackLayerHtml = generateStackLayerHTML(buildStackLayerData(diagramName, nodes, edges));
+	const stackLayerHtml = generateStackLayerHTML(buildStackLayerData(diagramName, nodes, edges, config));
 	const markdown = MarkdownExporter.toMarkdown(diagramData, diagramName);
 	const shellHtml = generateShellHTML(diagramName, {
 		classCount: nodes.length,

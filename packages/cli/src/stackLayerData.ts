@@ -1,4 +1,4 @@
-import { DiagramFolderNode, FolderStructureBuilder, ReactFlowEdge, ReactFlowNode } from '@kratai/core';
+import { DiagramFolderNode, FolderStructureBuilder, KrataiConfig, ReactFlowEdge, ReactFlowNode } from '@kratai/core';
 import { getLayerWeight } from '@kratai/diagram-view';
 
 export interface StackLayerClass {
@@ -34,6 +34,12 @@ export interface StackLayerData {
 	workspaceName: string;
 	folders: StackLayerFolder[];
 	relationships: StackLayerRelationship[];
+	// Folder paths that should start expanded in the 3D stack, read from
+	// config.folders[path].expanded (kratai.config.json/kratai.local.json) -
+	// the same per-path config map the class diagram already reads `order`
+	// from. Not restricted to leaf folders: an intermediate path like "app"
+	// is valid too, matching how the client's expand/collapse tree works.
+	initialExpanded: string[];
 }
 
 function collectLeafFolders(folder: DiagramFolderNode, leaves: DiagramFolderNode[]): void {
@@ -48,7 +54,7 @@ function collectLeafFolders(folder: DiagramFolderNode, leaves: DiagramFolderNode
  * folder's sheet), and cross-folder relationships for the beam lines
  * connecting sheets.
  */
-export function buildStackLayerData(workspaceName: string, nodes: ReactFlowNode[], edges: ReactFlowEdge[]): StackLayerData {
+export function buildStackLayerData(workspaceName: string, nodes: ReactFlowNode[], edges: ReactFlowEdge[], config?: KrataiConfig): StackLayerData {
 	const root = FolderStructureBuilder.build(nodes);
 	const leaves: DiagramFolderNode[] = [];
 	collectLeafFolders(root, leaves);
@@ -100,5 +106,9 @@ export function buildStackLayerData(workspaceName: string, nodes: ReactFlowNode[
 		}))
 		.filter((r): r is StackLayerRelationship => !!r.sourceFolder && !!r.targetFolder);
 
-	return { workspaceName, folders, relationships };
+	const initialExpanded = Object.entries(config?.folders || {})
+		.filter(([, folderConfig]) => folderConfig?.expanded === true)
+		.map(([path]) => path);
+
+	return { workspaceName, folders, relationships, initialExpanded };
 }

@@ -429,8 +429,12 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		// ---- expand/collapse state: which branches are opened in place.
 		// Root's direct children are always shown; expanding one swaps it
 		// for its own children without touching sibling branches, so
-		// drilling into /lib leaves /app right where it was. ----
+		// drilling into /lib leaves /app right where it was. Seeded from
+		// config.folders[path].expanded (see stackLayerData.ts) so a
+		// project can commit a starting view instead of everyone opening
+		// the same folders by hand every time. ----
 		var expanded = {};
+		(DATA.initialExpanded || []).forEach(function (p) { expanded[p] = true; });
 
 		function hasKids(node) { return Object.keys(node.children).length > 0; }
 
@@ -772,7 +776,11 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			// otherwise every expand/collapse (which calls renderTree again)
 			// would silently overwrite whatever zoom they'd set.
 			if (!userZoomed) {
-				camDist = Math.max(500, stackHeight * 1.35 + maxSheetSize * 1.2);
+				// Floor raised from 500 to 1000 - for a typical small/collapsed
+				// stack the size-based term below stays under the floor, so
+				// the floor is what actually governs the initial view most of
+				// the time (this is the "too close" the user was seeing).
+				camDist = Math.max(1000, stackHeight * 1.5 + maxSheetSize * 1.4);
 			}
 			visibleNodes = frontier;
 
