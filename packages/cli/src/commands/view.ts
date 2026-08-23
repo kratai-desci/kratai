@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
-import { CodeParserService, DiagramGeneratorService, GitDiffEnricher, FolderStructureBuilder } from '@kratai/core';
+import { CodeParserService, DiagramGeneratorService, GitDiffEnricher, FolderStructureBuilder, MarkdownExporter } from '@kratai/core';
 import { ClassDiagramView } from '@kratai/diagram-view';
 import { loadCliConfig } from '../config.js';
 import { openFile } from '../openFile.js';
@@ -48,6 +48,7 @@ export async function runView(options: ViewOptions): Promise<void> {
 	const classDiagramHtml = ClassDiagramView.generate(nodes, edges, diagramName, config, undefined, false);
 	const folderCount = FolderStructureBuilder.countFolders(FolderStructureBuilder.build(nodes));
 	const stackLayerHtml = generateStackLayerHTML(buildStackLayerData(diagramName, nodes, edges));
+	const markdown = MarkdownExporter.toMarkdown(diagramData, diagramName);
 	const shellHtml = generateShellHTML(diagramName, {
 		classCount: nodes.length,
 		folderCount,
@@ -55,6 +56,14 @@ export async function runView(options: ViewOptions): Promise<void> {
 	});
 
 	const server = http.createServer((req, res) => {
+		if (req.url === '/download.md') {
+			res.writeHead(200, {
+				'Content-Type': 'text/markdown; charset=utf-8',
+				'Content-Disposition': `attachment; filename="${diagramName}.md"`
+			});
+			res.end(markdown);
+			return;
+		}
 		const html = req.url === '/class-diagram' ? classDiagramHtml
 			: req.url === '/stack-layer' ? stackLayerHtml
 			: shellHtml;

@@ -88,12 +88,13 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 	#view-switch button:not(.active):hover { color: var(--text); }
 
 	#topbar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-	#theme-toggle {
+	#theme-toggle, #download-md {
 		width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
 		background: var(--surface-2); color: var(--text-dim); cursor: pointer;
 		display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+		text-decoration: none;
 	}
-	#theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+	#theme-toggle:hover, #download-md:hover { border-color: var(--accent); color: var(--accent); }
 
 	#view-container { flex: 1; min-height: 0; display: flex; }
 	#view-container.split { flex-direction: row; }
@@ -113,6 +114,9 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 		</div>
 		<div id="topbar-actions">
 			<div id="view-switch"></div>
+			<a id="download-md" href="/download.md" download="${workspaceName}.md" title="Download Markdown">
+				<svg width="14" height="14" viewBox="0 0 14 14"><path d="M7,1.5 V9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/><path d="M4,6.5 L7,9.5 L10,6.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M2,12 H12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/></svg>
+			</a>
 			<button id="theme-toggle" title="Toggle theme"></button>
 		</div>
 	</div>
