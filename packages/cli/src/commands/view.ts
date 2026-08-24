@@ -5,7 +5,7 @@ import { CodeParserService, DiagramGeneratorService, GitDiffEnricher, FolderStru
 import { ClassDiagramView } from '@kratai/diagram-view';
 import { loadCliConfig, saveFolderExpanded, saveFolderOrder, saveFolderPanelOpen, saveFolderVisibility } from '../config.js';
 import { openFile } from '../openFile.js';
-import { generateShellHTML } from '../viewShell.js';
+import { generateShellHTML, ShellStats } from '../viewShell.js';
 import { buildStackLayerData } from '../stackLayerData.js';
 import { generateStackLayerHTML } from '../stackLayerView.js';
 
@@ -26,7 +26,7 @@ export async function runView(options: ViewOptions): Promise<void> {
 	const diagramName = path.basename(workspacePath);
 
 	console.log(`Analyzing ${workspacePath}...`);
-	const diagramData = await CodeParserService.parseWorkspace(workspacePath, config);
+	let diagramData = await CodeParserService.parseWorkspace(workspacePath, config);
 
 	if (config.gitDiff?.enabled !== false) {
 		try {
@@ -41,9 +41,9 @@ export async function runView(options: ViewOptions): Promise<void> {
 		throw new Error('No classes found - check your folder/extension filters.');
 	}
 
-	const { nodes, edges } = DiagramGeneratorService.generateReactFlowData(diagramData);
-	const folderCount = FolderStructureBuilder.countFolders(FolderStructureBuilder.build(nodes));
-	const markdown = MarkdownExporter.toMarkdown(diagramData, diagramName);
+	let { nodes, edges } = DiagramGeneratorService.generateReactFlowData(diagramData);
+	let folderCount = FolderStructureBuilder.countFolders(FolderStructureBuilder.build(nodes));
+	let markdown = MarkdownExporter.toMarkdown(diagramData, diagramName);
 	const shellHtml = generateShellHTML(diagramName, {
 		classCount: nodes.length,
 		folderCount,
@@ -69,6 +69,37 @@ export async function runView(options: ViewOptions): Promise<void> {
 	function renderStackLayer(): string {
 		const freshConfig = loadCliConfig(workspacePath, undefined, {});
 		return generateStackLayerHTML(buildStackLayerData(diagramName, nodes, edges, freshConfig));
+	}
+
+	// Re-runs the expensive parse (the refresh button's whole job) and
+	// swaps out the cached diagramData/nodes/edges/markdown closures above -
+	// renderClassDiagram/renderStackLayer read those same `let` bindings, so
+	// the very next iframe reload picks up the new data with no other
+	// wiring needed. Reloads config from disk too, in case selectedFolders/
+	// extensions changed alongside the source.
+	async function reparse(): Promise<ShellStats> {
+		console.log(`Re-analyzing ${workspacePath}...`);
+		const freshConfig = loadCliConfig(workspacePath, undefined, {});
+		diagramData = await CodeParserService.parseWorkspace(workspacePath, freshConfig);
+
+		if (freshConfig.gitDiff?.enabled !== false) {
+			try {
+				const baseCommit = freshConfig.gitDiff?.baseCommit || 'HEAD~1';
+				await GitDiffEnricher.enrichWithGitDiff(diagramData, workspacePath, baseCommit);
+			} catch (error) {
+				console.warn(`Skipping git diff highlighting: ${error instanceof Error ? error.message : error}`);
+			}
+		}
+
+		if (diagramData.classes.length === 0) {
+			throw new Error('No classes found - check your folder/extension filters.');
+		}
+
+		({ nodes, edges } = DiagramGeneratorService.generateReactFlowData(diagramData));
+		folderCount = FolderStructureBuilder.countFolders(FolderStructureBuilder.build(nodes));
+		markdown = MarkdownExporter.toMarkdown(diagramData, diagramName);
+
+		return { classCount: nodes.length, folderCount, edgeCount: edges.length };
 	}
 
 	// Reads and parses a POST body, then hands it to `handle` - shared by
@@ -124,6 +155,16 @@ export async function runView(options: ViewOptions): Promise<void> {
 		if (req.method === 'POST' && req.url === '/api/folder-panel-open') {
 			handleJsonPost<{ open?: boolean }>(req, res, payload => {
 				saveFolderPanelOpen(workspacePath, !!payload.open);
+			});
+			return;
+		}
+		if (req.method === 'POST' && req.url === '/api/refresh') {
+			reparse().then(stats => {
+				res.writeHead(200, { 'Content-Type': 'application/json' });
+				res.end(JSON.stringify({ ok: true, ...stats }));
+			}).catch(error => {
+				res.writeHead(400, { 'Content-Type': 'application/json' });
+				res.end(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
 			});
 			return;
 		}

@@ -88,13 +88,16 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 	#view-switch button:not(.active):hover { color: var(--text); }
 
 	#topbar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-	#theme-toggle, #download-md {
+	#theme-toggle, #download-md, #refresh-btn {
 		width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
 		background: var(--surface-2); color: var(--text-dim); cursor: pointer;
 		display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 		text-decoration: none;
 	}
-	#theme-toggle:hover, #download-md:hover { border-color: var(--accent); color: var(--accent); }
+	#theme-toggle:hover, #download-md:hover, #refresh-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+	#refresh-btn:disabled { cursor: wait; opacity: 0.7; }
+	#refresh-btn.spinning svg { animation: kratai-spin 0.7s linear infinite; }
+	@keyframes kratai-spin { to { transform: rotate(360deg); } }
 
 	#view-container { flex: 1; min-height: 0; display: flex; }
 	#view-container.split { flex-direction: row; }
@@ -114,6 +117,9 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 		</div>
 		<div id="topbar-actions">
 			<div id="view-switch"></div>
+			<button id="refresh-btn" title="Re-scan the project">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+			</button>
 			<a id="download-md" href="/download.md" download="${workspaceName}.md" title="Download Markdown">
 				<svg width="14" height="14" viewBox="0 0 14 14"><path d="M7,1.5 V9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/><path d="M4,6.5 L7,9.5 L10,6.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M2,12 H12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/></svg>
 			</a>
@@ -296,6 +302,36 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 		window.addEventListener('resize', function () {
 			applyMode();
 			renderSwitch();
+		});
+
+		// Re-scans the whole project from disk - neither iframe re-parses on
+		// its own reload (see view.ts's runView: the parse is cached server-
+		// side for the process's lifetime), so this is currently the only
+		// way to pick up source changes without restarting the server.
+		document.getElementById('refresh-btn').addEventListener('click', function () {
+			var btn = this;
+			if (btn.disabled) return;
+			btn.disabled = true;
+			btn.classList.add('spinning');
+			fetch('/api/refresh', { method: 'POST' })
+				.then(function (res) { return res.json(); })
+				.then(function (result) {
+					if (!result.ok) throw new Error(result.error || 'Refresh failed');
+					document.querySelector('#topbar .sub').textContent =
+						result.classCount + ' classes • ' + result.folderCount + ' folders • ' + result.edgeCount + ' relationships';
+					var stackFrame = document.getElementById('stack-frame');
+					var classFrame = document.getElementById('class-frame');
+					if (stackFrame.contentWindow) stackFrame.contentWindow.location.reload();
+					if (classFrame.contentWindow) classFrame.contentWindow.location.reload();
+				})
+				.catch(function (error) {
+					btn.title = 'Refresh failed: ' + error.message;
+					setTimeout(function () { btn.title = 'Re-scan the project'; }, 4000);
+				})
+				.finally(function () {
+					btn.disabled = false;
+					btn.classList.remove('spinning');
+				});
 		});
 	</script>
 </body>
