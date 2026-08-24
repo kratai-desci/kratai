@@ -56,6 +56,14 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		--text: #17203A; --text-dim: #5C6785; --text-faint: #94A0BE;
 		--border: #DCE3F2; --accent: #3459E0; --accent-2: #14A6B8;
 		--modified: #C98A1B;
+		/* Background dot grid - its own token rather than reusing --border
+		   directly, since --border is already low-contrast against --bg in
+		   light mode (both pale blue-greys) and gets diluted further by the
+		   opacity mix, leaving the dots nearly invisible. --text-faint is
+		   darker/more saturated, so the same style of mix stays visible
+		   without the dots reading as loud. Dark mode's --border already has
+		   plenty of contrast against its --bg, so it keeps the original mix. */
+		--dot: color-mix(in srgb, var(--text-faint) 55%, transparent);
 	}
 	@media (prefers-color-scheme: dark) {
 		:root:not([data-theme="light"]) {
@@ -63,6 +71,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			--text: #E8ECFB; --text-dim: #939CBE; --text-faint: #5B6488;
 			--border: #262E4E; --accent: #6D93F5; --accent-2: #4FDCEA;
 			--modified: #F0C05A;
+			--dot: color-mix(in srgb, var(--border) 70%, transparent);
 		}
 	}
 	:root[data-theme="dark"] {
@@ -70,6 +79,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		--text: #E8ECFB; --text-dim: #939CBE; --text-faint: #5B6488;
 		--border: #262E4E; --accent: #6D93F5; --accent-2: #4FDCEA;
 		--modified: #F0C05A;
+		--dot: color-mix(in srgb, var(--border) 70%, transparent);
 	}
 	* { box-sizing: border-box; }
 	html, body { margin: 0; padding: 0; height: 100%; }
@@ -94,7 +104,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 	#stage {
 		position: relative; flex: 1; min-height: 0;
 		cursor: grab;
-		background-image: radial-gradient(color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1px);
+		background-image: radial-gradient(var(--dot) 1px, transparent 1px);
 		background-size: 22px 22px;
 	}
 	#stage canvas { position: absolute; inset: 0; }
@@ -322,14 +332,16 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 
 		// ---- color ramp by rank (shallow -> deep) ----
 		var accentRGB = [0x6D, 0x93, 0xF5], accent2RGB = [0x4F, 0xDC, 0xEA];
-		// Arrowheads use the page's --text token, not a third shade of the
-		// same blue-to-teal ramp everything else already uses - a same-hue
+		// Arrowheads/lines use a neutral grey, not a third shade of the same
+		// blue-to-teal ramp everything else already uses - a same-hue
 		// arrowhead disappears into the lines and sheets around it, so it
 		// needs to read as a distinct, unmistakably-a-marker color instead.
-		var textRGB = [0xE8, 0xEC, 0xFB];
+		// Grey (not pure black/white, i.e. not --text) keeps it from
+		// competing with actual on-screen text for attention.
+		var arrowRGB = [0x9C, 0xA3, 0xAF];
 		var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-		if (!isDark) { accentRGB = [0x34, 0x59, 0xE0]; accent2RGB = [0x14, 0xA6, 0xB8]; textRGB = [0x17, 0x20, 0x3A]; }
-		var arrowColor = new THREE.Color('rgb(' + textRGB[0] + ',' + textRGB[1] + ',' + textRGB[2] + ')');
+		if (!isDark) { accentRGB = [0x34, 0x59, 0xE0]; accent2RGB = [0x14, 0xA6, 0xB8]; arrowRGB = [0x4B, 0x55, 0x63]; }
+		var arrowColor = new THREE.Color('rgb(' + arrowRGB[0] + ',' + arrowRGB[1] + ',' + arrowRGB[2] + ')');
 		function lerpColor(t) {
 			var c = accentRGB.map(function (v, i) { return Math.round(v + (accent2RGB[i] - v) * t); });
 			return new THREE.Color('rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')');
@@ -681,6 +693,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		// the class diagram's own panel so both look and behave identically. ----
 		window.FOLDER_PANEL_LEAVES = DATA.folders.map(function (f) { return { path: f.path, name: f.name }; });
 		window.FOLDER_PANEL_INITIAL_HIDDEN = DATA.initialHidden || [];
+		window.FOLDER_PANEL_EXPLICIT_HIDDEN = DATA.explicitlyConfiguredHidden || [];
 		window.FOLDER_PANEL_INITIAL_EXPANDED = DATA.initialExpanded || [];
 		window.FOLDER_PANEL_INITIAL_OPEN = DATA.initialPanelOpen;
 		${generateFolderPanelScript()}

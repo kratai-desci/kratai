@@ -395,6 +395,44 @@ export class WorkspaceScanner {
 	 */
 	private static shouldIncludeFile(filePath: string, selectedExtensions: string[]): boolean {
 		const ext = path.extname(filePath);
-		return selectedExtensions.includes(ext);
+		if (!selectedExtensions.includes(ext)) return false;
+		return !this.looksMinified(filePath);
+	}
+
+	// Below this size, checking content isn't worth the extra read - even a
+	// dense one-liner (a long import, a big object literal) won't be large
+	// enough to trip a parser, and this keeps the check off the vast
+	// majority of ordinary source files.
+	private static readonly MINIFIED_SIZE_THRESHOLD_BYTES = 50_000;
+	// A hand-written line rarely runs past a couple hundred characters;
+	// minified/bundled output packs an entire file onto one line
+	// (kratai's own vendored three.js averages ~110,000 chars/line), so
+	// this threshold sits comfortably above any real editing convention.
+	private static readonly MINIFIED_AVG_LINE_LENGTH_THRESHOLD = 500;
+
+	/**
+	 * Vendored/bundled/minified code checked into a repo (a committed
+	 * `vendor/three.min.js`, a bundler's output, ...) isn't something
+	 * anyone wants "architecture" insight into, and its pathologically
+	 * deep, line-less structure can blow a parser's call stack - so it's
+	 * worth skipping proactively rather than relying only on
+	 * CodeParserService's per-file try/catch to survive it. Extension
+	 * alone (`*.min.js`) doesn't catch bundler output that omits that
+	 * convention, so this also checks actual line density for anything
+	 * unusually large.
+	 */
+	private static looksMinified(filePath: string): boolean {
+		if (/\.min\.(m|c)?jsx?$/i.test(filePath)) return true;
+
+		try {
+			const stat = fs.statSync(filePath);
+			if (stat.size < this.MINIFIED_SIZE_THRESHOLD_BYTES) return false;
+
+			const content = fs.readFileSync(filePath, 'utf-8');
+			const lineCount = (content.match(/\n/g) || []).length + 1;
+			return content.length / lineCount > this.MINIFIED_AVG_LINE_LENGTH_THRESHOLD;
+		} catch (error) {
+			return false;
+		}
 	}
 }

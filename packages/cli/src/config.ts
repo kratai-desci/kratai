@@ -103,13 +103,13 @@ export function saveFolderOrder(workspacePath: string, orders: Record<string, nu
 
 /**
  * Persists a single folder's visibility - the eye toggle shared by the
- * class diagram and the stack layer's own folder panels. `folderPath` may
- * be a real leaf/ancestor folder path, or that path suffixed with the
- * client's own "::self" marker (see stackLayerView.ts's SELF_SUFFIX, and
- * folderPanelScript.ts's copy of the same convention) for the narrower
- * "hide just this folder's own classes, not its subfolders" case - both
- * are opaque string keys as far as this function and the config file are
- * concerned.
+ * class diagram and the stack layer's own folder panels. What "hidden"
+ * means for a given path depends on the client's current drill-down state
+ * for it (see folderPanelScript.ts): while collapsed it mutes the whole
+ * subtree at once; once expanded, a folder with its own files narrows to
+ * just those, since its subfolders are separately visible rows by then.
+ * This function just persists the flag - the path is an opaque string key
+ * as far as it and the config file are concerned.
  */
 export function saveFolderVisibility(workspacePath: string, folderPath: string, hidden: boolean): void {
 	patchLocalFolders(workspacePath, { [folderPath]: { hidden } });
@@ -117,9 +117,7 @@ export function saveFolderVisibility(workspacePath: string, folderPath: string, 
 
 /**
  * Persists a single group's drill-down expand state - the chevron shared
- * by both folder panels. Unlike hidden/order this only ever targets a
- * real group node's own path (never the "::self" variant - a leaf-only
- * pseudo-row has nothing of its own to expand).
+ * by both folder panels.
  */
 export function saveFolderExpanded(workspacePath: string, folderPath: string, expanded: boolean): void {
 	patchLocalFolders(workspacePath, { [folderPath]: { expanded } });

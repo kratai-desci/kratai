@@ -33,10 +33,16 @@ export interface StackLayerData {
 	workspaceName: string;
 	folders: StackLayerFolder[];
 	relationships: StackLayerRelationship[];
-	// Paths (opaque strings - see stackLayerView.ts's SELF_SUFFIX) with
-	// hidden set in config, seeding the client's hiddenNodes on load
-	// so a hide toggle from a previous session survives a restart.
+	// Paths with hidden set in config, seeding the client's hiddenNodes on
+	// load so a hide toggle from a previous session survives a restart.
 	initialHidden: string[];
+	// Paths where config has *any* explicit hidden value (true or false) -
+	// distinct from initialHidden, which only lists the true ones. The
+	// client auto-hides empty organizational folders by default (see
+	// folderPanelScript.ts), and needs to know a path was explicitly left
+	// *visible* so that smart default doesn't re-hide it out from under
+	// someone who deliberately chose to show it.
+	explicitlyConfiguredHidden: string[];
 	// Real group paths with expanded set in config, seeding expandedGroups
 	// on load so a drilled-into layer stays drilled into after a restart.
 	initialExpanded: string[];
@@ -157,10 +163,13 @@ export function buildStackLayerData(workspaceName: string, nodes: ReactFlowNode[
 	const initialHidden = Object.entries(config?.folders || {})
 		.filter(([, folderConfig]) => folderConfig.hidden)
 		.map(([folderPath]) => folderPath);
+	const explicitlyConfiguredHidden = Object.entries(config?.folders || {})
+		.filter(([, folderConfig]) => folderConfig.hidden !== undefined)
+		.map(([folderPath]) => folderPath);
 	const initialExpanded = Object.entries(config?.folders || {})
 		.filter(([, folderConfig]) => folderConfig.expanded)
 		.map(([folderPath]) => folderPath);
 	const initialPanelOpen = config?.folderPanelOpen !== false;
 
-	return { workspaceName, folders, relationships, initialHidden, initialExpanded, initialPanelOpen };
+	return { workspaceName, folders, relationships, initialHidden, explicitlyConfiguredHidden, initialExpanded, initialPanelOpen };
 }

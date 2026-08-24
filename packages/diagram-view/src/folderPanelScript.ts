@@ -109,7 +109,6 @@ export function generateFolderPanelScript(): string {
 	var HAMBURGER_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>';
 	var CHEVRON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 5 16 12 9 19"/></svg>';
 	var FOLDER_SVG = '<svg width="14" height="14" viewBox="0 0 14 14"><path d="M1,3.5 h4 l1.2,1.5 h6.3 v6.5 h-11.5 z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
-	var SELF_SUFFIX = '::self';
 
 	// The real leaf-folder set, already in the order the server sorted it
 	// (custom order, then alphabetical - see stackLayerData.ts /
@@ -126,10 +125,8 @@ export function generateFolderPanelScript(): string {
 	var originalRank = {};
 	leaves.forEach(function (f, i) { originalRank[f.path] = i; });
 
-	// ---- same compressed-tree idea as stackLayerView.ts's buildLayerTree:
-	// group by shared path prefix, then collapse any chain that never
-	// branches, so a group only exists where two or more real folders
-	// actually diverge. ----
+	// One row per real folder on the path to a leaf - no compression - so
+	// the panel's tree always matches the actual folder structure on disk.
 	function buildTree(items) {
 		var root = { path: '', name: '', children: [], leaf: null };
 		items.forEach(function (leaf) {
@@ -149,12 +146,6 @@ export function generateFolderPanelScript(): string {
 				if (idx === segs.length - 1) node.leaf = leaf;
 			});
 		});
-		function compress(node) {
-			node.children = node.children.map(compress);
-			while (!node.leaf && node.children.length === 1) node = node.children[0];
-			return node;
-		}
-		root.children = root.children.map(compress);
 		function aggregate(node) {
 			var leafCount = node.leaf ? 1 : 0;
 			node.children.forEach(function (c) { aggregate(c); leafCount += c._aggLeafCount; });
@@ -164,6 +155,27 @@ export function generateFolderPanelScript(): string {
 		return root;
 	}
 	var tree = buildTree(leaves);
+
+	// Paths where config has an explicit hidden value (true or false) -
+	// these always win over the smart default below, whichever way the
+	// user set them.
+	var explicitHiddenPaths = {};
+	(window.FOLDER_PANEL_EXPLICIT_HIDDEN || []).forEach(function (p) { explicitHiddenPaths[p] = true; });
+
+	// A folder with no code of its own and exactly one subfolder is pure
+	// path scaffolding - e.g. "cli" existing only so "cli/src" has
+	// somewhere to live. It still gets a real row (see buildTree above),
+	// but starts hidden so the default view isn't full of wrapper folders
+	// nobody asked to see. A branching folder (multiple subfolders) is a
+	// real architectural grouping even without its own code, so it's left
+	// alone - only single-child chains get this treatment.
+	function seedSmartDefaults(node) {
+		if (!node.leaf && node.children.length === 1 && !explicitHiddenPaths[node.path]) {
+			hiddenNodes[node.path] = true;
+		}
+		node.children.forEach(seedSmartDefaults);
+	}
+	tree.children.forEach(seedSmartDefaults);
 
 	function collectLeafPaths(node, out) {
 		if (node.leaf) out.push(node.path);
@@ -224,16 +236,18 @@ export function generateFolderPanelScript(): string {
 	// changed - simple and correct, and cheap enough at this scale (dozens
 	// of folders, not thousands).
 	//
-	// A collapsed group produces one 'merged' plan entry carrying every
-	// real leaf path folded into it (mirrors stackLayerView.ts's own
-	// collapsed-group aggregate, just without the 3D sizing). An expanded
-	// group produces no entry of its own - only its real children (and its
-	// own leaf, if it has one) do, each a standalone 'leaf' entry. ----
+	// A collapsed group produces one 'merged' plan entry carrying every real
+	// leaf path folded into it (mirrors stackLayerView.ts's own collapsed-
+	// group aggregate, just without the 3D sizing) - so hiding a *collapsed*
+	// group hides its whole subtree in one click. An expanded group's own
+	// hidden flag instead only covers its own leaf entry (if it has one) -
+	// its children are separately visible rows with their own hidden flags
+	// by then, so there's nothing left to cascade into. ----
 	function applyState() {
 		var plan = [];
-		function walk(node, ancestorHidden) {
+		function walk(node) {
 			if (!node.children.length) {
-				plan.push({ type: 'leaf', path: node.path, hidden: ancestorHidden || !!hiddenNodes[node.path] });
+				plan.push({ type: 'leaf', path: node.path, hidden: !!hiddenNodes[node.path] });
 				return;
 			}
 			if (!expandedGroups[node.path]) {
@@ -241,17 +255,16 @@ export function generateFolderPanelScript(): string {
 				collectLeafPaths(node, realPaths);
 				plan.push({
 					type: 'merged', path: node.path, name: node.name, realPaths: realPaths,
-					hidden: ancestorHidden || !!hiddenNodes[node.path]
+					hidden: !!hiddenNodes[node.path]
 				});
 				return;
 			}
-			var nextAncestorHidden = ancestorHidden || !!hiddenNodes[node.path];
 			if (node.leaf) {
-				plan.push({ type: 'leaf', path: node.path, hidden: nextAncestorHidden || !!hiddenNodes[node.path + SELF_SUFFIX] });
+				plan.push({ type: 'leaf', path: node.path, hidden: !!hiddenNodes[node.path] });
 			}
-			node.children.forEach(function (c) { walk(c, nextAncestorHidden); });
+			node.children.forEach(walk);
 		}
-		tree.children.forEach(function (c) { walk(c, false); });
+		tree.children.forEach(walk);
 		if (window.applyFolderPlan) window.applyFolderPlan(plan);
 	}
 
@@ -290,14 +303,37 @@ export function generateFolderPanelScript(): string {
 		postFolderConfig('/api/folder-panel-open', { open: !hidden });
 	});
 
-	function renderRow(node, depth, ancestorHidden, newRowKeys, stagger, siblings, index) {
-		var isGroup = node.children.length > 0;
-		var hideKey = node.isSelf ? (node.path + SELF_SUFFIX) : node.path;
-		var ownHidden = !!hiddenNodes[hideKey];
-		var effectivelyHidden = ancestorHidden || ownHidden;
-		var targetOpacity = effectivelyHidden ? '0.35' : '1';
+	// A pass-through folder (no code of its own, exactly one subfolder)
+	// doesn't reveal anything by expanding just itself - the real content
+	// is another single-child hop (or several) further down. Expanding the
+	// whole chain in one click gets straight to it instead of forcing a
+	// separate click through every wrapper folder. Also clears any
+	// smart-default hidden flag along the way, since drilling in is a
+	// clear signal the user wants to see what's inside - a path the user
+	// explicitly hid (explicitHiddenPaths) is left alone either way.
+	// Returns the touched nodes so the caller can persist each change.
+	function cascadeExpand(node) {
+		var touched = [];
+		function step(n) {
+			expandedGroups[n.path] = true;
+			var unhidden = !explicitHiddenPaths[n.path] && !!hiddenNodes[n.path];
+			if (unhidden) delete hiddenNodes[n.path];
+			touched.push({ path: n.path, unhidden: unhidden });
+		}
+		step(node);
+		while (!node.leaf && node.children.length === 1) {
+			node = node.children[0];
+			step(node);
+		}
+		return touched;
+	}
 
-		var rowKey = hideKey;
+	function renderRow(node, depth, newRowKeys, stagger, siblings, index) {
+		var isGroup = node.children.length > 0;
+		var ownHidden = !!hiddenNodes[node.path];
+		var targetOpacity = ownHidden ? '0.35' : '1';
+
+		var rowKey = node.path;
 		newRowKeys[rowKey] = true;
 		var isNewRow = !previousRowKeys[rowKey];
 
@@ -316,10 +352,18 @@ export function generateFolderPanelScript(): string {
 		if (isGroup) {
 			row.addEventListener('click', function () {
 				var nowExpanded = !expandedGroups[node.path];
-				expandedGroups[node.path] = nowExpanded;
+				if (nowExpanded) {
+					var touched = cascadeExpand(node);
+					touched.forEach(function (t) {
+						postFolderConfig('/api/folder-expanded', { path: t.path, expanded: true });
+						if (t.unhidden) persistVisibility(t.path, false);
+					});
+				} else {
+					expandedGroups[node.path] = false;
+					postFolderConfig('/api/folder-expanded', { path: node.path, expanded: false });
+				}
 				renderPanel();
 				applyState();
-				postFolderConfig('/api/folder-expanded', { path: node.path, expanded: nowExpanded });
 			});
 		}
 
@@ -382,17 +426,22 @@ export function generateFolderPanelScript(): string {
 			: '';
 		row.appendChild(count);
 
+		// While collapsed, this toggle mutes the whole subtree at once (there's
+		// only one merged box to show/hide); once expanded, each child is its
+		// own row with its own toggle, so this one narrows to just this
+		// folder's own files.
+		var scope = isGroup && expandedGroups[node.path] && node.leaf ? ' own files' : isGroup && !expandedGroups[node.path] ? ' all' : '';
 		var vis = document.createElement('div');
 		vis.className = 'fp-vis';
 		vis.innerHTML = ownHidden ? EYE_OFF_SVG : EYE_SVG;
-		vis.title = ownHidden ? 'Show' : 'Hide';
+		vis.title = (ownHidden ? 'Show' : 'Hide') + scope;
 		vis.addEventListener('click', function (e) {
 			e.stopPropagation();
-			var nowHidden = !hiddenNodes[hideKey];
-			hiddenNodes[hideKey] = nowHidden;
+			var nowHidden = !hiddenNodes[node.path];
+			hiddenNodes[node.path] = nowHidden;
 			renderPanel();
 			applyState();
-			persistVisibility(hideKey, nowHidden);
+			persistVisibility(node.path, nowHidden);
 		});
 		row.appendChild(vis);
 
@@ -413,8 +462,7 @@ export function generateFolderPanelScript(): string {
 		}
 
 		if (isGroup && expandedGroups[node.path]) {
-			if (node.leaf) renderRow({ path: node.path, name: node.name, children: [], leaf: node.leaf, isSelf: true }, depth + 1, effectivelyHidden, newRowKeys, stagger, null, -1);
-			node.children.forEach(function (c, idx) { renderRow(c, depth + 1, effectivelyHidden, newRowKeys, stagger, node.children, idx); });
+			node.children.forEach(function (c, idx) { renderRow(c, depth + 1, newRowKeys, stagger, node.children, idx); });
 		}
 	}
 
@@ -422,7 +470,7 @@ export function generateFolderPanelScript(): string {
 		panel.innerHTML = '';
 		var newRowKeys = {};
 		var stagger = { i: 0, animate: animate !== false };
-		tree.children.forEach(function (c, idx) { renderRow(c, 0, false, newRowKeys, stagger, tree.children, idx); });
+		tree.children.forEach(function (c, idx) { renderRow(c, 0, newRowKeys, stagger, tree.children, idx); });
 		previousRowKeys = newRowKeys;
 	}
 

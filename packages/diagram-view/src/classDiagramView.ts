@@ -44,6 +44,14 @@ export class ClassDiagramView {
 		const initialExpanded = Object.entries(config.folders || {})
 			.filter(([, folderConfig]) => folderConfig.expanded)
 			.map(([folderPath]) => folderPath);
+		// Paths with *any* explicit hidden value (true or false) - distinct
+		// from the true-only data-hidden attributes already baked into the
+		// rendered boxes, since an empty organizational folder (no box of
+		// its own to carry that attribute) still needs this to know its
+		// smart-default hidden state was deliberately overridden.
+		const explicitlyConfiguredHidden = Object.entries(config.folders || {})
+			.filter(([, folderConfig]) => folderConfig.hidden !== undefined)
+			.map(([folderPath]) => folderPath);
 		// Shared with the stack layer's own panel toggle (config.folderPanelOpen).
 		const initialPanelOpen = config.folderPanelOpen !== false;
 
@@ -56,6 +64,7 @@ export class ClassDiagramView {
 			folderHTML,
 			edges,
 			initialExpanded,
+			explicitlyConfiguredHidden,
 			initialPanelOpen,
 			iconUri,
 			hasLiveHost
@@ -70,6 +79,7 @@ export class ClassDiagramView {
 		folderHTML: string,
 		edges: ReactFlowEdge[],
 		initialExpanded: string[],
+		explicitlyConfiguredHidden: string[],
 		initialPanelOpen: boolean,
 		iconUri?: string,
 		hasLiveHost?: boolean
@@ -113,6 +123,15 @@ export class ClassDiagramView {
             --deleted-bg: rgba(214, 69, 91, 0.10);
             --modified: #C98A1B;
             --modified-bg: rgba(201, 138, 27, 0.12);
+            /* Background dot grid - its own token rather than reusing
+               --border directly, since --border is already low-contrast
+               against --bg in light mode (both pale blue-greys) and gets
+               diluted further by the opacity mix, leaving the dots nearly
+               invisible. --text-faint is darker/more saturated, so the same
+               style of mix stays visible without the dots reading as loud.
+               Dark mode's --border already has plenty of contrast against
+               its --bg, so it keeps the original mix. */
+            --dot: color-mix(in srgb, var(--text-faint) 55%, transparent);
         }
         @media (prefers-color-scheme: dark) {
             :root:not([data-theme="light"]) {
@@ -132,6 +151,7 @@ export class ClassDiagramView {
                 --deleted-bg: rgba(240, 114, 138, 0.12);
                 --modified: #F0C05A;
                 --modified-bg: rgba(240, 192, 90, 0.12);
+                --dot: color-mix(in srgb, var(--border) 70%, transparent);
             }
         }
         :root[data-theme="dark"] {
@@ -141,6 +161,7 @@ export class ClassDiagramView {
             --added: #4ADE94; --added-bg: rgba(74, 222, 148, 0.10);
             --deleted: #F0728A; --deleted-bg: rgba(240, 114, 138, 0.12);
             --modified: #F0C05A; --modified-bg: rgba(240, 192, 90, 0.12);
+            --dot: color-mix(in srgb, var(--border) 70%, transparent);
         }
         * { box-sizing: border-box; }
         html, body { height: 100%; }
@@ -149,7 +170,7 @@ export class ClassDiagramView {
             padding: 0;
             font-family: ui-sans-serif, -apple-system, 'Segoe UI', system-ui, sans-serif;
             background: var(--bg);
-            background-image: radial-gradient(color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1px);
+            background-image: radial-gradient(var(--dot) 1px, transparent 1px);
             background-size: 22px 22px;
             color: var(--text);
             display: flex;
@@ -252,17 +273,26 @@ export class ClassDiagramView {
             padding: 28px;
             max-width: 100%;
             overflow: auto;
-            background-image: radial-gradient(color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1px);
+            background-image: radial-gradient(var(--dot) 1px, transparent 1px);
             background-size: 22px 22px;
         }
         /* #diagram-world is the zoomable "world" - it holds the folder/class
-           content and gets the scale transform. #diagram (.diagram-container)
+           content and gets scaled by applyZoom(). #diagram (.diagram-container)
            stays the fixed, unscaled, scrollable viewport around it, so
            zooming out actually shrinks the world within a stable frame
-           (revealing more of it) instead of shrinking the frame itself. */
-        #diagram-world {
-            transform-origin: top left;
-        }
+           (revealing more of it) instead of shrinking the frame itself.
+           applyZoom() deliberately scales via the non-standard 'zoom'
+           property rather than 'transform: scale()' - 'zoom' triggers a
+           real layout reflow (so getBoundingClientRect/scrollWidth already
+           reflect it correctly with no extra math) and, critically, does
+           NOT establish a new stacking context the way 'transform' does.
+           A 'transform' here would trap .uml-box's z-index (10) inside
+           #diagram-world's own new stacking context, leaving the whole
+           element to compete against #relationship-svg (z-index: 5) as one
+           opaque unit with an implicit z-index:auto - losing outright, and
+           painting every box *behind* the lines instead of the intended
+           three-layer order (.folder-container background, then lines,
+           then .uml-box on top) at every zoom level. */
         #relationship-svg {
             /* No width/height here - JS sets those as attributes, sized to
                the full scrollable content (container.scrollWidth/Height),
@@ -611,16 +641,24 @@ export class ClassDiagramView {
             // Scale #diagram-world (the content), not #diagram (the fixed,
             // scrollable viewport around it) - scaling the viewport itself
             // would just shrink the visible frame in place rather than
-            // revealing more of the world within a stable frame.
+            // revealing more of the world within a stable frame. Uses the
+            // 'zoom' property, not 'transform: scale()' - 'transform' would
+            // force #diagram-world into its own stacking context, breaking
+            // the .folder-container-background / lines / .uml-box layering
+            // (see the #diagram-world CSS comment) the moment zoom is
+            // touched. 'zoom' scales the same way visually without that
+            // side effect, since it's a real layout change rather than a
+            // paint-time transform.
             const world = document.getElementById('diagram-world');
-            world.style.transform = 'scale(' + currentZoom + ')';
+            world.style.zoom = String(currentZoom);
             // Keeps .relationship-line's stroke-width (see CSS) proportional
-            // to the current zoom, since the SVG itself isn't scaled by the
-            // transform above (see drawRelationships).
+            // to the current zoom, since the SVG itself isn't inside
+            // #diagram-world and so isn't zoomed along with it (see
+            // drawRelationships).
             document.getElementById('relationship-svg').style.setProperty('--diagram-zoom', currentZoom);
             // Lines live outside #diagram-world (see drawRelationships), so
             // they need to be recomputed against the boxes' new post-zoom
-            // positions rather than being carried along by the transform.
+            // positions rather than being carried along by the zoom.
             drawRelationships();
         }
         
@@ -812,7 +850,12 @@ export class ClassDiagramView {
                     x1: startPoint.x,
                     y1: startPoint.y,
                     x2: endPoint.x,
-                    y2: endPoint.y
+                    y2: endPoint.y,
+                    // Kept around for Pass 2 - when this line gets spread apart from
+                    // others overlapping it, its endpoints need to be re-anchored to
+                    // the actual box edges, not just translated into open space.
+                    sourceRect, targetRect,
+                    sourceCenterX, sourceCenterY, targetCenterX, targetCenterY
                 });
             });
 
@@ -903,10 +946,27 @@ export class ClassDiagramView {
                 members.forEach((memberIndex, order) => {
                     const lineInfo = lineMeta[memberIndex];
                     const offset = (order - (n - 1) / 2) * OFFSET_SPACING;
-                    lineInfo.x1 += lineInfo.a * offset;
-                    lineInfo.y1 += lineInfo.b * offset;
-                    lineInfo.x2 += lineInfo.a * offset;
-                    lineInfo.y2 += lineInfo.b * offset;
+
+                    // Translating both endpoints by the same offset would slide the
+                    // whole line sideways off the boxes it connects, leaving it
+                    // floating in the gap between them with nothing for the
+                    // arrowhead to touch. Instead, nudge the *aim point* each end
+                    // is reaching toward and re-find where that ray crosses this
+                    // line's own box - so overlapping relationships fan out right
+                    // at the box edge, the way a real UML diagram would, and every
+                    // endpoint always lands on an actual box perimeter.
+                    const aimAtTargetX = lineInfo.targetCenterX + lineInfo.a * offset;
+                    const aimAtTargetY = lineInfo.targetCenterY + lineInfo.b * offset;
+                    const aimAtSourceX = lineInfo.sourceCenterX + lineInfo.a * offset;
+                    const aimAtSourceY = lineInfo.sourceCenterY + lineInfo.b * offset;
+
+                    const newStart = getBoxEdgePoint(lineInfo.sourceRect, lineInfo.sourceCenterX, lineInfo.sourceCenterY, aimAtTargetX, aimAtTargetY);
+                    const newEnd = getBoxEdgePoint(lineInfo.targetRect, lineInfo.targetCenterX, lineInfo.targetCenterY, aimAtSourceX, aimAtSourceY);
+
+                    lineInfo.x1 = newStart.x;
+                    lineInfo.y1 = newStart.y;
+                    lineInfo.x2 = newEnd.x;
+                    lineInfo.y2 = newEnd.y;
                 });
             });
 
@@ -1139,6 +1199,7 @@ export class ClassDiagramView {
         window.FOLDER_PANEL_INITIAL_HIDDEN = Array.from(document.querySelectorAll('.folder-container[data-hidden="true"]')).map(function (el) {
             return el.getAttribute('data-folder');
         });
+        window.FOLDER_PANEL_EXPLICIT_HIDDEN = ${JSON.stringify(explicitlyConfiguredHidden)};
         window.FOLDER_PANEL_INITIAL_EXPANDED = ${JSON.stringify(initialExpanded)};
         window.FOLDER_PANEL_INITIAL_OPEN = ${JSON.stringify(initialPanelOpen)};
 

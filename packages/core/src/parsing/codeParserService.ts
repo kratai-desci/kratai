@@ -26,7 +26,17 @@ export class CodeParserService {
 		}
 
 		for (const file of files) {
-			const fileClasses = this.parseFile(file);
+			let fileClasses: ClassInfo[];
+			try {
+				fileClasses = this.parseFile(file);
+			} catch (error) {
+				// One pathological file (e.g. a vendored/minified bundle that
+				// slipped past the scanner's filters) shouldn't take down the
+				// whole workspace analysis - skip it and keep going, same as
+				// the HTTP pass below already does per-file.
+				console.warn(`⚠️  Skipping ${path.relative(workspacePath, file)} - failed to parse:`, error instanceof Error ? error.message : error);
+				continue;
+			}
 			// Normalize all paths to workspace-relative immediately after parsing
 			// This ensures consistent path format for all parsers (TS, JS, future languages)
 			fileClasses.forEach(classInfo => {
