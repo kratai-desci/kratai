@@ -151,7 +151,8 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 - 📦 [GitHub Repository](https://github.com/kratai-desci/kratai)
 - 🐛 [Report an Issue](https://github.com/kratai-desci/kratai/issues)
 - 💬 [Community Discussions](https://github.com/kratai-desci/kratai/discussions)
+- 🤝 [Contributing Guide](CONTRIBUTING.md)
 
 ---
 
-**Made with ❤️ by the kratai team** | [MIT License](LICENSE)
+**Made with ❤️ by the kratai team** | [MIT License](LICENSE) | [CLA](CLA.md)
