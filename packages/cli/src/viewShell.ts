@@ -154,6 +154,18 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 			document.getElementById('stack-panel').style.display = showStack ? '' : 'none';
 			document.getElementById('class-frame').parentElement.style.display = showClass ? '' : 'none';
 			document.getElementById('view-container').classList.toggle('split', wide);
+
+			// Wide mode shows both views at once with one shared folder
+			// panel's worth of state (see folderPanelScript.ts) - a second
+			// toggle button floating in the class diagram's own corner
+			// would just be a redundant duplicate of the stack layer's, so
+			// hide it there specifically and leave stack layer's as the
+			// one true toggle. Narrow mode shows one view at a time, so
+			// whichever is showing keeps its own toggle.
+			var classDoc = document.getElementById('class-frame').contentDocument;
+			if (classDoc && classDoc.documentElement) {
+				classDoc.documentElement.classList.toggle('kratai-hide-folder-toggle', wide);
+			}
 		}
 
 		function renderSwitch() {
@@ -197,10 +209,18 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 			// matching the stack layer's own default exactly (see
 			// stackLayerView.ts, which never needs an override since it has
 			// no header to begin with) so the shared folder panel sits at
-			// the identical position in both embedded views.
-			style.textContent = '#zoomctl { top: 18px !important; } #folder-panel-toggle-wrap { top: 16px !important; }';
+			// the identical position in both embedded views. The
+			// kratai-hide-folder-toggle class (see applyMode) hides that
+			// same panel entirely in wide mode, where the stack layer's
+			// copy is the one shared toggle for both views.
+			style.textContent = '#zoomctl { top: 18px !important; } #folder-panel-toggle-wrap { top: 16px !important; }'
+				+ ' html.kratai-hide-folder-toggle #folder-panel-toggle-wrap { display: none !important; }';
 			doc.head.appendChild(style);
 			pushTheme('class-frame');
+			// A reload (see the message listener below) starts this iframe's
+			// document fresh, losing the kratai-hide-folder-toggle class
+			// applyMode set on the old one - reapply it for the current mode.
+			applyMode();
 		});
 		document.getElementById('stack-frame').addEventListener('load', function () {
 			pushTheme('stack-frame');
