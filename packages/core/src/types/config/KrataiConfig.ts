@@ -13,6 +13,11 @@ export interface FolderConfig {
 export interface KrataiConfig {
 	selectedFolders: string[];      // Relative paths from workspace root (deprecated, use folders)
 	folders?: Record<string, FolderConfig>;  // NEW: Folder configuration with order support
+	// UI state: whether the folder tree panel is open, shared by kratai
+	// view's class diagram and stack layer (unlike per-folder state above,
+	// this isn't keyed by path - it's one workspace-wide setting).
+	// Undefined defaults to open.
+	folderPanelOpen?: boolean;
 	selectedExtensions: string[];   // [".ts", ".tsx", etc.]
 	respectGitignore?: boolean;     // Default: true
 	followSymlinks?: boolean;       // Default: false

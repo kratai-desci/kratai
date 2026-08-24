@@ -124,3 +124,20 @@ export function saveFolderVisibility(workspacePath: string, folderPath: string, 
 export function saveFolderExpanded(workspacePath: string, folderPath: string, expanded: boolean): void {
 	patchLocalFolders(workspacePath, { [folderPath]: { expanded } });
 }
+
+/**
+ * Persists whether the folder panel itself (not any one folder in it) is
+ * open - the top-left toggle button shared by both views. A plain
+ * top-level field rather than something keyed by path, so - unlike
+ * patchLocalFolders - this only needs to preserve whatever else is
+ * already in kratai.local.json, not reconcile it against the base config's
+ * `folders` map.
+ */
+export function saveFolderPanelOpen(workspacePath: string, open: boolean): void {
+	const localConfigPath = path.join(workspacePath, 'kratai.local.json');
+	const existingLocal: Partial<KrataiConfig> = fs.existsSync(localConfigPath)
+		? JSON.parse(fs.readFileSync(localConfigPath, 'utf-8'))
+		: {};
+	const nextLocal: Partial<KrataiConfig> = { ...existingLocal, folderPanelOpen: open };
+	fs.writeFileSync(localConfigPath, JSON.stringify(nextLocal, null, 2) + '\n', 'utf-8');
+}

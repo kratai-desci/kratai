@@ -40,6 +40,9 @@ export interface StackLayerData {
 	// Real group paths with expanded set in config, seeding expandedGroups
 	// on load so a drilled-into layer stays drilled into after a restart.
 	initialExpanded: string[];
+	// Whether the folder panel itself starts open - shared with the class
+	// diagram's own panel toggle button (config.folderPanelOpen).
+	initialPanelOpen: boolean;
 }
 
 function collectLeafFolders(folder: DiagramFolderNode, leaves: DiagramFolderNode[]): void {
@@ -157,6 +160,7 @@ export function buildStackLayerData(workspaceName: string, nodes: ReactFlowNode[
 	const initialExpanded = Object.entries(config?.folders || {})
 		.filter(([, folderConfig]) => folderConfig.expanded)
 		.map(([folderPath]) => folderPath);
+	const initialPanelOpen = config?.folderPanelOpen !== false;
 
-	return { workspaceName, folders, relationships, initialHidden, initialExpanded };
+	return { workspaceName, folders, relationships, initialHidden, initialExpanded, initialPanelOpen };
 }

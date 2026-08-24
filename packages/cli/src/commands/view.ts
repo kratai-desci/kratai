@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as http from 'http';
 import { CodeParserService, DiagramGeneratorService, GitDiffEnricher, FolderStructureBuilder, MarkdownExporter } from '@kratai/core';
 import { ClassDiagramView } from '@kratai/diagram-view';
-import { loadCliConfig, saveFolderExpanded, saveFolderOrder, saveFolderVisibility } from '../config.js';
+import { loadCliConfig, saveFolderExpanded, saveFolderOrder, saveFolderPanelOpen, saveFolderVisibility } from '../config.js';
 import { openFile } from '../openFile.js';
 import { generateShellHTML } from '../viewShell.js';
 import { buildStackLayerData } from '../stackLayerData.js';
@@ -118,6 +118,12 @@ export async function runView(options: ViewOptions): Promise<void> {
 			handleJsonPost<{ path?: string; expanded?: boolean }>(req, res, payload => {
 				if (payload.path === undefined) throw new Error('Missing "path"');
 				saveFolderExpanded(workspacePath, payload.path, !!payload.expanded);
+			});
+			return;
+		}
+		if (req.method === 'POST' && req.url === '/api/folder-panel-open') {
+			handleJsonPost<{ open?: boolean }>(req, res, payload => {
+				saveFolderPanelOpen(workspacePath, !!payload.open);
 			});
 			return;
 		}

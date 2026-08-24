@@ -193,12 +193,33 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 			var header = doc.querySelector('.header');
 			if (header) header.style.display = 'none';
 			var style = doc.createElement('style');
-			style.textContent = '#zoomctl, #folder-panel-toggle-wrap { top: 18px !important; }';
+			// #folder-panel-toggle-wrap goes to 16px, not 18px like #zoomctl -
+			// matching the stack layer's own default exactly (see
+			// stackLayerView.ts, which never needs an override since it has
+			// no header to begin with) so the shared folder panel sits at
+			// the identical position in both embedded views.
+			style.textContent = '#zoomctl { top: 18px !important; } #folder-panel-toggle-wrap { top: 16px !important; }';
 			doc.head.appendChild(style);
 			pushTheme('class-frame');
 		});
 		document.getElementById('stack-frame').addEventListener('load', function () {
 			pushTheme('stack-frame');
+		});
+
+		// Both iframes stay loaded for the shell's whole lifetime - the
+		// switcher above only toggles CSS display, it never re-fetches -
+		// so a folder order/hidden/expanded/panel-open change made in one
+		// view's own panel (see folderPanelScript.ts / stackLayerView.ts's
+		// postFolderConfig) would otherwise sit unseen in the *other*
+		// iframe until something reloads it by chance. Reload whichever
+		// iframe didn't send the notification - the sender already applied
+		// its own change locally, no need to reload it too.
+		window.addEventListener('message', function (e) {
+			if (!e.data || e.data.type !== 'kratai-folder-config-changed') return;
+			var stackFrame = document.getElementById('stack-frame');
+			var classFrame = document.getElementById('class-frame');
+			if (e.source !== stackFrame.contentWindow && stackFrame.contentWindow) stackFrame.contentWindow.location.reload();
+			if (e.source !== classFrame.contentWindow && classFrame.contentWindow) classFrame.contentWindow.location.reload();
 		});
 
 		// ---- theme: light/dark, defaults to system, remembered once the

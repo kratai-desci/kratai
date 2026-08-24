@@ -1,19 +1,22 @@
 /**
  * The folder tree panel (drill-down chevrons, eye show/hide, hamburger
- * drag-reorder) shared between kratai view's class diagram and its stack
- * layer - built for the class diagram specifically. A collapsed group
- * behaves the same way it does in the 3D stack: every class in that
- * folder and its subfolders collapses down into one combined layer, and
- * expanding it is what breaks that back down into the real per-folder
- * boxes - so this script computes a "plan" (which real folders currently
+ * drag-reorder) shared, byte-for-byte, between kratai view's class diagram
+ * and its stack layer - one component rendering identically and sitting at
+ * the identical position in both, rather than two hand-maintained copies
+ * that quietly drift apart. A collapsed group means "everything in this
+ * folder and its subfolders is one combined layer right now"; expanding it
+ * is what breaks that back down into the real per-folder pieces. This
+ * script computes a "plan" from that idea (which real folders currently
  * stand alone vs. which are merged into which collapsed group) and hands
- * it to the page via `applyFolderPlan`, rather than just toggling
- * display on the already-rendered boxes.
- *
- * The two call sites - classDiagramView.ts today, maybe stackLayerView.ts's
- * own panel later - provide the page-specific pieces: CSS positioning (via
- * generateFolderPanelCSS) and two global functions this script calls
- * (applyFolderPlan, highlightFolderPaths).
+ * it to the page via `applyFolderPlan`, rather than assuming anything
+ * about how the page actually renders a layer - the class diagram moves
+ * DOM boxes around; the stack layer builds 3D sheets. Both just implement
+ * `applyFolderPlan` (and `highlightFolderPaths`, for hover) however suits
+ * their own canvas, and feed in their own leaf-folder data via
+ * `window.FOLDER_PANEL_LEAVES` (the class diagram reads it off its
+ * already-rendered DOM boxes; the stack layer already has it server-side
+ * and just assigns it directly) plus a matching `generateFolderPanelCSS`
+ * call for position.
  */
 
 export interface FolderPanelPosition {
@@ -108,21 +111,17 @@ export function generateFolderPanelScript(): string {
 	var FOLDER_SVG = '<svg width="14" height="14" viewBox="0 0 14 14"><path d="M1,3.5 h4 l1.2,1.5 h6.3 v6.5 h-11.5 z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
 	var SELF_SUFFIX = '::self';
 
-	// ---- read the already-rendered leaf-folder boxes, in the order the
-	// server sorted them (custom order, then alphabetical - see
-	// folderBoxRenderer.ts), instead of fetching a separate data blob -
-	// the DOM is already the source of truth for what's rendered. ----
-	var boxes = document.querySelectorAll('.folder-container[data-folder]');
-	if (!boxes.length) return;
+	// The real leaf-folder set, already in the order the server sorted it
+	// (custom order, then alphabetical - see stackLayerData.ts /
+	// folderBoxRenderer.ts) - each call site fills these in however makes
+	// sense for its own page (the class diagram reads its already-rendered
+	// DOM boxes; the stack layer already has this data server-side and
+	// just assigns it directly) before this script runs.
+	var leaves = window.FOLDER_PANEL_LEAVES || [];
+	if (!leaves.length) return;
 
-	var leaves = [];
 	var hiddenNodes = {};
-	boxes.forEach(function (el) {
-		var p = el.getAttribute('data-folder');
-		var nameEl = el.querySelector('.folder-name');
-		leaves.push({ path: p, name: nameEl ? nameEl.textContent : p });
-		if (el.getAttribute('data-hidden') === 'true') hiddenNodes[p] = true;
-	});
+	(window.FOLDER_PANEL_INITIAL_HIDDEN || []).forEach(function (p) { hiddenNodes[p] = true; });
 
 	var originalRank = {};
 	leaves.forEach(function (f, i) { originalRank[f.path] = i; });
@@ -187,7 +186,23 @@ export function generateFolderPanelScript(): string {
 
 	// ---- persistence: same /api/* endpoints the stack layer already
 	// writes to, so a change made from either panel is remembered the
-	// same way. ----
+	// same way. Both pages are always-loaded iframes inside the shell
+	// (see viewShell.ts) - switching tabs only toggles CSS visibility, it
+	// never re-fetches - so a change made here would otherwise never
+	// reach the sibling iframe until something reloads it by chance.
+	// postFolderConfig tells the shell (if there is one; standalone access
+	// has no listener, so this is a harmless no-op there) so it can
+	// reload the *other* view now, not whenever it next happens to load. ----
+	function notifyConfigChanged() {
+		try { window.parent.postMessage({ type: 'kratai-folder-config-changed' }, '*'); } catch (e) { /* not embedded, or cross-origin - nothing to notify */ }
+	}
+	function postFolderConfig(url, body) {
+		notifyConfigChanged();
+		fetch(url, {
+			method: 'POST', headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body)
+		}).catch(function () {});
+	}
 	var ORDER_BUCKET = 100000;
 	function persistOrderFor(siblings) {
 		var orders = {};
@@ -196,16 +211,10 @@ export function generateFolderPanelScript(): string {
 			collectLeafPaths(sib, leafPaths);
 			leafPaths.forEach(function (p) { orders[p] = i * ORDER_BUCKET + (originalRank[p] || 0); });
 		});
-		fetch('/api/folder-order', {
-			method: 'POST', headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ orders: orders })
-		}).catch(function () {});
+		postFolderConfig('/api/folder-order', { orders: orders });
 	}
 	function persistVisibility(key, hidden) {
-		fetch('/api/folder-visibility', {
-			method: 'POST', headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ path: key, hidden: hidden })
-		}).catch(function () {});
+		postFolderConfig('/api/folder-visibility', { path: key, hidden: hidden });
 	}
 
 	// ---- apply to the canvas: recompute the full plan from scratch every
@@ -246,18 +255,28 @@ export function generateFolderPanelScript(): string {
 		if (window.applyFolderPlan) window.applyFolderPlan(plan);
 	}
 
+	var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 	var dragSource = null;
 	var expandedGroups = {};
 	(window.FOLDER_PANEL_INITIAL_EXPANDED || []).forEach(function (p) { expandedGroups[p] = true; });
+	// Rows whose key survived the previous render (see renderPanel) skip
+	// the entrance fade - only genuinely new rows (a group just expanded,
+	// revealing children) animate in, so toggling one row doesn't read as
+	// the whole panel reloading.
+	var previousRowKeys = {};
 
 	var toggleBtn = document.createElement('button');
 	toggleBtn.id = 'folder-panel-toggle';
-	toggleBtn.className = 'active';
 	toggleBtn.title = 'Hide folder list';
 	toggleBtn.innerHTML = FOLDER_SVG;
 
 	var panel = document.createElement('div');
 	panel.id = 'folder-panel';
+	if (window.FOLDER_PANEL_INITIAL_OPEN === false) {
+		panel.classList.add('closed');
+	} else {
+		toggleBtn.classList.add('active');
+	}
 
 	var wrap = document.createElement('div');
 	wrap.id = 'folder-panel-toggle-wrap';
@@ -268,18 +287,23 @@ export function generateFolderPanelScript(): string {
 	toggleBtn.addEventListener('click', function () {
 		var hidden = panel.classList.toggle('closed');
 		toggleBtn.classList.toggle('active', !hidden);
+		postFolderConfig('/api/folder-panel-open', { open: !hidden });
 	});
 
-	function renderRow(node, depth, ancestorHidden, siblings, index) {
+	function renderRow(node, depth, ancestorHidden, newRowKeys, stagger, siblings, index) {
 		var isGroup = node.children.length > 0;
 		var hideKey = node.isSelf ? (node.path + SELF_SUFFIX) : node.path;
 		var ownHidden = !!hiddenNodes[hideKey];
 		var effectivelyHidden = ancestorHidden || ownHidden;
+		var targetOpacity = effectivelyHidden ? '0.35' : '1';
+
+		var rowKey = hideKey;
+		newRowKeys[rowKey] = true;
+		var isNewRow = !previousRowKeys[rowKey];
 
 		var row = document.createElement('div');
 		row.className = 'fp-row' + (isGroup ? ' drillable' : '');
 		row.style.paddingLeft = (4 + depth * 14) + 'px';
-		row.style.opacity = effectivelyHidden ? '0.35' : '1';
 		row.title = node.path;
 
 		function highlight(on) {
@@ -295,10 +319,7 @@ export function generateFolderPanelScript(): string {
 				expandedGroups[node.path] = nowExpanded;
 				renderPanel();
 				applyState();
-				fetch('/api/folder-expanded', {
-					method: 'POST', headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ path: node.path, expanded: nowExpanded })
-				}).catch(function () {});
+				postFolderConfig('/api/folder-expanded', { path: node.path, expanded: nowExpanded });
 			});
 		}
 
@@ -364,7 +385,7 @@ export function generateFolderPanelScript(): string {
 		var vis = document.createElement('div');
 		vis.className = 'fp-vis';
 		vis.innerHTML = ownHidden ? EYE_OFF_SVG : EYE_SVG;
-		vis.title = ownHidden ? 'Show in diagram' : 'Hide from diagram';
+		vis.title = ownHidden ? 'Show' : 'Hide';
 		vis.addEventListener('click', function (e) {
 			e.stopPropagation();
 			var nowHidden = !hiddenNodes[hideKey];
@@ -377,15 +398,32 @@ export function generateFolderPanelScript(): string {
 
 		panel.appendChild(row);
 
+		if (isNewRow && stagger.animate && !reduceMotion) {
+			row.style.opacity = '0';
+			row.style.transform = 'scale(0.9)';
+			(function (delay) {
+				setTimeout(function () {
+					row.style.transition = 'opacity 0.28s ease-out, transform 0.28s cubic-bezier(0.2,0.8,0.3,1.4)';
+					row.style.opacity = targetOpacity;
+					row.style.transform = 'scale(1)';
+				}, delay);
+			})(Math.min(stagger.i++ * 12, 400));
+		} else {
+			row.style.opacity = targetOpacity;
+		}
+
 		if (isGroup && expandedGroups[node.path]) {
-			if (node.leaf) renderRow({ path: node.path, name: node.name, children: [], leaf: node.leaf, isSelf: true }, depth + 1, effectivelyHidden, null, -1);
-			node.children.forEach(function (c, idx) { renderRow(c, depth + 1, effectivelyHidden, node.children, idx); });
+			if (node.leaf) renderRow({ path: node.path, name: node.name, children: [], leaf: node.leaf, isSelf: true }, depth + 1, effectivelyHidden, newRowKeys, stagger, null, -1);
+			node.children.forEach(function (c, idx) { renderRow(c, depth + 1, effectivelyHidden, newRowKeys, stagger, node.children, idx); });
 		}
 	}
 
-	function renderPanel() {
+	function renderPanel(animate) {
 		panel.innerHTML = '';
-		tree.children.forEach(function (c, idx) { renderRow(c, 0, false, tree.children, idx); });
+		var newRowKeys = {};
+		var stagger = { i: 0, animate: animate !== false };
+		tree.children.forEach(function (c, idx) { renderRow(c, 0, false, newRowKeys, stagger, tree.children, idx); });
+		previousRowKeys = newRowKeys;
 	}
 
 	renderPanel();

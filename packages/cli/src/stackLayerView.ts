@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { generateFolderPanelCSS, generateFolderPanelScript } from '@kratai/diagram-view';
 import { StackLayerData } from './stackLayerData.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -99,83 +100,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 	#stage canvas { position: absolute; inset: 0; }
 	#stage.grabbing { cursor: grabbing; }
 
-	/* Anchored to the top-left corner via a fixed-position button (see
-	   #topleft-layer), mirroring #topright-layer's button-stays-put,
-	   panel-grows-toward-center layout, just reflected to the other side. */
-	#topleft-layer {
-		position: absolute; top: 16px; left: 16px; z-index: 20;
-		display: flex; flex-direction: row; align-items: flex-start; gap: 10px;
-	}
-	#topleft-layer button {
-		width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
-		background: var(--surface);
-		background: color-mix(in srgb, var(--surface) 90%, transparent);
-		color: var(--text); font-size: 15px; cursor: pointer; backdrop-filter: blur(10px);
-		display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-	}
-	#topleft-layer button:hover { border-color: var(--accent); color: var(--accent); }
-	#topleft-layer button.active { border-color: var(--accent); color: var(--accent); }
-
-	/* Folder-browser style label list - a fixed panel reads more like a
-	   file explorer and stays comfortable to click/scan regardless of how
-	   the stack is rotated or zoomed. Visible by default (it's the primary
-	   index into the stack, not supplementary info like the legend/
-	   concerns panels), hidden via the button when it's in the way. */
-	#layer-list {
-		display: flex; flex-direction: column; gap: 1px;
-		width: 240px;
-		max-height: calc(100vh - 32px);
-		overflow-y: auto;
-		background: color-mix(in srgb, var(--surface) 92%, transparent);
-		border: 1px solid var(--border);
-		border-radius: 12px;
-		padding: 6px;
-		backdrop-filter: blur(10px);
-	}
-	#layer-list.closed { display: none; }
-	.slab-face {
-		display: flex; flex-direction: row; align-items: baseline;
-		gap: 6px; padding: 5px 8px; border-radius: 7px;
-		white-space: nowrap; overflow: hidden; line-height: 1.2;
-		transition: background 0.15s ease;
-	}
-	.slab-face:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-	.slab-label {
-		font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-		font-size: 10.5px; font-weight: 650; color: var(--text);
-		overflow: hidden; text-overflow: ellipsis;
-	}
-	.slab-count {
-		font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-		font-size: 9px; color: var(--text-dim); opacity: 0.8;
-		margin-left: auto; flex-shrink: 0;
-	}
-	.slab-chevron {
-		width: 12px; height: 12px; flex-shrink: 0;
-		display: flex; align-items: center; justify-content: center;
-		color: var(--text-faint);
-	}
-	.slab-chevron svg { width: 11px; height: 11px; transition: transform 0.15s ease; }
-	.slab-chevron.expanded svg { transform: rotate(90deg); }
-	.slab-face.drillable { cursor: pointer; }
-	.slab-face.drillable .slab-label { font-weight: 800; }
-	.slab-vis {
-		width: 18px; height: 18px; flex-shrink: 0; margin-left: 4px;
-		display: flex; align-items: center; justify-content: center;
-		border-radius: 5px; color: var(--text-faint); cursor: pointer;
-	}
-	.slab-vis svg { width: 12px; height: 12px; }
-	.slab-vis:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
-	.slab-drag {
-		width: 16px; height: 18px; flex-shrink: 0;
-		display: flex; align-items: center; justify-content: center;
-		color: var(--text-faint);
-	}
-	.slab-drag[draggable] { cursor: grab; }
-	.slab-drag[draggable]:hover { color: var(--accent); }
-	.slab-drag[draggable]:active { cursor: grabbing; }
-	.slab-drag svg { width: 12px; height: 12px; }
-	.slab-face.drag-over { box-shadow: inset 0 2px 0 var(--accent); }
+	${generateFolderPanelCSS({ position: 'fixed', top: '16px', left: '16px' })}
 
 	#hint-layer {
 		position: absolute; right: 18px; bottom: 18px; z-index: 10;
@@ -245,11 +170,6 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 <body>
 	<div id="errbox"><strong>Render error &mdash;</strong> <span id="errmsg"></span></div>
 	<div id="stage">
-		<div id="topleft-layer">
-			<button id="layerlist-toggle" class="active" title="Hide layer list">
-				<svg width="14" height="14" viewBox="0 0 14 14"><path d="M1,3.5 h4 l1.2,1.5 h6.3 v6.5 h-11.5 z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-			</button>
-		</div>
 		<div id="topright-layer">
 			<div id="legend-layer">
 				<div id="layer-stats"></div>
@@ -420,15 +340,6 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		rendererGL.setSize(stage.clientWidth, stage.clientHeight);
 		stage.appendChild(rendererGL.domElement);
 
-		var layerList = document.createElement('div');
-		layerList.id = 'layer-list';
-		document.getElementById('topleft-layer').appendChild(layerList);
-
-		document.getElementById('layerlist-toggle').addEventListener('click', function () {
-			var hidden = layerList.classList.toggle('closed');
-			this.classList.toggle('active', !hidden);
-		});
-
 		var rigGL = new THREE.Group(); sceneGL.add(rigGL);
 		sceneGL.add(new THREE.AmbientLight(0xffffff, 0.75));
 		var dl = new THREE.DirectionalLight(0xffffff, 0.9);
@@ -502,173 +413,6 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			});
 		}
 
-		// ---- group the flat, already-aligned leaf-folder list into a tree
-		// by shared path prefix, then compress away any chain of folders
-		// that never branches - a group only survives where two or more
-		// real layers actually diverge, so this can never disagree with the
-		// class diagram's flat leaf set, only add optional structure on top
-		// of it. ----
-		function buildLayerTree(leaves) {
-			var root = { path: '', name: '', children: [], leaf: null };
-			leaves.forEach(function (leaf) {
-				var segs = leaf.path.split('/');
-				var node = root, acc = '';
-				segs.forEach(function (seg, idx) {
-					acc = acc ? acc + '/' + seg : seg;
-					var child = null;
-					for (var i = 0; i < node.children.length; i++) {
-						if (node.children[i].path === acc) { child = node.children[i]; break; }
-					}
-					if (!child) {
-						// A leaf living directly at the workspace root (no
-						// folder at all) has an empty path segment - name it
-						// like foldSingleClassFolders.ts does for the same
-						// case, instead of rendering a blank row.
-						child = { path: acc, name: seg || 'workspace', children: [], leaf: null };
-						node.children.push(child);
-					}
-					node = child;
-					if (idx === segs.length - 1) node.leaf = leaf;
-				});
-			});
-
-			function compress(node) {
-				node.children = node.children.map(compress);
-				while (!node.leaf && node.children.length === 1) node = node.children[0];
-				return node;
-			}
-			root.children = root.children.map(compress);
-
-			function aggregate(node) {
-				var score = node.leaf ? node.leaf.score : 0;
-				var classCount = node.leaf ? node.leaf.classCount : 0;
-				var leafCount = node.leaf ? 1 : 0;
-				node.children.forEach(function (c) {
-					aggregate(c);
-					score += c._aggScore; classCount += c._aggClassCount; leafCount += c._aggLeafCount;
-				});
-				node._aggScore = score; node._aggClassCount = classCount; node._aggLeafCount = leafCount;
-			}
-			root.children.forEach(aggregate);
-
-			return root;
-		}
-
-		var layerTree = buildLayerTree(DATA.folders.map(function (f) {
-			return { path: f.path, name: f.name, score: f.score || 0, classCount: f.classes.length };
-		}));
-		var expandedGroups = {};
-		(DATA.initialExpanded || []).forEach(function (p) { expandedGroups[p] = true; });
-		// Persisted to kratai.local.json (see config.ts's saveFolderVisibility),
-		// same as drag-reorder below - seeded here from whatever was hidden
-		// last session. Keyed by node.path for a whole node (and, if it's a
-		// group, everything nested under it); a group that also directly
-		// owns classes gets a second independent key (path + SELF_SUFFIX) so
-		// hiding its own classes doesn't have to hide its subfolders too.
-		var hiddenNodes = {};
-		var SELF_SUFFIX = '::self';
-		(DATA.initialHidden || []).forEach(function (p) { hiddenNodes[p] = true; });
-
-		// Each real folder's position in DATA.folders (server-sorted by
-		// custom config order, then alphabetically) before any drag this
-		// session - the stable tiebreak drag-reorder uses to keep folders
-		// that get dragged together in the same relative order they were
-		// already in, rather than however object key iteration happens to
-		// land them.
-		var originalRank = {};
-		DATA.folders.forEach(function (f, i) { originalRank[f.path] = i; });
-
-		function collectLeafPaths(node, out) {
-			if (node.leaf) out.push(node.path);
-			node.children.forEach(function (c) { collectLeafPaths(c, out); });
-		}
-
-		// Persists a sibling-array's current order to kratai.local.json (see
-		// config.ts's saveFolderOrder) so it survives past this session -
-		// unlike expand/hide state, "this is how these layers relate to
-		// each other" is exactly the kind of architectural framing worth
-		// remembering. Dragging a *group* moves everything folded into it
-		// as one block: every real leaf folder under a sibling gets that
-		// sibling's new rank as the high-order digits, with its own prior
-		// rank preserved as a tiebreak underneath, so folders dragged
-		// together keep their existing relative order instead of colliding
-		// on one shared value.
-		var ORDER_BUCKET = 100000;
-		function persistOrderFor(siblings) {
-			var orders = {};
-			siblings.forEach(function (sib, i) {
-				var leafPaths = [];
-				collectLeafPaths(sib, leafPaths);
-				leafPaths.forEach(function (p) { orders[p] = i * ORDER_BUCKET + (originalRank[p] || 0); });
-			});
-			fetch('/api/folder-order', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ orders: orders })
-			}).catch(function () {});
-		}
-
-		// Set for the duration of a drag (native HTML5 drag-and-drop) -
-		// which sibling array and index the drag started from, so a drop
-		// target can check it's a sibling of the same tree level (dragging
-		// across levels isn't supported) before reordering.
-		var dragSource = null;
-
-		// Sheets and list rows that persist across a drill/hide toggle
-		// (same path key present before and after) reuse their existing
-		// THREE.js objects/DOM nodes instead of being torn down and
-		// recreated - see renderStack()'s diff below.
-		var sheetsByPath = {};
-		var previousRowKeys = {};
-		var REPOSITION_DURATION = 320, EXIT_DURATION = 260;
-		var renderGeneration = 0;
-
-		// Walk the tree honoring current expand/hide state into a flat list
-		// of visible sheets: a collapsed group is one aggregate sheet (sized
-		// and counted by everything nested under it); an expanded group
-		// that also directly owns classes shows those as their own sheet
-		// alongside its now-visible children. A hidden node (and everything
-		// under it) is skipped entirely - no sheet, no relationship lines.
-		function collectVisible(node, out, leafMap) {
-			if (hiddenNodes[node.path]) return;
-			if (!node.children.length) {
-				leafMap[node.path] = node.path;
-				out.push({ isGroup: false, path: node.path, name: node.name, score: node.leaf.score, classCount: node.leaf.classCount });
-				return;
-			}
-			if (!expandedGroups[node.path]) {
-				mapLeaves(node, node.path, leafMap);
-				out.push({ isGroup: true, path: node.path, name: node.name, score: node._aggScore, classCount: node._aggClassCount, leafCount: node._aggLeafCount });
-				return;
-			}
-			if (node.leaf && !hiddenNodes[node.path + SELF_SUFFIX]) {
-				leafMap[node.path] = node.path;
-				out.push({ isGroup: false, path: node.path, name: node.name, score: node.leaf.score, classCount: node.leaf.classCount });
-			}
-			node.children.forEach(function (c) { collectVisible(c, out, leafMap); });
-		}
-		function mapLeaves(node, targetPath, leafMap) {
-			if (node.leaf) leafMap[node.path] = targetPath;
-			node.children.forEach(function (c) { mapLeaves(c, targetPath, leafMap); });
-		}
-		// All *currently visible* sheets a tree node maps to - one sheet for
-		// a leaf or a collapsed group, or every descendant sheet at once for
-		// an expanded group (so hovering a group header while it's open
-		// highlights everything nested under it together).
-		function sheetsForNode(node) {
-			if (!node.children.length || !expandedGroups[node.path]) {
-				var s = frontierByPath[node.path];
-				return s ? [s] : [];
-			}
-			var result = [];
-			if (node.leaf) {
-				var self = frontierByPath[node.path];
-				if (self) result.push(self);
-			}
-			node.children.forEach(function (c) { result = result.concat(sheetsForNode(c)); });
-			return result;
-		}
-
 		function clearLines() {
 			while (linesGroup.children.length) {
 				var obj = linesGroup.children[0];
@@ -695,170 +439,52 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			return mat;
 		}
 
-		var EYE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>';
-		var EYE_OFF_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a21.8 21.8 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a21.8 21.8 0 0 1-3.22 4.36M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
-		var HAMBURGER_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>';
-		// One triangle, rotated by CSS (see .slab-chevron.expanded) rather
-		// than swapped for a different glyph: pointing right it reads as
-		// ">" (collapsed), rotated 90deg it reads as "v" (expanded).
-		var CHEVRON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 5 16 12 9 19"/></svg>';
-
-		// A group row's chevron + click-to-toggle; expanded groups recurse
-		// into their children indented beneath them (a real drill-down tree
-		// in the panel), rather than replacing themselves - so you can
-		// always collapse back to where you were. ancestorHidden is passed
-		// down so a row under a hidden folder reads as dimmed too, even
-		// though its own visibility flag is untouched (restoring the parent
-		// later reveals it again with no extra clicks needed). siblings is
-		// the array node actually lives in (layerTree.children at the root,
-		// or a parent node's own .children) - the object drag-reorder
-		// mutates directly - with index its current position in it; both
-		// are null for the synthetic self-pseudo-node, which isn't a real
-		// tree entry and so can't be dragged.
-		function renderListRows(node, depth, ancestorHidden, newRowKeys, stagger, siblings, index) {
-			var isGroup = node.children.length > 0;
-			var hideKey = node.isSelf ? (node.path + SELF_SUFFIX) : node.path;
-			var ownHidden = !!hiddenNodes[hideKey];
-			var effectivelyHidden = ancestorHidden || ownHidden;
-			var targetOpacity = effectivelyHidden ? '0.35' : '1';
-
-			var rowKey = hideKey;
-			newRowKeys[rowKey] = true;
-			var isNewRow = !previousRowKeys[rowKey];
-
-			var row = document.createElement('div');
-			row.className = 'slab-face' + (isGroup ? ' drillable' : '');
-			row.style.paddingLeft = (4 + depth * 14) + 'px';
-			row.title = node.path;
-
-			row.addEventListener('mouseenter', function () { sheetsForNode(node).forEach(highlightSheet); });
-			row.addEventListener('mouseleave', function () { sheetsForNode(node).forEach(unhighlightSheet); });
-			if (isGroup) {
-				row.addEventListener('click', function () {
-					var nowExpanded = !expandedGroups[node.path];
-					expandedGroups[node.path] = nowExpanded;
-					renderStack(true);
-					fetch('/api/folder-expanded', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ path: node.path, expanded: nowExpanded })
-					}).catch(function () {});
-				});
-			}
-
-			// Always reserve the handle's width, even on the synthetic
-			// self-row (siblings is null there, so it stays an empty
-			// spacer) - otherwise that one row's chevron/label would sit
-			// out of alignment with every draggable sibling around it.
-			var drag = document.createElement('div');
-			drag.className = 'slab-drag';
-			if (siblings) {
-				drag.innerHTML = HAMBURGER_SVG;
-				drag.title = 'Drag to reorder';
-				drag.draggable = true;
-				drag.addEventListener('click', function (e) { e.stopPropagation(); });
-				drag.addEventListener('dragstart', function (e) {
-					e.stopPropagation();
-					dragSource = { siblings: siblings, index: index };
-					e.dataTransfer.effectAllowed = 'move';
-					e.dataTransfer.setData('text/plain', node.path);
-					try { e.dataTransfer.setDragImage(row, 14, 14); } catch (err) { /* not all browsers support a custom drag image */ }
-				});
-				drag.addEventListener('dragend', function () {
-					dragSource = null;
-					var overRows = layerList.querySelectorAll('.drag-over');
-					for (var i = 0; i < overRows.length; i++) overRows[i].classList.remove('drag-over');
-				});
-
-				row.addEventListener('dragover', function (e) {
-					if (!dragSource || dragSource.siblings !== siblings) return;
-					e.preventDefault();
-					e.dataTransfer.dropEffect = 'move';
-					row.classList.add('drag-over');
-				});
-				row.addEventListener('dragleave', function () { row.classList.remove('drag-over'); });
-				row.addEventListener('drop', function (e) {
-					if (!dragSource || dragSource.siblings !== siblings) return;
-					e.preventDefault();
-					row.classList.remove('drag-over');
-					var from = dragSource.index, to = index;
-					dragSource = null;
-					if (from === to) return;
-					var moved = siblings.splice(from, 1)[0];
-					siblings.splice(to, 0, moved);
-					persistOrderFor(siblings);
-					renderStack(true);
-				});
-			}
-			var chevron = document.createElement('div');
-			chevron.className = 'slab-chevron' + (isGroup && expandedGroups[node.path] ? ' expanded' : '');
-			chevron.innerHTML = isGroup ? CHEVRON_SVG : '';
-			row.appendChild(chevron);
-
-			var label = document.createElement('div');
-			label.className = 'slab-label';
-			label.textContent = node.name;
-			row.appendChild(label);
-
-			var count = document.createElement('div');
-			count.className = 'slab-count';
-			count.textContent = isGroup
-				? (node._aggLeafCount + (node._aggLeafCount === 1 ? ' layer' : ' layers'))
-				: (node.leaf.classCount + (node.leaf.classCount === 1 ? ' class' : ' classes'));
-			row.appendChild(count);
-
-			var vis = document.createElement('div');
-			vis.className = 'slab-vis';
-			vis.innerHTML = ownHidden ? EYE_OFF_SVG : EYE_SVG;
-			vis.title = ownHidden ? 'Show in stack' : 'Hide from stack';
-			vis.addEventListener('click', function (e) {
-				e.stopPropagation();
-				var nowHidden = !hiddenNodes[hideKey];
-				hiddenNodes[hideKey] = nowHidden;
-				renderStack(true);
-				fetch('/api/folder-visibility', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ path: hideKey, hidden: nowHidden })
-				}).catch(function () {});
-			});
-			row.appendChild(vis);
-
-			// Drag handle sits last, behind the eye toggle - a trailing
-			// grip rather than the row's leading element.
-			row.appendChild(drag);
-
-			layerList.appendChild(row);
-
-			if (isNewRow && stagger.animate && !reduceMotion) {
-				row.style.opacity = '0';
-				row.style.transform = 'scale(0.9)';
-				(function (delay) {
-					setTimeout(function () {
-						row.style.transition = 'opacity 0.28s ease-out, transform 0.28s cubic-bezier(0.2,0.8,0.3,1.4)';
-						row.style.opacity = targetOpacity;
-						row.style.transform = 'scale(1)';
-					}, delay);
-				})(Math.min(stagger.i++ * 12, 400));
-			} else {
-				row.style.opacity = targetOpacity;
-			}
-
-			if (isGroup && expandedGroups[node.path]) {
-				var childAncestorHidden = effectivelyHidden;
-				if (node.leaf) renderListRows({ path: node.path, name: node.name, children: [], leaf: node.leaf, isSelf: true }, depth + 1, childAncestorHidden, newRowKeys, stagger, null, -1);
-				node.children.forEach(function (c, idx) { renderListRows(c, depth + 1, childAncestorHidden, newRowKeys, stagger, node.children, idx); });
-			}
-		}
+		// Real folder data (score/class count) keyed by path, for sizing
+		// sheets - the shared folder panel (see folderPanelScript.ts) only
+		// knows about path/name/hidden/expanded, not this view's own idea
+		// of "how big is this layer", so applyFolderPlan looks it up here
+		// per plan item.
+		var folderByPath = {};
+		DATA.folders.forEach(function (f) { folderByPath[f.path] = f; });
 
 		var LINE_RADIUS = 0.35, LINE_OPACITY = 0.4;
+		var REPOSITION_DURATION = 320, EXIT_DURATION = 260;
+		var sheetsByPath = {};
+		var renderGeneration = 0;
 
-		function renderStack(animate) {
+		// Called by the shared folder panel (folderPanelScript.ts) whenever
+		// drill-down/hide/order state changes - a flat plan of what's
+		// currently visible, each entry either a real leaf folder standing
+		// alone or a collapsed group representing everything folded into it
+		// (mirrored 1:1 by the class diagram's own applyFolderPlan, just
+		// building 3D sheets here instead of merging DOM boxes).
+		//
+		// ---- sheets: reuse whatever's already on screen. A sheet whose
+		// path key survives between renders just glides to its new stack
+		// position (its size/score can't have changed - a surviving node's
+		// own class count is untouched by anything that toggles elsewhere);
+		// only genuinely new sheets grow in, only genuinely removed ones
+		// shrink away. This is what makes a drill/hide toggle read as "one
+		// layer moves, another appears/disappears" instead of the whole
+		// stack reloading. ----
+		window.applyFolderPlan = function (plan) {
 			var myGeneration = ++renderGeneration;
 
-			var visible = [];
 			leafToVisiblePath = {};
-			layerTree.children.forEach(function (c) { collectVisible(c, visible, leafToVisiblePath); });
+			var visible = plan.filter(function (item) { return !item.hidden; }).map(function (item) {
+				if (item.type === 'leaf') {
+					leafToVisiblePath[item.path] = item.path;
+					var f = folderByPath[item.path];
+					return { isGroup: false, path: item.path, score: f ? f.score : 0 };
+				}
+				var score = 0;
+				item.realPaths.forEach(function (p) {
+					leafToVisiblePath[p] = item.path;
+					var f = folderByPath[p];
+					if (f) score += f.score;
+				});
+				return { isGroup: true, path: item.path, score: score };
+			});
 
 			frontierByPath = {};
 			var n = visible.length;
@@ -881,14 +507,6 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 				return { source: sn, target: tn };
 			}).filter(Boolean);
 
-			// ---- sheets: reuse whatever's already on screen. A sheet whose
-			// path key survives between renders just glides to its new
-			// stack position (its size/score can't have changed - a
-			// surviving node's own class count is untouched by anything
-			// that toggles elsewhere); only genuinely new sheets grow in,
-			// only genuinely removed ones shrink away. This is what makes
-			// a drill/hide toggle read as "one layer moves, another
-			// appears/disappears" instead of the whole stack reloading. ----
 			var seenPaths = {};
 			visible.forEach(function (node, i) {
 				node._beamMats = [];
@@ -906,7 +524,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 					existing.mat.color.copy(color);
 					existing.borderMat.color.copy(color);
 					var fromY = existing.group.position.y, toY = node._y;
-					if (animate && !reduceMotion && fromY !== toY) {
+					if (!reduceMotion && fromY !== toY) {
 						tween(REPOSITION_DURATION, function (e) { existing.group.position.y = fromY + (toY - fromY) * e; });
 					} else {
 						existing.group.position.y = toY;
@@ -935,7 +553,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 				group.position.set(0, node._y, 0);
 				sheetsGroup.add(group);
 
-				if (animate && !reduceMotion) {
+				if (!reduceMotion) {
 					group.scale.setScalar(0.01);
 					tween(380 + Math.min(i * 12, 400), function (e) { group.scale.setScalar(0.01 + e * 0.99); });
 				}
@@ -974,7 +592,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 				if (seenPaths[path]) return;
 				var s = sheetsByPath[path];
 				delete sheetsByPath[path];
-				if (!animate || reduceMotion) { disposeSheet(s); return; }
+				if (reduceMotion) { disposeSheet(s); return; }
 				tween(EXIT_DURATION, function (e) {
 					s.group.scale.setScalar(Math.max(0.01, 1 - e));
 					s.mat.opacity = s.baseOpacity * (1 - e);
@@ -1030,18 +648,8 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 					l.target._beamMats.push(lineRef);
 				});
 			}
-			if (animate && !reduceMotion) setTimeout(buildLines, REPOSITION_DURATION);
+			if (!reduceMotion) setTimeout(buildLines, REPOSITION_DURATION);
 			else buildLines();
-
-			// The DOM list itself is still cheaply rebuilt from scratch each
-			// render (a couple hundred nodes at most) - what actually reads
-			// as "reloading" is every row replaying its entrance animation,
-			// so renderListRows only does that for rows whose key is new
-			// since the last render (see previousRowKeys/isNewRow there).
-			layerList.innerHTML = '';
-			var newRowKeys = {};
-			layerTree.children.forEach(function (c, idx) { renderListRows(c, 0, false, newRowKeys, { i: 0, animate: animate }, layerTree.children, idx); });
-			previousRowKeys = newRowKeys;
 
 			// Auto-fit the camera to whatever's currently drilled into,
 			// unless the user has already zoomed by hand - drilling in or
@@ -1053,9 +661,24 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 				n + (n === 1 ? ' layer' : ' layers') + ' \\u00b7 ' +
 				totalClasses + (totalClasses === 1 ? ' class' : ' classes') + ' \\u00b7 ' +
 				lines.length + (lines.length === 1 ? ' relationship' : ' relationships');
-		}
+		};
 
-		renderStack(true);
+		window.highlightFolderPaths = function (paths, on) {
+			paths.forEach(function (p) {
+				var node = frontierByPath[p];
+				if (!node) return;
+				if (on) highlightSheet(node); else unhighlightSheet(node);
+			});
+		};
+
+		// ---- folder panel (drill-down, hide/show, drag-reorder) - see
+		// folderPanelScript.ts for the tree/drag logic itself, shared with
+		// the class diagram's own panel so both look and behave identically. ----
+		window.FOLDER_PANEL_LEAVES = DATA.folders.map(function (f) { return { path: f.path, name: f.name }; });
+		window.FOLDER_PANEL_INITIAL_HIDDEN = DATA.initialHidden || [];
+		window.FOLDER_PANEL_INITIAL_EXPANDED = DATA.initialExpanded || [];
+		window.FOLDER_PANEL_INITIAL_OPEN = DATA.initialPanelOpen;
+		${generateFolderPanelScript()}
 
 		function placeCamera() {
 			camera.position.set(camDist * 0.78, camDist * 0.38, camDist * 0.46);

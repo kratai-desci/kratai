@@ -44,6 +44,8 @@ export class ClassDiagramView {
 		const initialExpanded = Object.entries(config.folders || {})
 			.filter(([, folderConfig]) => folderConfig.expanded)
 			.map(([folderPath]) => folderPath);
+		// Shared with the stack layer's own panel toggle (config.folderPanelOpen).
+		const initialPanelOpen = config.folderPanelOpen !== false;
 
 		// Step 3: Generate final HTML with relationship data
 		return this.generateHTML(
@@ -54,6 +56,7 @@ export class ClassDiagramView {
 			folderHTML,
 			edges,
 			initialExpanded,
+			initialPanelOpen,
 			iconUri,
 			hasLiveHost
 		);
@@ -67,6 +70,7 @@ export class ClassDiagramView {
 		folderHTML: string,
 		edges: ReactFlowEdge[],
 		initialExpanded: string[],
+		initialPanelOpen: boolean,
 		iconUri?: string,
 		hasLiveHost?: boolean
 	): string {
@@ -483,7 +487,7 @@ export class ClassDiagramView {
         #legend .ln.dashed { background: none; border-top: 2px dashed var(--text-dim); height: 0; }
         #legend .mk { width: 14px; height: 10px; flex-shrink: 0; color: var(--text-dim); }
         #legend .dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
-        ${generateFolderPanelCSS({ position: 'fixed', top: '84px', left: '20px' })}
+        ${generateFolderPanelCSS({ position: 'fixed', top: '84px', left: '16px' })}
     </style>
 </head>
 <body>
@@ -1121,10 +1125,22 @@ export class ClassDiagramView {
         });
 
         // ---- folder panel (drill-down, hide/show, drag-reorder) - see
-        // folderPanelScript.ts for the tree/drag logic itself. It calls
-        // these two functions to apply state to this page's actual
-        // boxes/lines rather than knowing anything about them directly. ----
+        // folderPanelScript.ts for the tree/drag logic itself, shared with
+        // the stack layer's own panel so both look and behave identically.
+        // It calls these two functions to apply state to this page's
+        // actual boxes/lines rather than knowing anything about them
+        // directly, and reads the leaf-folder set off the already-rendered
+        // DOM boxes (the stack layer, not having any DOM boxes of its own,
+        // assigns this from its server-sent data instead). ----
+        window.FOLDER_PANEL_LEAVES = Array.from(document.querySelectorAll('.folder-container[data-folder]')).map(function (el) {
+            const nameEl = el.querySelector('.folder-name');
+            return { path: el.getAttribute('data-folder'), name: nameEl ? nameEl.textContent : el.getAttribute('data-folder') };
+        });
+        window.FOLDER_PANEL_INITIAL_HIDDEN = Array.from(document.querySelectorAll('.folder-container[data-hidden="true"]')).map(function (el) {
+            return el.getAttribute('data-folder');
+        });
         window.FOLDER_PANEL_INITIAL_EXPANDED = ${JSON.stringify(initialExpanded)};
+        window.FOLDER_PANEL_INITIAL_OPEN = ${JSON.stringify(initialPanelOpen)};
 
         // Every class box's original folder, recorded once before any
         // collapsing happens - applyFolderPlan needs this to put a box
