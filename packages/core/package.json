@@ -3,6 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "description": "Parsing, enrichment, diagram generation, and export logic shared across all kratai apps.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kratai-desci/kratai.git",
+    "directory": "packages/core"
+  },
   "main": "./out/index.js",
   "types": "./out/index.d.ts",
   "scripts": {

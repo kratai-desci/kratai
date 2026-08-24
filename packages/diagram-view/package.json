@@ -3,6 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "description": "Framework-agnostic interactive class diagram HTML/CSS/SVG/JS view, shared by every kratai host app.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kratai-desci/kratai.git",
+    "directory": "packages/diagram-view"
+  },
   "main": "./out/index.js",
   "types": "./out/index.d.ts",
   "scripts": {

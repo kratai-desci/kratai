@@ -12,7 +12,7 @@ This Contributor License Agreement ("Agreement") sets out the terms governing an
 
 "Project" shall mean the Kratai project maintained at https://github.com/kratai-desci/kratai.
 
-"Company" shall mean **Collective Science, inc**, the entity that owns and maintains the Project.
+"Company" shall mean **Decentralized Science, Inc**, the entity that owns and maintains the Project.
 
 ## 2. Grant of Copyright License
 
