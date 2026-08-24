@@ -322,8 +322,14 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 
 		// ---- color ramp by rank (shallow -> deep) ----
 		var accentRGB = [0x6D, 0x93, 0xF5], accent2RGB = [0x4F, 0xDC, 0xEA];
+		// Arrowheads use the page's --text token, not a third shade of the
+		// same blue-to-teal ramp everything else already uses - a same-hue
+		// arrowhead disappears into the lines and sheets around it, so it
+		// needs to read as a distinct, unmistakably-a-marker color instead.
+		var textRGB = [0xE8, 0xEC, 0xFB];
 		var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-		if (!isDark) { accentRGB = [0x34, 0x59, 0xE0]; accent2RGB = [0x14, 0xA6, 0xB8]; }
+		if (!isDark) { accentRGB = [0x34, 0x59, 0xE0]; accent2RGB = [0x14, 0xA6, 0xB8]; textRGB = [0x17, 0x20, 0x3A]; }
+		var arrowColor = new THREE.Color('rgb(' + textRGB[0] + ',' + textRGB[1] + ',' + textRGB[2] + ')');
 		function lerpColor(t) {
 			var c = accentRGB.map(function (v, i) { return Math.round(v + (accent2RGB[i] - v) * t); });
 			return new THREE.Color('rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')');
@@ -447,7 +453,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		var folderByPath = {};
 		DATA.folders.forEach(function (f) { folderByPath[f.path] = f; });
 
-		var LINE_RADIUS = 0.35, LINE_OPACITY = 0.4;
+		var LINE_RADIUS = 0.35, LINE_OPACITY = 0.4, ARROW_OPACITY = 0.85;
 		var REPOSITION_DURATION = 320, EXIT_DURATION = 260;
 		var sheetsByPath = {};
 		var renderGeneration = 0;
@@ -611,7 +617,6 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			function buildLines() {
 				if (myGeneration !== renderGeneration) return;
 				clearLines();
-				var lineColor = lerpColor(0.5);
 				lines.forEach(function (l, i) {
 					var angle = lines.length > 1 ? (i / lines.length) * Math.PI * 2 : 0;
 					var r = Math.min(l.source._w, l.target._w) / 2 * 0.5;
@@ -622,7 +627,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 					var curve = new THREE.LineCurve3(start, end);
 					var geo = new THREE.TubeGeometry(curve, 1, LINE_RADIUS, 6, false);
 					var mat = new THREE.MeshBasicMaterial({
-						color: lineColor, transparent: true, opacity: LINE_OPACITY, depthWrite: false
+						color: arrowColor, transparent: true, opacity: LINE_OPACITY, depthWrite: false
 					});
 					var lineMesh = new THREE.Mesh(geo, mat);
 					lineMesh.renderOrder = 2;
@@ -631,17 +636,17 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 					var dir = end.clone().sub(start).normalize();
 					var coneLen = Math.max(6, maxSheetSize * 0.025);
 					var coneRad = Math.max(1.6, maxSheetSize * 0.009);
-					var arrowMat = makeArrow(end, dir, lineColor, LINE_OPACITY, coneRad, coneLen);
+					var arrowMat = makeArrow(end, dir, arrowColor, ARROW_OPACITY, coneRad, coneLen);
 
 					mat.opacity = 0; arrowMat.opacity = 0;
-					tween(260, function (e) { mat.opacity = e * LINE_OPACITY; arrowMat.opacity = e * LINE_OPACITY; });
+					tween(260, function (e) { mat.opacity = e * LINE_OPACITY; arrowMat.opacity = e * ARROW_OPACITY; });
 
 					var lineRef = {
 						source: l.source,
 						target: l.target,
 						items: [
-							{ mat: mat, baseColor: lineColor.clone(), baseOpacity: LINE_OPACITY },
-							{ mat: arrowMat, baseColor: lineColor.clone(), baseOpacity: LINE_OPACITY }
+							{ mat: mat, baseColor: arrowColor.clone(), baseOpacity: LINE_OPACITY },
+							{ mat: arrowMat, baseColor: arrowColor.clone(), baseOpacity: ARROW_OPACITY }
 						]
 					};
 					l.source._beamMats.push(lineRef);
