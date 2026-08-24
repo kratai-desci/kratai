@@ -1,6 +1,7 @@
 out
 dist
 node_modules
+.DS_Store
 # Copied at build time from packages/skill/SKILL.md - see copy-skill.js
 packages/vscode-extension/skills/
 .vscode-test/
