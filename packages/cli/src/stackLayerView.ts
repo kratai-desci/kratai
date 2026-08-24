@@ -18,8 +18,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * (this is what broke alignment the first time around - the original
  * tree was built from every raw filesystem segment, including purely
  * organizational folders with no classes of their own). Same drag-to-
- * rotate/scroll-to-zoom interaction, same "oversized layer" / "circular
- * dependency" concerns detection.
+ * rotate/scroll-to-zoom interaction.
  *
  * One real substitution: the mockup sized each sheet by lines of code
  * (fake placeholder data - kratai doesn't track per-class line ranges).
@@ -55,7 +54,6 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		--bg: #EEF2FA; --surface: #FFFFFF; --surface-2: #F4F7FD;
 		--text: #17203A; --text-dim: #5C6785; --text-faint: #94A0BE;
 		--border: #DCE3F2; --accent: #3459E0; --accent-2: #14A6B8;
-		--modified: #C98A1B;
 		/* Background dot grid - its own token rather than reusing --border
 		   directly, since --border is already low-contrast against --bg in
 		   light mode (both pale blue-greys) and gets diluted further by the
@@ -70,7 +68,6 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			--bg: #0A0E19; --surface: #131A2E; --surface-2: #171F38;
 			--text: #E8ECFB; --text-dim: #939CBE; --text-faint: #5B6488;
 			--border: #262E4E; --accent: #6D93F5; --accent-2: #4FDCEA;
-			--modified: #F0C05A;
 			--dot: color-mix(in srgb, var(--border) 70%, transparent);
 		}
 	}
@@ -78,7 +75,6 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		--bg: #0A0E19; --surface: #131A2E; --surface-2: #171F38;
 		--text: #E8ECFB; --text-dim: #939CBE; --text-faint: #5B6488;
 		--border: #262E4E; --accent: #6D93F5; --accent-2: #4FDCEA;
-		--modified: #F0C05A;
 		--dot: color-mix(in srgb, var(--border) 70%, transparent);
 	}
 	* { box-sizing: border-box; }
@@ -139,9 +135,9 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 	#layerctl button:hover { border-color: var(--accent); color: var(--accent); }
 	#layerctl button.active { border-color: var(--accent); color: var(--accent); }
 
-	/* Hidden by default and toggled open from #layerctl (see toggleLegend/
-	   toggleConcerns) instead of permanently sitting over the diagram - a
-	   permanent overlay was covering real content underneath it. */
+	/* Hidden by default and toggled open from #layerctl (see toggleLegend)
+	   instead of permanently sitting over the diagram - a permanent overlay
+	   was covering real content underneath it. */
 	#legend-layer {
 		display: none;
 		background: color-mix(in srgb, var(--surface) 88%, transparent);
@@ -153,28 +149,6 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 	#legend-layer strong { color: var(--text); }
 	#legend-layer .row { display: flex; align-items: center; gap: 7px; margin-top: 2px; }
 	#layer-stats { font-weight: 650; color: var(--text); margin-bottom: 6px; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 10.5px; }
-
-	/* Same quiet treatment as #layer-list - a small dot per row is the only
-	   hint of yellow, rather than calling attention to itself. Hidden by
-	   default and toggled open the same way as #legend-layer. */
-	#concerns-layer {
-		display: none;
-		flex-direction: column; gap: 1px;
-		width: 240px; max-height: calc(100vh - 36px); overflow-y: auto;
-		background: color-mix(in srgb, var(--surface) 92%, transparent);
-		border: 1px solid var(--border); border-radius: 12px;
-		padding: 6px; backdrop-filter: blur(10px);
-	}
-	#concerns-layer.open { display: flex; }
-	#concerns-layer strong.title {
-		display: block; color: var(--text-dim); font-size: 9.5px;
-		font-weight: 650; text-transform: uppercase; letter-spacing: 0.05em;
-		padding: 4px 8px 5px;
-	}
-	.concern-row { display: flex; align-items: flex-start; gap: 7px; padding: 5px 8px; border-radius: 7px; }
-	.concern-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; background: var(--modified); }
-	.concern-row .concern-text strong { color: var(--text); font-size: 10.5px; font-weight: 650; }
-	.concern-row .concern-detail { display: block; color: var(--text-dim); font-size: 9.5px; opacity: 0.85; }
 </style>
 </head>
 <body>
@@ -188,10 +162,8 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 				<div class="row">Each line = one class-to-class relationship</div>
 				<div class="row">&#9654; arrow points from referencer to referenced</div>
 			</div>
-			<div id="concerns-layer"></div>
 			<div id="layerctl">
 				<button id="legend-toggle" title="Show legend">&#9432;</button>
-				<button id="concerns-toggle" title="Show concerns" style="display:none">&#9888;</button>
 			</div>
 		</div>
 		<div id="hint-layer">drag to rotate &middot; scroll to zoom &middot; click a layer to drill in</div>
@@ -218,111 +190,10 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 		function runLayer() {
 		var DATA = ${dataJSON};
 
-		// ---- architecture concerns: two objectively computable kinds - a
-		// circular dependency is a structural fact regardless of intent, and
-		// a folder with an outsized score relative to its peers is a fact
-		// too, not a judgment call about what the "correct" architecture is
-		// supposed to be. ----
-		function detectConcerns() {
-			var concerns = [];
-
-			var idToName = {}, idToFolder = {};
-			DATA.folders.forEach(function (f) {
-				f.classes.forEach(function (c) { idToName[c.id] = c.name; idToFolder[c.id] = f.path; });
-			});
-			var edgeSet = {};
-			DATA.relationships.forEach(function (r) { edgeSet[r.source + '=>' + r.target] = true; });
-			var seenPairs = {};
-			DATA.relationships.forEach(function (r) {
-				if (r.source === r.target) return;
-				if (!edgeSet[r.target + '=>' + r.source]) return;
-				var pairKey = [r.source, r.target].sort().join('|');
-				if (seenPairs[pairKey]) return;
-				seenPairs[pairKey] = true;
-				concerns.push({
-					text: (idToName[r.source] || r.source) + ' \\u2194 ' + (idToName[r.target] || r.target),
-					detail: 'circular dependency \\u2014 each depends on the other',
-					folderPaths: [idToFolder[r.source], idToFolder[r.target]].filter(Boolean)
-				});
-			});
-
-			var scores = DATA.folders.map(function (f) { return f.score || 0; }).filter(function (n) { return n > 0; });
-			if (scores.length) {
-				var sorted = scores.slice().sort(function (a, b) { return a - b; });
-				var mid = Math.floor(sorted.length / 2);
-				var medianScore = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-				var BIG_LAYER_MULTIPLIER = 3;
-				DATA.folders.forEach(function (f) {
-					if ((f.score || 0) > medianScore * BIG_LAYER_MULTIPLIER) {
-						concerns.push({
-							text: (f.path || '(root)') + ' \\u2014 ' + f.score + ' pts',
-							detail: 'over ' + BIG_LAYER_MULTIPLIER + '\\u00d7 the median folder score',
-							folderPaths: [f.path]
-						});
-					}
-				});
-			}
-
-			return concerns;
-		}
-
-		function renderConcerns(container, concerns, onHover) {
-			if (!container) return;
-			container.innerHTML = '';
-			// The toggle button itself is the show/hide affordance now (see
-			// toggleConcerns) - only hide it entirely when there's nothing to
-			// toggle to.
-			var toggleBtn = document.getElementById('concerns-toggle');
-			if (!concerns.length) {
-				if (toggleBtn) toggleBtn.style.display = 'none';
-				return;
-			}
-			if (toggleBtn) toggleBtn.style.display = '';
-			var header = document.createElement('strong');
-			header.className = 'title';
-			header.textContent = concerns.length + (concerns.length === 1 ? ' concern' : ' concerns');
-			container.appendChild(header);
-			concerns.forEach(function (c) {
-				var row = document.createElement('div');
-				row.className = 'concern-row';
-				var dot = document.createElement('span');
-				dot.className = 'concern-dot';
-				row.appendChild(dot);
-				var textEl = document.createElement('div');
-				textEl.className = 'concern-text';
-				textEl.innerHTML = '<strong>' + c.text + '</strong><span class="concern-detail">' + c.detail + '</span>';
-				row.appendChild(textEl);
-				if (onHover) {
-					row.addEventListener('mouseenter', function () { onHover(c, true); });
-					row.addEventListener('mouseleave', function () { onHover(c, false); });
-				}
-				container.appendChild(row);
-			});
-		}
-
-		renderConcerns(document.getElementById('concerns-layer'), detectConcerns(), function (concern, on) {
-			(concern.folderPaths || []).forEach(function (p) { highlightFolderPath(p, on); });
-		});
-
-		// Only one of legend/concerns open at a time - opening either closes
-		// the other, rather than letting both pile up side by side.
 		document.getElementById('legend-toggle').addEventListener('click', function () {
 			var opening = !document.getElementById('legend-layer').classList.contains('open');
 			document.getElementById('legend-layer').classList.toggle('open', opening);
 			this.classList.toggle('active', opening);
-			if (opening) {
-				document.getElementById('concerns-layer').classList.remove('open');
-				document.getElementById('concerns-toggle').classList.remove('active');
-			}
-		});
-		document.getElementById('concerns-toggle').addEventListener('click', function () {
-			var opening = !document.getElementById('concerns-layer').classList.contains('open');
-			document.getElementById('concerns-layer').classList.toggle('open', opening);
-			this.classList.toggle('active', opening);
-			if (opening) {
-				document.getElementById('legend-layer').classList.remove('open');
-				document.getElementById('legend-toggle').classList.remove('active');
-			}
 		});
 
 		var LAYER_GAP = 13;    // vertical distance between sheets
@@ -386,8 +257,8 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			node._borderMat.opacity = 0.85;
 		}
 		// A sheet's own highlight plus the beams (and beam partners) touching
-		// it - shared by hovering its list row and by the concerns panel, so
-		// both highlight paths look identical.
+		// it - used by window.highlightFolderPaths below, the folder panel's
+		// hover-to-highlight hook (see folderPanelScript.ts).
 		function highlightSheet(node) {
 			highlightNode(node);
 			(node._beamMats || []).forEach(function (r) {
@@ -406,16 +277,6 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 				other._borderMat.opacity = 0.85;
 			});
 		}
-		// A concern names a leaf folder path (the ground truth - see
-		// detectConcerns), which may currently be folded into a collapsed
-		// group; resolve through leafToVisiblePath to whichever sheet is
-		// actually on screen right now.
-		function highlightFolderPath(path, on) {
-			var node = frontierByPath[leafToVisiblePath[path] || path];
-			if (!node) return;
-			if (on) highlightSheet(node); else unhighlightSheet(node);
-		}
-
 		var tweens = [];
 		function tween(duration, onUpdate) {
 			tweens.push({ start: performance.now(), duration: duration, onUpdate: onUpdate });
