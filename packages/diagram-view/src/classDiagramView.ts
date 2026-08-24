@@ -1,5 +1,6 @@
 import { ReactFlowNode, ReactFlowEdge, FolderStructureBuilder, KrataiConfig } from '@kratai/core';
 import { FolderBoxRenderer } from './components/folderBoxRenderer';
+import { generateFolderPanelCSS, generateFolderPanelScript } from './folderPanelScript';
 
 export class ClassDiagramView {
 	
@@ -37,6 +38,13 @@ export class ClassDiagramView {
 		console.log(`📝 All ${nodes.length} classes rendered in ordered flat containers`);
 		console.log(`🔗 ${edges.length} relationships will be drawn as lines`);
 		
+		// Real group paths with expanded set in config - seeds the folder
+		// panel's expandedGroups on load (see folderPanelScript.ts), same
+		// idea as stackLayerData.ts's initialExpanded for the stack layer.
+		const initialExpanded = Object.entries(config.folders || {})
+			.filter(([, folderConfig]) => folderConfig.expanded)
+			.map(([folderPath]) => folderPath);
+
 		// Step 3: Generate final HTML with relationship data
 		return this.generateHTML(
 			workspaceName,
@@ -45,6 +53,7 @@ export class ClassDiagramView {
 			FolderStructureBuilder.countFolders(root),
 			folderHTML,
 			edges,
+			initialExpanded,
 			iconUri,
 			hasLiveHost
 		);
@@ -57,6 +66,7 @@ export class ClassDiagramView {
 		folderCount: number,
 		folderHTML: string,
 		edges: ReactFlowEdge[],
+		initialExpanded: string[],
 		iconUri?: string,
 		hasLiveHost?: boolean
 	): string {
@@ -473,6 +483,7 @@ export class ClassDiagramView {
         #legend .ln.dashed { background: none; border-top: 2px dashed var(--text-dim); height: 0; }
         #legend .mk { width: 14px; height: 10px; flex-shrink: 0; color: var(--text-dim); }
         #legend .dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+        ${generateFolderPanelCSS({ position: 'fixed', top: '84px', left: '20px' })}
     </style>
 </head>
 <body>
@@ -761,7 +772,11 @@ export class ClassDiagramView {
                 const sourceBox = document.querySelector('[data-class="' + CSS.escape(edge.source) + '"]');
                 const targetBox = document.querySelector('[data-class="' + CSS.escape(edge.target) + '"]');
 
-                if (!sourceBox || !targetBox) {
+                // offsetParent is null when the box or any ancestor (its
+                // .folder-container, if hidden via the folder panel) has
+                // display:none - getBoundingClientRect() on it would
+                // return a bogus zero-sized rect rather than throwing.
+                if (!sourceBox || !targetBox || sourceBox.offsetParent === null || targetBox.offsetParent === null) {
                     skippedCount++;
                     return;
                 }
@@ -1104,6 +1119,88 @@ export class ClassDiagramView {
         document.getElementById('diagram').addEventListener('scroll', function() {
             setTimeout(drawRelationships, 100);
         });
+
+        // ---- folder panel (drill-down, hide/show, drag-reorder) - see
+        // folderPanelScript.ts for the tree/drag logic itself. It calls
+        // these two functions to apply state to this page's actual
+        // boxes/lines rather than knowing anything about them directly. ----
+        window.FOLDER_PANEL_INITIAL_EXPANDED = ${JSON.stringify(initialExpanded)};
+
+        // Every class box's original folder, recorded once before any
+        // collapsing happens - applyFolderPlan needs this to put a box
+        // back where it came from once its group re-expands, since a
+        // merged box has no other record of which real folder a class
+        // used to belong to.
+        const classHomeGrid = {};
+        document.querySelectorAll('.classes-grid[data-folder-classes]').forEach(function (grid) {
+            grid.querySelectorAll(':scope > .uml-box[data-class]').forEach(function (box) {
+                classHomeGrid[box.getAttribute('data-class')] = grid;
+            });
+        });
+
+        function escapeHtmlForPanel(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // A collapsed group's classes all move into one synthetic box
+        // (mirrors the 3D stack's own aggregate sheet) instead of each
+        // real folder keeping its own; expanding the group is what breaks
+        // it back apart into the real per-folder boxes. Every call starts
+        // by undoing the previous plan entirely and rebuilding from
+        // scratch, rather than diffing - simple and correct, and cheap
+        // enough at this scale.
+        window.applyFolderPlan = function (plan) {
+            // Move every class box back to its real home *before* removing
+            // the old merged containers, not after - a merged container's
+            // boxes are still physically parented inside it at this point,
+            // and Element.remove() takes its whole subtree with it, so
+            // querying for a box already-removed this way would silently
+            // fail to find (and thus resurrect) it.
+            Object.keys(classHomeGrid).forEach(function (classId) {
+                const box = document.querySelector('.uml-box[data-class="' + CSS.escape(classId) + '"]');
+                const home = classHomeGrid[classId];
+                if (box && home && box.parentElement !== home) home.appendChild(box);
+            });
+            document.querySelectorAll('.folder-container[data-merged-group]').forEach(function (el) { el.remove(); });
+            document.querySelectorAll('.folder-container[data-folder]').forEach(function (el) { el.style.display = ''; });
+
+            const world = document.getElementById('diagram-world');
+            plan.forEach(function (item) {
+                if (item.type === 'leaf') {
+                    const el = document.querySelector('.folder-container[data-folder="' + CSS.escape(item.path) + '"]');
+                    if (!el) return;
+                    world.appendChild(el);
+                    el.style.display = item.hidden ? 'none' : '';
+                    return;
+                }
+                const firstEl = document.querySelector('.folder-container[data-folder="' + CSS.escape(item.realPaths[0]) + '"]');
+                if (!firstEl) return;
+                const merged = document.createElement('div');
+                merged.className = 'folder-container';
+                merged.setAttribute('data-merged-group', item.path);
+                merged.innerHTML = '<div class="folder-header"><span>\\ud83d\\udcc1</span><span class="folder-name">' + escapeHtmlForPanel(item.name)
+                    + '</span><span class="folder-path">| ' + escapeHtmlForPanel(item.path) + '</span></div><div class="classes-grid"></div>';
+                world.appendChild(merged);
+                merged.style.display = item.hidden ? 'none' : '';
+                const mergedGrid = merged.querySelector('.classes-grid');
+                item.realPaths.forEach(function (p) {
+                    const el = document.querySelector('.folder-container[data-folder="' + CSS.escape(p) + '"]');
+                    if (!el) return;
+                    el.style.display = 'none';
+                    el.querySelectorAll(':scope > .classes-grid > .uml-box').forEach(function (box) { mergedGrid.appendChild(box); });
+                });
+            });
+            drawRelationships();
+        };
+        window.highlightFolderPaths = function (paths, on) {
+            paths.forEach(function (p) {
+                const el = document.querySelector('.folder-container[data-folder="' + CSS.escape(p) + '"], .folder-container[data-merged-group="' + CSS.escape(p) + '"]');
+                if (el) el.classList.toggle('folder-highlighted', on);
+            });
+        };
+        ${generateFolderPanelScript()}
     </script>
 </body>
 </html>`;

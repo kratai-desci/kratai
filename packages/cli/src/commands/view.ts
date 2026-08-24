@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as http from 'http';
 import { CodeParserService, DiagramGeneratorService, GitDiffEnricher, FolderStructureBuilder, MarkdownExporter } from '@kratai/core';
 import { ClassDiagramView } from '@kratai/diagram-view';
-import { loadCliConfig, saveFolderOrder, saveFolderVisibility } from '../config.js';
+import { loadCliConfig, saveFolderExpanded, saveFolderOrder, saveFolderVisibility } from '../config.js';
 import { openFile } from '../openFile.js';
 import { generateShellHTML } from '../viewShell.js';
 import { buildStackLayerData } from '../stackLayerData.js';
@@ -42,18 +42,34 @@ export async function runView(options: ViewOptions): Promise<void> {
 	}
 
 	const { nodes, edges } = DiagramGeneratorService.generateReactFlowData(diagramData);
-	// hasLiveHost stays false - the view server doesn't yet listen for the
-	// diagram's postMessage calls (Save/Settings/open-file). Wire those up
-	// when the server actually handles them.
-	const classDiagramHtml = ClassDiagramView.generate(nodes, edges, diagramName, config, undefined, false);
 	const folderCount = FolderStructureBuilder.countFolders(FolderStructureBuilder.build(nodes));
-	const stackLayerHtml = generateStackLayerHTML(buildStackLayerData(diagramName, nodes, edges, config));
 	const markdown = MarkdownExporter.toMarkdown(diagramData, diagramName);
 	const shellHtml = generateShellHTML(diagramName, {
 		classCount: nodes.length,
 		folderCount,
 		edgeCount: edges.length
 	});
+
+	// The parse above (diagramData/nodes/edges) is the expensive part and
+	// stays cached for the server's lifetime, but the two diagram pages
+	// themselves are cheap to re-render - regenerating them fresh on every
+	// request (rather than once at startup, like markdown/shellHtml above)
+	// means a folder order/hidden/expanded change made from either page's
+	// panel shows up correctly the next time *either* page loads, without
+	// needing to restart the server. Baking them once was the original
+	// approach and is what made cross-view sync only ever seem to work in
+	// testing - restarting the server between checks papered over it.
+	function renderClassDiagram(): string {
+		const freshConfig = loadCliConfig(workspacePath, undefined, {});
+		// hasLiveHost stays false - the view server doesn't yet listen for
+		// the diagram's postMessage calls (Save/Settings/open-file). Wire
+		// those up when the server actually handles them.
+		return ClassDiagramView.generate(nodes, edges, diagramName, freshConfig, undefined, false);
+	}
+	function renderStackLayer(): string {
+		const freshConfig = loadCliConfig(workspacePath, undefined, {});
+		return generateStackLayerHTML(buildStackLayerData(diagramName, nodes, edges, freshConfig));
+	}
 
 	// Reads and parses a POST body, then hands it to `handle` - shared by
 	// every /api/* route below so each one only has to say what it does
@@ -98,8 +114,15 @@ export async function runView(options: ViewOptions): Promise<void> {
 			});
 			return;
 		}
-		const html = req.url === '/class-diagram' ? classDiagramHtml
-			: req.url === '/stack-layer' ? stackLayerHtml
+		if (req.method === 'POST' && req.url === '/api/folder-expanded') {
+			handleJsonPost<{ path?: string; expanded?: boolean }>(req, res, payload => {
+				if (payload.path === undefined) throw new Error('Missing "path"');
+				saveFolderExpanded(workspacePath, payload.path, !!payload.expanded);
+			});
+			return;
+		}
+		const html = req.url === '/class-diagram' ? renderClassDiagram()
+			: req.url === '/stack-layer' ? renderStackLayer()
 			: shellHtml;
 		res.writeHead(200, { 'Content-Type': 'text/html' });
 		res.end(html);

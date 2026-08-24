@@ -193,7 +193,7 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 			var header = doc.querySelector('.header');
 			if (header) header.style.display = 'none';
 			var style = doc.createElement('style');
-			style.textContent = '#zoomctl { top: 18px !important; }';
+			style.textContent = '#zoomctl, #folder-panel-toggle-wrap { top: 18px !important; }';
 			doc.head.appendChild(style);
 			pushTheme('class-frame');
 		});

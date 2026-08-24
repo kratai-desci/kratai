@@ -5,9 +5,9 @@ export interface FolderConfig {
 	selected: boolean;              // Whether folder is included when parsing the workspace at all
 	expanded?: boolean;             // UI state: whether folder is expanded in tree view
 	order?: number | null;          // Custom order (1, 2, 3...), null = alphabetical
-	hiddenInStack?: boolean;        // UI state: hidden from kratai view's stack layer specifically -
-	                                 // distinct from `selected`, which still gets this folder parsed
-	                                 // and shown in the class diagram, just not the 3D stack
+	hidden?: boolean;                // UI state: hidden from kratai view (both the class diagram and
+	                                 // the stack layer share this) - distinct from `selected`, which
+	                                 // controls whether the folder gets parsed at all
 }
 
 export interface KrataiConfig {

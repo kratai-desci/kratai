@@ -112,9 +112,13 @@ export class FolderBoxRenderer {
 		const safeFolderName = this.escapeHtml(folder.name);
 		const safeFolderPath = this.escapeHtml(folder.fullPath);
 		const classCount = folder.classes.length;
+		// Applied server-side (rather than left for the folder panel's own
+		// client JS to hide after load) so a folder hidden last session
+		// doesn't flash visible before script execution catches up.
+		const hidden = !!this.config.folders?.[folder.fullPath]?.hidden;
 
 		return `
-			<div class="folder-container" data-folder="${safeFolderPath}">
+			<div class="folder-container" data-folder="${safeFolderPath}"${hidden ? ' data-hidden="true" style="display:none"' : ''}>
 				<div class="folder-header">
 					<span>${folderIcon}</span>
 					<span class="folder-name">${safeFolderName}</span>

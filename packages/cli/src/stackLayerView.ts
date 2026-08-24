@@ -558,6 +558,7 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			return { path: f.path, name: f.name, score: f.score || 0, classCount: f.classes.length };
 		}));
 		var expandedGroups = {};
+		(DATA.initialExpanded || []).forEach(function (p) { expandedGroups[p] = true; });
 		// Persisted to kratai.local.json (see config.ts's saveFolderVisibility),
 		// same as drag-reorder below - seeded here from whatever was hidden
 		// last session. Keyed by node.path for a whole node (and, if it's a
@@ -734,8 +735,14 @@ export function generateStackLayerHTML(data: StackLayerData): string {
 			row.addEventListener('mouseleave', function () { sheetsForNode(node).forEach(unhighlightSheet); });
 			if (isGroup) {
 				row.addEventListener('click', function () {
-					expandedGroups[node.path] = !expandedGroups[node.path];
+					var nowExpanded = !expandedGroups[node.path];
+					expandedGroups[node.path] = nowExpanded;
 					renderStack(true);
+					fetch('/api/folder-expanded', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ path: node.path, expanded: nowExpanded })
+					}).catch(function () {});
 				});
 			}
 

@@ -34,9 +34,12 @@ export interface StackLayerData {
 	folders: StackLayerFolder[];
 	relationships: StackLayerRelationship[];
 	// Paths (opaque strings - see stackLayerView.ts's SELF_SUFFIX) with
-	// hiddenInStack set in config, seeding the client's hiddenNodes on load
+	// hidden set in config, seeding the client's hiddenNodes on load
 	// so a hide toggle from a previous session survives a restart.
 	initialHidden: string[];
+	// Real group paths with expanded set in config, seeding expandedGroups
+	// on load so a drilled-into layer stays drilled into after a restart.
+	initialExpanded: string[];
 }
 
 function collectLeafFolders(folder: DiagramFolderNode, leaves: DiagramFolderNode[]): void {
@@ -149,8 +152,11 @@ export function buildStackLayerData(workspaceName: string, nodes: ReactFlowNode[
 		.filter((r): r is StackLayerRelationship => !!r.sourceFolder && !!r.targetFolder);
 
 	const initialHidden = Object.entries(config?.folders || {})
-		.filter(([, folderConfig]) => folderConfig.hiddenInStack)
+		.filter(([, folderConfig]) => folderConfig.hidden)
+		.map(([folderPath]) => folderPath);
+	const initialExpanded = Object.entries(config?.folders || {})
+		.filter(([, folderConfig]) => folderConfig.expanded)
 		.map(([folderPath]) => folderPath);
 
-	return { workspaceName, folders, relationships, initialHidden };
+	return { workspaceName, folders, relationships, initialHidden, initialExpanded };
 }
