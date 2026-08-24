@@ -17,132 +17,61 @@ export class WorkspaceScanner {
 
 	/**
 	 * Select folders from workspace (flat array for config)
-	 * Returns only top-level source folders - parsing will recursively include their contents
-	 * 
+	 * Returns only top-level source folders - scanForFiles() already recurses
+	 * into all of their subdirectories (excluding non-source ones), so the
+	 * list is intentionally NOT expanded to every descendant here: doing that
+	 * previously made getFilesToParse() re-scan the same nested folder once
+	 * per ancestor listed (e.g. "backend", then "backend/app", then
+	 * "backend/app/api", ...), parsing some files up to 4x and corrupting the
+	 * resulting class/relationship counts.
+	 *
 	 * @param workspacePath - Absolute path to workspace
 	 * @returns Array of top-level folder paths (e.g., ["src", "lib", "mcp"])
 	 */
 	static selectFolders(workspacePath: string): string[] {
-		// Detect standard top-level source folders
 		const topLevelFolders = this.detectTopLevelSourceFolders(workspacePath);
-		
+
 		if (topLevelFolders.length === 0) {
 			return ['.'];
 		}
-		
-		// Expand each top-level folder to include all subdirectories
-		const allFolders: string[] = [];
-		for (const folder of topLevelFolders) {
-			allFolders.push(folder);
-			const subdirs = this.collectAllSubdirectories(workspacePath, folder);
-			allFolders.push(...subdirs);
-		}
-		
-		return allFolders;
-	}
-	
-	/**
-	 * Recursively collect all subdirectories under a folder
-	 * Returns relative paths from workspace root
-	 */
-	private static collectAllSubdirectories(
-		workspacePath: string,
-		relativePath: string,
-		maxDepth: number = 10,
-		currentDepth: number = 0
-	): string[] {
-		// Prevent infinite recursion
-		if (currentDepth > maxDepth) return [];
-		
-		const subdirs: string[] = [];
-		const fullPath = path.join(workspacePath, relativePath);
-		
-		try {
-			const entries = fs.readdirSync(fullPath, { withFileTypes: true });
-			
-			for (const entry of entries) {
-				if (!entry.isDirectory()) continue;
-				
-				// Skip excluded folders
-				if (this.shouldExcludeFolder(entry.name)) continue;
-				
-				const childRelativePath = `${relativePath}/${entry.name}`;
-				subdirs.push(childRelativePath);
-				
-				// Recurse into subdirectory
-				const deeperSubdirs = this.collectAllSubdirectories(
-					workspacePath,
-					childRelativePath,
-					maxDepth,
-					currentDepth + 1
-				);
-				subdirs.push(...deeperSubdirs);
-			}
-		} catch (error) {
-			// Ignore errors (permission denied, etc.)
-		}
-		
-		return subdirs;
+
+		return topLevelFolders;
 	}
 
 	/**
 	 * Detect top-level source folders only
 	 * Returns folder names if they exist (parsing will handle recursion)
+	 *
+	 * A folder qualifies by exclusion, not by matching a fixed name list: real
+	 * projects name their source root anything (backend/, frontend/, server/,
+	 * web/, ...) and no fixed whitelist can cover them all. A name-matching
+	 * whitelist also produces false positives - e.g. a cookiecutter template's
+	 * `hooks/` post-gen-script folder matching the "React hooks" candidate and
+	 * being treated as the *only* source folder, silently hiding sibling
+	 * `backend/`/`frontend/` folders that just weren't on the list. Instead,
+	 * every top-level folder that isn't a known non-source folder
+	 * (shouldExcludeFolder) and that actually contains parseable code
+	 * (hasCodeInTree) qualifies.
 	 */
 	private static detectTopLevelSourceFolders(workspacePath: string): string[] {
-		const candidates = [
-			// Universal patterns (top-level only)
-			'src',
-			'lib', 
-			'app',
-			'mcp',        // MCP server development
-			'api',        // API folder (common in Next.js, etc.)
-			'server',     // Server code
-			
-			// TypeScript/JavaScript Frameworks
-			'pages',      // Next.js
-			'routes',     // SvelteKit/Remix/Express
-			'components', // React/Vue components
-			'modules',    // NestJS/Angular
-			'hooks',      // React hooks
-			'utils',      // Utility functions
-			'helpers',    // Helper functions
-			'services',   // Business logic
-			'middleware', // Express/Koa middleware
-			'controllers',// MVC controllers
-			'models',     // Data models
-			'views',      // View templates
-			
-			// Python
-			'apps',       // Django apps
-			'core',       // Django core
-			'blueprints', // Flask blueprints
-			'routers',    // FastAPI routers
-			'schemas',    // Pydantic schemas
-			
-			// PHP
-			'resources',  // Laravel resources
-			'database',   // Laravel migrations/seeders/factories
-			
-			// Go
-			'cmd',        // Go commands
-			'pkg',        // Go packages
-			'internal',   // Go internal packages
-			
-			// Java/Kotlin
-			'main',       // Common source folder
-		];
-		
 		const found: string[] = [];
-		
-		for (const candidate of candidates) {
-			const fullPath = path.join(workspacePath, candidate);
-			// Only check if folder exists and has code (directly or in descendants)
-			if (fs.existsSync(fullPath) && this.hasCodeInTree(fullPath)) {
-				found.push(candidate);
+
+		let entries: fs.Dirent[];
+		try {
+			entries = fs.readdirSync(workspacePath, { withFileTypes: true });
+		} catch (error) {
+			return found;
+		}
+
+		for (const entry of entries) {
+			if (!entry.isDirectory() || this.shouldExcludeFolder(entry.name)) continue;
+
+			const fullPath = path.join(workspacePath, entry.name);
+			if (this.hasCodeInTree(fullPath)) {
+				found.push(entry.name);
 			}
 		}
-		
+
 		return found;
 	}
 

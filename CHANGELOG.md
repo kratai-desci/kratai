@@ -1,6 +1,54 @@
 # Change Log
 
-All notable changes to the Kratai extension will be documented in this file.
+All notable changes to kratai will be documented in this file.
+
+## [2.0.0] - 2026-08-24
+
+kratai's UI is now a standalone CLI-served web app instead of a VS Code
+extension. The old extension, its webview config panel, and its MCP server
+have all been removed; everything below is new.
+
+### Added
+- **`kratai view`** — a local, interactive architecture explorer served by the
+  CLI, with two synchronized views:
+  - **Stack Layer** — each folder rendered as a drillable, stackable 3D sheet.
+    Drag to rotate, scroll to zoom, click a layer to drill in.
+  - **Class Diagram** — UML-style class boxes with typed relationship lines
+    (extends/implements/uses/has), grouped by folder.
+- **Shared folder navigation panel** — used identically by both views: hide,
+  show, reorder (drag), and drill into any folder. Folder order, visibility,
+  drill-down state, and panel-open state all persist across reloads and stay
+  in sync between both views (changing one live-reloads the other).
+- **Real folder structure in the panel** — every real folder gets its own
+  row instead of silently collapsing organizational wrapper folders away.
+  A folder with no code of its own and exactly one subfolder defaults to
+  hidden so the default view isn't cluttered with wrapper folders, but
+  drilling into it auto-expands through the whole chain in one click and
+  reveals the real content underneath.
+- **Single hide/show toggle per folder**, context-aware: while a folder is
+  collapsed, hiding it mutes its entire subtree at once; once expanded, it
+  narrows to just that folder's own files, since its children are
+  separately visible rows by then.
+- **Git diff highlighting** in the Class Diagram — added/deleted/modified
+  classes are visually marked based on uncommitted changes, so you can see
+  what you touched without leaving the diagram.
+- **Refresh button** — re-scans the whole project from disk on demand
+  (previously the only way to pick up source changes was restarting the
+  server).
+- **Dark and light themes**, matching system preference by default,
+  independently toggleable and synced across both views.
+- **One-click Markdown export** of the whole architecture (`Download
+  Markdown` in the toolbar), same content `kratai analyze` produces.
+- **Zoom** on the Class Diagram, with relationship lines that stay correctly
+  anchored to box edges and layered *above* folder backgrounds but *behind*
+  class boxes at every zoom level.
+
+### Changed
+- **CLI-first** — kratai is now installed and run entirely via
+  `npx @kratai/cli`; there is no VS Code extension or MCP server anymore.
+- Removed the old `mockups/` prototype folder (superseded by the real
+  `packages/cli`/`packages/diagram-view` implementations it was ported
+  from).
 
 ## [1.9.9] - 2026-07-23
 

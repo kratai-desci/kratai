@@ -1,20 +1,21 @@
 # kratai
 
-> The architectural oversight layer for AI-native development.  
+> The architectural oversight layer for AI-native development.
 > You focus on design. AI writes the code like a real software engineer.
 
-kratai turns your codebase into **living architecture diagrams** — the single source of truth.  
+kratai turns your codebase into **living architecture diagrams** — the single source of truth.
 Maintain architectural control while AI agents code, and **dramatically reduce token usage** by giving them structured, accurate system information instead of expensive raw file dumps.
 
-**Early benchmarks** with AI agents using kratai’s architecture context (via SKILL) showed:
+**Early benchmarks** with AI agents using kratai's architecture context (via SKILL) showed:
 - **~49% fewer output tokens**
 - **~66% reduction in total input tokens**
 - **~58% lower billing units**
 - **~70% faster completion time**
 
-*Results from preliminary internal testing (kratai v.1.9.4 vs no skill baseline). Actual results may vary depending on task complexity and agent behavior.*
+*Results from preliminary internal testing vs. a no-skill baseline. Actual results may vary depending on task complexity and agent behavior.*
 
-![kratai in Action](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo.gif)
+<!-- TODO: drop a fresh demo.gif of `kratai view` (Stack Layer + Class Diagram) into demo/ and swap this in -->
+<!-- ![kratai in Action](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo.gif) -->
 
 ---
 
@@ -29,7 +30,16 @@ Maintain architectural control while AI agents code, and **dramatically reduce t
 
 - **Deterministic Analysis** — Generate interactive architecture diagrams directly from your codebase using static analysis. No LLM tokens required, no hallucinations, always reflects the actual code structure.
 - **Single Source of Truth** — Diagrams represent the real state of your system, making it easy for developers to understand the overall architecture and reducing token costs when AI agents need context.
-- **Developer-Friendly Navigation** — Git diff highlighting shows uncommitted changes at a glance. Click any element to jump directly to the code.
+- **Developer-Friendly Navigation** — Git diff highlighting shows uncommitted changes at a glance, right in the diagram.
+
+### 🖥️ **`kratai view` — a local, interactive architecture explorer**
+
+- **Two synchronized views** — a 3D **Stack Layer** view (each folder as a drillable, stackable sheet) and a 2D **Class Diagram** (UML-style boxes with typed relationships), switchable side by side or one at a time.
+- **Real folder structure, not a guess** — the navigation panel mirrors your actual folder tree. Purely organizational folders (no code of their own) are still shown, just dimmed by default, and drilling into one auto-expands through the whole wrapper chain to real content in a single click.
+- **Full control over what's shown** — hide, show, reorder (drag), and drill down into any folder from either view; state persists across reloads and stays in sync between both views.
+- **Refresh without restarting** — re-scans the whole project from disk on demand, no need to kill and restart the server after you change code.
+- **Dark and light themes**, matching your system by default.
+- **One-click Markdown export** of the whole architecture, for pasting into a PR description or feeding to an agent that doesn't have the SKILL wired up.
 
 ---
 
@@ -51,26 +61,27 @@ kratai contributes to this approach by giving developers clear **visibility and 
 
 ## 📸 Visual Tour
 
+<!--
+TODO: recapture screenshots against the current `kratai view` (post-v2.0 redesign)
+and drop them into demo/ under these filenames, or update the paths below to
+match whatever you capture. Suggested shots:
+  1. demo/demo_stack_layer.png   - the 3D Stack Layer view, a few folders drilled in
+  2. demo/demo_class_diagram.png - the Class Diagram view with a git-diff-highlighted change
+  3. demo/demo_folder_panel.png  - the shared folder panel (hide/show/reorder/drill)
+  4. demo/demo_skill.png         - an agent using the SKILL via `kratai analyze`
+-->
+
 ### 1. Built-in Coding Agent & SKILL
 Pre-configured SKILL teaches AI to follow your design principles automatically — no manual setup required.
-
-<img src="https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_4.png" alt="AI uses kratai skill" width="50%">
 
 ### 2. AI Understands Your Architecture
 AI agents load your architecture before generating code, via `kratai analyze`. No expensive context dumps — just structured, accurate system information.
 
-![Screenshot 1 - Class Diagram](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_1.png)
+### 3. Explore Your Architecture Interactively
+`kratai view` opens a local, interactive explorer — drill into folders, follow relationships, and see uncommitted changes highlighted directly in the diagram.
 
-### 3. Architecture as Single Source of Truth
-Create and save different architectural views — focus on domains, API layers, or specific features. Each diagram is a lens into your system structure.
-
-<img src="https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_2.png" alt="Multiple Diagrams" width="33%">
-
-### 4. Fine-Grained Control Over Your Views
-Choose exactly what to show — select folders, filter relationship types, and control class types. Tailor each diagram to your specific needs.
-
-![Screenshot 5 - Configuration Panel](https://raw.githubusercontent.com/kratai-desci/kratai/main/demo/demo_ss_5.png)
-
+### 4. Full Control Over What's Shown
+Hide, show, reorder, and drill into any folder from the shared navigation panel — in either view, with state that persists across reloads.
 
 ---
 
@@ -100,10 +111,10 @@ npx @kratai/cli view      # live interactive diagram, for you to look at
 
 ```
 packages/
-├── core/              analysis engine + diagram-spec generator (deterministic, zero LLM calls)
-├── diagram-view/       the interactive class diagram renderer, used by `kratai view`
-├── cli/                 kratai analyze / kratai init / kratai view - installable CLI
-└── skill/                 shared Architecture-Aware SKILL.md
+├── core/          analysis engine + diagram-spec generator (deterministic, zero LLM calls)
+├── diagram-view/  the interactive class diagram renderer, used by `kratai view`
+├── cli/           kratai analyze / kratai init / kratai view - installable CLI
+└── skill/         shared Architecture-Aware SKILL.md
 ```
 
 ---
@@ -128,18 +139,11 @@ packages/
 
 ## 📝 Release Notes
 
-### Latest: v1.9.9 (2026-07-23)
-- 🎯 **UML Notation Fix** — Composition/aggregation diamonds now render on the correct (owner) side of the relationship, per standard UML notation
-- 🔀 **Overlapping Relationship Lines** — Lines that used to stack exactly on top of each other (duplicate relationships, same-row connections) now automatically spread apart, in any direction
-- 🐛 **Java & Python Parser Fixes** — Fixed local variables being misdetected as class fields (Java: methods with `throws` clauses; Python: multi-line method signatures), which was producing bogus relationships in diagrams
-- 🌐 **Full Workspace Parsing** — Removed single-language auto-detection; kratai now parses all supported file types by default, better supporting polyglot/monorepo projects
-
-### v1.9.8 (2026-07-09)
-- 📸 **Documentation Fix** — Fixed screenshot images not displaying properly in VS Code Marketplace README
-
-### v1.9.7 (2026-07-09)
-- 🎨 **Config Panel UX Improvements** — Fixed Folder Order tab not displaying selected folders, improved folder selection persistence
-- 🐛 **Critical Bug Fixes** — Resolved folder selection save issues and JavaScript errors in config panel webview
+### Latest: v2.0 (2026-08-24)
+- 🖥️ **New: `kratai view`** — a full interactive architecture explorer replaces the old VS Code webview config panel. Two synchronized views (3D Stack Layer + Class Diagram), a shared folder navigation panel, dark/light theming, and git-diff highlighting, all served locally with no editor dependency.
+- 🗂️ **Folder panel redesign** — the navigation tree now mirrors your real folder structure instead of collapsing organizational folders away; empty wrapper folders default to hidden and auto-expand through in one click when you drill in.
+- 🔄 **Refresh without restarting** — re-scan the whole project from disk on demand instead of killing and restarting the server.
+- 🧹 **CLI-first** — the VS Code extension and its MCP server have been removed entirely; kratai is now a standalone CLI (`kratai analyze` / `kratai init` / `kratai view`).
 
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
