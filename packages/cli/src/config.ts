@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { ConfigService, FolderConfig, KrataiConfig } from '@kratai/core';
+import { ConfigService, FolderConfig, KrataiConfig } from '@kratai/analysis';
 
 export interface ConfigOverrides {
 	folders?: string[];

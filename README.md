@@ -111,7 +111,7 @@ npx @kratai/cli view      # live interactive diagram, for you to look at
 
 ```
 packages/
-├── core/          analysis engine + diagram-spec generator (deterministic, zero LLM calls)
+├── analysis/      analysis engine + diagram-spec generator (deterministic, zero LLM calls)
 ├── diagram-view/  the interactive class diagram renderer, used by `kratai view`
 ├── cli/           kratai analyze / kratai init / kratai view - installable CLI
 └── skill/         shared Architecture-Aware SKILL.md

@@ -9,7 +9,7 @@ interface ExtensionConfig {
 
 function loadConfig(): ExtensionConfig {
 	try {
-		// Go up 4 levels from packages/core/out/telemetry/ to reach the repo root
+		// Go up 4 levels from packages/analysis/out/telemetry/ to reach the repo root
 		const configPath = path.join(__dirname, '..', '..', '..', '..', 'config.json');
 		if (fs.existsSync(configPath)) {
 			return JSON.parse(fs.readFileSync(configPath, 'utf-8'));

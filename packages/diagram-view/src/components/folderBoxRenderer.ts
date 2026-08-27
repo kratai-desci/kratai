@@ -1,4 +1,4 @@
-import { DiagramFolderNode, FolderStructureBuilder, KrataiConfig, ReactFlowNode } from '@kratai/core';
+import { DiagramFolderNode, FolderStructureBuilder, KrataiConfig, ReactFlowNode } from '@kratai/analysis';
 import { getLayerWeight } from '../layerWeight';
 import { foldSingleClassFolders, prefixFoldedClassName } from '../foldSingleClassFolders';
 

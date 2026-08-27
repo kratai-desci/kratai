@@ -16,7 +16,7 @@ await esbuild.build({
 	logLevel: 'info',
 	// Provided by the Electron runtime - never bundle it.
 	external: ['electron'],
-	// @kratai/core (pulled in transitively via @kratai/cli's runView) is
+	// @kratai/analysis (pulled in transitively via @kratai/cli's runView) is
 	// compiled as CommonJS, and one of its own deps (`typescript`, used by
 	// TypeScriptParser) is too - both rely on require()/__filename/__dirname,
 	// none of which exist in esbuild's ESM output. Reviving all three via

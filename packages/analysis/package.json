@@ -1,5 +1,5 @@
 {
-  "name": "@kratai/core",
+  "name": "@kratai/analysis",
   "version": "1.0.0",
   "private": true,
   "description": "Parsing, enrichment, diagram generation, and export logic shared across all kratai apps.",
@@ -7,7 +7,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kratai-desci/kratai.git",
-    "directory": "packages/core"
+    "directory": "packages/analysis"
   },
   "main": "./out/index.js",
   "types": "./out/index.d.ts",

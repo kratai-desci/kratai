@@ -15,7 +15,7 @@ await esbuild.build({
 	// 'vscode' isn't a real npm package. Mark it external: the require stays unresolved
 	// in the bundle but is simply never reached at runtime outside VS Code.
 	external: ['vscode'],
-	// @kratai/core's compiled output (and the TypeScript compiler it bundles in, for
+	// @kratai/analysis's compiled output (and the TypeScript compiler it bundles in, for
 	// TypeScriptParser) is CommonJS; bundling CJS into an ESM output means require(),
 	// __filename, and __dirname all need real ESM-native equivalents, since none of
 	// those exist natively in ESM.

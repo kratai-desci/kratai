@@ -1,4 +1,4 @@
-import { DiagramFolderNode, FolderStructureBuilder, KrataiConfig, ReactFlowEdge, ReactFlowNode } from '@kratai/core';
+import { DiagramFolderNode, FolderStructureBuilder, KrataiConfig, ReactFlowEdge, ReactFlowNode } from '@kratai/analysis';
 import { foldSingleClassFolders, prefixFoldedClassName } from '@kratai/diagram-view';
 
 export interface StackLayerClass {

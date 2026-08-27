@@ -1,4 +1,4 @@
-import { ClassInfo } from '@kratai/core';
+import { ClassInfo } from '@kratai/analysis';
 
 export class ClassBoxRenderer {
 	constructor(private boxWidth: number, private hasLiveHost: boolean = false) {}

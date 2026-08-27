@@ -1,4 +1,4 @@
-import { CodeParserService, DiagramData, KrataiConfig } from '@kratai/core';
+import { CodeParserService, DiagramData, KrataiConfig } from '@kratai/analysis';
 
 /**
  * Language parsers log their own progress via console.log (e.g.

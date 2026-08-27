@@ -1,7 +1,7 @@
 {
   "name": "@kratai/cli",
   "version": "0.1.0",
-  "description": "Installable CLI - generates a self-contained static HTML architecture diagram from your codebase, no VS Code or backend needed. Also wires kratai's skill into Claude Code, Cursor, and OpenCode via `kratai init`.",
+  "description": "Installable CLI - generates a self-contained static HTML architecture diagram from your codebase, no VS Code or backend needed.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -23,12 +23,12 @@
   },
   "scripts": {
     "typecheck": "tsc -p ./ --noEmit",
-    "build": "npm run typecheck && node esbuild.js && node copy-skill.js && node copy-vendor.js && tsc -p tsconfig.lib.json",
+    "build": "npm run typecheck && node esbuild.js && node copy-vendor.js && tsc -p tsconfig.lib.json",
     "watch": "tsc -watch -p ./",
     "start": "node ./out/cli.mjs"
   },
   "dependencies": {
-    "@kratai/core": "*",
+    "@kratai/analysis": "*",
     "@kratai/diagram-view": "*"
   },
   "devDependencies": {

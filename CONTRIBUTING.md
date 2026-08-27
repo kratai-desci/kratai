@@ -29,7 +29,7 @@ git clone https://github.com/kratai-desci/kratai.git
 cd kratai
 npm install
 npm run build   # builds every package
-npm test        # runs @kratai/core's test suite
+npm test        # runs @kratai/analysis's test suite
 npm run lint    # lints every package
 ```
 

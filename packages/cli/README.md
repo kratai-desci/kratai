@@ -64,9 +64,9 @@ flags for that run.
 
 ## Implementation
 
-Both commands share the same `@kratai/core` pipeline (parsing + git-diff
+Both commands share the same `@kratai/analysis` pipeline (parsing + git-diff
 enrichment), differing only in delivery:
-- `analyze` writes it out with `@kratai/core`'s `MarkdownExporter.toMarkdown`
+- `analyze` writes it out with `@kratai/analysis`'s `MarkdownExporter.toMarkdown`
 - `view` renders it live with `@kratai/diagram-view`'s `ClassDiagramView.generate(...)`
   (embedded via iframe alongside the stack-layer view - see `src/viewShell.ts`) -
   `hasLiveHost` is left `false` since the server doesn't yet listen for the

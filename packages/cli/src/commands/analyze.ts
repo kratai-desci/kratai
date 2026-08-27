@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { CodeParserService, GitDiffEnricher, MarkdownExporter } from '@kratai/core';
+import { CodeParserService, GitDiffEnricher, MarkdownExporter } from '@kratai/analysis';
 import { loadCliConfig } from '../config.js';
 import { openFile } from '../openFile.js';
 

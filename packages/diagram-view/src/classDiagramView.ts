@@ -1,4 +1,4 @@
-import { ReactFlowNode, ReactFlowEdge, FolderStructureBuilder, KrataiConfig } from '@kratai/core';
+import { ReactFlowNode, ReactFlowEdge, FolderStructureBuilder, KrataiConfig } from '@kratai/analysis';
 import { FolderBoxRenderer } from './components/folderBoxRenderer';
 import { generateFolderPanelCSS, generateFolderPanelScript } from './folderPanelScript';
 
