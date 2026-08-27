@@ -3,6 +3,9 @@ import { parseArgs } from 'node:util';
 import { runAnalyze } from './commands/analyze.js';
 import { runInit } from './commands/init.js';
 import { runView } from './commands/view.js';
+import { runStructure } from './commands/structure.js';
+import { runSearch } from './commands/search.js';
+import { runDetail } from './commands/detail.js';
 
 const VERSION = '0.1.0';
 
@@ -11,6 +14,9 @@ function printHelp(): void {
 
 Usage:
   kratai analyze [path] [options]
+  kratai structure [path] [options]
+  kratai search <query> [path] [options]
+  kratai detail <name|file|file::name> [path] [options]
   kratai init [path] [options]
   kratai view [path] [options]
 
@@ -21,6 +27,20 @@ analyze - generate a Markdown architecture summary for an AI agent/file
       --folders <a,b,c>  Only include these folders (comma-separated, overrides config)
       --no-git-diff      Disable git diff highlighting
       --open             Open the generated file in your default app
+
+structure - print a names-only outline (folder tree + per-file classes/
+            properties/methods, no types, no relationships) - the cheap
+            starting point before 'search'/'detail' on anything specific
+  -c, --config <file>    Path to a kratai.config.json
+
+search - find classes/files by name (case-insensitive substring match)
+  -c, --config <file>    Path to a kratai.config.json
+
+detail - full detail (properties, methods, relationships) for one class or
+         every class in one file. Accepts a bare class name (resolves
+         directly if unique, otherwise lists candidates), an exact file
+         path, or "file::ClassName" to resolve an ambiguous name directly
+  -c, --config <file>    Path to a kratai.config.json
 
 init - wire kratai's skill into an AI coding agent
                           Writes .claude/skills/kratai/SKILL.md, merges an
@@ -80,6 +100,74 @@ async function main(): Promise<void> {
 			folders: values.folders,
 			gitDiff: !values['no-git-diff'],
 			open: Boolean(values.open)
+		});
+		return;
+	}
+
+	if (command === 'structure') {
+		const { values, positionals } = parseArgs({
+			args: rest,
+			options: {
+				config: { type: 'string', short: 'c' },
+				help: { type: 'boolean', short: 'h' }
+			},
+			allowPositionals: true
+		});
+
+		if (values.help) {
+			printHelp();
+			return;
+		}
+
+		await runStructure({
+			path: positionals[0] || process.cwd(),
+			configPath: values.config
+		});
+		return;
+	}
+
+	if (command === 'search') {
+		const { values, positionals } = parseArgs({
+			args: rest,
+			options: {
+				config: { type: 'string', short: 'c' },
+				help: { type: 'boolean', short: 'h' }
+			},
+			allowPositionals: true
+		});
+
+		if (values.help) {
+			printHelp();
+			return;
+		}
+
+		await runSearch({
+			query: positionals[0],
+			path: positionals[1] || process.cwd(),
+			configPath: values.config
+		});
+		return;
+	}
+
+	if (command === 'detail') {
+		const { values, positionals } = parseArgs({
+			args: rest,
+			options: {
+				config: { type: 'string', short: 'c' },
+				help: { type: 'boolean', short: 'h' }
+			},
+			allowPositionals: true
+		});
+
+		if (values.help) {
+			printHelp();
+			return;
+		}
+
+		await runDetail({
+			identifier: positionals[0],
+			path: positionals[1] || process.cwd(),
+			configPath: values.config
 		});
 		return;
 	}

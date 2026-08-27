@@ -1,0 +1,28 @@
+{
+  "name": "@kratai/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Electron desktop app - a native window around the same local view server `kratai view` already runs (@kratai/cli's runView), so it always reflects the Stack Layer + Class Diagram UI both share, not a separate renderer to keep in sync.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kratai-desci/kratai.git",
+    "directory": "packages/desktop"
+  },
+  "type": "module",
+  "main": "out/main/index.js",
+  "scripts": {
+    "typecheck": "tsc -p ./ --noEmit",
+    "build": "npm run typecheck && node esbuild.js && node copy-vendor.js",
+    "start": "electron .",
+    "dev": "npm run build && electron ."
+  },
+  "dependencies": {
+    "@kratai/cli": "*"
+  },
+  "devDependencies": {
+    "@types/node": "22.x",
+    "electron": "^33.2.0",
+    "esbuild": "^0.24.0"
+  }
+}

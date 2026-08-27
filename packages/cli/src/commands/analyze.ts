@@ -44,12 +44,13 @@ export async function runAnalyze(options: AnalyzeOptions): Promise<void> {
 		throw new Error('No classes found - check your folder/extension filters.');
 	}
 
-	const content = MarkdownExporter.toMarkdown(diagramData, diagramName);
+	const content = MarkdownExporter.toMarkdown(diagramData, diagramName, config.folders);
 
 	const outputPath = path.resolve(options.output || 'kratai-diagram.md');
 	fs.writeFileSync(outputPath, content, 'utf-8');
 
-	console.log(`Wrote ${diagramData.classes.length} classes, ${diagramData.relationships.length} relationships -> ${outputPath}`);
+	const written = MarkdownExporter.excludeHiddenFolders(diagramData, config.folders);
+	console.log(`Wrote ${written.classes.length} classes, ${written.relationships.length} relationships -> ${outputPath}`);
 
 	if (options.open) {
 		await openFile(outputPath);

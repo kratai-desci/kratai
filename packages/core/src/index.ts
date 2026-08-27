@@ -7,6 +7,7 @@ export * from './parsing';
 export * from './enrichment';
 export * from './diagram';
 export * from './export/MarkdownExporter';
+export * from './export/CodeIndex';
 export * from './util';
 export * from './git';
 export * from './telemetry';

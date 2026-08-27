@@ -1,0 +1,9 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"outDir": "out/lib",
+		"declaration": true,
+		"noEmit": false
+	},
+	"include": ["src/index.ts", "src/commands/view.ts", "src/config.ts", "src/openFile.ts", "src/viewShell.ts", "src/stackLayerData.ts", "src/stackLayerView.ts"]
+}

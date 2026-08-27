@@ -12,3 +12,4 @@ config.json
 .env
 .env*.local
 kratai.local.json
+benchmarks/.uv-cache/

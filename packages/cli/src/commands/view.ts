@@ -15,7 +15,7 @@ export interface ViewOptions {
 	open: boolean;
 }
 
-export async function runView(options: ViewOptions): Promise<void> {
+export async function runView(options: ViewOptions): Promise<http.Server> {
 	const workspacePath = path.resolve(options.path);
 
 	if (!fs.existsSync(workspacePath)) {
@@ -43,7 +43,7 @@ export async function runView(options: ViewOptions): Promise<void> {
 
 	let { nodes, edges } = DiagramGeneratorService.generateReactFlowData(diagramData);
 	let folderCount = FolderStructureBuilder.countFolders(FolderStructureBuilder.build(nodes));
-	let markdown = MarkdownExporter.toMarkdown(diagramData, diagramName);
+	let markdown = MarkdownExporter.toMarkdown(diagramData, diagramName, config.folders);
 	const shellHtml = generateShellHTML(diagramName, {
 		classCount: nodes.length,
 		folderCount,
@@ -97,7 +97,7 @@ export async function runView(options: ViewOptions): Promise<void> {
 
 		({ nodes, edges } = DiagramGeneratorService.generateReactFlowData(diagramData));
 		folderCount = FolderStructureBuilder.countFolders(FolderStructureBuilder.build(nodes));
-		markdown = MarkdownExporter.toMarkdown(diagramData, diagramName);
+		markdown = MarkdownExporter.toMarkdown(diagramData, diagramName, freshConfig.folders);
 
 		return { classCount: nodes.length, folderCount, edgeCount: edges.length };
 	}
@@ -183,4 +183,6 @@ export async function runView(options: ViewOptions): Promise<void> {
 	if (options.open) {
 		await openFile(url);
 	}
+
+	return server;
 }

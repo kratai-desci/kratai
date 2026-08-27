@@ -15,18 +15,32 @@ ACTIVE ON EVERY CODING TASK. No drift back to ad-hoc coding without thinking. Ar
 
 ## Session Start: Understand Architecture
 
-At beginning of session, BEFORE any coding, load architecture once. Run `npx @kratai/cli analyze` and read its output instead of wasting tokens reading files directly - compact Markdown from static analysis, no LLM calls. If no shell is available: apply the principles below without tooling.
-
-If the user asks to *see* the architecture themselves (not you understanding it to code), run `npx @kratai/cli view` instead - it opens a live, interactive diagram for them. `analyze`'s output is for you; `view` is for them.
+At beginning of session, BEFORE any coding, load the outline once. Run `npx @kratai/cli structure` and read its output instead of wasting tokens reading files directly - a names-only map (folder tree + every file's classes/properties/methods, no types, no relationships) from static analysis, no LLM calls. If no shell is available: apply the principles below without tooling.
 
 Cache in memory:
-- Architecture pattern (layered/hexagonal/clean)
+- Architecture pattern (layered/hexagonal/clean), inferred from the folder tree
 - Folder structure (controllers/services/repositories)
-- Folder responsibilities (what each folder handles)
-- Class responsibilities (what each class does in one sentence)
-- File responsibilities (purpose of each file)\
-- Dependency direction (don't reverse arrows)
-- Existing classes (avoid duplication)
+- Existing classes and files (avoid duplication, know where things already live)
+
+The outline tells you *what exists*, not how it connects or what it does in
+full - that's deliberate, it's cheap enough to load unconditionally. Before
+you touch, extend, or need to understand how a specific class fits into the
+rest of the codebase, run `npx @kratai/cli detail <ClassName>` (or a file
+path, or `path/to/file::ClassName` if the bare name is ambiguous - it'll
+tell you) to get that one class's full properties, methods, and
+relationships (Uses/Used By). Don't grep for where something is defined or
+used - run `npx @kratai/cli search <name>` instead; it's a real name index,
+not a text match against comments and unrelated hits.
+
+This is the normal workflow: outline once, then `detail`/`search` on
+whatever the current step actually touches - not the whole codebase's full
+detail upfront. If a task is broad enough that you genuinely need every
+class's full detail at once, `npx @kratai/cli analyze` still exists for
+that, but reach for it as the exception, not the default.
+
+If the user asks to *see* the architecture themselves (not you understanding
+it to code), run `npx @kratai/cli view` instead - it opens a live,
+interactive diagram for them. These commands are for you; `view` is for them.
 
 ## The Ladder
 
@@ -41,8 +55,10 @@ The ladder runs *after* you understand the architecture, not instead of it. Use 
 
 ## Rules
 
-- Always fetch diagram at session start (once only, then cache)
-- Never read stale exported diagram files lying around the repo - always regenerate with `kratai analyze`, never a leftover export
+- Always fetch the outline at session start (once only, then cache)
+- Before editing or reasoning about a specific class's relationships, `kratai detail` it rather than assuming from the outline's names alone
+- Prefer `kratai search`/`kratai detail` over grep for anything already in the outline - they resolve exact classes and relationships, grep resolves text matches
+- Never read stale exported diagram files lying around the repo - always regenerate, never a leftover export
 - No unrequested abstractions: no interface with one implementation, no factory for one product, no config for a value that never changes.
 - No boilerplate, no scaffolding "for later", later can scaffold for itself.
 - Fewest files possible. Shortest working diff wins 

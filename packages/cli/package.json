@@ -9,6 +9,8 @@
     "directory": "packages/cli"
   },
   "type": "module",
+  "main": "./out/lib/index.js",
+  "types": "./out/lib/index.d.ts",
   "bin": {
     "kratai": "./out/cli.mjs"
   },
@@ -21,7 +23,7 @@
   },
   "scripts": {
     "typecheck": "tsc -p ./ --noEmit",
-    "build": "npm run typecheck && node esbuild.js && node copy-skill.js && node copy-vendor.js",
+    "build": "npm run typecheck && node esbuild.js && node copy-skill.js && node copy-vendor.js && tsc -p tsconfig.lib.json",
     "watch": "tsc -watch -p ./",
     "start": "node ./out/cli.mjs"
   },
