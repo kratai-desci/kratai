@@ -38,6 +38,15 @@ jobs:
         working-directory: packages/desktop
         run: npx electron-builder --win --dir
 
+      # Uploaded before the smoke test (not after) so a build is still
+      # downloadable for debugging even if the launch check below fails.
+      - name: Upload build for local testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: kratai-windows
+          path: packages/desktop/dist/win-unpacked
+          retention-days: 90
+
       - name: Launch kratai.exe and confirm it doesn't crash
         shell: pwsh
         working-directory: packages/desktop
