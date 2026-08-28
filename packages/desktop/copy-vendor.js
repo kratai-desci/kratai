@@ -20,3 +20,11 @@ if (!fs.existsSync(srcFile)) {
 fs.mkdirSync(path.dirname(destFile), { recursive: true });
 fs.copyFileSync(srcFile, destFile);
 console.log('[copy-vendor] copied three.module.min.js');
+
+// Same deal for the app icon (assets/icon.png, this package's own - not shared
+// with cli) - index.ts resolves it via __dirname at runtime too.
+const iconSrc = path.join(__dirname, 'assets', 'icon.png');
+const iconDest = path.join(__dirname, 'out', 'main', 'assets', 'icon.png');
+fs.mkdirSync(path.dirname(iconDest), { recursive: true });
+fs.copyFileSync(iconSrc, iconDest);
+console.log('[copy-vendor] copied icon.png');

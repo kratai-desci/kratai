@@ -15,7 +15,8 @@
     "typecheck": "tsc -p ./ --noEmit",
     "build": "npm run typecheck && node esbuild.js && node copy-vendor.js",
     "start": "electron .",
-    "dev": "npm run build && electron ."
+    "dev": "npm run build && electron .",
+    "package": "npm run build && electron-builder --mac --dir"
   },
   "dependencies": {
     "@kratai/cli": "*"
@@ -23,6 +24,24 @@
   "devDependencies": {
     "@types/node": "22.x",
     "electron": "^33.2.0",
+    "electron-builder": "24.13.3",
     "esbuild": "^0.24.0"
+  },
+  "build": {
+    "appId": "com.kratai.desktop",
+    "productName": "kratai",
+    "electronVersion": "33.4.11",
+    "asar": false,
+    "npmRebuild": false,
+    "files": [
+      "out/**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "icon": "assets/icon.png",
+      "category": "public.app-category.developer-tools"
+    }
   }
 }
