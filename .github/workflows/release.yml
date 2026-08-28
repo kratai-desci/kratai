@@ -1,0 +1,48 @@
+name: Release desktop app
+
+# Builds real installers (dmg, exe) on macos-latest and windows-latest and
+# publishes them to a GitHub Release matching the pushed tag. Unsigned for
+# now - deliberate, not an oversight (see the desktop packaging commits for
+# why): CSC_IDENTITY_AUTO_DISCOVERY is off so electron-builder doesn't go
+# looking for a signing identity that won't exist on a CI runner anyway.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            flag: --mac
+          - os: windows-latest
+            flag: --win
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm install
+
+      # npm workspaces doesn't build in dependency order, so this has to be
+      # explicit: analysis -> diagram-view -> cli -> desktop (each depends
+      # on the one before it's compiled output, not just its source).
+      - run: npm run build --workspace=packages/analysis
+      - run: npm run build --workspace=packages/diagram-view
+      - run: npm run build --workspace=packages/cli
+      - run: npm run build --workspace=packages/desktop
+
+      - name: Build and publish installer
+        working-directory: packages/desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npx electron-builder ${{ matrix.flag }} --publish always
