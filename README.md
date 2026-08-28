@@ -4,7 +4,11 @@
 
 kratai turns your codebase into a **living architecture diagram** — a 3D Stack Layer view and a 2D Class Diagram, generated entirely by static analysis (no LLM calls, no hallucinations, always reflects the real code). Open it as a native desktop app or a local web view, and use it to actually understand a system, review what changed, or explain your architecture to a teammate, a lead, or a client.
 
-![kratai in Action](demo/demo_hero.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="demo/demo_hero.png">
+  <source media="(prefers-color-scheme: light)" srcset="demo/demo_hero_light.png">
+  <img alt="kratai in Action" src="demo/demo_hero_light.png">
+</picture>
 
 ---
 

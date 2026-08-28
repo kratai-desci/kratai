@@ -28,3 +28,13 @@ const iconDest = path.join(__dirname, 'out', 'main', 'assets', 'icon.png');
 fs.mkdirSync(path.dirname(iconDest), { recursive: true });
 fs.copyFileSync(iconSrc, iconDest);
 console.log('[copy-vendor] copied icon.png');
+
+// Onboarding screenshots (assets/onboarding/*.png) - onboarding.ts reads
+// these at runtime and inlines them as data URIs into the injected overlay.
+const onboardingSrcDir = path.join(__dirname, 'assets', 'onboarding');
+const onboardingDestDir = path.join(__dirname, 'out', 'main', 'assets', 'onboarding');
+fs.mkdirSync(onboardingDestDir, { recursive: true });
+for (const file of fs.readdirSync(onboardingSrcDir)) {
+	fs.copyFileSync(path.join(onboardingSrcDir, file), path.join(onboardingDestDir, file));
+}
+console.log('[copy-vendor] copied onboarding screenshots');

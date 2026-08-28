@@ -3,6 +3,8 @@ import * as path from 'path';
 import { app, BrowserWindow, Menu, dialog, nativeImage } from 'electron';
 import { runView } from '@kratai/cli';
 import { addRecentWorkspace, listRecentWorkspaces } from './workspaceStore.js';
+import { hasSeenOnboarding, markOnboardingSeen } from './onboardingStore.js';
+import { getOnboardingScript } from './onboarding.js';
 
 // Unpackaged (`electron .`) has no bundle name to read, so app.getName()
 // defaults to "Electron" - which is what macOS shows as the bold app-menu
@@ -72,6 +74,16 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 	}
 	mainWindow.setTitle(`kratai - ${workspacePath}`);
 	await mainWindow.loadURL(url);
+
+	if (!hasSeenOnboarding()) {
+		showOnboarding();
+		markOnboardingSeen();
+	}
+}
+
+function showOnboarding(): void {
+	if (!mainWindow || mainWindow.isDestroyed()) return;
+	void mainWindow.webContents.executeJavaScript(getOnboardingScript(path.join(__dirname, 'assets')));
 }
 
 async function promptForWorkspace(): Promise<void> {
@@ -98,6 +110,12 @@ function buildMenu(): void {
 			submenu: [
 				{ role: 'reload' },
 				{ role: 'toggleDevTools' }
+			]
+		},
+		{
+			label: 'Help',
+			submenu: [
+				{ label: 'Show Getting Started', click: () => showOnboarding() }
 			]
 		}
 	]));
