@@ -37,10 +37,10 @@ npm run lint    # lints every package
 
 ```
 packages/
-├── core/          analysis engine + diagram-spec generator (deterministic, zero LLM calls)
-├── diagram-view/  the interactive class diagram renderer, used by `kratai view`
-├── cli/           kratai analyze / kratai init / kratai view - installable CLI
-└── skill/         shared Architecture-Aware SKILL.md
+├── analysis/      analysis engine + diagram-spec generator (deterministic, zero LLM calls)
+├── diagram-view/  the interactive class diagram renderer, shared by cli and desktop
+├── cli/           kratai analyze / kratai view - installable CLI, also exports runView as a library
+└── desktop/       Electron desktop app - a native window around the same view server `kratai view` runs
 ```
 
 Each package has its own `build`/`watch` script — see that package's
