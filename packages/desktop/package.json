@@ -16,7 +16,7 @@
     "build": "npm run typecheck && node esbuild.js && node copy-vendor.js",
     "start": "electron .",
     "dev": "npm run build && electron .",
-    "package": "npm run build && electron-builder --mac --dir"
+    "package": "npm run build && electron-builder --dir"
   },
   "dependencies": {
     "@kratai/cli": "*"
@@ -42,6 +42,9 @@
     "mac": {
       "icon": "assets/icon.png",
       "category": "public.app-category.developer-tools"
+    },
+    "win": {
+      "icon": "assets/icon.png"
     }
   }
 }

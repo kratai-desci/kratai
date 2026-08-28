@@ -1,0 +1,56 @@
+name: Windows desktop smoke test
+
+# electron-builder can technically cross-compile a Windows target from
+# macOS, but that only proves the artifact exists, not that it runs -
+# building AND launching it here on a real Windows runner is what actually
+# catches a broken icon, a missing native module, or a launch-time crash.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'packages/desktop/**'
+      - 'packages/cli/**'
+      - 'packages/analysis/**'
+      - 'packages/diagram-view/**'
+      - '.github/workflows/windows-smoke-test.yml'
+
+jobs:
+  build-and-launch:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm install
+
+      # npm workspaces doesn't build in dependency order, so this has to be
+      # explicit: analysis -> diagram-view -> cli -> desktop (each depends
+      # on the one before it's compiled output, not just its source).
+      - run: npm run build --workspace=packages/analysis
+      - run: npm run build --workspace=packages/diagram-view
+      - run: npm run build --workspace=packages/cli
+      - run: npm run build --workspace=packages/desktop
+
+      - name: Package for Windows
+        working-directory: packages/desktop
+        run: npx electron-builder --win --dir
+
+      - name: Launch kratai.exe and confirm it doesn't crash
+        shell: pwsh
+        working-directory: packages/desktop
+        run: |
+          $exe = Get-ChildItem -Path dist -Recurse -Filter "kratai.exe" | Select-Object -First 1
+          if (-not $exe) { throw "kratai.exe not found under dist/ - packaging didn't produce the expected output" }
+
+          $proc = Start-Process -FilePath $exe.FullName -PassThru
+          Start-Sleep -Seconds 8
+
+          if ($proc.HasExited) {
+            throw "kratai.exe exited within 8s (code $($proc.ExitCode)) - treating this as a launch crash"
+          }
+
+          Write-Host "kratai.exe is still running after 8s (PID $($proc.Id)) - launch smoke test passed"
+          Stop-Process -Id $proc.Id -Force
