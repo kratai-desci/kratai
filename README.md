@@ -1,14 +1,10 @@
-# kratai
+# kratai - know your code
 
-> A living architecture diagram for your codebase.
+> An interactive, always up-to-date architecture diagram for your codebase.
 
-kratai turns your codebase into a **living architecture diagram** — a 3D Stack Layer view and a 2D Class Diagram, generated entirely by static analysis (no LLM calls, no hallucinations, always reflects the real code). Open it as a native desktop app or a local web view, and use it to actually understand a system, review what changed, or explain your architecture to a teammate, a lead, or a client.
+kratai turns your codebase into an **interactive, up-to-date architecture diagram** — a 3D Stack Layer view and a 2D Class Diagram, generated entirely by static analysis (no LLM calls, no hallucinations, always reflects the real code). Open it as a native desktop app or a local web view, and use it to actually understand a system, review what changed, or explain your architecture to a teammate, a lead, or a client.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="demo/demo_hero.png">
-  <source media="(prefers-color-scheme: light)" srcset="demo/demo_hero_light.png">
-  <img alt="kratai in Action" src="demo/demo_hero_light.png">
-</picture>
+![kratai in Action](demo/demo.gif)
 
 ---
 
@@ -33,22 +29,6 @@ kratai turns your codebase into a **living architecture diagram** — a 3D Stack
 - **Refresh without restarting** — re-scans the whole project from disk on demand, no need to kill and restart the server after you change code.
 - **Dark and light themes**, matching your system by default.
 - **One-click Markdown export** of the whole architecture, for pasting into a PR description or a doc.
-
----
-
-## 📐 Spec-Driven Development
-
-Spec-Driven Development (SDD) represents a shift in how software is built with AI. Instead of starting with code and hoping the architecture and behavior emerge correctly, SDD treats **specifications and architecture** as the primary artifacts that guide development.
-
-In traditional AI-assisted workflows, developers often rely on prompts and generated code, which can lead to:
-
-- Inconsistent architectural decisions
-- Difficulty understanding the overall system structure
-- Growing technical debt as AI-generated code accumulates
-
-Spec-Driven Development addresses this by making both **what** the system should do (specification) and **how** it should be structured (architecture) explicit and actionable. This creates a stronger foundation for AI agents to work from, resulting in more predictable, maintainable, and scalable outcomes.
-
-kratai contributes to this approach by giving developers clear **visibility and oversight** over architectural decisions as they build. It helps you understand how your system is structured, how changes impact that structure, and how to keep architectural intent aligned with implementation as the codebase grows.
 
 ---
 
