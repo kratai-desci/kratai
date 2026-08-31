@@ -890,26 +890,22 @@ suite('DjangoEnricher - Framework Enrichment', () => {
 	});
 	
 	suite('View → Template Relationships', () => {
-		test('REALITY CHECK: Python parser does NOT extract class-level assignments', async () => {
-			// This test documents the ACTUAL behavior of PythonParser
+		test('Python parser extracts class-level assignments (Django model fields)', async () => {
 			// Python class-level assignments like: template_name = 'value'
-			// Are NOT extracted as properties!
+			// ARE now extracted as properties (fix for Django model fields)
 			const fixturePath = path.join(fixturesPath, 'views.py');
 			const PythonParser = require('../../../../parsing/languages/PythonParser').PythonParser;
 			const parser = new PythonParser();
-			
+
 			const classes = parser.parseFile(fixturePath);
 			const taskListView = classes.find((c: any) => c.name === 'TaskListView');
-			
+
 			console.log('🔍 TaskListView properties:', taskListView?.properties);
-			
-			// REALITY: Python parser DOES NOT extract template_name property
-			// because it's a class-level assignment, not a type annotation
-			// Template name is NOT in properties array
+
 			const hasTemplateNameProp = taskListView?.properties?.some((p: any) => p.name === 'template_name');
-			
-			assert.ok(!hasTemplateNameProp, 
-				'Python parser does NOT extract class-level assignments (this is the bug!)');
+
+			assert.ok(hasTemplateNameProp,
+				'Python parser MUST extract class-level assignments as properties');
 		});
 		
 		test('should detect template_name when enricher reads source directly', async () => {

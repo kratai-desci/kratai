@@ -146,6 +146,47 @@ export class PythonParser extends AbstractParserStrategy {
 					continue;
 				}
 
+				// Property from class-level assignment: name = value
+				// Covers Django model fields (student_id = models.CharField(...)),
+				// SQLAlchemy columns, class constants, etc.
+				const assignMatch = trimmed.match(/^(\w+)\s*=\s*(.+)/);
+				if (assignMatch && indent > currentIndent && !currentMethod) {
+					const propName = assignMatch[1];
+					const propValue = assignMatch[2].trim();
+
+					if (!currentClass.properties.some((p: any) => p.name === propName)) {
+						let propType = 'Any';
+						const callMatch = propValue.match(/^([\w.]+)\s*\(/);
+						if (callMatch) {
+							propType = callMatch[1];
+						} else if (propValue.startsWith('[')) {
+							propType = 'list';
+						} else if (propValue.startsWith('{')) {
+							propType = 'dict';
+						} else if (propValue.startsWith("'") || propValue.startsWith('"')) {
+							propType = 'str';
+						} else if (/^\d+$/.test(propValue)) {
+							propType = 'int';
+						} else if (/^\d+\.\d+$/.test(propValue)) {
+							propType = 'float';
+						} else if (propValue === 'True' || propValue === 'False') {
+							propType = 'bool';
+						} else if (propValue === 'None') {
+							propType = 'None';
+						} else {
+							const nameMatch = propValue.match(/^([\w.]+)/);
+							if (nameMatch) propType = nameMatch[1];
+						}
+
+						currentClass.properties.push({
+							name: propName,
+							type: propType,
+							lineNumber: i + 1,
+						});
+					}
+					continue;
+				}
+
 				// Property from assignment: self.name = value
 				const selfMatch = trimmed.match(/^self\.(\w+)\s*=/);
 				if (selfMatch && currentMethod) {
