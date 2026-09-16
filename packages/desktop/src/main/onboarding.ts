@@ -8,7 +8,7 @@ interface Card {
 
 const CARDS: Card[] = [
 	{ file: 'hero.png', caption: 'See your up-to-date architecture, always in sync with the code.' },
-	{ file: 'stack.png', caption: 'Stack Layer — the overview: each folder as a drillable, stackable sheet.' },
+	{ file: 'stack.png', caption: 'Knowledge Graph — classes clustered by folder in 3D; click one to trace what it touches.' },
 	{ file: 'class.png', caption: 'Class Diagram — click into a folder to see its classes and dependencies.' }
 ];
 

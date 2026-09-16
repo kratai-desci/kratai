@@ -5,16 +5,19 @@ export interface ShellStats {
 }
 
 /**
- * The outer app shell for `kratai view` - topbar with a view switcher plus a
- * container that holds the class diagram (embedded via iframe, so its own
- * self-contained HTML/CSS/JS from @kratai/diagram-view stays untouched) and
- * a stack-layer placeholder panel (real implementation comes later).
+ * The outer app shell for `kratai view` - topbar with view picker(s) plus a
+ * container that holds up to two panels (each an iframe, so the embedded
+ * views' own self-contained HTML/CSS/JS stays untouched).
  *
- * Responsive behavior is intentionally asymmetric: wide viewports (desktop)
- * get a 3-way switch - Both/Stack/Class - since there's room to show both
- * panels side by side. Narrow viewports (e.g. an embedded app panel) only
- * get Stack/Class, one panel at a time, since a 50/50 split would be too
- * cramped to be useful there.
+ * Views aren't hardcoded into fixed slots - VIEW_OPTIONS below is the one
+ * list every picker draws from, so adding a new view type later (a
+ * sequence diagram, say) is a one-line addition here, not a rethink of
+ * which two views are "the pair". Wide screens get two independent
+ * pickers, one per side, defaulting to Knowledge Graph (left) and Class
+ * Diagram (right) - picking the same view on both sides is allowed, not
+ * specially handled. Narrow screens show exactly one at a time (default
+ * Class Diagram), picked from the same list. Nothing here is persisted
+ * across reloads - every fresh load starts from those defaults again.
  *
  * The class-diagram iframe's own header (title + stats) is hidden once it
  * loads - same-origin, so the shell can reach into its contentDocument
@@ -72,20 +75,19 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 		font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 		font-variant-numeric: tabular-nums;
 	}
-	#view-switch {
-		display: flex; gap: 3px; flex-shrink: 0;
-		background: var(--surface-2); border: 1px solid var(--border);
-		border-radius: 100px; padding: 3px;
+	#view-pickers { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+	.view-picker {
+		appearance: none; -webkit-appearance: none;
+		background: var(--surface-2) url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%226%22 viewBox=%220 0 10 6%22%3E%3Cpath d=%22M1 1l4 4 4-4%22 stroke=%22%235C6785%22 stroke-width=%221.4%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E') no-repeat right 10px center;
+		border: 1px solid var(--border); border-radius: 100px;
+		color: var(--text); font-weight: 650;
+		font-size: 11.5px; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+		padding: 7px 28px 7px 14px; cursor: pointer; flex-shrink: 0;
+		transition: border-color 0.15s ease;
 	}
-	#view-switch button {
-		border: none; background: none; color: var(--text-dim);
-		font-size: 11.5px; font-weight: 650;
-		font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-		padding: 6px 14px; border-radius: 100px; cursor: pointer;
-		transition: background 0.15s ease, color 0.15s ease;
-	}
-	#view-switch button.active { background: var(--accent); color: #fff; }
-	#view-switch button:not(.active):hover { color: var(--text); }
+	.view-picker:hover { border-color: var(--accent); }
+	.view-picker:focus { outline: none; border-color: var(--accent); }
+	#picker-sep { color: var(--text-faint); font-size: 12px; }
 
 	#topbar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 	#theme-toggle, #download-md, #refresh-btn {
@@ -106,7 +108,7 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 	.view-panel + .view-panel { border-left: 1px solid var(--border); }
 	#view-container:not(.split) .view-panel + .view-panel { border-left: none; border-top: 1px solid var(--border); }
 
-	#class-frame, #stack-frame { width: 100%; height: 100%; border: none; display: block; }
+	#frame-a, #frame-b { width: 100%; height: 100%; border: none; display: block; }
 </style>
 </head>
 <body>
@@ -115,8 +117,8 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 			<h1>${workspaceName}</h1>
 			<p class="sub">${stats.classCount} classes &bull; ${stats.folderCount} folders &bull; ${stats.edgeCount} relationships</p>
 		</div>
+		<div id="view-pickers"></div>
 		<div id="topbar-actions">
-			<div id="view-switch"></div>
 			<button id="refresh-btn" title="Re-scan the project">
 				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
 			</button>
@@ -127,134 +129,133 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 		</div>
 	</div>
 	<div id="view-container">
-		<div id="stack-panel" class="view-panel">
-			<iframe id="stack-frame" src="/stack-layer" title="Stack layer"></iframe>
-		</div>
-		<div class="view-panel">
-			<iframe id="class-frame" src="/class-diagram" title="Class diagram"></iframe>
-		</div>
+		<div id="panel-a" class="view-panel"><iframe id="frame-a" title="Left view"></iframe></div>
+		<div id="panel-b" class="view-panel"><iframe id="frame-b" title="Right view"></iframe></div>
 	</div>
 
 	<script>
+		// The one list every picker draws from - see the file-level comment.
+		var VIEW_OPTIONS = [['graph', 'Knowledge Graph'], ['class', 'Class Diagram'], ['stack', 'Stack Layer']];
+		var SRC_BY_MODE = { graph: '/knowledge-graph', class: '/class-diagram', stack: '/stack-layer' };
+
 		// 1440px sits above a typical embedded/paneled browser (e.g. Claude
 		// Code's browser pane, commonly ~1280px) so those stay single-view,
 		// while a genuinely full-screen browser window on a normal desktop
 		// monitor clears it and gets the side-by-side split.
 		var WIDE_QUERY = '(min-width: 1440px)';
-		// Only matters in narrow mode (wide always shows both regardless of
-		// mode) - stack layer opens first there since it's the higher-level
-		// view.
-		var mode = 'stack';
+		// Nothing here is persisted - every fresh load starts from these
+		// same defaults, never whatever was last picked.
+		var leftMode = 'graph', rightMode = 'class', narrowMode = 'class';
+		// What each generic frame is currently showing - drives which
+		// content-specific fixups (see applyFrameFixups) apply on load, and
+		// which frames a folder-config-changed message should reload.
+		var frameKind = { 'frame-a': null, 'frame-b': null };
 
 		function isWide() {
 			return window.matchMedia(WIDE_QUERY).matches;
 		}
 
+		// Only touches .src when the mode actually changed, so resize events
+		// (which call applyMode on every breakpoint crossing) don't reload an
+		// iframe that's already showing the right thing.
+		function setFrameMode(frameId, mode) {
+			if (frameKind[frameId] === mode) return;
+			frameKind[frameId] = mode;
+			document.getElementById(frameId).src = SRC_BY_MODE[mode];
+		}
+
 		function applyMode() {
 			var wide = isWide();
-			// Wide always shows both, side by side - no picking involved.
-			// Narrow shows exactly one, whichever the switch is set to.
-			var showStack = wide ? true : (mode === 'stack');
-			var showClass = wide ? true : (mode === 'class');
-
-			document.getElementById('stack-panel').style.display = showStack ? '' : 'none';
-			document.getElementById('class-frame').parentElement.style.display = showClass ? '' : 'none';
 			document.getElementById('view-container').classList.toggle('split', wide);
-
-			// Wide mode shows both views at once with one shared folder
-			// panel's worth of state (see folderPanelScript.ts) - a second
-			// toggle button floating in the class diagram's own corner
-			// would just be a redundant duplicate of the stack layer's, so
-			// hide it there specifically and leave stack layer's as the
-			// one true toggle. Narrow mode shows one view at a time, so
-			// whichever is showing keeps its own toggle.
-			var classDoc = document.getElementById('class-frame').contentDocument;
-			if (classDoc && classDoc.documentElement) {
-				classDoc.documentElement.classList.toggle('kratai-hide-folder-toggle', wide);
+			if (wide) {
+				document.getElementById('panel-a').style.display = '';
+				document.getElementById('panel-b').style.display = '';
+				setFrameMode('frame-a', leftMode);
+				setFrameMode('frame-b', rightMode);
+			} else {
+				document.getElementById('panel-a').style.display = '';
+				document.getElementById('panel-b').style.display = 'none';
+				setFrameMode('frame-a', narrowMode);
 			}
 		}
 
-		function renderSwitch() {
-			var wide = isWide();
-			var container = document.getElementById('view-switch');
-			// Wide always shows both panels - there's nothing to switch
-			// between, so the control itself goes away rather than sitting
-			// there disabled or forced to a single "Both" option.
-			container.style.display = wide ? 'none' : '';
-			if (wide) return;
-
-			var options = [['stack', 'Stack Layer'], ['class', 'Class Diagram']];
-			container.innerHTML = '';
-			options.forEach(function (opt) {
+		function renderPicker(container, selected, onPick) {
+			var select = document.createElement('select');
+			select.className = 'view-picker';
+			VIEW_OPTIONS.forEach(function (opt) {
 				var value = opt[0], label = opt[1];
-				var btn = document.createElement('button');
-				btn.type = 'button';
-				btn.textContent = label;
-				if (value === mode) btn.className = 'active';
-				btn.addEventListener('click', function () {
-					mode = value;
-					applyMode();
-					renderSwitch();
-				});
-				container.appendChild(btn);
+				var option = document.createElement('option');
+				option.value = value;
+				option.textContent = label;
+				select.appendChild(option);
 			});
+			select.value = selected;
+			select.addEventListener('change', function () { onPick(select.value); });
+			container.appendChild(select);
 		}
 
-		// Same-origin iframe, so the shell can reach in and hide the
-		// class-diagram's own header once it's loaded - it duplicates the
-		// title/stats already shown in the shell's own topbar above. Its
-		// #zoomctl is positioned assuming that header's height, so nudge it
-		// back up to sit at the top now that the header's gone.
-		document.getElementById('class-frame').addEventListener('load', function (e) {
-			var doc = e.target.contentDocument;
+		function renderPickers() {
+			var wide = isWide();
+			var container = document.getElementById('view-pickers');
+			container.innerHTML = '';
+			if (wide) {
+				renderPicker(container, leftMode, function (v) { leftMode = v; applyMode(); renderPickers(); });
+				var sep = document.createElement('span');
+				sep.id = 'picker-sep';
+				sep.textContent = '/';
+				container.appendChild(sep);
+				renderPicker(container, rightMode, function (v) { rightMode = v; applyMode(); renderPickers(); });
+			} else {
+				renderPicker(container, narrowMode, function (v) { narrowMode = v; applyMode(); renderPickers(); });
+			}
+		}
+
+		// Content-specific fixups for whatever a generic frame just loaded -
+		// only class-diagram needs its embedded header hidden (it duplicates
+		// the shell's own topbar) and its #zoomctl/#folder-panel-toggle-wrap
+		// nudged up to where that hidden header would have put them.
+		function applyFrameFixups(frameId) {
+			if (frameKind[frameId] !== 'class') return;
+			var doc = document.getElementById(frameId).contentDocument;
 			if (!doc) return;
 			var header = doc.querySelector('.header');
 			if (header) header.style.display = 'none';
 			var style = doc.createElement('style');
-			// #folder-panel-toggle-wrap goes to 16px, not 18px like #zoomctl -
-			// matching the stack layer's own default exactly (see
-			// stackLayerView.ts, which never needs an override since it has
-			// no header to begin with) so the shared folder panel sits at
-			// the identical position in both embedded views. The
-			// kratai-hide-folder-toggle class (see applyMode) hides that
-			// same panel entirely in wide mode, where the stack layer's
-			// copy is the one shared toggle for both views.
-			style.textContent = '#zoomctl { top: 18px !important; } #folder-panel-toggle-wrap { top: 16px !important; }'
-				+ ' html.kratai-hide-folder-toggle #folder-panel-toggle-wrap { display: none !important; }';
+			style.textContent = '#zoomctl { top: 18px !important; } #folder-panel-toggle-wrap { top: 16px !important; }';
 			doc.head.appendChild(style);
-			pushTheme('class-frame');
-			// A reload (see the message listener below) starts this iframe's
-			// document fresh, losing the kratai-hide-folder-toggle class
-			// applyMode set on the old one - reapply it for the current mode.
-			applyMode();
-		});
-		document.getElementById('stack-frame').addEventListener('load', function () {
-			pushTheme('stack-frame');
+		}
+
+		['frame-a', 'frame-b'].forEach(function (frameId) {
+			document.getElementById(frameId).addEventListener('load', function () {
+				applyFrameFixups(frameId);
+				pushTheme(frameId);
+			});
 		});
 
-		// Both iframes stay loaded for the shell's whole lifetime - the
-		// switcher above only toggles CSS display, it never re-fetches -
+		// Both frames stay loaded for as long as they're showing something -
+		// the pickers above only reload a frame when its own mode changes,
 		// so a folder order/hidden/expanded/panel-open change made in one
-		// view's own panel (see folderPanelScript.ts / stackLayerView.ts's
-		// postFolderConfig) would otherwise sit unseen in the *other*
-		// iframe until something reloads it by chance. Reload whichever
-		// iframe didn't send the notification - the sender already applied
-		// its own change locally, no need to reload it too.
+		// class-diagram panel (see folderPanelScript.ts) would otherwise sit
+		// unseen in another visible class-diagram panel (same view on both
+		// sides is allowed) until something reloads it by chance. Knowledge
+		// graph has no folder panel of its own, so a 'class' frame is the
+		// only kind that's ever the source or needs reloading for this.
 		window.addEventListener('message', function (e) {
 			if (!e.data || e.data.type !== 'kratai-folder-config-changed') return;
-			var stackFrame = document.getElementById('stack-frame');
-			var classFrame = document.getElementById('class-frame');
-			if (e.source !== stackFrame.contentWindow && stackFrame.contentWindow) stackFrame.contentWindow.location.reload();
-			if (e.source !== classFrame.contentWindow && classFrame.contentWindow) classFrame.contentWindow.location.reload();
+			['frame-a', 'frame-b'].forEach(function (frameId) {
+				if (frameKind[frameId] !== 'class') return;
+				var frame = document.getElementById(frameId);
+				if (e.source !== frame.contentWindow && frame.contentWindow) frame.contentWindow.location.reload();
+			});
 		});
 
 		// ---- theme: light/dark, defaults to system, remembered once the
 		// user picks one explicitly (see storedTheme/THEME_KEY). Both
 		// embedded views read the same localStorage key on their own load
 		// (see the inline head script in classDiagramView.ts/
-		// stackLayerView.ts) - pushTheme here just keeps an *already*-loaded
-		// iframe in sync the moment the button is clicked, without needing
-		// to reload it. ----
+		// knowledgeGraphView.ts) - pushTheme here just keeps an *already*-
+		// loaded iframe in sync the moment the button is clicked, without
+		// needing to reload it. ----
 		var THEME_KEY = 'kratai-theme';
 		var SUN_ICON = '<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.3"/><g stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><line x1="7" y1="0.5" x2="7" y2="2"/><line x1="7" y1="12" x2="7" y2="13.5"/><line x1="0.5" y1="7" x2="2" y2="7"/><line x1="12" y1="7" x2="13.5" y2="7"/><line x1="2.5" y1="2.5" x2="3.5" y2="3.5"/><line x1="10.5" y1="10.5" x2="11.5" y2="11.5"/><line x1="2.5" y1="11.5" x2="3.5" y2="10.5"/><line x1="10.5" y1="3.5" x2="11.5" y2="2.5"/></g></svg>';
 		var MOON_ICON = '<svg width="14" height="14" viewBox="0 0 14 14"><path d="M9.5,1.5 A6,6 0 1 0 9.5,12.5 A5,5 0 1 1 9.5,1.5 Z" fill="currentColor"/></svg>';
@@ -284,8 +285,8 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 			btn.innerHTML = effective === 'dark' ? SUN_ICON : MOON_ICON;
 			btn.title = effective === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
 
-			pushTheme('class-frame');
-			pushTheme('stack-frame');
+			pushTheme('frame-a');
+			pushTheme('frame-b');
 		}
 
 		var storedTheme = getStoredTheme();
@@ -298,13 +299,13 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 		});
 
 		applyMode();
-		renderSwitch();
+		renderPickers();
 		window.addEventListener('resize', function () {
 			applyMode();
-			renderSwitch();
+			renderPickers();
 		});
 
-		// Re-scans the whole project from disk - neither iframe re-parses on
+		// Re-scans the whole project from disk - a frame doesn't re-parse on
 		// its own reload (see view.ts's runView: the parse is cached server-
 		// side for the process's lifetime), so this is currently the only
 		// way to pick up source changes without restarting the server.
@@ -319,10 +320,10 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 					if (!result.ok) throw new Error(result.error || 'Refresh failed');
 					document.querySelector('#topbar .sub').textContent =
 						result.classCount + ' classes • ' + result.folderCount + ' folders • ' + result.edgeCount + ' relationships';
-					var stackFrame = document.getElementById('stack-frame');
-					var classFrame = document.getElementById('class-frame');
-					if (stackFrame.contentWindow) stackFrame.contentWindow.location.reload();
-					if (classFrame.contentWindow) classFrame.contentWindow.location.reload();
+					['frame-a', 'frame-b'].forEach(function (frameId) {
+						var frame = document.getElementById(frameId);
+						if (frame.contentWindow) frame.contentWindow.location.reload();
+					});
 				})
 				.catch(function (error) {
 					btn.title = 'Refresh failed: ' + error.message;

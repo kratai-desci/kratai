@@ -2,7 +2,7 @@
 
 > An interactive, always up-to-date architecture diagram for your codebase.
 
-kratai turns your codebase into an **interactive, up-to-date architecture diagram** — a 3D Stack Layer view and a 2D Class Diagram, generated entirely by static analysis (no LLM calls, no hallucinations, always reflects the real code). Open it as a native desktop app or a local web view, and use it to actually understand a system, review what changed, or explain your architecture to a teammate, a lead, or a client.
+kratai turns your codebase into an **interactive, up-to-date architecture diagram** — a 3D Knowledge Graph and a 2D Class Diagram, generated entirely by static analysis (no LLM calls, no hallucinations, always reflects the real code). Open it as a native desktop app or a local web view, and use it to actually understand a system, review what changed, or explain your architecture to a teammate, a lead, or a client.
 
 ![kratai in Action](demo/demo.gif)
 
@@ -23,7 +23,7 @@ kratai turns your codebase into an **interactive, up-to-date architecture diagra
 
 ### 🌐 **`kratai view` — the same explorer, from the command line**
 
-- **Two synchronized views** — a 3D **Stack Layer** view (each folder as a drillable, stackable sheet) and a 2D **Class Diagram** (UML-style boxes with typed relationships). Side by side on a wide screen, switchable one at a time on a narrow one.
+- **Pick your own pair** — a 3D **Knowledge Graph** (classes as nodes, clustered by folder, click one to trace what it touches forward and backward), a 2D **Class Diagram** (UML-style boxes with typed relationships), and a 3D **Stack Layer** (each folder as a drillable, stackable sheet). Two independent pickers on a wide screen (default: Knowledge Graph + Class Diagram, side by side), one at a time on a narrow one.
 - **Real folder structure, not a guess** — the navigation panel mirrors your actual folder tree. Purely organizational folders (no code of their own) are still shown, just dimmed by default, and drilling into one auto-expands through the whole wrapper chain to real content in a single click.
 - **Full control over what's shown** — hide, show, reorder (drag), and drill down into any folder from either view; state persists across reloads and stays in sync between both views.
 - **Refresh without restarting** — re-scans the whole project from disk on demand, no need to kill and restart the server after you change code.
@@ -38,14 +38,14 @@ kratai turns your codebase into an **interactive, up-to-date architecture diagra
 TODO: recapture screenshots against the current desktop app / `kratai view`
 and drop them into demo/ under these filenames, or update the paths below to
 match whatever you capture. Suggested shots:
-  1. demo/demo_stack_layer.png   - the 3D Stack Layer view, a few folders drilled in
-  2. demo/demo_class_diagram.png - the Class Diagram view with a git-diff-highlighted change
-  3. demo/demo_folder_panel.png  - the shared folder panel (hide/show/reorder/drill)
-  4. demo/demo_split.png         - both views side by side on a wide window
+  1. demo/demo_knowledge_graph.png - the 3D Knowledge Graph, clustered by folder
+  2. demo/demo_class_diagram.png   - the Class Diagram view with a git-diff-highlighted change
+  3. demo/demo_folder_panel.png    - the shared folder panel (hide/show/reorder/drill)
+  4. demo/demo_split.png           - both views side by side on a wide window
 -->
 
 ### 1. A Native Window Into Your Codebase
-The desktop app opens straight into your project and shows Stack Layer + Class Diagram side by side on a wide window.
+The desktop app opens straight into your project and shows Knowledge Graph + Class Diagram side by side on a wide window.
 
 ### 2. Explore Your Architecture Interactively
 Drill into folders, follow relationships, and see uncommitted changes highlighted directly in the diagram.

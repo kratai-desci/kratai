@@ -2,7 +2,7 @@
   "name": "@kratai/desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Electron desktop app - a native window around the same local view server `kratai view` already runs (@kratai/cli's runView), so it always reflects the Stack Layer + Class Diagram UI both share, not a separate renderer to keep in sync.",
+  "description": "Electron desktop app - a native window around the same local view server `kratai view` already runs (@kratai/cli's runView), so it always reflects the Knowledge Graph + Class Diagram UI both share, not a separate renderer to keep in sync.",
   "license": "MIT",
   "repository": {
     "type": "git",

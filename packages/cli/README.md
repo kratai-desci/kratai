@@ -7,8 +7,9 @@ separate backend required.
   as a file, or archiving as a portable, serverless artifact (CI, sharing
   with someone who doesn't have kratai installed).
 - `kratai view` - a live local web app for a human to explore the
-  architecture interactively (class diagram + 3D stack-layer view, switchable
-  side by side on a wide screen).
+  architecture interactively (class diagram, 3D knowledge graph, or 3D stack
+  layer - pick your own pair to show side by side on a wide screen, or one
+  at a time on a narrow one).
 
 ## Usage
 
@@ -61,6 +62,6 @@ Both commands share the same `@kratai/analysis` pipeline (parsing + git-diff
 enrichment), differing only in delivery:
 - `analyze` writes it out with `@kratai/analysis`'s `MarkdownExporter.toMarkdown`
 - `view` renders it live with `@kratai/diagram-view`'s `ClassDiagramView.generate(...)`
-  (embedded via iframe alongside the stack-layer view - see `src/viewShell.ts`) -
+  (embedded via iframe alongside the knowledge graph view - see `src/viewShell.ts`) -
   `hasLiveHost` is left `false` since the server doesn't yet listen for the
   diagram's Save/Settings/open-file postMessage calls

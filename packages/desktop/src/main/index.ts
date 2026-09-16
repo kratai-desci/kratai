@@ -17,7 +17,7 @@ const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.png
 
 // The whole point of "wire the desktop app to the new UI": this app has no
 // renderer of its own. It runs the exact same local view server `kratai
-// view` runs (@kratai/cli's runView - Stack Layer + Class Diagram, folder
+// view` runs (@kratai/cli's runView - Knowledge Graph + Class Diagram, folder
 // panel, git-diff highlighting, refresh, download-md, all of it) and points
 // a native BrowserWindow at it instead of the system browser. One source of
 // truth for the UI; this app is a window around it, not a second copy.
@@ -55,7 +55,7 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 	if (!mainWindow || mainWindow.isDestroyed()) {
 		mainWindow = new BrowserWindow({
 			// >=1440 so the shell's WIDE_QUERY media query (viewShell.ts)
-			// kicks in by default and shows Stack Layer + Class Diagram
+			// kicks in by default and shows Knowledge Graph + Class Diagram
 			// side-by-side instead of behind a toggle.
 			width: 1500,
 			height: 900,

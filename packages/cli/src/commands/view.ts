@@ -6,6 +6,8 @@ import { ClassDiagramView } from '@kratai/diagram-view';
 import { loadCliConfig, saveFolderExpanded, saveFolderOrder, saveFolderPanelOpen, saveFolderVisibility } from '../config.js';
 import { openFile } from '../openFile.js';
 import { generateShellHTML, ShellStats } from '../viewShell.js';
+import { buildKnowledgeGraphData } from '../knowledgeGraphData.js';
+import { generateKnowledgeGraphHTML } from '../knowledgeGraphView.js';
 import { buildStackLayerData } from '../stackLayerData.js';
 import { generateStackLayerHTML } from '../stackLayerView.js';
 
@@ -66,6 +68,9 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		// those up when the server actually handles them.
 		return ClassDiagramView.generate(nodes, edges, diagramName, freshConfig, undefined, false);
 	}
+	function renderKnowledgeGraph(): string {
+		return generateKnowledgeGraphHTML(buildKnowledgeGraphData(diagramName, nodes, edges));
+	}
 	function renderStackLayer(): string {
 		const freshConfig = loadCliConfig(workspacePath, undefined, {});
 		return generateStackLayerHTML(buildStackLayerData(diagramName, nodes, edges, freshConfig));
@@ -73,7 +78,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 
 	// Re-runs the expensive parse (the refresh button's whole job) and
 	// swaps out the cached diagramData/nodes/edges/markdown closures above -
-	// renderClassDiagram/renderStackLayer read those same `let` bindings, so
+	// renderClassDiagram/renderKnowledgeGraph/renderStackLayer read those same `let` bindings, so
 	// the very next iframe reload picks up the new data with no other
 	// wiring needed. Reloads config from disk too, in case selectedFolders/
 	// extensions changed alongside the source.
@@ -169,6 +174,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			return;
 		}
 		const html = req.url === '/class-diagram' ? renderClassDiagram()
+			: req.url === '/knowledge-graph' ? renderKnowledgeGraph()
 			: req.url === '/stack-layer' ? renderStackLayer()
 			: shellHtml;
 		res.writeHead(200, { 'Content-Type': 'text/html' });
