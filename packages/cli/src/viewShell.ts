@@ -222,13 +222,13 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats, init
 		// would otherwise resolve.
 		var STORED_LAYOUT = ${JSON.stringify(initialLayout)};
 		// The one list every picker draws from - see the file-level comment.
-		var VIEW_OPTIONS = [['graph', 'Knowledge Graph'], ['class', 'Class Diagram'], ['stack', 'Stack Layer']];
+		var VIEW_OPTIONS = [['graph', 'Knowledge Graph'], ['class', 'Class Diagram'], ['stack', 'Stack Layer'], ['usecase', 'Use Case Diagram']];
 		// 'None' only makes sense in split mode - it means "give the other
 		// side the whole width", which requires there to *be* another side.
 		// In narrow mode there's nothing else to hand the space to, so it's
 		// left out of that picker's options entirely.
 		var SPLIT_VIEW_OPTIONS = VIEW_OPTIONS.concat([['none', 'None']]);
-		var SRC_BY_MODE = { graph: '/knowledge-graph', class: '/class-diagram', stack: '/stack-layer' };
+		var SRC_BY_MODE = { graph: '/knowledge-graph', class: '/class-diagram', stack: '/stack-layer', usecase: '/use-case-diagram' };
 
 		// 1440px sits above a typical embedded/paneled browser (e.g. Claude
 		// Code's browser pane, commonly ~1280px) so those stay single-view,

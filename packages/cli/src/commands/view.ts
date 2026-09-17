@@ -10,6 +10,8 @@ import { buildKnowledgeGraphData } from '../knowledgeGraphData.js';
 import { generateKnowledgeGraphHTML } from '../knowledgeGraphView.js';
 import { buildStackLayerData } from '../stackLayerData.js';
 import { generateStackLayerHTML } from '../stackLayerView.js';
+import { buildMockUseCaseDiagramData } from '../useCaseDiagramData.js';
+import { generateUseCaseDiagramHTML } from '../useCaseDiagramView.js';
 
 export interface ViewOptions {
 	path: string;
@@ -90,6 +92,12 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	function renderStackLayer(): string {
 		const freshConfig = loadCliConfig(workspacePath, undefined, {});
 		return generateStackLayerHTML(buildStackLayerData(diagramName, nodes, edges, freshConfig));
+	}
+	// Mock data for now - real actor/use-case extraction needs LLM
+	// assistance to name things meaningfully (see useCaseDiagramData.ts) -
+	// this exists to get the view's UI/UX in front of the user first.
+	function renderUseCaseDiagram(): string {
+		return generateUseCaseDiagramHTML(buildMockUseCaseDiagramData(diagramName));
 	}
 
 	// Re-runs the expensive parse (the refresh button's whole job) and
@@ -198,6 +206,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		const html = req.url === '/class-diagram' ? renderClassDiagram()
 			: req.url === '/knowledge-graph' ? renderKnowledgeGraph()
 			: req.url === '/stack-layer' ? renderStackLayer()
+			: req.url === '/use-case-diagram' ? renderUseCaseDiagram()
 			: shellHtml;
 		res.writeHead(200, { 'Content-Type': 'text/html' });
 		res.end(html);
