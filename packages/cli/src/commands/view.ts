@@ -15,6 +15,18 @@ export interface ViewOptions {
 	path: string;
 	port: number;
 	open: boolean;
+	// Layout (view picker choices, split ratio, AI dialog height/open state)
+	// persistence is dependency-injected rather than hardcoded here, since
+	// this package stays Electron-agnostic - the desktop app supplies real
+	// file-backed storage (packages/desktop/src/main/layoutStore.ts, via
+	// app.getPath('userData') - genuinely global, independent of whatever
+	// port this server happens to bind to). Plain CLI/browser use without
+	// these wired falls back to an in-memory default below: it works within
+	// one server's lifetime, just doesn't survive a restart - an accepted
+	// tradeoff since the desktop app, not standalone `kratai view`, is the
+	// primary surface this is built for.
+	getLayout?: () => Record<string, unknown>;
+	saveLayout?: (data: Record<string, unknown>) => void;
 }
 
 export async function runView(options: ViewOptions): Promise<http.Server> {
@@ -23,6 +35,10 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	if (!fs.existsSync(workspacePath)) {
 		throw new Error(`Path not found: ${workspacePath}`);
 	}
+
+	let inMemoryLayout: Record<string, unknown> = {};
+	const getLayout = options.getLayout || (() => inMemoryLayout);
+	const saveLayoutHook = options.saveLayout || ((data: Record<string, unknown>) => { inMemoryLayout = data; });
 
 	const config = loadCliConfig(workspacePath, undefined, {});
 	const diagramName = path.basename(workspacePath);
@@ -50,7 +66,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		classCount: nodes.length,
 		folderCount,
 		edgeCount: edges.length
-	});
+	}, getLayout());
 
 	// The parse above (diagramData/nodes/edges) is the expensive part and
 	// stays cached for the server's lifetime, but the two diagram pages
@@ -160,6 +176,12 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		if (req.method === 'POST' && req.url === '/api/folder-panel-open') {
 			handleJsonPost<{ open?: boolean }>(req, res, payload => {
 				saveFolderPanelOpen(workspacePath, !!payload.open);
+			});
+			return;
+		}
+		if (req.method === 'POST' && req.url === '/api/layout') {
+			handleJsonPost<Record<string, unknown>>(req, res, payload => {
+				saveLayoutHook(payload);
 			});
 			return;
 		}

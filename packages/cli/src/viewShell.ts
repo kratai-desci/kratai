@@ -15,15 +15,31 @@ export interface ShellStats {
  * which two views are "the pair". Wide screens get two independent
  * pickers, one per side, defaulting to Knowledge Graph (left) and Class
  * Diagram (right) - picking the same view on both sides is allowed, not
- * specially handled. Narrow screens show exactly one at a time (default
- * Class Diagram), picked from the same list. Nothing here is persisted
- * across reloads - every fresh load starts from those defaults again.
+ * specially handled, and either side can be set to 'none' to hand its
+ * space to the other. Narrow screens show exactly one at a time (default
+ * Class Diagram), picked from the same list minus 'none' (there's no
+ * other side to hand the space to there). The whole layout - which views
+ * are picked, the split ratio, the AI dialog's height and open/closed
+ * state - is a personal, global preference: the same layout comes back
+ * regardless of which project you open next, rather than being tied to
+ * one specific project the way folder visibility is (see config.ts's
+ * kratai.local.json). Persisted via runView's injected getLayout/
+ * saveLayout hooks (see view.ts's ViewOptions) rather than this package's
+ * own storage - the desktop app backs them with a real file in Electron's
+ * userData dir, genuinely independent of whatever port this server
+ * happens to bind to (it changes per launch); plain CLI/browser use
+ * without those hooks wired falls back to view.ts's in-memory default,
+ * which survives a page reload but not a server restart - an accepted
+ * gap since the desktop app, not standalone `kratai view`, is what this
+ * is built for. initialLayout is embedded server-side (STORED_LAYOUT
+ * below) rather than fetched after load, so there's no flash of the
+ * wrong layout before it arrives.
  *
  * The class-diagram iframe's own header (title + stats) is hidden once it
  * loads - same-origin, so the shell can reach into its contentDocument
  * directly - so there's a single header instead of two stacked ones.
  */
-export function generateShellHTML(workspaceName: string, stats: ShellStats): string {
+export function generateShellHTML(workspaceName: string, stats: ShellStats, initialLayout: Record<string, unknown>): string {
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -90,13 +106,13 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 	#picker-sep { color: var(--text-faint); font-size: 12px; }
 
 	#topbar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-	#theme-toggle, #download-md, #refresh-btn {
+	#theme-toggle, #download-md, #refresh-btn, #chat-toggle {
 		width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
 		background: var(--surface-2); color: var(--text-dim); cursor: pointer;
 		display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 		text-decoration: none;
 	}
-	#theme-toggle:hover, #download-md:hover, #refresh-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+	#theme-toggle:hover, #download-md:hover, #refresh-btn:hover:not(:disabled), #chat-toggle:hover { border-color: var(--accent); color: var(--accent); }
 	#refresh-btn:disabled { cursor: wait; opacity: 0.7; }
 	#refresh-btn.spinning svg { animation: kratai-spin 0.7s linear infinite; }
 	@keyframes kratai-spin { to { transform: rotate(360deg); } }
@@ -105,10 +121,65 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 	#view-container.split { flex-direction: row; }
 	#view-container:not(.split) { flex-direction: column; }
 	.view-panel { flex: 1 1 0; min-width: 0; min-height: 0; }
-	.view-panel + .view-panel { border-left: 1px solid var(--border); }
-	#view-container:not(.split) .view-panel + .view-panel { border-left: none; border-top: 1px solid var(--border); }
+	/* ID-based, not the adjacent-sibling combinator - h-resizer sits
+	   between panel-a and panel-b in the DOM now, so they're no longer
+	   directly adjacent siblings even when h-resizer is display:none. */
+	#view-container:not(.split) #panel-b { border-top: 1px solid var(--border); }
 
 	#frame-a, #frame-b { width: 100%; height: 100%; border: none; display: block; }
+
+	/* Drag handles - both default to hidden; applyMode/applyChatState show
+	   the ones that actually apply to the current layout (h-resizer only
+	   between two visibly split panels, v-resizer only while the dialog is
+	   open). A visually-thin line with a wider invisible hit area is the
+	   standard trick for making a 1px divider actually grabbable. */
+	.resizer { flex-shrink: 0; display: none; background: transparent; position: relative; z-index: 1; }
+	.resizer.active { display: block; }
+	.resizer:hover, .resizer.dragging { background: var(--accent); }
+	#h-resizer { width: 5px; margin: 0 -2px; cursor: col-resize; }
+	#v-resizer { height: 5px; margin: -2px 0; cursor: row-resize; }
+
+	/* ---- AI dialog: bottom bar, full width, RPG-dialogue-style - takes
+	   height, not width, so it never competes with the split-view logic
+	   above (see viewShell.ts's file-level comment for the reasoning). UI
+	   only for now - "Send" echoes locally, nothing calls a real model yet. */
+	#chat-toggle.active { border-color: var(--accent); color: var(--accent); }
+	#chat-panel {
+		flex-shrink: 0; height: 140px;
+		border-top: 1px solid var(--border); background: var(--surface);
+		display: flex; flex-direction: column; overflow: hidden;
+	}
+	#chat-panel.collapsed { display: none; }
+	/* Script/screenplay log, not chat bubbles - every line reads left to
+	   right, top to bottom, speakers told apart by name+color rather than
+	   which side of the screen they're on (see the discussion this came
+	   from: a two-column bubble layout read too much like a messaging app
+	   for what's meant to feel like a narrator explaining the diagram). */
+	#chat-log { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 22px; display: flex; flex-direction: column; gap: 8px; }
+	#chat-log:empty::before {
+		content: 'Ask about this architecture - what a class does, why two folders are connected, what changed.';
+		color: var(--text-faint); font-size: 12.5px;
+	}
+	.chat-msg { font-size: 13.5px; line-height: 1.6; max-width: 720px; }
+	.chat-msg .speaker {
+		font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+		font-weight: 650;
+	}
+	.chat-msg.user .speaker { color: var(--accent); }
+	.chat-msg.ai .speaker { color: var(--accent-2); }
+	.chat-msg .line { color: var(--text); }
+	#chat-input-row { flex-shrink: 0; display: flex; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--border); }
+	#chat-input {
+		flex: 1; border: 1px solid var(--border); border-radius: 100px;
+		background: var(--surface-2); color: var(--text);
+		font-size: 13px; font-family: inherit; padding: 9px 16px; outline: none;
+	}
+	#chat-input:focus { border-color: var(--accent); }
+	#chat-send {
+		border: none; background: var(--accent); color: #fff; font-weight: 650;
+		font-size: 12.5px; padding: 0 18px; border-radius: 100px; cursor: pointer; flex-shrink: 0;
+	}
+	#chat-send:disabled { opacity: 0.5; cursor: default; }
 </style>
 </head>
 <body>
@@ -125,17 +196,38 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 			<a id="download-md" href="/download.md" download="${workspaceName}.md" title="Download Markdown">
 				<svg width="14" height="14" viewBox="0 0 14 14"><path d="M7,1.5 V9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/><path d="M4,6.5 L7,9.5 L10,6.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M2,12 H12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/></svg>
 			</a>
+			<button id="chat-toggle" class="active" title="Toggle AI dialog">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+			</button>
 			<button id="theme-toggle" title="Toggle theme"></button>
 		</div>
 	</div>
 	<div id="view-container">
 		<div id="panel-a" class="view-panel"><iframe id="frame-a" title="Left view"></iframe></div>
+		<div id="h-resizer" class="resizer"></div>
 		<div id="panel-b" class="view-panel"><iframe id="frame-b" title="Right view"></iframe></div>
+	</div>
+	<div id="v-resizer" class="resizer"></div>
+	<div id="chat-panel">
+		<div id="chat-log"></div>
+		<div id="chat-input-row">
+			<input id="chat-input" type="text" placeholder="Ask about this architecture...">
+			<button id="chat-send" type="button">Send</button>
+		</div>
 	</div>
 
 	<script>
+		// See view.ts's getLayout()/generateShellHTML - embedded server-side
+		// so there's no flash of the wrong layout before an async fetch
+		// would otherwise resolve.
+		var STORED_LAYOUT = ${JSON.stringify(initialLayout)};
 		// The one list every picker draws from - see the file-level comment.
 		var VIEW_OPTIONS = [['graph', 'Knowledge Graph'], ['class', 'Class Diagram'], ['stack', 'Stack Layer']];
+		// 'None' only makes sense in split mode - it means "give the other
+		// side the whole width", which requires there to *be* another side.
+		// In narrow mode there's nothing else to hand the space to, so it's
+		// left out of that picker's options entirely.
+		var SPLIT_VIEW_OPTIONS = VIEW_OPTIONS.concat([['none', 'None']]);
 		var SRC_BY_MODE = { graph: '/knowledge-graph', class: '/class-diagram', stack: '/stack-layer' };
 
 		// 1440px sits above a typical embedded/paneled browser (e.g. Claude
@@ -143,9 +235,32 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 		// while a genuinely full-screen browser window on a normal desktop
 		// monitor clears it and gets the side-by-side split.
 		var WIDE_QUERY = '(min-width: 1440px)';
-		// Nothing here is persisted - every fresh load starts from these
-		// same defaults, never whatever was last picked.
-		var leftMode = 'graph', rightMode = 'class', narrowMode = 'class';
+
+		// ---- layout persistence: embedded server-side (see view.ts's
+		// getLayout() -> generateShellHTML) rather than read from
+		// localStorage, so there's no flash of the wrong layout before an
+		// async fetch would resolve. Saving still goes over the wire
+		// (POST /api/layout) - view.ts's saveLayoutHook is what actually
+		// writes it somewhere durable (a real file in the desktop app, an
+		// in-memory fallback otherwise - see view.ts for why). Written on
+		// every change, not batched, so a crash or force-quit never loses
+		// the latest layout. ----
+		var storedLayout = STORED_LAYOUT || {};
+		function saveLayout() {
+			fetch('/api/layout', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					leftMode: leftMode, rightMode: rightMode, narrowMode: narrowMode,
+					splitRatio: splitRatio,
+					chatHeight: document.getElementById('chat-panel').style.height,
+					chatOpen: !document.getElementById('chat-panel').classList.contains('collapsed')
+				})
+			}).catch(function () {});
+		}
+		var leftMode = storedLayout.leftMode || 'graph';
+		var rightMode = storedLayout.rightMode || 'class';
+		var narrowMode = storedLayout.narrowMode || 'class';
 		// What each generic frame is currently showing - drives which
 		// content-specific fixups (see applyFrameFixups) apply on load, and
 		// which frames a folder-config-changed message should reload.
@@ -168,21 +283,96 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 			var wide = isWide();
 			document.getElementById('view-container').classList.toggle('split', wide);
 			if (wide) {
-				document.getElementById('panel-a').style.display = '';
-				document.getElementById('panel-b').style.display = '';
-				setFrameMode('frame-a', leftMode);
-				setFrameMode('frame-b', rightMode);
+				var showA = leftMode !== 'none';
+				var showB = rightMode !== 'none';
+				document.getElementById('panel-a').style.display = showA ? '' : 'none';
+				document.getElementById('panel-b').style.display = showB ? '' : 'none';
+				// The resizer only makes sense between two actually-visible
+				// panels - one side picking 'none' hands the whole width to
+				// the other, same as narrow mode's single panel, so it needs
+				// the same flex reset below rather than a split percentage.
+				document.getElementById('h-resizer').classList.toggle('active', showA && showB);
+				if (showA && showB) {
+					applySplitRatio();
+				} else {
+					document.getElementById('panel-a').style.flex = '';
+					document.getElementById('panel-b').style.flex = '';
+				}
+				if (showA) setFrameMode('frame-a', leftMode);
+				if (showB) setFrameMode('frame-b', rightMode);
 			} else {
 				document.getElementById('panel-a').style.display = '';
 				document.getElementById('panel-b').style.display = 'none';
+				document.getElementById('h-resizer').classList.remove('active');
+				// Clear the split's explicit flex-basis - narrow mode's single
+				// visible panel needs to fill 100% via the default .view-panel
+				// rule, not whatever percentage the split left it at.
+				document.getElementById('panel-a').style.flex = '';
+				document.getElementById('panel-b').style.flex = '';
 				setFrameMode('frame-a', narrowMode);
 			}
 		}
 
-		function renderPicker(container, selected, onPick) {
+		// ---- horizontal resize: drag the divider between panel-a/panel-b
+		// while split. Persisted via saveLayout() same as everything else here. ----
+		var splitRatio = typeof storedLayout.splitRatio === 'number' ? storedLayout.splitRatio : 0.5;
+		function applySplitRatio() {
+			document.getElementById('panel-a').style.flex = '0 0 ' + (splitRatio * 100) + '%';
+			document.getElementById('panel-b').style.flex = '0 0 ' + ((1 - splitRatio) * 100) + '%';
+		}
+		(function () {
+			var handle = document.getElementById('h-resizer');
+			var dragging = false;
+			handle.addEventListener('pointerdown', function (e) {
+				if (!handle.classList.contains('active')) return;
+				dragging = true;
+				handle.classList.add('dragging');
+				try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+			});
+			handle.addEventListener('pointermove', function (e) {
+				if (!dragging) return;
+				var rect = document.getElementById('view-container').getBoundingClientRect();
+				var ratio = (e.clientX - rect.left) / rect.width;
+				splitRatio = Math.max(0.2, Math.min(0.8, ratio));
+				applySplitRatio();
+			});
+			handle.addEventListener('pointerup', function (e) {
+				dragging = false;
+				handle.classList.remove('dragging');
+				try { handle.releasePointerCapture(e.pointerId); } catch (err) {}
+				saveLayout();
+			});
+		})();
+
+		// ---- vertical resize: drag the divider above the AI dialog to
+		// change its height. Persisted via saveLayout() same as everything else here. ----
+		(function () {
+			var handle = document.getElementById('v-resizer');
+			var panel = document.getElementById('chat-panel');
+			var dragging = false;
+			handle.addEventListener('pointerdown', function (e) {
+				dragging = true;
+				handle.classList.add('dragging');
+				try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+			});
+			handle.addEventListener('pointermove', function (e) {
+				if (!dragging) return;
+				var height = window.innerHeight - e.clientY;
+				var max = window.innerHeight * 0.7;
+				panel.style.height = Math.max(80, Math.min(max, height)) + 'px';
+			});
+			handle.addEventListener('pointerup', function (e) {
+				dragging = false;
+				handle.classList.remove('dragging');
+				try { handle.releasePointerCapture(e.pointerId); } catch (err) {}
+				saveLayout();
+			});
+		})();
+
+		function renderPicker(container, options, selected, onPick) {
 			var select = document.createElement('select');
 			select.className = 'view-picker';
-			VIEW_OPTIONS.forEach(function (opt) {
+			options.forEach(function (opt) {
 				var value = opt[0], label = opt[1];
 				var option = document.createElement('option');
 				option.value = value;
@@ -199,14 +389,14 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 			var container = document.getElementById('view-pickers');
 			container.innerHTML = '';
 			if (wide) {
-				renderPicker(container, leftMode, function (v) { leftMode = v; applyMode(); renderPickers(); });
+				renderPicker(container, SPLIT_VIEW_OPTIONS, leftMode, function (v) { leftMode = v; applyMode(); renderPickers(); saveLayout(); });
 				var sep = document.createElement('span');
 				sep.id = 'picker-sep';
 				sep.textContent = '/';
 				container.appendChild(sep);
-				renderPicker(container, rightMode, function (v) { rightMode = v; applyMode(); renderPickers(); });
+				renderPicker(container, SPLIT_VIEW_OPTIONS, rightMode, function (v) { rightMode = v; applyMode(); renderPickers(); saveLayout(); });
 			} else {
-				renderPicker(container, narrowMode, function (v) { narrowMode = v; applyMode(); renderPickers(); });
+				renderPicker(container, VIEW_OPTIONS, narrowMode, function (v) { narrowMode = v; applyMode(); renderPickers(); saveLayout(); });
 			}
 		}
 
@@ -333,6 +523,67 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats): str
 					btn.disabled = false;
 					btn.classList.remove('spinning');
 				});
+		});
+
+		// ---- AI dialog: UI-only preview. No model wired up yet - "Send"
+		// just echoes the question back after a short delay, so the actual
+		// interaction shape (bubbles, scroll, input) is testable before any
+		// backend exists. The dialog's height and open/closed state ARE
+		// persisted (see saveLayout()) - only the message log itself starts
+		// fresh and empty every reload, same as it would once a real model
+		// is wired up (nothing to replay from). ----
+		if (storedLayout.chatHeight) {
+			document.getElementById('chat-panel').style.height = storedLayout.chatHeight;
+		}
+		if (storedLayout.chatOpen === false) {
+			document.getElementById('chat-panel').classList.add('collapsed');
+			document.getElementById('chat-toggle').classList.remove('active');
+		} else {
+			// Matches the toggle button's initial "active" state (chat starts open).
+			document.getElementById('v-resizer').classList.add('active');
+		}
+		document.getElementById('chat-toggle').addEventListener('click', function () {
+			var panel = document.getElementById('chat-panel');
+			var collapsed = panel.classList.toggle('collapsed');
+			this.classList.toggle('active', !collapsed);
+			document.getElementById('v-resizer').classList.toggle('active', !collapsed);
+			if (!collapsed) document.getElementById('chat-input').focus();
+			saveLayout();
+		});
+
+		function appendChatMessage(role, text) {
+			var log = document.getElementById('chat-log');
+			var entry = document.createElement('div');
+			entry.className = 'chat-msg ' + role;
+			var speaker = document.createElement('span');
+			speaker.className = 'speaker';
+			speaker.textContent = (role === 'user' ? 'You' : 'kratai') + ': ';
+			var line = document.createElement('span');
+			line.className = 'line';
+			line.textContent = text;
+			entry.appendChild(speaker);
+			entry.appendChild(line);
+			log.appendChild(entry);
+			log.scrollTop = log.scrollHeight;
+		}
+
+		function sendChatMessage() {
+			var input = document.getElementById('chat-input');
+			var text = input.value.trim();
+			if (!text) return;
+			appendChatMessage('user', text);
+			input.value = '';
+			document.getElementById('chat-send').disabled = true;
+			setTimeout(function () {
+				appendChatMessage('ai', 'UI preview only - not connected to a real model yet.');
+				document.getElementById('chat-send').disabled = false;
+				input.focus();
+			}, 500);
+		}
+
+		document.getElementById('chat-send').addEventListener('click', sendChatMessage);
+		document.getElementById('chat-input').addEventListener('keydown', function (e) {
+			if (e.key === 'Enter') sendChatMessage();
 		});
 	</script>
 </body>

@@ -5,6 +5,7 @@ import { runView } from '@kratai/cli';
 import { addRecentWorkspace, listRecentWorkspaces } from './workspaceStore.js';
 import { hasSeenOnboarding, markOnboardingSeen } from './onboardingStore.js';
 import { getOnboardingScript } from './onboarding.js';
+import { getLayout, saveLayout } from './layoutStore.js';
 
 // Unpackaged (`electron .`) has no bundle name to read, so app.getName()
 // defaults to "Electron" - which is what macOS shows as the bold app-menu
@@ -43,7 +44,7 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 		// port: 0 - let the OS pick a free port. A desktop app shouldn't
 		// assume 4300 is free, e.g. if the user also has `kratai view`
 		// running from a terminal at the same time.
-		currentServer = await runView({ path: workspacePath, port: 0, open: false });
+		currentServer = await runView({ path: workspacePath, port: 0, open: false, getLayout, saveLayout });
 	} catch (error) {
 		dialog.showErrorBox('Could not open workspace', error instanceof Error ? error.message : String(error));
 		return;
