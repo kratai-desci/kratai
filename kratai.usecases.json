@@ -1,0 +1,89 @@
+{
+  "workspaceName": "kratai",
+  "systemName": "kratai",
+  "actors": [
+    {
+      "id": "developer",
+      "name": "Developer",
+      "side": "left"
+    },
+    {
+      "id": "llm-service",
+      "name": "External LLM Service",
+      "side": "right"
+    }
+  ],
+  "useCases": [
+    {
+      "id": "analyze-repository",
+      "name": "Analyze Source Repository"
+    },
+    {
+      "id": "generate-diagram",
+      "name": "Generate Architecture Diagram"
+    },
+    {
+      "id": "view-diagram",
+      "name": "View Interactive Diagram"
+    },
+    {
+      "id": "export-diagram",
+      "name": "Export Diagram"
+    },
+    {
+      "id": "enrich-analysis",
+      "name": "Enrich Codebase Context with LLM"
+    },
+    {
+      "id": "configure-analysis-path",
+      "name": "Configure Target Path"
+    },
+    {
+      "id": "run-cli-commands",
+      "name": "Execute CLI Commands"
+    }
+  ],
+  "associations": [
+    {
+      "actorId": "developer",
+      "useCaseId": "analyze-repository"
+    },
+    {
+      "actorId": "developer",
+      "useCaseId": "view-diagram"
+    },
+    {
+      "actorId": "developer",
+      "useCaseId": "export-diagram"
+    },
+    {
+      "actorId": "developer",
+      "useCaseId": "configure-analysis-path"
+    },
+    {
+      "actorId": "developer",
+      "useCaseId": "run-cli-commands"
+    },
+    {
+      "actorId": "llm-service",
+      "useCaseId": "enrich-analysis"
+    }
+  ],
+  "relations": [
+    {
+      "kind": "include",
+      "fromId": "generate-diagram",
+      "toId": "analyze-repository"
+    },
+    {
+      "kind": "extend",
+      "fromId": "enrich-analysis",
+      "toId": "generate-diagram"
+    },
+    {
+      "kind": "extend",
+      "fromId": "export-diagram",
+      "toId": "view-diagram"
+    }
+  ]
+}

@@ -1,41 +1,97 @@
-export interface UseCaseActor {
-	id: string;
-	name: string;
-	side: 'left' | 'right';
+import * as fs from 'fs';
+import * as path from 'path';
+import { DiagramData, ClassInfo } from '@kratai/analysis';
+import { UseCaseActor, UseCaseDiagramData } from '@kratai/llm';
+
+// The shape itself is owned by @kratai/llm - it's the contract the model's
+// JSON output has to satisfy (see useCaseSchema.ts there), so it's defined
+// once and re-exported here rather than duplicated.
+export type { UseCaseDiagramData, UseCaseActor, UseCaseItem, UseCaseAssociation, UseCaseRelation } from '@kratai/llm';
+
+const CACHE_FILE = 'kratai.usecases.json';
+
+/**
+ * Generated diagrams are cached workspace-locally (like kratai.local.json,
+ * not Electron's global userData) since the content is about this specific
+ * codebase, not a personal app preference - see loadCliConfig's own doc
+ * comment in config.ts for the same distinction. Regeneration is a manual
+ * "Generate"/"Regenerate" action (view.ts's /api/use-case-diagram/generate
+ * route), never automatic, since it costs a real API call.
+ */
+export function loadCachedUseCaseDiagramData(workspacePath: string): UseCaseDiagramData | undefined {
+	const filePath = path.join(workspacePath, CACHE_FILE);
+	if (!fs.existsSync(filePath)) return undefined;
+	try {
+		return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+	} catch (error) {
+		console.error('Error loading cached use case diagram:', error);
+		return undefined;
+	}
 }
 
-export interface UseCaseItem {
-	id: string;
-	name: string;
+export function saveCachedUseCaseDiagramData(workspacePath: string, data: UseCaseDiagramData): void {
+	fs.writeFileSync(path.join(workspacePath, CACHE_FILE), JSON.stringify(data, null, 2) + '\n', 'utf-8');
 }
 
-export interface UseCaseAssociation {
-	actorId: string;
-	useCaseId: string;
-}
+// Classes reachable from outside the system - the only ones a use case
+// (an outside actor doing something to/with the system) can actually hinge
+// on. 'route' gets its own section below (path + method, not just a name).
+const ENTRY_POINT_TYPES = new Set<ClassInfo['classType']>([
+	'route', 'page', 'server-action', 'controller', 'rest-controller', 'middleware'
+]);
 
-export interface UseCaseRelation {
-	kind: 'include' | 'extend';
-	fromId: string;
-	toId: string;
-}
+/**
+ * A lean, use-case-focused summary of the codebase - deliberately NOT
+ * MarkdownExporter's full export (used for the Download Markdown button),
+ * which includes every class's full property/method signatures and
+ * Uses/Used-By relationship graph. Measured on kratai's own 110-class repo:
+ * the full export cost ~15,700 input tokens per generate call, the large
+ * majority of it internal implementation detail - services, repositories,
+ * entities, framework plumbing - that never maps to a distinct actor-facing
+ * capability (a use case cares what GET /api/users/:id does, never how
+ * GitOperations.getFileLineDiff is implemented). This only includes what's
+ * reachable from outside the system (HTTP routes, pages, server actions,
+ * controllers, middleware) plus the folder structure for broader context
+ * where no such entry point was detected at all (e.g. a library).
+ */
+export function buildUseCaseExtractionSummary(diagramData: DiagramData, workspaceName: string): string {
+	const entryPoints = diagramData.classes.filter(c => c.classType && ENTRY_POINT_TYPES.has(c.classType));
+	const lines: string[] = [`# ${workspaceName}`, ''];
 
-export interface UseCaseDiagramData {
-	workspaceName: string;
-	systemName: string;
-	actors: UseCaseActor[];
-	useCases: UseCaseItem[];
-	associations: UseCaseAssociation[];
-	relations: UseCaseRelation[];
+	const routes = entryPoints.filter((c): c is ClassInfo & { routeMeta: NonNullable<ClassInfo['routeMeta']> } =>
+		c.classType === 'route' && !!c.routeMeta);
+	if (routes.length > 0) {
+		lines.push('## HTTP routes');
+		routes.forEach(c => lines.push(`- ${c.routeMeta.method} ${c.routeMeta.path}`));
+		lines.push('');
+	}
+
+	const otherEntryPoints = entryPoints.filter(c => c.classType !== 'route');
+	if (otherEntryPoints.length > 0) {
+		lines.push('## Other entry points (pages, controllers, server actions, middleware)');
+		otherEntryPoints.forEach(c => lines.push(`- ${c.name} (${c.classType}) - ${c.filePath}`));
+		lines.push('');
+	}
+
+	// Gives the model feature-area context even where nothing above was
+	// detected at all (a library with no HTTP layer, say) - just directory
+	// names, not the full per-file tree MarkdownExporter renders.
+	const folders = Array.from(new Set(
+		diagramData.classes.map(c => path.dirname(c.filePath)).filter(f => f !== '.')
+	)).sort();
+	if (folders.length > 0) {
+		lines.push('## Folder structure');
+		folders.forEach(f => lines.push(`- ${f}`));
+	}
+
+	return lines.join('\n');
 }
 
 /**
- * Real extraction (actors/use cases from route handlers, auth guards, etc.)
- * needs LLM assistance to name things meaningfully - deferred. This mock
- * dataset exists purely to get the view's layout/interaction/styling in
- * front of the user before that analysis exists, so the shape here
- * (actors either side of a system boundary, associations, include/extend
- * between use cases) is what real data will eventually have to match.
+ * Used only to get the view's layout/interaction/styling in front of the
+ * user before real extraction existed - kept around as a quick way to
+ * preview the view's UI without spending an API call, but no longer wired
+ * into the default render path (see view.ts's renderUseCaseDiagram).
  */
 export function buildMockUseCaseDiagramData(workspaceName: string): UseCaseDiagramData {
 	return {
@@ -46,7 +102,7 @@ export function buildMockUseCaseDiagramData(workspaceName: string): UseCaseDiagr
 			{ id: 'user', name: 'User', side: 'left' },
 			{ id: 'admin', name: 'Admin', side: 'right' },
 			{ id: 'scheduler', name: 'Scheduler\n(cron)', side: 'right' }
-		],
+		] satisfies UseCaseActor[],
 		useCases: [
 			{ id: 'register', name: 'Register' },
 			{ id: 'login', name: 'Login' },

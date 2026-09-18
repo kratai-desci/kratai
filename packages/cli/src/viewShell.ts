@@ -39,7 +39,12 @@ export interface ShellStats {
  * loads - same-origin, so the shell can reach into its contentDocument
  * directly - so there's a single header instead of two stacked ones.
  */
-export function generateShellHTML(workspaceName: string, stats: ShellStats, initialLayout: Record<string, unknown>): string {
+export function generateShellHTML(
+	workspaceName: string,
+	stats: ShellStats,
+	initialLayout: Record<string, unknown>,
+	authStatus: { signedIn: boolean; email: string | null }
+): string {
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -180,6 +185,22 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats, init
 		font-size: 12.5px; padding: 0 18px; border-radius: 100px; cursor: pointer; flex-shrink: 0;
 	}
 	#chat-send:disabled { opacity: 0.5; cursor: default; }
+
+	/* ---- account: sign in with a kratai-web account for hosted AI credit
+	   (replaces the earlier BYOK Settings modal - one coherent flow instead
+	   of two). No modal needed - just one button that toggles between
+	   signed-out/waiting/signed-in, since there's nothing to configure
+	   beyond "am I signed in". ---- */
+	#account-btn {
+		height: 30px; border-radius: 100px; border: 1px solid var(--border);
+		background: var(--surface-2); color: var(--text-dim); cursor: pointer;
+		display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+		padding: 0 12px 0 8px; font-size: 12px; font-family: inherit;
+		max-width: 180px;
+	}
+	#account-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+	#account-btn:disabled { cursor: wait; opacity: 0.7; }
+	#account-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -198,6 +219,10 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats, init
 			</a>
 			<button id="chat-toggle" class="active" title="Toggle AI dialog">
 				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+			</button>
+			<button id="account-btn" title="Sign in">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+				<span id="account-label">Sign in</span>
 			</button>
 			<button id="theme-toggle" title="Toggle theme"></button>
 		</div>
@@ -221,6 +246,10 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats, init
 		// so there's no flash of the wrong layout before an async fetch
 		// would otherwise resolve.
 		var STORED_LAYOUT = ${JSON.stringify(initialLayout)};
+		// Embedded server-side (view.ts's getAuthStatus()) for the same
+		// no-flash-of-wrong-state reason as STORED_LAYOUT - kept in sync
+		// afterward by the sign-in poll loop below, not re-embedded.
+		var AUTH_STATUS = ${JSON.stringify(authStatus)};
 		// The one list every picker draws from - see the file-level comment.
 		var VIEW_OPTIONS = [['graph', 'Knowledge Graph'], ['class', 'Class Diagram'], ['stack', 'Stack Layer'], ['usecase', 'Use Case Diagram']];
 		// 'None' only makes sense in split mode - it means "give the other
@@ -431,12 +460,94 @@ export function generateShellHTML(workspaceName: string, stats: ShellStats, init
 		// graph has no folder panel of its own, so a 'class' frame is the
 		// only kind that's ever the source or needs reloading for this.
 		window.addEventListener('message', function (e) {
-			if (!e.data || e.data.type !== 'kratai-folder-config-changed') return;
-			['frame-a', 'frame-b'].forEach(function (frameId) {
-				if (frameKind[frameId] !== 'class') return;
-				var frame = document.getElementById(frameId);
-				if (e.source !== frame.contentWindow && frame.contentWindow) frame.contentWindow.location.reload();
-			});
+			if (!e.data) return;
+			if (e.data.type === 'kratai-folder-config-changed') {
+				['frame-a', 'frame-b'].forEach(function (frameId) {
+					if (frameKind[frameId] !== 'class') return;
+					var frame = document.getElementById(frameId);
+					if (e.source !== frame.contentWindow && frame.contentWindow) frame.contentWindow.location.reload();
+				});
+				return;
+			}
+			// The use case diagram's empty state (useCaseDiagramView.ts) posts
+			// this when signed out - it can't trigger sign-in itself since the
+			// account button/poll loop lives in the shell, not that iframe.
+			if (e.data.command === 'startSignIn') beginSignIn();
+		});
+
+		// ---- account: sign in with a kratai-web account for hosted AI
+		// credit (replaces the earlier BYOK Settings flow). Deep-link
+		// completion happens out-of-process (the desktop app's own
+		// packages/desktop/src/main/auth.ts, via a system-browser round
+		// trip) so this page has no way to be told synchronously when it's
+		// done - it polls /api/auth/status instead, same-origin, while a
+		// sign-in is in flight. ----
+		var accountBtn = document.getElementById('account-btn');
+		var accountLabel = document.getElementById('account-label');
+		var statusPoll = null;
+
+		function renderAccountButton() {
+			if (AUTH_STATUS.signedIn) {
+				accountLabel.textContent = AUTH_STATUS.email || 'Signed in';
+				accountBtn.title = 'Sign out';
+			} else {
+				accountLabel.textContent = 'Sign in';
+				accountBtn.title = 'Sign in with kratai';
+			}
+			accountBtn.disabled = false;
+		}
+		renderAccountButton();
+
+		function stopPolling() {
+			if (statusPoll) { clearInterval(statusPoll); statusPoll = null; }
+		}
+
+		function beginSignIn() {
+			if (AUTH_STATUS.signedIn || statusPoll) return;
+			accountLabel.textContent = 'Waiting for sign-in\\u2026';
+			accountBtn.disabled = true;
+			fetch('/api/auth/start', { method: 'POST' }).catch(function () {});
+
+			var elapsed = 0;
+			statusPoll = setInterval(function () {
+				elapsed += 1500;
+				// A user can simply never finish the browser tab - stop asking
+				// after a while rather than polling forever.
+				if (elapsed > 3 * 60 * 1000) {
+					stopPolling();
+					accountLabel.textContent = 'Sign-in timed out';
+					accountBtn.disabled = false;
+					setTimeout(renderAccountButton, 2500);
+					return;
+				}
+				fetch('/api/auth/status').then(function (res) { return res.json(); }).then(function (status) {
+					if (!status.signedIn) return;
+					stopPolling();
+					AUTH_STATUS = status;
+					renderAccountButton();
+					// Picks up the new signed-in state server-side
+					// (renderUseCaseDiagram reads getAuthStatus() fresh on every
+					// request) - otherwise the empty state's "Sign In" CTA would
+					// still show after sign-in just completed.
+					['frame-a', 'frame-b'].forEach(function (frameId) {
+						if (frameKind[frameId] !== 'usecase') return;
+						var frame = document.getElementById(frameId);
+						if (frame.contentWindow) frame.contentWindow.location.reload();
+					});
+				}).catch(function () {});
+			}, 1500);
+		}
+
+		accountBtn.addEventListener('click', function () {
+			if (AUTH_STATUS.signedIn) {
+				accountBtn.disabled = true;
+				fetch('/api/auth/sign-out', { method: 'POST' }).then(function () {
+					AUTH_STATUS = { signedIn: false, email: null };
+					renderAccountButton();
+				});
+				return;
+			}
+			beginSignIn();
 		});
 
 		// ---- theme: light/dark, defaults to system, remembered once the

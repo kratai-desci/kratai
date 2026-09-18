@@ -19,7 +19,8 @@
     "package": "npm run build && electron-builder --dir"
   },
   "dependencies": {
-    "@kratai/cli": "*"
+    "@kratai/cli": "*",
+    "@kratai/llm": "*"
   },
   "devDependencies": {
     "@types/node": "22.x",
@@ -39,6 +40,12 @@
     "directories": {
       "output": "dist"
     },
+    "protocols": [
+      {
+        "name": "kratai",
+        "schemes": ["kratai"]
+      }
+    ],
     "publish": {
       "provider": "github",
       "owner": "kratai-desci",

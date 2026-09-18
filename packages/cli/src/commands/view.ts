@@ -10,8 +10,13 @@ import { buildKnowledgeGraphData } from '../knowledgeGraphData.js';
 import { generateKnowledgeGraphHTML } from '../knowledgeGraphView.js';
 import { buildStackLayerData } from '../stackLayerData.js';
 import { generateStackLayerHTML } from '../stackLayerView.js';
-import { buildMockUseCaseDiagramData } from '../useCaseDiagramData.js';
-import { generateUseCaseDiagramHTML } from '../useCaseDiagramView.js';
+import { loadCachedUseCaseDiagramData, saveCachedUseCaseDiagramData, buildUseCaseExtractionSummary, UseCaseDiagramData } from '../useCaseDiagramData.js';
+import { generateUseCaseDiagramHTML, generateUseCaseDiagramEmptyHTML } from '../useCaseDiagramView.js';
+
+export interface AuthStatus {
+	signedIn: boolean;
+	email: string | null;
+}
 
 export interface ViewOptions {
 	path: string;
@@ -29,6 +34,21 @@ export interface ViewOptions {
 	// primary surface this is built for.
 	getLayout?: () => Record<string, unknown>;
 	saveLayout?: (data: Record<string, unknown>) => void;
+	// Sign-in is a hosted-account concept (kratai-web), not something this
+	// package knows anything about beyond these hook shapes - the desktop
+	// app owns the whole flow (deep link, PKCE, device token storage - see
+	// packages/desktop/src/main/auth.ts) and injects the result. No
+	// in-memory fallback makes sense the way getLayout's does: plain CLI/
+	// browser use simply has no hosted account to sign into.
+	getAuthStatus?: () => AuthStatus;
+	startSignIn?: () => void;
+	signOut?: () => void;
+	// Also desktop-owned (packages/desktop/src/main/generateProxy.ts) - an
+	// authenticated call to kratai-web's LLM proxy, using whatever device
+	// token startSignIn/the auth flow produced. This package never touches
+	// a provider key directly anymore (see @kratai/llm, which kratai-web
+	// depends on instead).
+	generateUseCaseDiagram?: (markdown: string, workspaceName: string) => Promise<UseCaseDiagramData>;
 }
 
 export async function runView(options: ViewOptions): Promise<http.Server> {
@@ -41,6 +61,11 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	let inMemoryLayout: Record<string, unknown> = {};
 	const getLayout = options.getLayout || (() => inMemoryLayout);
 	const saveLayoutHook = options.saveLayout || ((data: Record<string, unknown>) => { inMemoryLayout = data; });
+
+	const getAuthStatus = options.getAuthStatus || (() => ({ signedIn: false, email: null }));
+	const startSignInHook = options.startSignIn || (() => {});
+	const signOutHook = options.signOut || (() => {});
+	const generateUseCaseDiagramHook = options.generateUseCaseDiagram;
 
 	const config = loadCliConfig(workspacePath, undefined, {});
 	const diagramName = path.basename(workspacePath);
@@ -64,11 +89,16 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	let { nodes, edges } = DiagramGeneratorService.generateReactFlowData(diagramData);
 	let folderCount = FolderStructureBuilder.countFolders(FolderStructureBuilder.build(nodes));
 	let markdown = MarkdownExporter.toMarkdown(diagramData, diagramName, config.folders);
+	// Generation is a manual, explicit action (see /api/use-case-diagram/
+	// generate below) - a real API call, unlike the other views' free
+	// re-renders - so whatever was last generated is loaded once here and
+	// reused across requests/reparse, not regenerated on every reparse.
+	let useCaseData: UseCaseDiagramData | undefined = loadCachedUseCaseDiagramData(workspacePath);
 	const shellHtml = generateShellHTML(diagramName, {
 		classCount: nodes.length,
 		folderCount,
 		edgeCount: edges.length
-	}, getLayout());
+	}, getLayout(), getAuthStatus());
 
 	// The parse above (diagramData/nodes/edges) is the expensive part and
 	// stays cached for the server's lifetime, but the two diagram pages
@@ -93,11 +123,9 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		const freshConfig = loadCliConfig(workspacePath, undefined, {});
 		return generateStackLayerHTML(buildStackLayerData(diagramName, nodes, edges, freshConfig));
 	}
-	// Mock data for now - real actor/use-case extraction needs LLM
-	// assistance to name things meaningfully (see useCaseDiagramData.ts) -
-	// this exists to get the view's UI/UX in front of the user first.
 	function renderUseCaseDiagram(): string {
-		return generateUseCaseDiagramHTML(buildMockUseCaseDiagramData(diagramName));
+		if (useCaseData) return generateUseCaseDiagramHTML(useCaseData);
+		return generateUseCaseDiagramEmptyHTML(getAuthStatus().signedIn);
 	}
 
 	// Re-runs the expensive parse (the refresh button's whole job) and
@@ -191,6 +219,44 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			handleJsonPost<Record<string, unknown>>(req, res, payload => {
 				saveLayoutHook(payload);
 			});
+			return;
+		}
+		if (req.method === 'POST' && req.url === '/api/auth/start') {
+			startSignInHook();
+			res.writeHead(200, { 'Content-Type': 'application/json' });
+			res.end(JSON.stringify({ ok: true }));
+			return;
+		}
+		if (req.method === 'GET' && req.url === '/api/auth/status') {
+			res.writeHead(200, { 'Content-Type': 'application/json' });
+			res.end(JSON.stringify(getAuthStatus()));
+			return;
+		}
+		if (req.method === 'POST' && req.url === '/api/auth/sign-out') {
+			signOutHook();
+			res.writeHead(200, { 'Content-Type': 'application/json' });
+			res.end(JSON.stringify({ ok: true }));
+			return;
+		}
+		if (req.method === 'POST' && req.url === '/api/use-case-diagram/generate') {
+			(async () => {
+				try {
+					if (!generateUseCaseDiagramHook) throw new Error('Generation is only available in the kratai desktop app.');
+					// Not the full markdown export - see buildUseCaseExtractionSummary's
+					// doc comment for why (measured ~15,700 input tokens/call on a
+					// 110-class repo otherwise, almost all irrelevant implementation
+					// detail). Built fresh from the current diagramData, not cached,
+					// so a /api/refresh in between always reflects the latest code.
+					const summary = buildUseCaseExtractionSummary(diagramData, diagramName);
+					useCaseData = await generateUseCaseDiagramHook(summary, diagramName);
+					saveCachedUseCaseDiagramData(workspacePath, useCaseData);
+					res.writeHead(200, { 'Content-Type': 'application/json' });
+					res.end(JSON.stringify({ ok: true }));
+				} catch (error) {
+					res.writeHead(400, { 'Content-Type': 'application/json' });
+					res.end(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+				}
+			})();
 			return;
 		}
 		if (req.method === 'POST' && req.url === '/api/refresh') {

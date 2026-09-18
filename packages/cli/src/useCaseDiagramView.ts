@@ -36,7 +36,7 @@ function multilineText(text: string, x: number, extraAttrs = ''): string {
  * extraction replaces the mock data (useCaseDiagramData.ts) with a
  * different-sized dataset.
  */
-export function generateUseCaseDiagramHTML(data: UseCaseDiagramData): string {
+export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { mock?: boolean } = {}): string {
 	const leftActors = data.actors.filter(a => a.side === 'left');
 	const rightActors = data.actors.filter(a => a.side === 'right');
 	const rows = Math.max(1, Math.ceil(data.useCases.length / UC_COLS));
@@ -254,7 +254,7 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData): string {
 	</div>
 	<div id="header">
 		<h1>${escapeXml(data.workspaceName)}</h1>
-		<span class="sub">${data.actors.length} actors &bull; ${data.useCases.length} use cases &bull; mock data</span>
+		<span class="sub">${data.actors.length} actors &bull; ${data.useCases.length} use cases${options.mock ? ' &bull; mock data' : ''}</span>
 	</div>
 	<div id="legend">
 		<div class="row"><span class="swatch"></span>association</div>
@@ -318,6 +318,108 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData): string {
 		});
 	});
 	svg.addEventListener('click', function (e) { if (e.target === svg) setFocus(null); });
+})();
+</script>
+</body>
+</html>`;
+}
+
+/**
+ * Shown instead of generateUseCaseDiagramHTML's real diagram whenever
+ * there's nothing generated yet - either not signed in (triggers sign-in
+ * via postMessage, since the account button/poll loop lives in the shell,
+ * not this iframe) or signed in with no cached result yet (a "Generate"
+ * button that POSTs to /api/use-case-diagram/generate directly, same-
+ * origin, no parent needed).
+ */
+export function generateUseCaseDiagramEmptyHTML(signedIn: boolean): string {
+	return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Use Case Diagram</title>
+<script>
+	try {
+		var krataiTheme = localStorage.getItem('kratai-theme');
+		if (krataiTheme) document.documentElement.setAttribute('data-theme', krataiTheme);
+	} catch (e) {}
+</script>
+<style>
+	:root {
+		--bg: #EEF2FA; --surface: #FFFFFF; --text: #17203A; --text-dim: #5C6785;
+		--border: #DCE3F2; --accent: #3459E0;
+		--dot: color-mix(in srgb, #94A0BE 55%, transparent);
+	}
+	@media (prefers-color-scheme: dark) {
+		:root:not([data-theme="light"]) {
+			--bg: #0A0E19; --surface: #131A2E; --text: #E8ECFB; --text-dim: #939CBE;
+			--border: #262E4E; --accent: #6D93F5;
+			--dot: color-mix(in srgb, #262E4E 70%, transparent);
+		}
+	}
+	:root[data-theme="dark"] {
+		--bg: #0A0E19; --surface: #131A2E; --text: #E8ECFB; --text-dim: #939CBE;
+		--border: #262E4E; --accent: #6D93F5;
+		--dot: color-mix(in srgb, #262E4E 70%, transparent);
+	}
+	* { box-sizing: border-box; }
+	html, body { margin: 0; padding: 0; height: 100%; }
+	body {
+		background: var(--bg); color: var(--text);
+		font-family: ui-sans-serif, -apple-system, 'Segoe UI', system-ui, sans-serif;
+		display: flex; align-items: center; justify-content: center;
+		background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+		background-size: 22px 22px;
+	}
+	#card {
+		background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+		padding: 28px 32px; max-width: 340px; text-align: center;
+	}
+	#card p { color: var(--text-dim); font-size: 13px; line-height: 1.5; margin: 0 0 16px; }
+	#card button {
+		border: none; background: var(--accent); color: #fff; font-weight: 650;
+		font-size: 13px; padding: 9px 18px; border-radius: 8px; cursor: pointer;
+	}
+	#card button:disabled { opacity: 0.6; cursor: wait; }
+	#error { color: #D6455B; font-size: 12px; margin-top: 12px; display: none; }
+</style>
+</head>
+<body>
+	<div id="card">
+		${signedIn
+			? `<p>No use case diagram generated yet.</p><button id="action">Generate</button>`
+			: `<p>Sign in to generate a use case diagram from this codebase.</p><button id="action">Sign In</button>`}
+		<div id="error"></div>
+	</div>
+<script>
+(function () {
+	'use strict';
+	var signedIn = ${JSON.stringify(signedIn)};
+	var btn = document.getElementById('action');
+	var errEl = document.getElementById('error');
+
+	btn.addEventListener('click', function () {
+		if (!signedIn) {
+			window.parent.postMessage({ command: 'startSignIn' }, '*');
+			return;
+		}
+		btn.disabled = true;
+		btn.textContent = 'Generating...';
+		errEl.style.display = 'none';
+		fetch('/api/use-case-diagram/generate', { method: 'POST' })
+			.then(function (r) { return r.json(); })
+			.then(function (result) {
+				if (result.ok) { location.reload(); return; }
+				throw new Error(result.error || 'Generation failed.');
+			})
+			.catch(function (err) {
+				btn.disabled = false;
+				btn.textContent = 'Retry';
+				errEl.textContent = err.message || String(err);
+				errEl.style.display = 'block';
+			});
+	});
 })();
 </script>
 </body>

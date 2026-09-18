@@ -29,7 +29,8 @@
   },
   "dependencies": {
     "@kratai/analysis": "*",
-    "@kratai/diagram-view": "*"
+    "@kratai/diagram-view": "*",
+    "@kratai/llm": "*"
   },
   "devDependencies": {
     "@types/node": "22.x",

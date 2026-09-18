@@ -6,6 +6,20 @@ import { addRecentWorkspace, listRecentWorkspaces } from './workspaceStore.js';
 import { hasSeenOnboarding, markOnboardingSeen } from './onboardingStore.js';
 import { getOnboardingScript } from './onboarding.js';
 import { getLayout, saveLayout } from './layoutStore.js';
+import { startSignIn, handleAuthCallback, getAuthStatus, signOut } from './auth.js';
+import { generateUseCaseDiagram } from './generateProxy.js';
+
+const PROTOCOL = 'kratai';
+
+// Deep links (kratai://callback?...) need a single running instance to
+// hand off to - without this, a second launch attempt on Windows/Linux
+// just spawns a second full process instead of routing back to the one
+// the user is already looking at, and the sign-in callback would never
+// reach the instance that started it.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+	app.quit();
+}
 
 // Unpackaged (`electron .`) has no bundle name to read, so app.getName()
 // defaults to "Electron" - which is what macOS shows as the bold app-menu
@@ -34,6 +48,39 @@ function resolvedPort(server: Server): number {
 	return address.port;
 }
 
+function focusMainWindow(): void {
+	if (!mainWindow || mainWindow.isDestroyed()) return;
+	if (mainWindow.isMinimized()) mainWindow.restore();
+	mainWindow.focus();
+}
+
+function handleDeepLink(url: string): void {
+	if (!url.startsWith(`${PROTOCOL}://`)) return;
+	handleAuthCallback(url).finally(focusMainWindow);
+}
+
+function findDeepLinkArg(argv: string[]): string | undefined {
+	return argv.find(arg => arg.startsWith(`${PROTOCOL}://`));
+}
+
+// macOS delivers deep links via this event, potentially before whenReady()
+// resolves if the app was launched cold by clicking the link - registered
+// unconditionally up front so an early delivery isn't missed.
+app.on('open-url', (event, url) => {
+	event.preventDefault();
+	handleDeepLink(url);
+});
+
+// Windows/Linux have no open-url event - the link arrives as an argv entry,
+// either on this process's own launch (handled below, after whenReady) or,
+// with the single-instance lock above, via this event on the process that
+// was already running when a second launch attempt was made.
+app.on('second-instance', (_event, argv) => {
+	const url = findDeepLinkArg(argv);
+	if (url) handleDeepLink(url);
+	else focusMainWindow();
+});
+
 async function openWorkspace(workspacePath: string): Promise<void> {
 	if (currentServer) {
 		currentServer.close();
@@ -44,7 +91,17 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 		// port: 0 - let the OS pick a free port. A desktop app shouldn't
 		// assume 4300 is free, e.g. if the user also has `kratai view`
 		// running from a terminal at the same time.
-		currentServer = await runView({ path: workspacePath, port: 0, open: false, getLayout, saveLayout });
+		currentServer = await runView({
+			path: workspacePath,
+			port: 0,
+			open: false,
+			getLayout,
+			saveLayout,
+			startSignIn,
+			getAuthStatus,
+			signOut,
+			generateUseCaseDiagram
+		});
 	} catch (error) {
 		dialog.showErrorBox('Could not open workspace', error instanceof Error ? error.message : String(error));
 		return;
@@ -129,6 +186,20 @@ app.whenReady().then(async () => {
 		app.dock?.setIcon(icon);
 	}
 
+	// Registers the OS-level handler for kratai:// links. electron-builder's
+	// `protocols` config (package.json) also registers this at install time
+	// (Info.plist / Windows registry) - more reliable than only doing it
+	// here, but this call is cheap and idempotent, so it stays as a repair
+	// path for whichever platform/packaging combination needs it. Dev mode
+	// (unpackaged `electron .`) needs the executable + script path spelled
+	// out explicitly, or it registers the bare Electron binary instead of
+	// this app.
+	if (app.isPackaged) {
+		app.setAsDefaultProtocolClient(PROTOCOL);
+	} else if (process.argv[1]) {
+		app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [path.resolve(process.argv[1])]);
+	}
+
 	buildMenu();
 
 	const [mostRecent] = listRecentWorkspaces();
@@ -137,6 +208,12 @@ app.whenReady().then(async () => {
 	} else {
 		await promptForWorkspace();
 	}
+
+	// Windows/Linux, launched fresh via a kratai:// link rather than
+	// normally - macOS's open-url handler (registered above) covers the
+	// equivalent cold-launch case there instead.
+	const startupUrl = findDeepLinkArg(process.argv);
+	if (startupUrl) handleDeepLink(startupUrl);
 
 	app.on('activate', () => {
 		if (BrowserWindow.getAllWindows().length === 0) {
