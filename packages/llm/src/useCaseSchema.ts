@@ -2,11 +2,20 @@ export interface UseCaseActor {
 	id: string;
 	name: string;
 	side: 'left' | 'right';
+	// Short role label/description (e.g. "Registered User who can manage
+	// their own listings"). Optional - real extraction doesn't produce this
+	// yet, only the mock preview data does; the view hides the affordance
+	// entirely when it's absent rather than showing an empty one.
+	role?: string;
+	description?: string;
 }
 
 export interface UseCaseItem {
 	id: string;
 	name: string;
+	// Shown in the click-to-open detail popup (see useCaseDiagramView.ts) -
+	// optional for the same reason as UseCaseActor.role/description above.
+	description?: string;
 }
 
 export interface UseCaseAssociation {
@@ -20,24 +29,39 @@ export interface UseCaseRelation {
 	toId: string;
 }
 
+/** A non-functional requirement, either scoped to one use case or, with
+ * `useCaseId: null`, to the project as a whole. `name` is the short,
+ * at-a-glance label shown on the pill/chip; `text` is the full detail
+ * shown once clicked (see useCaseDiagramView.ts's detail popup). */
+export interface UseCaseNFR {
+	id: string;
+	useCaseId: string | null;
+	name: string;
+	text: string;
+}
+
 export interface UseCaseDiagramData {
 	workspaceName: string;
 	systemName: string;
+	// Short project-goal/context blurb shown at the top of the diagram.
+	// Optional for the same reason as UseCaseActor.role/description above.
+	overview?: string;
 	actors: UseCaseActor[];
 	useCases: UseCaseItem[];
 	associations: UseCaseAssociation[];
 	relations: UseCaseRelation[];
+	nfrs?: UseCaseNFR[];
 }
 
 /** What the model is asked to produce - workspaceName/systemName are added
  * afterward from data we already trust, not requested from the model. */
-export type UseCaseModelOutput = Pick<UseCaseDiagramData, 'actors' | 'useCases' | 'associations' | 'relations'>;
+export type UseCaseModelOutput = Pick<UseCaseDiagramData, 'actors' | 'useCases' | 'associations' | 'relations' | 'overview' | 'nfrs'>;
 
 /**
  * Model output is untrusted input - it can omit fields, invent ids that
  * don't exist elsewhere in its own response, or wrap the JSON in prose/code
  * fences despite instructions not to. This throws only when the response is
- * unusable (no actors/use cases at all); a dangling association/relation
+ * unusable (no actors/use cases at all); a dangling association/relation/nfr
  * referencing an unknown id is dropped rather than failing the whole
  * generation, since the rest of the diagram is still useful.
  */
@@ -57,37 +81,79 @@ export function validateUseCaseModelOutput(raw: unknown): UseCaseModelOutput {
 
 	const associations = parseAssociations(obj.associations, actorIds, useCaseIds);
 	const relations = parseRelations(obj.relations, useCaseIds);
+	const nfrs = parseNfrs(obj.nfrs, useCaseIds);
+	const overview = typeof obj.overview === 'string' && obj.overview.trim() ? obj.overview.trim() : undefined;
 
-	return { actors, useCases, associations, relations };
+	return {
+		actors, useCases, associations, relations,
+		...(overview ? { overview } : {}),
+		...(nfrs.length > 0 ? { nfrs } : {})
+	};
 }
 
 function parseActors(raw: unknown): UseCaseActor[] {
 	if (!Array.isArray(raw)) return [];
 	const seen = new Set<string>();
-	return raw.filter((entry): entry is UseCaseActor => {
-		if (typeof entry !== 'object' || entry === null) return false;
+	const result: UseCaseActor[] = [];
+	raw.forEach(entry => {
+		if (typeof entry !== 'object' || entry === null) return;
 		const e = entry as Record<string, unknown>;
-		if (typeof e.id !== 'string' || !e.id || typeof e.name !== 'string' || !e.name) return false;
-		if (seen.has(e.id)) return false;
+		if (typeof e.id !== 'string' || !e.id || typeof e.name !== 'string' || !e.name) return;
+		if (seen.has(e.id)) return;
 		seen.add(e.id);
 		// Defensive default rather than dropping the actor - side only
 		// affects which rail it's drawn on, not whether the data is usable.
-		if (e.side !== 'left' && e.side !== 'right') e.side = seen.size % 2 === 1 ? 'left' : 'right';
-		return true;
+		const side = e.side === 'left' || e.side === 'right' ? e.side : (seen.size % 2 === 1 ? 'left' : 'right');
+		const actor: UseCaseActor = { id: e.id, name: e.name, side };
+		if (typeof e.role === 'string' && e.role) actor.role = e.role;
+		if (typeof e.description === 'string' && e.description) actor.description = e.description;
+		result.push(actor);
 	});
+	return result;
 }
 
 function parseUseCases(raw: unknown): UseCaseItem[] {
 	if (!Array.isArray(raw)) return [];
 	const seen = new Set<string>();
-	return raw.filter((entry): entry is UseCaseItem => {
-		if (typeof entry !== 'object' || entry === null) return false;
+	const result: UseCaseItem[] = [];
+	raw.forEach(entry => {
+		if (typeof entry !== 'object' || entry === null) return;
 		const e = entry as Record<string, unknown>;
-		if (typeof e.id !== 'string' || !e.id || typeof e.name !== 'string' || !e.name) return false;
-		if (seen.has(e.id)) return false;
+		if (typeof e.id !== 'string' || !e.id || typeof e.name !== 'string' || !e.name) return;
+		if (seen.has(e.id)) return;
 		seen.add(e.id);
-		return true;
+		const uc: UseCaseItem = { id: e.id, name: e.name };
+		if (typeof e.description === 'string' && e.description) uc.description = e.description;
+		result.push(uc);
 	});
+	return result;
+}
+
+function parseNfrs(raw: unknown, useCaseIds: Set<string>): UseCaseNFR[] {
+	if (!Array.isArray(raw)) return [];
+	const seen = new Set<string>();
+	const result: UseCaseNFR[] = [];
+	raw.forEach(entry => {
+		if (typeof entry !== 'object' || entry === null) return;
+		const e = entry as Record<string, unknown>;
+		if (typeof e.id !== 'string' || !e.id || seen.has(e.id)) return;
+		if (typeof e.name !== 'string' || !e.name) return;
+		if (typeof e.text !== 'string' || !e.text) return;
+		// Missing/omitted useCaseId is treated as project-wide (null) rather
+		// than dropped - the model leaving it out entirely is far more
+		// likely than it deliberately meaning "scope to nothing".
+		let useCaseId: string | null;
+		if (e.useCaseId === null || e.useCaseId === undefined) {
+			useCaseId = null;
+		} else if (typeof e.useCaseId === 'string' && useCaseIds.has(e.useCaseId)) {
+			useCaseId = e.useCaseId;
+		} else {
+			return;
+		}
+		seen.add(e.id);
+		result.push({ id: e.id, useCaseId, name: e.name, text: e.text });
+	});
+	return result;
 }
 
 function parseAssociations(raw: unknown, actorIds: Set<string>, useCaseIds: Set<string>): UseCaseAssociation[] {

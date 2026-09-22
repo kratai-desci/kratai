@@ -10,8 +10,16 @@ import { buildKnowledgeGraphData } from '../knowledgeGraphData.js';
 import { generateKnowledgeGraphHTML } from '../knowledgeGraphView.js';
 import { buildStackLayerData } from '../stackLayerData.js';
 import { generateStackLayerHTML } from '../stackLayerView.js';
-import { loadCachedUseCaseDiagramData, saveCachedUseCaseDiagramData, buildUseCaseExtractionSummary, UseCaseDiagramData } from '../useCaseDiagramData.js';
+import { loadCachedUseCaseDiagramData, saveCachedUseCaseDiagramData, buildUseCaseExtractionSummary, buildMockUseCaseDiagramData, UseCaseDiagramData } from '../useCaseDiagramData.js';
 import { generateUseCaseDiagramHTML, generateUseCaseDiagramEmptyHTML } from '../useCaseDiagramView.js';
+import { buildMockDomainModelData } from '../domainModelData.js';
+import { generateDomainModelHTML } from '../domainModelView.js';
+import { buildDiffScorecard } from '../diffScorecardData.js';
+import { generateDiffScorecardHTML } from '../diffScorecardView.js';
+import { generateSrsDocHTML } from '../srsDocView.js';
+import { executeChatTool } from '../chatTools.js';
+import { UI_ACTION_TOOL_NAMES } from '@kratai/llm';
+import type { ConversationMessage, ChatStepResult } from '@kratai/llm';
 
 export interface AuthStatus {
 	signedIn: boolean;
@@ -49,6 +57,15 @@ export interface ViewOptions {
 	// a provider key directly anymore (see @kratai/llm, which kratai-web
 	// depends on instead).
 	generateUseCaseDiagram?: (markdown: string, workspaceName: string) => Promise<UseCaseDiagramData>;
+	// Same desktop-owned relay shape (packages/desktop/src/main/chatProxy.ts),
+	// but ONE model turn per call, not a full reply - the model may come
+	// back wanting to call a tool (see chatTools.ts), which only this
+	// process can execute (it's the only layer with the parsed codebase).
+	// The /api/chat route below owns the loop: call this, execute any
+	// requested tools, call again with the results appended, repeat until
+	// done:true. kratai-web never runs this loop itself for the same
+	// reason it never executes tools itself.
+	chat?: (messages: ConversationMessage[], workspaceName: string, summary: string) => Promise<ChatStepResult>;
 }
 
 export async function runView(options: ViewOptions): Promise<http.Server> {
@@ -66,6 +83,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	const startSignInHook = options.startSignIn || (() => {});
 	const signOutHook = options.signOut || (() => {});
 	const generateUseCaseDiagramHook = options.generateUseCaseDiagram;
+	const chatHook = options.chat;
 
 	const config = loadCliConfig(workspacePath, undefined, {});
 	const diagramName = path.basename(workspacePath);
@@ -123,9 +141,24 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		const freshConfig = loadCliConfig(workspacePath, undefined, {});
 		return generateStackLayerHTML(buildStackLayerData(diagramName, nodes, edges, freshConfig));
 	}
+	// Real data (a real extraction call's result, now including overview/
+	// role/description/nfrs - see useCaseExtraction.ts's prompt) or the
+	// real "sign in / generate" empty-state card. No mock fallback in the
+	// default path any more - buildMockUseCaseDiagramData still exists as
+	// a UI fixture (useCaseDiagramData.ts), just not wired in here.
 	function renderUseCaseDiagram(): string {
 		if (useCaseData) return generateUseCaseDiagramHTML(useCaseData);
 		return generateUseCaseDiagramEmptyHTML(getAuthStatus().signedIn);
+	}
+	function renderDomainModel(): string {
+		return generateDomainModelHTML(buildMockDomainModelData(diagramName), { mock: true });
+	}
+	function renderDiffScorecard(): string {
+		return generateDiffScorecardHTML(buildDiffScorecard(diagramData, diagramName), { mock: true });
+	}
+	function renderSrsDoc(): string {
+		const ucData = useCaseData || buildMockUseCaseDiagramData(diagramName);
+		return generateSrsDocHTML(ucData, buildMockDomainModelData(diagramName), { mock: !useCaseData });
 	}
 
 	// Re-runs the expensive parse (the refresh button's whole job) and
@@ -259,6 +292,83 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			})();
 			return;
 		}
+		if (req.method === 'POST' && req.url === '/api/chat') {
+			(async () => {
+				let body = '';
+				req.on('data', chunk => { body += chunk; });
+				req.on('end', async () => {
+					try {
+						if (!chatHook) throw new Error('Chat is only available in the kratai desktop app.');
+						const { messages } = JSON.parse(body) as { messages?: ConversationMessage[] };
+						if (!Array.isArray(messages) || messages.length === 0) throw new Error('Missing messages.');
+						// Rebuilt fresh each turn (cheap - see buildUseCaseExtractionSummary)
+						// rather than cached, so a mid-conversation /api/refresh is
+						// reflected in the very next reply.
+						const summary = buildUseCaseExtractionSummary(diagramData, diagramName);
+
+						// The tool-call loop: each chatHook() call is one model turn
+						// (one kratai-web round trip). When the model wants a tool, it
+						// can only be executed here (this process holds diagramData) -
+						// kratai-web just hands the request back rather than trying to
+						// run it itself. Bounded so a model that never stops calling
+						// tools can't hang the request forever.
+						const conversation: ConversationMessage[] = [...messages];
+						// UI-action calls (show_view/highlight_class) are pure side
+						// effects for the shell's own browser JS to carry out - there's
+						// nothing meaningful to hand back to the model as a "result", so
+						// they get a trivial acknowledgment and are separately
+						// accumulated here to ride along with the final reply.
+						const uiActions: Array<{ type: string } & Record<string, unknown>> = [];
+						const MAX_TOOL_ITERATIONS = 6;
+						for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+							const step = await chatHook(conversation, diagramName, summary);
+							if (step.done) {
+								res.writeHead(200, { 'Content-Type': 'application/json' });
+								res.end(JSON.stringify({ ok: true, reply: step.reply, uiActions }));
+								return;
+							}
+							console.log(`[chat] turn ${i + 1}: ${step.toolCalls.map(c => `${c.name}(${JSON.stringify(c.input)})`).join(', ')}`);
+							conversation.push({ role: 'assistant', text: step.assistantText, toolCalls: step.toolCalls });
+							const toolResults = step.toolCalls.map(call => {
+								if (UI_ACTION_TOOL_NAMES.has(call.name)) {
+									uiActions.push({ type: call.name, ...call.input });
+									return { toolCallId: call.id, output: 'Shown to the user.' };
+								}
+								return { toolCallId: call.id, output: executeChatTool(call.name, call.input, diagramData) };
+							});
+							conversation.push({ role: 'user', toolResults });
+						}
+						// Ran out of tool budget. A follow-up call with allowTools:false
+						// looked like the obvious fix, but testing showed Gemini doesn't
+						// reliably honor "no tools declared" once its own history
+						// already shows a tool-calling pattern - it can still emit a
+						// function call (even hallucinating a nonexistent tool name),
+						// so trusting the provider to stop can't be how this
+						// terminates. Synthesizing directly from what was already
+						// gathered is guaranteed to end the request, costs no extra
+						// model call, and is honest about the limitation instead of
+						// pretending the partial exploration was a complete answer.
+						const allOutputs = conversation
+							.filter((m): m is ConversationMessage & { toolResults: NonNullable<ConversationMessage['toolResults']> } => !!m.toolResults?.length)
+							.flatMap(m => m.toolResults)
+							.map(r => r.output);
+						// Dedupe (the same lookup can legitimately recur across turns) and
+						// keep only the most recent few - later lookups are usually closer
+						// to what the model was actually converging on than its first,
+						// often-vague opening searches.
+						const gathered = Array.from(new Set(allOutputs)).slice(-4).join('\n\n').slice(0, 3000);
+						const reply = `I looked into several parts of the codebase but couldn't settle on a complete answer within my lookup budget. Here's what I found along the way:\n\n${gathered}\n\nTry asking a more specific question (about one particular class, route, or file) for a fuller answer.`;
+						res.writeHead(200, { 'Content-Type': 'application/json' });
+						res.end(JSON.stringify({ ok: true, reply, uiActions }));
+						return;
+					} catch (error) {
+						res.writeHead(400, { 'Content-Type': 'application/json' });
+						res.end(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+					}
+				});
+			})();
+			return;
+		}
 		if (req.method === 'POST' && req.url === '/api/refresh') {
 			reparse().then(stats => {
 				res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -273,6 +383,9 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			: req.url === '/knowledge-graph' ? renderKnowledgeGraph()
 			: req.url === '/stack-layer' ? renderStackLayer()
 			: req.url === '/use-case-diagram' ? renderUseCaseDiagram()
+			: req.url === '/domain-model' ? renderDomainModel()
+			: req.url === '/diff-scorecard' ? renderDiffScorecard()
+			: req.url === '/srs-preview' ? renderSrsDoc()
 			: shellHtml;
 		res.writeHead(200, { 'Content-Type': 'text/html' });
 		res.end(html);

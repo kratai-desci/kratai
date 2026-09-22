@@ -5,5 +5,5 @@
 		"declaration": true,
 		"noEmit": false
 	},
-	"include": ["src/index.ts", "src/commands/view.ts", "src/config.ts", "src/openFile.ts", "src/viewShell.ts", "src/knowledgeGraphData.ts", "src/knowledgeGraphView.ts", "src/stackLayerData.ts", "src/stackLayerView.ts", "src/useCaseDiagramData.ts", "src/useCaseDiagramView.ts"]
+	"include": ["src/index.ts", "src/commands/view.ts", "src/config.ts", "src/openFile.ts", "src/viewShell.ts", "src/knowledgeGraphData.ts", "src/knowledgeGraphView.ts", "src/stackLayerData.ts", "src/stackLayerView.ts", "src/useCaseDiagramData.ts", "src/useCaseDiagramView.ts", "src/domainModelData.ts", "src/domainModelView.ts", "src/diffScorecardData.ts", "src/diffScorecardView.ts", "src/srsDocView.ts"]
 }

@@ -1,10 +1,19 @@
-import { UseCaseDiagramData, UseCaseActor, UseCaseItem } from './useCaseDiagramData.js';
+import { UseCaseDiagramData, UseCaseActor, UseCaseItem, UseCaseNFR } from './useCaseDiagramData.js';
 
 const UC_RX = 95, UC_RY = 38;
 const COL_GAP = 260, ROW_GAP = 116, UC_TOP = 150, UC_COLS = 2;
 const ACTOR_GAP_Y = 150, ACTOR_TOP = 130;
 const BOUNDARY_PAD_X = 90, BOUNDARY_PAD_TOP = 60, BOUNDARY_PAD_BOTTOM = 70;
 const ACTOR_RAIL = 260;
+const NFR_PILL_H = 30, NFR_PILL_GAP = 12, NFR_PILL_PAD_X = 16, NFR_ROW_TOP_GAP = 54, NFR_ROW_BOTTOM_MARGIN = 34;
+
+// Rough per-character width for the pill's monospace-ish 10.5px label -
+// there's no canvas/DOM text measurement available server-side, so pills
+// are sized by character count rather than actual rendered width. Good
+// enough for a short glance-able name; not meant to be pixel-exact.
+function nfrPillWidth(name: string): number {
+	return Math.max(64, Math.round(name.length * 6.4) + NFR_PILL_PAD_X * 2);
+}
 
 interface Point { x: number; y: number; }
 
@@ -36,7 +45,7 @@ function multilineText(text: string, x: number, extraAttrs = ''): string {
  * extraction replaces the mock data (useCaseDiagramData.ts) with a
  * different-sized dataset.
  */
-export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { mock?: boolean } = {}): string {
+export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { mock?: boolean; signedIn?: boolean } = {}): string {
 	const leftActors = data.actors.filter(a => a.side === 'left');
 	const rightActors = data.actors.filter(a => a.side === 'right');
 	const rows = Math.max(1, Math.ceil(data.useCases.length / UC_COLS));
@@ -46,8 +55,25 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { 
 	const boundaryTop = 0;
 	const boundaryHeight = BOUNDARY_PAD_TOP + UC_TOP + (rows - 1) * ROW_GAP + UC_RY + BOUNDARY_PAD_BOTTOM;
 
+	// Project-wide NFRs render as their own row of clickable pills below the
+	// boundary (see renderNfrPill) rather than a sidebar list - the canvas
+	// has to grow to fit them. Each pill is sized to its own name (not a
+	// fixed width), so x-positions are accumulated left to right rather
+	// than evenly spaced.
+	const projectNfrs = (data.nfrs || []).filter(n => n.useCaseId === null);
+	const nfrPillWidths = projectNfrs.map(n => nfrPillWidth(n.name));
+	const nfrRowWidth = nfrPillWidths.reduce((a, b) => a + b, 0) + Math.max(0, projectNfrs.length - 1) * NFR_PILL_GAP;
+	const nfrRowY = boundaryTop + boundaryHeight + NFR_ROW_TOP_GAP;
+	const nfrRowStartX = boundaryLeft + boundaryWidth / 2 - nfrRowWidth / 2;
+	const nfrPillX: number[] = [];
+	{
+		let accX = nfrRowStartX;
+		projectNfrs.forEach((_, i) => { nfrPillX[i] = accX; accX += nfrPillWidths[i] + NFR_PILL_GAP; });
+	}
+	const contentBottom = projectNfrs.length > 0 ? nfrRowY + NFR_PILL_H + NFR_ROW_BOTTOM_MARGIN : boundaryTop + boundaryHeight;
+
 	const actorCount = Math.max(leftActors.length, rightActors.length, 1);
-	const canvasHeight = Math.max(boundaryTop + boundaryHeight, boundaryTop + ACTOR_TOP + (actorCount - 1) * ACTOR_GAP_Y + 90) + 40;
+	const canvasHeight = Math.max(contentBottom, boundaryTop + ACTOR_TOP + (actorCount - 1) * ACTOR_GAP_Y + 90) + 40;
 	const canvasWidth = boundaryLeft + boundaryWidth + ACTOR_RAIL;
 
 	const ucPos: Record<string, Point> = {};
@@ -83,11 +109,33 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { 
 		</g>`;
 	}
 
-	function renderUseCase(uc: UseCaseItem): string {
+	const nfrsByUseCase: Record<string, UseCaseNFR[]> = {};
+	(data.nfrs || []).forEach(nfr => {
+		if (nfr.useCaseId === null) return;
+		(nfrsByUseCase[nfr.useCaseId] = nfrsByUseCase[nfr.useCaseId] || []).push(nfr);
+	});
+
+	function renderUseCase(uc: UseCaseItem, index: number): string {
 		const p = ucPos[uc.id];
+		const nfrs = nfrsByUseCase[uc.id] || [];
+		const nfrBadge = nfrs.length > 0
+			? `<g class="nfr-badge" transform="translate(${UC_RX - 10},${-UC_RY + 6})"><title>${escapeXml(nfrs.map(n => n.name).join(', '))}</title><circle r="9"/><text>${nfrs.length}</text></g>`
+			: '';
+		const numberBadge = `<g class="uc-number" transform="translate(${-UC_RX + 10},${-UC_RY + 6})"><circle r="9"/><text>${index + 1}</text></g>`;
 		return `<g class="usecase" data-id="${uc.id}" transform="translate(${p.x},${p.y})">
 			<ellipse class="uc-shape" cx="0" cy="0" rx="${UC_RX}" ry="${UC_RY}"/>
+			${numberBadge}
+			${nfrBadge}
 			${multilineText(uc.name, 0, 'class="uc-label" y="0" dominant-baseline="middle"')}
+		</g>`;
+	}
+
+	function renderNfrPill(nfr: UseCaseNFR, index: number): string {
+		const x = nfrPillX[index];
+		const w = nfrPillWidths[index];
+		return `<g class="nfr-pill" data-nfr-id="${nfr.id}" transform="translate(${x},${nfrRowY})">
+			<rect width="${w}" height="${NFR_PILL_H}" rx="15"/>
+			<text x="${w / 2}" y="${NFR_PILL_H / 2}" text-anchor="middle" dominant-baseline="central">${escapeXml(nfr.name)}</text>
 		</g>`;
 	}
 
@@ -129,6 +177,39 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { 
 	relationEdges.forEach(e => link(e.a, e.b));
 
 	const adjacencyJSON = JSON.stringify(adjacency);
+
+	// Detail-popup content, precomputed server-side and embedded as JSON
+	// (same pattern as adjacency above) rather than re-derived client-side -
+	// the click handlers below just look up by id.
+	const ucDetails = data.useCases.map((uc, i) => ({
+		id: uc.id,
+		number: i + 1,
+		name: uc.name.replace(/\n/g, ' '),
+		description: uc.description || '',
+		actors: data.associations.filter(a => a.useCaseId === uc.id)
+			.map(a => data.actors.find(x => x.id === a.actorId)?.name.replace(/\n/g, ' ') || '').filter(Boolean),
+		// {id, name} only - clicking a chip opens its own full detail via
+		// NFR_DETAILS/openNfrDetail rather than dumping text inline here.
+		nfrs: (nfrsByUseCase[uc.id] || []).map(n => ({ id: n.id, name: n.name }))
+	}));
+	const actorDetails = data.actors.map(a => ({
+		id: a.id,
+		name: a.name.replace(/\n/g, ' '),
+		role: a.role || '',
+		description: a.description || '',
+		useCases: data.associations.filter(x => x.actorId === a.id)
+			.map(x => data.useCases.find(u => u.id === x.useCaseId)?.name.replace(/\n/g, ' ') || '').filter(Boolean)
+	}));
+	// Numbered across ALL nfrs (project-wide + use-case-scoped) in
+	// declaration order, not just the project-wide ones - both the pill
+	// row and a use-case popup's NFR chips resolve through this same list.
+	const nfrDetails = (data.nfrs || []).map((n, i) => ({
+		id: n.id,
+		number: i + 1,
+		name: n.name,
+		text: n.text,
+		scope: n.useCaseId === null ? 'Project-wide' : (data.useCases.find(u => u.id === n.useCaseId)?.name.replace(/\n/g, ' ') || 'Use case')
+	}));
 
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -193,14 +274,6 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { 
 		pointer-events: none;
 	}
 
-	#legend {
-		position: absolute; top: 16px; right: 16px; z-index: 5; background: var(--surface); border: 1px solid var(--border);
-		border-radius: 10px; padding: 10px 14px; font-size: 11.5px; color: var(--text-dim); display: flex; flex-direction: column; gap: 6px;
-	}
-	#legend .row { display: flex; align-items: center; gap: 8px; }
-	#legend .swatch { width: 22px; height: 0; border-top: 2px solid var(--text-faint); flex-shrink: 0; }
-	#legend .swatch.dashed { border-top-style: dashed; }
-
 	.boundary { fill: none; stroke: var(--boundary-stroke); stroke-width: 1.5; }
 	.boundary-label { fill: var(--text-dim); font-size: 13px; font-weight: 650; }
 
@@ -225,15 +298,62 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { 
 	svg.highlighting .node.hi .uc-shape, svg.highlighting .node.hi .actor-shape { stroke: var(--accent); }
 	svg.highlighting .edge.hi .assoc-edge, svg.highlighting .edge.hi .rel-line { stroke: var(--accent); }
 
-	#focus-banner {
-		position: absolute; top: 16px; left: 50%; transform: translateX(-50%); display: none; z-index: 5;
-		background: var(--accent); color: #fff; font-size: 12.5px; font-weight: 600;
-		padding: 7px 14px; border-radius: 100px; align-items: center; gap: 10px;
+	.nfr-badge circle { fill: var(--accent-2); }
+	.nfr-badge text { fill: #fff; font-size: 9.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+
+	.uc-number circle { fill: var(--surface); stroke: var(--uc-stroke); stroke-width: 1.5; }
+	.uc-number text { fill: var(--uc-stroke); font-size: 9.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+
+	.nfr-pill { cursor: pointer; }
+	.nfr-pill rect { fill: var(--surface); stroke: var(--accent-2); stroke-width: 1.5; transition: fill 0.12s; }
+	.nfr-pill text { fill: var(--accent-2); font-size: 10.5px; font-weight: 650; transition: fill 0.12s; }
+	.nfr-pill:hover rect { fill: var(--accent-2); }
+	.nfr-pill:hover text { fill: #fff; }
+	.nfr-row-label { fill: var(--text-faint); font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-anchor: middle; }
+
+	#overview-btn {
+		border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim);
+		font-size: 11px; font-weight: 650; padding: 4px 10px; border-radius: 100px; cursor: pointer;
+		margin-left: 10px; font-family: inherit;
 	}
-	#focus-banner button {
-		border: none; background: rgba(255,255,255,0.25); color: #fff; border-radius: 100px;
-		font-size: 11px; padding: 3px 10px; cursor: pointer; font-weight: 650;
+	#overview-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+	/* ---- click-to-open detail popup: actors, use cases, and project-wide
+	   NFRs all open the same modal shape rather than cramming everything
+	   into a permanent sidebar - see the click handlers below for what
+	   fills #detail-kicker/#detail-title/#detail-body per node type. ---- */
+	#detail-overlay {
+		position: fixed; inset: 0; z-index: 100; display: none;
+		align-items: center; justify-content: center; padding: 24px;
+		background: rgba(10,14,25,0.45);
 	}
+	#detail-overlay.open { display: flex; }
+	#detail-modal {
+		background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+		width: 100%; max-width: 440px; max-height: 80vh; overflow-y: auto;
+		padding: 24px 26px; box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+	}
+	#detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+	#detail-kicker { margin: 0 0 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); }
+	#detail-title { margin: 0; font-size: 17px; }
+	#detail-close {
+		flex-shrink: 0; border: none; background: var(--surface-2); color: var(--text-dim);
+		width: 26px; height: 26px; border-radius: 8px; cursor: pointer; font-size: 15px; line-height: 1;
+	}
+	#detail-close:hover { color: var(--accent); }
+	#detail-body { margin-top: 14px; }
+	.detail-desc { margin: 0; color: var(--text-dim); font-size: 13px; line-height: 1.6; }
+	.detail-section { margin-top: 16px; }
+	.detail-section h3 { margin: 0 0 6px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); }
+	.detail-section p, .detail-section ul { margin: 0; color: var(--text-dim); font-size: 12.5px; line-height: 1.6; }
+	.detail-section ul { padding-left: 18px; }
+	.nfr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+	.nfr-chip {
+		border: 1px solid var(--accent-2); background: none; color: var(--accent-2);
+		font-size: 11px; font-weight: 650; font-family: inherit; padding: 4px 10px;
+		border-radius: 100px; cursor: pointer; transition: background 0.12s, color 0.12s;
+	}
+	.nfr-chip:hover { background: var(--accent-2); color: #fff; }
 </style>
 </head>
 <body>
@@ -249,29 +369,45 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { 
 			${associationEdges.map(e => e.svg).join('\n')}
 			${relationEdges.map(e => e.svg).join('\n')}
 			${data.actors.map(renderActor).join('\n')}
-			${data.useCases.map(renderUseCase).join('\n')}
+			${data.useCases.map((uc, i) => renderUseCase(uc, i)).join('\n')}
+			${projectNfrs.length > 0 ? `<text class="nfr-row-label" x="${boundaryLeft + boundaryWidth / 2}" y="${nfrRowY - 14}">PROJECT-WIDE NFRs</text>` : ''}
+			${projectNfrs.map((n, i) => renderNfrPill(n, i)).join('\n')}
 		</svg>
 	</div>
 	<div id="header">
 		<h1>${escapeXml(data.workspaceName)}</h1>
 		<span class="sub">${data.actors.length} actors &bull; ${data.useCases.length} use cases${options.mock ? ' &bull; mock data' : ''}</span>
+		${data.overview ? `<button id="overview-btn" type="button" style="pointer-events:auto;">Project Overview</button>` : ''}
+		${options.mock && options.signedIn !== undefined ? `<button id="gen-real" style="pointer-events:auto;margin-left:8px;border:1px solid var(--border);background:var(--surface);color:var(--accent);font-size:11px;font-weight:650;padding:4px 10px;border-radius:100px;cursor:pointer;">${options.signedIn ? 'Generate from this codebase' : 'Sign in to generate'}</button>` : ''}
 	</div>
-	<div id="legend">
-		<div class="row"><span class="swatch"></span>association</div>
-		<div class="row"><span class="swatch dashed"></span>&laquo;include&raquo; / &laquo;extend&raquo;</div>
+	<div id="hint">click an actor, use case, or NFR for detail &bull; hover to trace connections</div>
+
+	<div id="detail-overlay">
+		<div id="detail-modal" role="dialog" aria-modal="true">
+			<div id="detail-header">
+				<div>
+					<p id="detail-kicker"></p>
+					<h2 id="detail-title"></h2>
+				</div>
+				<button id="detail-close" type="button" aria-label="Close">&times;</button>
+			</div>
+			<div id="detail-body"></div>
+		</div>
 	</div>
-	<div id="focus-banner"><span id="focus-label"></span><button id="focus-clear">Clear</button></div>
-	<div id="hint">hover an actor or use case to trace its connections</div>
 
 <script>
 (function () {
 	'use strict';
 	var svg = document.getElementById('uc-svg');
 	var adjacency = ${adjacencyJSON};
+	// True while the detail popup covers the diagram - hover events on the
+	// SVG underneath aren't reliable once an overlay is sitting on top of
+	// it (no mouse movement happens to fire a real mouseleave), so this is
+	// an explicit switch rather than trusting mouseenter/mouseleave to
+	// stay in sync with what's actually visible.
+	var modalOpen = false;
 
 	svg.querySelectorAll('.actor, .usecase').forEach(function (el) { el.classList.add('node'); });
-
-	var focusedId = null;
 
 	function idsToHighlight(id) {
 		var set = {};
@@ -297,27 +433,118 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { 
 		});
 	}
 
-	var focusBanner = document.getElementById('focus-banner');
-	var focusLabel = document.getElementById('focus-label');
-	function setFocus(id, label) {
-		focusedId = id;
-		applyHighlight(id);
-		focusBanner.style.display = id ? 'flex' : 'none';
-		if (id) focusLabel.textContent = label;
-	}
-	document.getElementById('focus-clear').addEventListener('click', function () { setFocus(null); });
+	// ---- detail popup: click an actor, use case, or project-wide NFR pill
+	// to read about it in the middle of the screen instead of a permanent
+	// sidebar (see the CSS comment on #detail-overlay). ----
+	var UC_DETAILS = ${JSON.stringify(ucDetails)};
+	var ACTOR_DETAILS = ${JSON.stringify(actorDetails)};
+	var NFR_DETAILS = ${JSON.stringify(nfrDetails)};
 
-	svg.querySelectorAll('.node').forEach(function (el) {
-		el.addEventListener('mouseenter', function () { if (!focusedId) applyHighlight(el.getAttribute('data-id')); });
-		el.addEventListener('mouseleave', function () { if (!focusedId) applyHighlight(null); });
-		el.addEventListener('click', function () {
-			var id = el.getAttribute('data-id');
-			if (focusedId === id) { setFocus(null); return; }
-			var label = el.querySelector('.actor-label, .uc-label');
-			setFocus(id, (label ? label.textContent : id).replace(/\\s+/g, ' '));
+	var detailOverlay = document.getElementById('detail-overlay');
+	var detailKicker = document.getElementById('detail-kicker');
+	var detailTitle = document.getElementById('detail-title');
+	var detailBody = document.getElementById('detail-body');
+
+	function escapeHtml(s) {
+		var d = document.createElement('div');
+		d.textContent = s;
+		return d.innerHTML;
+	}
+
+	function openDetail(kicker, title, bodyHTML) {
+		modalOpen = true;
+		applyHighlight(null);
+		detailKicker.textContent = kicker;
+		detailTitle.textContent = title;
+		detailBody.innerHTML = bodyHTML;
+		detailOverlay.classList.add('open');
+	}
+	function closeDetail() {
+		modalOpen = false;
+		detailOverlay.classList.remove('open');
+	}
+	detailOverlay.addEventListener('click', function (e) { if (e.target === detailOverlay) closeDetail(); });
+	document.getElementById('detail-close').addEventListener('click', closeDetail);
+	document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDetail(); });
+
+	function openUseCaseDetail(id) {
+		var uc = UC_DETAILS.filter(function (u) { return u.id === id; })[0];
+		if (!uc) return;
+		var html = uc.description ? '<p class="detail-desc">' + escapeHtml(uc.description) + '</p>' : '<p class="detail-desc">No description yet.</p>';
+		if (uc.actors.length) html += '<div class="detail-section"><h3>Actors</h3><p>' + escapeHtml(uc.actors.join(', ')) + '</p></div>';
+		if (uc.nfrs.length) html += '<div class="detail-section"><h3>Non-functional requirements</h3><div class="nfr-chips">' + uc.nfrs.map(function (n) { return '<button type="button" class="nfr-chip" data-nfr-chip="' + n.id + '">' + escapeHtml(n.name) + '</button>'; }).join('') + '</div></div>';
+		openDetail('USE CASE UC-' + uc.number, uc.name, html);
+	}
+	function openActorDetail(id) {
+		var a = ACTOR_DETAILS.filter(function (x) { return x.id === id; })[0];
+		if (!a) return;
+		var html = a.description ? '<p class="detail-desc">' + escapeHtml(a.description) + '</p>' : '<p class="detail-desc">No description yet.</p>';
+		if (a.useCases.length) html += '<div class="detail-section"><h3>Involved in</h3><p>' + escapeHtml(a.useCases.join(', ')) + '</p></div>';
+		openDetail(a.role ? 'ACTOR \\u00b7 ' + a.role.toUpperCase() : 'ACTOR', a.name, html);
+	}
+	function openNfrDetail(nfrId) {
+		var n = NFR_DETAILS.filter(function (x) { return x.id === nfrId; })[0];
+		if (!n) return;
+		openDetail('NFR-' + n.number + ' \\u00b7 ' + n.scope.toUpperCase(), n.name, '<p class="detail-desc">' + escapeHtml(n.text) + '</p>');
+	}
+
+	// Use-case popups render their NFRs as chips (see openUseCaseDetail) -
+	// delegated rather than bound per-chip, since the popup body is
+	// replaced wholesale on every open.
+	detailBody.addEventListener('click', function (e) {
+		var chip = e.target.closest('[data-nfr-chip]');
+		if (chip) openNfrDetail(chip.getAttribute('data-nfr-chip'));
+	});
+
+	svg.querySelectorAll('.nfr-pill').forEach(function (el) {
+		el.addEventListener('click', function (e) {
+			e.stopPropagation();
+			openNfrDetail(el.getAttribute('data-nfr-id'));
 		});
 	});
-	svg.addEventListener('click', function (e) { if (e.target === svg) setFocus(null); });
+
+	var overviewBtn = document.getElementById('overview-btn');
+	if (overviewBtn) {
+		overviewBtn.addEventListener('click', function () {
+			openDetail('OVERVIEW', ${JSON.stringify(data.workspaceName)}, '<p class="detail-desc">' + escapeHtml(${JSON.stringify(data.overview || '')}) + '</p>');
+		});
+	}
+
+	var genRealBtn = document.getElementById('gen-real');
+	if (genRealBtn) {
+		genRealBtn.addEventListener('click', function () {
+			if (${JSON.stringify(!!options.signedIn)} !== true) {
+				window.parent.postMessage({ command: 'startSignIn' }, '*');
+				return;
+			}
+			genRealBtn.disabled = true;
+			genRealBtn.textContent = 'Generating...';
+			fetch('/api/use-case-diagram/generate', { method: 'POST' })
+				.then(function (r) { return r.json(); })
+				.then(function (result) {
+					if (result.ok) { location.reload(); return; }
+					throw new Error(result.error || 'Generation failed.');
+				})
+				.catch(function (err) {
+					genRealBtn.disabled = false;
+					genRealBtn.textContent = 'Retry';
+				});
+		});
+	}
+
+	// Hover traces connections (applyHighlight); click opens the detail
+	// popup - kept as two separate, non-competing interactions rather than
+	// also pinning a persistent highlight on click, which used to fight
+	// with the popup opening at the same time (both firing off one click).
+	svg.querySelectorAll('.node').forEach(function (el) {
+		el.addEventListener('mouseenter', function () { if (!modalOpen) applyHighlight(el.getAttribute('data-id')); });
+		el.addEventListener('mouseleave', function () { if (!modalOpen) applyHighlight(null); });
+		el.addEventListener('click', function () {
+			var id = el.getAttribute('data-id');
+			if (el.classList.contains('usecase')) openUseCaseDetail(id);
+			else openActorDetail(id);
+		});
+	});
 })();
 </script>
 </body>

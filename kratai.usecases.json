@@ -5,48 +5,59 @@
     {
       "id": "developer",
       "name": "Developer",
-      "side": "left"
+      "side": "left",
+      "role": "Software Engineer",
+      "description": "Analyzes codebases, inspects interactive architecture diagrams, and runs analysis workflows via CLI or desktop app."
     },
     {
-      "id": "llm-service",
-      "name": "External LLM Service",
-      "side": "right"
+      "id": "llm-provider",
+      "name": "LLM Provider",
+      "side": "right",
+      "role": "External AI Service",
+      "description": "Provides language model services to enrich parsed codebase metadata with high-level summaries and insights."
     }
   ],
   "useCases": [
     {
-      "id": "analyze-repository",
-      "name": "Analyze Source Repository"
+      "id": "analyze-codebase",
+      "name": "Analyze Codebase",
+      "description": "Parses repository source files, framework structures, and Git history into an architectural domain model."
     },
     {
       "id": "generate-diagram",
-      "name": "Generate Architecture Diagram"
+      "name": "Generate Architecture Diagram",
+      "description": "Transforms analyzed codebase domain models into visual diagram structures."
     },
     {
       "id": "view-diagram",
-      "name": "View Interactive Diagram"
+      "name": "View Interactive Diagram",
+      "description": "Renders visual architecture diagrams within the desktop application and diagram UI components."
     },
     {
       "id": "export-diagram",
-      "name": "Export Diagram"
+      "name": "Export Diagram",
+      "description": "Exports generated architectural diagrams into external file formats."
     },
     {
-      "id": "enrich-analysis",
-      "name": "Enrich Codebase Context with LLM"
+      "id": "enrich-with-llm",
+      "name": "Enrich Model with LLM",
+      "description": "Enhances parsed codebase metadata using external AI models for deeper semantic understanding."
     },
     {
-      "id": "configure-analysis-path",
-      "name": "Configure Target Path"
+      "id": "run-cli-command",
+      "name": "Run CLI Command",
+      "description": "Executes analysis, diagram generation, and export operations directly from the terminal."
     },
     {
-      "id": "run-cli-commands",
-      "name": "Execute CLI Commands"
+      "id": "collect-telemetry",
+      "name": "Collect Telemetry",
+      "description": "Gathers anonymous diagnostics and usage metrics during application execution."
     }
   ],
   "associations": [
     {
       "actorId": "developer",
-      "useCaseId": "analyze-repository"
+      "useCaseId": "analyze-codebase"
     },
     {
       "actorId": "developer",
@@ -58,32 +69,44 @@
     },
     {
       "actorId": "developer",
-      "useCaseId": "configure-analysis-path"
+      "useCaseId": "run-cli-command"
     },
     {
-      "actorId": "developer",
-      "useCaseId": "run-cli-commands"
-    },
-    {
-      "actorId": "llm-service",
-      "useCaseId": "enrich-analysis"
+      "actorId": "llm-provider",
+      "useCaseId": "enrich-with-llm"
     }
   ],
   "relations": [
     {
       "kind": "include",
       "fromId": "generate-diagram",
-      "toId": "analyze-repository"
+      "toId": "analyze-codebase"
     },
     {
       "kind": "extend",
-      "fromId": "enrich-analysis",
-      "toId": "generate-diagram"
+      "fromId": "enrich-with-llm",
+      "toId": "analyze-codebase"
+    }
+  ],
+  "overview": "Kratai is a codebase analysis and architectural diagram generation tool available as a CLI and Desktop application. It parses source code repositories and Git history, enriches metadata using LLMs, and renders interactive architectural diagrams.",
+  "nfrs": [
+    {
+      "id": "parsing-extensibility",
+      "useCaseId": "analyze-codebase",
+      "name": "Parser Extensibility",
+      "text": "The parsing engine must maintain modular support for extensible language syntax and framework rules."
     },
     {
-      "kind": "extend",
-      "fromId": "export-diagram",
-      "toId": "view-diagram"
+      "id": "llm-reliability",
+      "useCaseId": "enrich-with-llm",
+      "name": "LLM Failure Resilience",
+      "text": "Enrichment calls to external LLM providers must gracefully handle API latency and failure without interrupting base parsing."
+    },
+    {
+      "id": "telemetry-privacy",
+      "useCaseId": "collect-telemetry",
+      "name": "Non-Intrusive Telemetry",
+      "text": "Telemetry collection must operate asynchronously and respect user configuration and privacy settings."
     }
   ]
 }

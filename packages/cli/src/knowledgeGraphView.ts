@@ -339,6 +339,17 @@ import * as THREE from '${threeDataUri}';
 	}
 	document.getElementById('focus-clear').addEventListener('click', clearFocus);
 
+	// Exposed so the shell (viewShell.ts) can trigger a trace from outside
+	// this iframe - the AI chat panel's highlight_class tool calls this by
+	// name (same-origin contentWindow access, no postMessage needed,
+	// consistent with how the shell already reaches into frames for
+	// theme/fixups) whenever it references a specific class in its answer,
+	// so the user sees it, not just reads about it.
+	window.focusNodeByName = function (name) {
+		var n = simNodes.filter(function (x) { return x.name === name; })[0];
+		if (n) setFocus(n);
+	};
+
 	// ---- turntable rotation + zoom (mirrors stackLayerView.ts exactly, so
 	// the two 3D views feel like the same product) ----
 	function placeCamera() {

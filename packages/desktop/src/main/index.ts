@@ -8,6 +8,8 @@ import { getOnboardingScript } from './onboarding.js';
 import { getLayout, saveLayout } from './layoutStore.js';
 import { startSignIn, handleAuthCallback, getAuthStatus, signOut } from './auth.js';
 import { generateUseCaseDiagram } from './generateProxy.js';
+import { chatStep } from './chatProxy.js';
+import { getWelcomeHTML, getLoadingHTML } from './welcomeScreen.js';
 
 const PROTOCOL = 'kratai';
 
@@ -81,11 +83,72 @@ app.on('second-instance', (_event, argv) => {
 	else focusMainWindow();
 });
 
+// data: URLs, not loadFile - the welcome/loading screens are generated
+// strings (welcomeScreen.ts), not files on disk, and this app never keeps
+// a renderer bundle of its own (see the file-level comment above).
+function loadDataHTML(html: string): Promise<void> {
+	if (!mainWindow || mainWindow.isDestroyed()) return Promise.resolve();
+	return mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+}
+
+// Creates the one BrowserWindow this app ever shows, wiring the
+// kratai-action:// link interceptor once at creation time - the welcome
+// screen's "select a folder" / "open recent" links have no preload/
+// contextBridge to call back through (same constraint as everywhere else
+// in this app), so they navigate to a sentinel URL that never actually
+// loads; this handler catches it first and turns it into a real action.
+function ensureMainWindow(): BrowserWindow {
+	if (mainWindow && !mainWindow.isDestroyed()) return mainWindow;
+	mainWindow = new BrowserWindow({
+		// >=1440 so the shell's WIDE_QUERY media query (viewShell.ts)
+		// kicks in by default and shows the split view instead of behind a
+		// toggle.
+		width: 1500,
+		height: 900,
+		icon,
+		title: 'kratai',
+		// Explicit even though these match Electron's current defaults -
+		// this window loads content over the network (localhost, but
+		// still HTTP), worth stating the isolation intentionally rather
+		// than relying on defaults silently doing the right thing.
+		webPreferences: {
+			contextIsolation: true,
+			nodeIntegration: false,
+			sandbox: true
+		}
+	});
+	mainWindow.webContents.on('will-navigate', (event, url) => {
+		if (!url.startsWith('kratai-action://')) return;
+		event.preventDefault();
+		const parsed = new URL(url);
+		if (parsed.hostname === 'pick-folder') {
+			void promptForWorkspace();
+		} else if (parsed.hostname === 'open') {
+			const target = parsed.searchParams.get('path');
+			if (target) void openWorkspace(target);
+		}
+	});
+	return mainWindow;
+}
+
+async function showWelcomeScreen(): Promise<void> {
+	ensureMainWindow();
+	await loadDataHTML(getWelcomeHTML(listRecentWorkspaces()));
+}
+
 async function openWorkspace(workspacePath: string): Promise<void> {
 	if (currentServer) {
 		currentServer.close();
 		currentServer = undefined;
 	}
+
+	// Shown immediately, before the (potentially multi-second) parse below
+	// - otherwise a first-run user watches the welcome screen freeze with
+	// no feedback until the shell suddenly appears fully parsed. Framed
+	// generically ("Building your Spec & Design...") rather than naming
+	// parsing/AI steps - see welcomeScreen.ts.
+	ensureMainWindow();
+	await loadDataHTML(getLoadingHTML());
 
 	try {
 		// port: 0 - let the OS pick a free port. A desktop app shouldn't
@@ -100,38 +163,20 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 			startSignIn,
 			getAuthStatus,
 			signOut,
-			generateUseCaseDiagram
+			generateUseCaseDiagram,
+			chat: chatStep
 		});
 	} catch (error) {
 		dialog.showErrorBox('Could not open workspace', error instanceof Error ? error.message : String(error));
+		await showWelcomeScreen();
 		return;
 	}
 
 	addRecentWorkspace(workspacePath);
 	const url = `http://localhost:${resolvedPort(currentServer)}`;
 
-	if (!mainWindow || mainWindow.isDestroyed()) {
-		mainWindow = new BrowserWindow({
-			// >=1440 so the shell's WIDE_QUERY media query (viewShell.ts)
-			// kicks in by default and shows Knowledge Graph + Class Diagram
-			// side-by-side instead of behind a toggle.
-			width: 1500,
-			height: 900,
-			icon,
-			title: 'kratai',
-			// Explicit even though these match Electron's current defaults -
-			// this window loads content over the network (localhost, but
-			// still HTTP), worth stating the isolation intentionally rather
-			// than relying on defaults silently doing the right thing.
-			webPreferences: {
-				contextIsolation: true,
-				nodeIntegration: false,
-				sandbox: true
-			}
-		});
-	}
-	mainWindow.setTitle(`kratai - ${workspacePath}`);
-	await mainWindow.loadURL(url);
+	mainWindow!.setTitle(`kratai - ${workspacePath}`);
+	await mainWindow!.loadURL(url);
 
 	if (!hasSeenOnboarding()) {
 		showOnboarding();
@@ -206,7 +251,9 @@ app.whenReady().then(async () => {
 	if (mostRecent) {
 		await openWorkspace(mostRecent);
 	} else {
-		await promptForWorkspace();
+		// True first run only - a returning user with a recent workspace
+		// still gets the fast auto-open path above, unchanged.
+		await showWelcomeScreen();
 	}
 
 	// Windows/Linux, launched fresh via a kratai:// link rather than
