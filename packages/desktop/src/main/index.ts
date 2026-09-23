@@ -10,6 +10,7 @@ import { startSignIn, handleAuthCallback, getAuthStatus, signOut } from './auth.
 import { generateUseCaseDiagram } from './generateProxy.js';
 import { chatStep } from './chatProxy.js';
 import { getWelcomeHTML, getLoadingHTML } from './welcomeScreen.js';
+import { exportRequirementsPdf } from './pdfExport.js';
 
 const PROTOCOL = 'kratai';
 
@@ -41,6 +42,9 @@ const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.png
 
 let mainWindow: BrowserWindow | undefined;
 let currentServer: Server | undefined;
+// Tracked so the File-menu PDF export action (built once at startup) can
+// reach whatever project happens to be open when it's actually clicked.
+let currentWorkspacePath: string | undefined;
 
 function resolvedPort(server: Server): number {
 	const address = server.address();
@@ -172,6 +176,7 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 		return;
 	}
 
+	currentWorkspacePath = workspacePath;
 	addRecentWorkspace(workspacePath);
 	const url = `http://localhost:${resolvedPort(currentServer)}`;
 
@@ -189,6 +194,25 @@ function showOnboarding(): void {
 	void mainWindow.webContents.executeJavaScript(getOnboardingScript(path.join(__dirname, 'assets')));
 }
 
+// Triggered from the File menu, not an in-page button (see srsDocView.ts's
+// history - a button duplicated a real app action) - calls
+// exportRequirementsPdf directly rather than through an HTTP route, since
+// the trigger is already native.
+async function handleExportRequirementsPdf(): Promise<void> {
+	if (!currentServer || !currentWorkspacePath) {
+		dialog.showErrorBox('No project open', 'Open a project before exporting a Requirements PDF.');
+		return;
+	}
+	const result = await exportRequirementsPdf(resolvedPort(currentServer), path.basename(currentWorkspacePath));
+	if (result.error) {
+		dialog.showErrorBox('Could not export PDF', result.error);
+	} else if (result.ok && result.path) {
+		void dialog.showMessageBox({ type: 'info', message: 'Requirements PDF saved', detail: result.path });
+	}
+	// result.ok === false with no error means the user cancelled the save
+	// dialog - not a failure, so no dialog for that case.
+}
+
 async function promptForWorkspace(): Promise<void> {
 	const result = await dialog.showOpenDialog({
 		properties: ['openDirectory'],
@@ -204,6 +228,8 @@ function buildMenu(): void {
 			label: 'File',
 			submenu: [
 				{ label: 'Open Folder...', accelerator: 'CmdOrCtrl+O', click: () => void promptForWorkspace() },
+				{ type: 'separator' },
+				{ label: 'Export Requirements PDF...', click: () => void handleExportRequirementsPdf() },
 				{ type: 'separator' },
 				{ role: 'quit' }
 			]

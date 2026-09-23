@@ -111,13 +111,13 @@ export function generateShellHTML(
 	#picker-sep { color: var(--text-faint); font-size: 12px; }
 
 	#topbar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-	#theme-toggle, #download-md, #srs-preview, #refresh-btn, #chat-toggle {
+	#theme-toggle, #refresh-btn, #chat-toggle {
 		width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
 		background: var(--surface-2); color: var(--text-dim); cursor: pointer;
 		display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 		text-decoration: none;
 	}
-	#theme-toggle:hover, #download-md:hover, #srs-preview:hover, #refresh-btn:hover:not(:disabled), #chat-toggle:hover { border-color: var(--accent); color: var(--accent); }
+	#theme-toggle:hover, #refresh-btn:hover:not(:disabled), #chat-toggle:hover { border-color: var(--accent); color: var(--accent); }
 	#refresh-btn:disabled { cursor: wait; opacity: 0.7; }
 	#refresh-btn.spinning svg { animation: kratai-spin 0.7s linear infinite; }
 	@keyframes kratai-spin { to { transform: rotate(360deg); } }
@@ -233,12 +233,6 @@ export function generateShellHTML(
 			<button id="refresh-btn" title="Re-scan the project">
 				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
 			</button>
-			<a id="download-md" href="/download.md" download="${workspaceName}.md" title="Download Markdown">
-				<svg width="14" height="14" viewBox="0 0 14 14"><path d="M7,1.5 V9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/><path d="M4,6.5 L7,9.5 L10,6.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M2,12 H12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/></svg>
-			</a>
-			<a id="srs-preview" href="/srs-preview" target="_blank" rel="noopener" title="Generate SRS">
-				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="15" y2="17"></line></svg>
-			</a>
 			<button id="chat-toggle" class="active" title="Toggle AI dialog">
 				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
 			</button>
@@ -279,12 +273,13 @@ export function generateShellHTML(
 		// were pulled from this list (still reachable via SRC_BY_MODE - see
 		// applyAiUiActions) but stay out of the manual picker for now.
 		var VIEW_OPTIONS = [
-			['usecase', 'Use Case Model'], ['domain', 'Domain Model'],
+			['srs', 'Requirements'], ['usecase', 'Use Case Model'], ['domain', 'Domain Model'],
 			['class', 'Class Diagram'], ['scorecard', 'Code Review']
 		];
 		var SRC_BY_MODE = {
 			graph: '/knowledge-graph', class: '/class-diagram', stack: '/stack-layer',
-			usecase: '/use-case-diagram', domain: '/domain-model', scorecard: '/diff-scorecard'
+			usecase: '/use-case-diagram', domain: '/domain-model', scorecard: '/diff-scorecard',
+			srs: '/srs-preview'
 		};
 
 		// 1440px sits above a typical embedded/paneled browser (e.g. Claude

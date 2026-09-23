@@ -36,16 +36,49 @@ function multilineText(text: string, x: number, extraAttrs = ''): string {
 }
 
 /**
- * 2D UML-style use case diagram - deliberately plain SVG rather than
- * Stack Layer/Knowledge Graph's 3D language, since a use case diagram is
- * inherently a flat, textual, "who does what" chart, not something a 3D
- * scene would clarify. Positions are computed here (server-side) from
- * whatever actor/use-case counts the data has, rather than hardcoded
- * pixel coordinates, so the layout doesn't need rework once real
- * extraction replaces the mock data (useCaseDiagramData.ts) with a
- * different-sized dataset.
+ * Static shape/color rules for the diagram drawn by buildUseCaseDiagramSvg
+ * below - shared verbatim by generateUseCaseDiagramHTML (which layers its
+ * own interactive-only rules - cursor/hover/highlight - on top) and
+ * srsDocView.ts (which embeds the same SVG as a plain, non-interactive
+ * image). Keeping one copy means the diagram looks identical wherever it
+ * appears. Relies on each host page defining --uc-fill, --uc-stroke,
+ * --actor-stroke, --boundary-stroke, --text, --text-dim, --text-faint,
+ * --surface, --accent, and --accent-2 (see either page's own :root block).
  */
-export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { mock?: boolean; signedIn?: boolean } = {}): string {
+export const DIAGRAM_SVG_STYLE = `
+	.boundary { fill: none; stroke: var(--boundary-stroke); stroke-width: 1.5; }
+	.boundary-label { fill: var(--text-dim); font-size: 13px; font-weight: 650; }
+	.actor-shape { fill: none; stroke: var(--actor-stroke); stroke-width: 2.2; stroke-linecap: round; }
+	.actor-label { fill: var(--text); font-size: 12.5px; }
+	.uc-shape { fill: var(--uc-fill); stroke: var(--uc-stroke); stroke-width: 1.8; }
+	.uc-label { fill: var(--text); font-size: 12px; }
+	.assoc-edge { stroke: var(--text-faint); stroke-width: 1.4; }
+	.rel-line { stroke: var(--text-faint); stroke-width: 1.4; stroke-dasharray: 5 4; }
+	.rel-label { fill: var(--text-dim); font-size: 10px; font-style: italic; }
+	.nfr-badge circle { fill: var(--accent-2); }
+	.nfr-badge text { fill: #fff; font-size: 9.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+	.uc-number circle { fill: var(--surface); stroke: var(--uc-stroke); stroke-width: 1.5; }
+	.uc-number text { fill: var(--uc-stroke); font-size: 9.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+	.nfr-pill rect { fill: var(--surface); stroke: var(--accent-2); stroke-width: 1.5; }
+	.nfr-pill text { fill: var(--accent-2); font-size: 10.5px; font-weight: 650; }
+	.nfr-row-label { fill: var(--text-faint); font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-anchor: middle; }
+`;
+
+export interface UseCaseDiagramSvg {
+	svg: string;
+	width: number;
+	height: number;
+}
+
+/**
+ * The 2D UML-style diagram itself - just the <svg>, no page chrome/JS.
+ * Positions are computed from whatever actor/use-case counts the data has,
+ * rather than hardcoded pixel coordinates, so this doesn't need rework as
+ * real extraction produces differently-sized datasets. Shared by
+ * generateUseCaseDiagramHTML (interactive) and srsDocView.ts's Requirements
+ * doc (static image) so the diagram is drawn identically in both places.
+ */
+export function buildUseCaseDiagramSvg(data: UseCaseDiagramData): UseCaseDiagramSvg {
 	const leftActors = data.actors.filter(a => a.side === 'left');
 	const rightActors = data.actors.filter(a => a.side === 'right');
 	const rows = Math.max(1, Math.ceil(data.useCases.length / UC_COLS));
@@ -145,11 +178,8 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { 
 		const isLeft = !!leftPos[assoc.actorId];
 		const actorAnchor: Point = { x: a.x + (isLeft ? 24 : -24), y: a.y - 8 };
 		const ucEnd = ellipseIntersect(uc.x, uc.y, UC_RX, UC_RY, actorAnchor.x, actorAnchor.y);
-		return {
-			id: `assoc-${i}`, a: assoc.actorId, b: assoc.useCaseId,
-			svg: `<line class="edge assoc-edge" data-edge-id="assoc-${i}" data-a="${assoc.actorId}" data-b="${assoc.useCaseId}"
-				x1="${actorAnchor.x}" y1="${actorAnchor.y}" x2="${ucEnd.x}" y2="${ucEnd.y}"/>`
-		};
+		return `<line class="edge assoc-edge" data-edge-id="assoc-${i}" data-a="${assoc.actorId}" data-b="${assoc.useCaseId}"
+			x1="${actorAnchor.x}" y1="${actorAnchor.y}" x2="${ucEnd.x}" y2="${ucEnd.y}"/>`;
 	});
 
 	const relationEdges = data.relations.map((rel, i) => {
@@ -157,26 +187,56 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { 
 		const start = ellipseIntersect(from.x, from.y, UC_RX, UC_RY, to.x, to.y);
 		const end = ellipseIntersect(to.x, to.y, UC_RX, UC_RY, from.x, from.y);
 		const midX = (start.x + end.x) / 2, midY = (start.y + end.y) / 2;
-		return {
-			id: `rel-${i}`, a: rel.fromId, b: rel.toId,
-			svg: `<g class="edge relation-edge" data-edge-id="rel-${i}" data-a="${rel.fromId}" data-b="${rel.toId}">
-				<line class="rel-line" marker-end="url(#arrow)" x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}"/>
-				<text class="rel-label" x="${midX}" y="${midY - 8}" text-anchor="middle">&laquo;${rel.kind}&raquo;</text>
-			</g>`
-		};
+		return `<g class="edge relation-edge" data-edge-id="rel-${i}" data-a="${rel.fromId}" data-b="${rel.toId}">
+			<line class="rel-line" marker-end="url(#arrow)" x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}"/>
+			<text class="rel-label" x="${midX}" y="${midY - 8}" text-anchor="middle">&laquo;${rel.kind}&raquo;</text>
+		</g>`;
 	});
 
-	// id -> ids of every node one hop away, across both edge kinds - drives
-	// the hover/click highlight (dim everything not connected to a node).
+	const svg = `<svg id="uc-svg" viewBox="0 0 ${canvasWidth} ${canvasHeight}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+		<defs>
+			<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+				<path d="M0,0 L10,5 L0,10 z" fill="var(--text-faint)"/>
+			</marker>
+		</defs>
+		<rect class="boundary" x="${boundaryLeft}" y="${boundaryTop}" width="${boundaryWidth}" height="${boundaryHeight}" rx="18"/>
+		<text class="boundary-label" x="${boundaryLeft + boundaryWidth / 2}" y="${boundaryTop + 30}" text-anchor="middle">${escapeXml(data.systemName)}</text>
+		${associationEdges.join('\n')}
+		${relationEdges.join('\n')}
+		${data.actors.map(renderActor).join('\n')}
+		${data.useCases.map((uc, i) => renderUseCase(uc, i)).join('\n')}
+		${projectNfrs.length > 0 ? `<text class="nfr-row-label" x="${boundaryLeft + boundaryWidth / 2}" y="${nfrRowY - 14}">PROJECT-WIDE NFRs</text>` : ''}
+		${projectNfrs.map((n, i) => renderNfrPill(n, i)).join('\n')}
+	</svg>`;
+
+	return { svg, width: canvasWidth, height: canvasHeight };
+}
+
+/**
+ * The interactive Use Case Model page - the diagram itself (see
+ * buildUseCaseDiagramSvg above) plus hover-to-trace, click-to-open detail
+ * popups, and the header/actions chrome.
+ */
+export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { mock?: boolean; signedIn?: boolean } = {}): string {
+	const { svg: diagramSvg } = buildUseCaseDiagramSvg(data);
+
+	// Adjacency only needs which ids connect to which - no layout/position
+	// data required, so it's computed directly from the raw associations/
+	// relations here rather than threaded out of buildUseCaseDiagramSvg.
 	const adjacency: Record<string, string[]> = {};
 	function link(a: string, b: string): void {
 		(adjacency[a] = adjacency[a] || []).push(b);
 		(adjacency[b] = adjacency[b] || []).push(a);
 	}
-	associationEdges.forEach(e => link(e.a, e.b));
-	relationEdges.forEach(e => link(e.a, e.b));
-
+	data.associations.forEach(assoc => link(assoc.actorId, assoc.useCaseId));
+	data.relations.forEach(rel => link(rel.fromId, rel.toId));
 	const adjacencyJSON = JSON.stringify(adjacency);
+
+	const nfrsByUseCase: Record<string, UseCaseNFR[]> = {};
+	(data.nfrs || []).forEach(nfr => {
+		if (nfr.useCaseId === null) return;
+		(nfrsByUseCase[nfr.useCaseId] = nfrsByUseCase[nfr.useCaseId] || []).push(nfr);
+	});
 
 	// Detail-popup content, precomputed server-side and embedded as JSON
 	// (same pattern as adjacency above) rather than re-derived client-side -
@@ -273,20 +333,8 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { 
 		font-size: 12px; color: var(--text-faint); font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 		pointer-events: none;
 	}
-
-	.boundary { fill: none; stroke: var(--boundary-stroke); stroke-width: 1.5; }
-	.boundary-label { fill: var(--text-dim); font-size: 13px; font-weight: 650; }
-
-	.actor-shape { fill: none; stroke: var(--actor-stroke); stroke-width: 2.2; stroke-linecap: round; }
-	.actor-label { fill: var(--text); font-size: 12.5px; }
-
-	.uc-shape { fill: var(--uc-fill); stroke: var(--uc-stroke); stroke-width: 1.8; transition: stroke-width 0.12s; }
-	.uc-label { fill: var(--text); font-size: 12px; }
-
-	.assoc-edge { stroke: var(--text-faint); stroke-width: 1.4; }
-	.rel-line { stroke: var(--text-faint); stroke-width: 1.4; stroke-dasharray: 5 4; }
-	.rel-label { fill: var(--text-dim); font-size: 10px; font-style: italic; }
-
+${DIAGRAM_SVG_STYLE}
+	.uc-shape { transition: stroke-width 0.12s; }
 	.actor, .usecase { cursor: pointer; }
 	.actor:hover .actor-shape, .usecase:hover .uc-shape { stroke: var(--accent); }
 
@@ -298,18 +346,9 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { 
 	svg.highlighting .node.hi .uc-shape, svg.highlighting .node.hi .actor-shape { stroke: var(--accent); }
 	svg.highlighting .edge.hi .assoc-edge, svg.highlighting .edge.hi .rel-line { stroke: var(--accent); }
 
-	.nfr-badge circle { fill: var(--accent-2); }
-	.nfr-badge text { fill: #fff; font-size: 9.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
-
-	.uc-number circle { fill: var(--surface); stroke: var(--uc-stroke); stroke-width: 1.5; }
-	.uc-number text { fill: var(--uc-stroke); font-size: 9.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
-
 	.nfr-pill { cursor: pointer; }
-	.nfr-pill rect { fill: var(--surface); stroke: var(--accent-2); stroke-width: 1.5; transition: fill 0.12s; }
-	.nfr-pill text { fill: var(--accent-2); font-size: 10.5px; font-weight: 650; transition: fill 0.12s; }
 	.nfr-pill:hover rect { fill: var(--accent-2); }
 	.nfr-pill:hover text { fill: #fff; }
-	.nfr-row-label { fill: var(--text-faint); font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-anchor: middle; }
 
 	#overview-btn {
 		border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim);
@@ -358,21 +397,7 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { 
 </head>
 <body>
 	<div id="stage">
-		<svg id="uc-svg" viewBox="0 0 ${canvasWidth} ${canvasHeight}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
-			<defs>
-				<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-					<path d="M0,0 L10,5 L0,10 z" fill="var(--text-faint)"/>
-				</marker>
-			</defs>
-			<rect class="boundary" x="${boundaryLeft}" y="${boundaryTop}" width="${boundaryWidth}" height="${boundaryHeight}" rx="18"/>
-			<text class="boundary-label" x="${boundaryLeft + boundaryWidth / 2}" y="${boundaryTop + 30}" text-anchor="middle">${escapeXml(data.systemName)}</text>
-			${associationEdges.map(e => e.svg).join('\n')}
-			${relationEdges.map(e => e.svg).join('\n')}
-			${data.actors.map(renderActor).join('\n')}
-			${data.useCases.map((uc, i) => renderUseCase(uc, i)).join('\n')}
-			${projectNfrs.length > 0 ? `<text class="nfr-row-label" x="${boundaryLeft + boundaryWidth / 2}" y="${nfrRowY - 14}">PROJECT-WIDE NFRs</text>` : ''}
-			${projectNfrs.map((n, i) => renderNfrPill(n, i)).join('\n')}
-		</svg>
+		${diagramSvg}
 	</div>
 	<div id="header">
 		<h1>${escapeXml(data.workspaceName)}</h1>

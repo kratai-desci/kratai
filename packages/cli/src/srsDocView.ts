@@ -1,23 +1,67 @@
-import { UseCaseDiagramData } from './useCaseDiagramData.js';
-import { DomainModelData } from './domainModelData.js';
+import { UseCaseDiagramData, UseCaseNFR } from './useCaseDiagramData.js';
+import { buildUseCaseDiagramSvg, DIAGRAM_SVG_STYLE } from './useCaseDiagramView.js';
 
 function escapeXml(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+const DOC_STYLE = `
+	:root {
+		--bg: #EEF2FA; --surface: #FFFFFF; --text: #17203A; --text-dim: #5C6785; --text-faint: #94A0BE;
+		--border: #DCE3F2; --accent: #3459E0; --accent-2: #14A6B8;
+		--uc-fill: #FFFFFF; --uc-stroke: #3459E0; --actor-stroke: #5C6785; --boundary-stroke: #B9C4E0;
+	}
+	@media (prefers-color-scheme: dark) {
+		:root:not([data-theme="light"]) {
+			--bg: #0A0E19; --surface: #131A2E; --text: #E8ECFB; --text-dim: #939CBE; --text-faint: #5B6488;
+			--border: #262E4E; --accent: #6D93F5; --accent-2: #4FDCEA;
+			--uc-fill: #171F38; --uc-stroke: #6D93F5; --actor-stroke: #939CBE; --boundary-stroke: #333E63;
+		}
+	}
+	:root[data-theme="dark"] {
+		--bg: #0A0E19; --surface: #131A2E; --text: #E8ECFB; --text-dim: #939CBE; --text-faint: #5B6488;
+		--border: #262E4E; --accent: #6D93F5; --accent-2: #4FDCEA;
+		--uc-fill: #171F38; --uc-stroke: #6D93F5; --actor-stroke: #939CBE; --boundary-stroke: #333E63;
+	}
+	* { box-sizing: border-box; }
+	html, body { margin: 0; padding: 0; height: 100%; }
+	body {
+		background: var(--bg); color: var(--text);
+		font-family: ui-sans-serif, -apple-system, 'Segoe UI', system-ui, sans-serif;
+	}
+`;
+
+const THEME_SYNC_SCRIPT = `<script>
+	try {
+		var krataiTheme = localStorage.getItem('kratai-theme');
+		if (krataiTheme) document.documentElement.setAttribute('data-theme', krataiTheme);
+	} catch (e) {}
+</script>`;
+
 /**
- * Software Requirements Specification preview - a formatted document
- * assembled from the same use-case/domain data the diagram views render,
- * same idea as the existing /download.md markdown export but composed
- * from the spec-driven data (use cases/roles/NFRs/domain model) instead
- * of MarkdownExporter's code-facing export. Static/mock this phase (built
- * from buildMockUseCaseDiagramData/buildMockDomainModelData, see
- * view.ts) - a real version would assemble from whatever's actually
- * cached/committed once that data is real.
+ * Software Requirements Specification - a formatted document assembled
+ * entirely from real Use Case Model data (see useCaseExtraction.ts's
+ * prompt), including the same diagram image the Use Case Model view draws
+ * (buildUseCaseDiagramSvg, shared so it looks identical in both places).
+ * No Domain Model section here yet - that view is still mock
+ * (domainModelData.ts) and mixing real with fake content in one document
+ * would misrepresent the mock parts as trustworthy; it gets added once
+ * that view goes real too.
  */
-export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, domainData: DomainModelData, options: { mock?: boolean } = {}): string {
+export function generateSrsDocHTML(useCaseData: UseCaseDiagramData): string {
+	const { svg: diagramSvg } = buildUseCaseDiagramSvg(useCaseData);
+
 	const projectNfrs = (useCaseData.nfrs || []).filter(n => n.useCaseId === null);
-	const scopedNfrs = (useCaseData.nfrs || []).filter(n => n.useCaseId !== null);
+	const nfrsByUseCase: Record<string, UseCaseNFR[]> = {};
+	(useCaseData.nfrs || []).forEach(n => {
+		if (n.useCaseId === null) return;
+		(nfrsByUseCase[n.useCaseId] = nfrsByUseCase[n.useCaseId] || []).push(n);
+	});
+	// Numbered globally across ALL nfrs (project-wide + use-case-scoped) in
+	// declaration order - the same scheme useCaseDiagramView.ts's popups
+	// use, so "NFR-3" means the same thing in both views.
+	const nfrNumberById: Record<string, number> = {};
+	(useCaseData.nfrs || []).forEach((n, i) => { nfrNumberById[n.id] = i + 1; });
 
 	function useCasesForActor(actorId: string): string[] {
 		return useCaseData.associations
@@ -26,53 +70,104 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, domainData: 
 			.filter(Boolean);
 	}
 
+	// A section only appears if it has something to say - Overview and
+	// Project-wide NFRs are both genuinely optional data (unlike Actors/Use
+	// Cases, which real generation can't produce empty - see
+	// useCaseSchema.ts's validateUseCaseModelOutput). Numbered by array
+	// position rather than a fixed "5." etc, so skipping one never leaves a
+	// gap in the numbering.
+	const sections: { title: string; body: string }[] = [];
+	if (useCaseData.overview) {
+		sections.push({ title: 'Overview', body: `<p>${escapeXml(useCaseData.overview)}</p>` });
+	}
+	sections.push({ title: 'Use Case Diagram', body: `<div class="diagram-wrap">${diagramSvg}</div>` });
+	sections.push({
+		title: 'Actors &amp; roles',
+		body: `<table>
+			<tr><th>Actor</th><th>Role</th><th>Description</th><th>Use cases</th></tr>
+			${useCaseData.actors.map(a => `<tr>
+				<td>${escapeXml(a.name.replace(/\n/g, ' '))}</td>
+				<td>${escapeXml(a.role || '—')}</td>
+				<td>${escapeXml(a.description || '—')}</td>
+				<td>${escapeXml(useCasesForActor(a.id).join(', ') || '—')}</td>
+			</tr>`).join('\n')}
+		</table>`
+	});
+	sections.push({
+		title: 'Use cases',
+		body: useCaseData.useCases.map((u, i) => {
+			const nfrs = nfrsByUseCase[u.id] || [];
+			return `<div class="use-case-item">
+				<h3>UC-${i + 1}: ${escapeXml(u.name.replace(/\n/g, ' '))}</h3>
+				<p>${escapeXml(u.description || 'No description captured yet.')}</p>
+				${nfrs.length > 0 ? `<ul class="use-case-nfrs">${nfrs.map(n => `<li><span class="nfr-id">NFR-${nfrNumberById[n.id]}</span><strong>${escapeXml(n.name)}:</strong> ${escapeXml(n.text)}</li>`).join('\n')}</ul>` : ''}
+			</div>`;
+		}).join('\n')
+	});
+	if (projectNfrs.length > 0) {
+		sections.push({
+			title: 'Project-wide non-functional requirements',
+			body: `<ul>${projectNfrs.map(n => `<li><span class="nfr-id">NFR-${nfrNumberById[n.id]}</span><strong>${escapeXml(n.name)}:</strong> ${escapeXml(n.text)}</li>`).join('\n')}</ul>`
+		});
+	}
+
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${escapeXml(useCaseData.workspaceName)} - SRS</title>
-<script>
-	try {
-		var krataiTheme = localStorage.getItem('kratai-theme');
-		if (krataiTheme) document.documentElement.setAttribute('data-theme', krataiTheme);
-	} catch (e) {}
-</script>
+<title>${escapeXml(useCaseData.workspaceName)} - Software Requirements Specification</title>
+${THEME_SYNC_SCRIPT}
 <style>
-	:root {
-		--bg: #EEF2FA; --surface: #FFFFFF; --text: #17203A; --text-dim: #5C6785; --text-faint: #94A0BE;
-		--border: #DCE3F2; --accent: #3459E0; --accent-2: #14A6B8;
-	}
-	@media (prefers-color-scheme: dark) {
-		:root:not([data-theme="light"]) {
-			--bg: #0A0E19; --surface: #131A2E; --text: #E8ECFB; --text-dim: #939CBE; --text-faint: #5B6488;
-			--border: #262E4E; --accent: #6D93F5; --accent-2: #4FDCEA;
-		}
-	}
-	:root[data-theme="dark"] {
-		--bg: #0A0E19; --surface: #131A2E; --text: #E8ECFB; --text-dim: #939CBE; --text-faint: #5B6488;
-		--border: #262E4E; --accent: #6D93F5; --accent-2: #4FDCEA;
-	}
-	* { box-sizing: border-box; }
-	html, body { margin: 0; padding: 0; }
-	body {
-		background: var(--bg); color: var(--text);
-		font-family: ui-sans-serif, -apple-system, 'Segoe UI', system-ui, sans-serif;
-	}
+${DOC_STYLE}
 	#doc { max-width: 760px; margin: 0 auto; padding: 48px 28px 60px; }
 	#doc-header { margin-bottom: 8px; }
 	#doc-header .kicker { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); font-weight: 700; }
 	#doc-header h1 { margin: 4px 0 0; font-size: 24px; }
-	#doc-header .mock-tag { font-size: 11.5px; color: var(--text-faint); font-family: ui-monospace, monospace; }
+	.doc-meta { display: flex; gap: 24px; margin-top: 14px; flex-wrap: wrap; }
+	.meta-field { font-size: 12.5px; color: var(--text-dim); }
+	.meta-label { color: var(--text-faint); margin-right: 6px; }
+	.meta-value {
+		outline: none; border-bottom: 1px dashed var(--border); padding: 1px 2px; cursor: text; color: var(--text);
+	}
+	.meta-value:hover, .meta-value:focus { border-bottom-color: var(--accent); }
+	.meta-value:empty:before { content: attr(data-placeholder); color: var(--text-faint); }
 	.section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px 26px; margin-top: 18px; }
 	.section h2 { margin: 0 0 12px; font-size: 14px; }
 	.section p { color: var(--text-dim); font-size: 13px; line-height: 1.6; margin: 0; }
 	table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 	th { text-align: left; color: var(--text-faint); font-weight: 650; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.03em; padding: 4px 8px; }
 	td { padding: 8px; border-top: 1px solid var(--border); vertical-align: top; }
-	td.mono { font-family: ui-monospace, monospace; color: var(--text-faint); font-size: 11px; }
 	ul { margin: 0; padding-left: 18px; color: var(--text-dim); font-size: 12.5px; line-height: 1.7; }
-	.nfr-scope { display: inline-block; font-size: 10px; font-family: ui-monospace, monospace; color: var(--accent-2); margin-right: 6px; }
+	.use-case-item { margin-bottom: 14px; }
+	.use-case-item:last-child { margin-bottom: 0; }
+	.use-case-item h3 { margin: 0 0 4px; font-size: 13px; }
+	.use-case-item p { margin: 0; }
+	.use-case-nfrs { margin: 8px 0 0; padding-left: 18px; color: var(--text-dim); font-size: 12px; line-height: 1.6; }
+	.nfr-id { display: inline-block; font-size: 10px; font-family: ui-monospace, monospace; color: var(--accent-2); margin-right: 6px; }
+	.diagram-wrap svg { width: 100%; height: auto; display: block; }
+${DIAGRAM_SVG_STYLE}
+
+	/* Applies when Electron's printToPDF renders this page (see
+	   pdfExport.ts) - it goes through the same print pipeline as a browser
+	   print preview, so @media print is the right hook to strip anything
+	   that only makes sense on screen and keep the PDF a clean, standalone
+	   document a client could receive directly. */
+	@media print {
+		:root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
+			--bg: #ffffff; --surface: #ffffff; --text: #111111; --text-dim: #333333; --text-faint: #666666;
+			--border: #cccccc; --accent: #17203A; --accent-2: #17203A;
+		}
+		.meta-value { border-bottom: none; }
+		.meta-field:has(.meta-value:empty) { display: none; }
+		/* A whole section (e.g. every use case) is often taller than one
+		   page - avoiding a break on the *section* pushes the entire block
+		   to the next page rather than letting it flow, stranding
+		   whatever page it didn't fit on mostly blank. Keep only the small
+		   atomic pieces (one use case, one table row) from splitting. */
+		.section { border: none; box-shadow: none; }
+		.use-case-item, tr { break-inside: avoid; }
+	}
 </style>
 </head>
 <body>
@@ -80,52 +175,108 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, domainData: 
 		<div id="doc-header">
 			<div class="kicker">Software Requirements Specification</div>
 			<h1>${escapeXml(useCaseData.workspaceName)}</h1>
-			${options.mock ? `<div class="mock-tag">Preview - generated from mock spec data</div>` : ''}
+			<div class="doc-meta">
+				<div class="meta-field"><span class="meta-label">Prepared by</span><span class="meta-value" contenteditable="true" data-field="preparedBy" data-placeholder="add name or company">${escapeXml(useCaseData.preparedBy || '')}</span></div>
+				<div class="meta-field"><span class="meta-label">Client</span><span class="meta-value" contenteditable="true" data-field="clientName" data-placeholder="add client (optional)">${escapeXml(useCaseData.clientName || '')}</span></div>
+			</div>
 		</div>
 
-		<div class="section">
-			<h2>1. Overview</h2>
-			<p>${escapeXml(useCaseData.overview || 'No project overview captured yet.')}</p>
-		</div>
-
-		<div class="section">
-			<h2>2. Actors &amp; roles</h2>
-			<table>
-				<tr><th>Actor</th><th>Role</th><th>Description</th><th>Use cases</th></tr>
-				${useCaseData.actors.map(a => `<tr>
-					<td>${escapeXml(a.name.replace(/\n/g, ' '))}</td>
-					<td>${escapeXml(a.role || '—')}</td>
-					<td>${escapeXml(a.description || '—')}</td>
-					<td>${escapeXml(useCasesForActor(a.id).join(', ') || '—')}</td>
-				</tr>`).join('\n')}
-			</table>
-		</div>
-
-		<div class="section">
-			<h2>3. Use cases</h2>
-			<ul>${useCaseData.useCases.map(u => `<li>${escapeXml(u.name.replace(/\n/g, ' '))}</li>`).join('\n')}</ul>
-		</div>
-
-		<div class="section">
-			<h2>4. Non-functional requirements</h2>
-			${projectNfrs.length === 0 && scopedNfrs.length === 0 ? `<p>None captured yet.</p>` : `<ul>
-				${projectNfrs.map(n => `<li><span class="nfr-scope">project-wide</span>${escapeXml(n.text)}</li>`).join('\n')}
-				${scopedNfrs.map(n => `<li><span class="nfr-scope">${escapeXml((useCaseData.useCases.find(u => u.id === n.useCaseId)?.name || '').replace(/\n/g, ' '))}</span>${escapeXml(n.text)}</li>`).join('\n')}
-			</ul>`}
-		</div>
-
-		<div class="section">
-			<h2>5. Domain model</h2>
-			${domainData.entities.map(e => `<div style="margin-bottom:14px">
-				<strong style="font-size:13px">${escapeXml(e.name)}</strong>
-				<table>
-					<tr><th>Attribute</th><th>Type</th><th>Key</th></tr>
-					${e.attributes.map(attr => `<tr><td class="mono">${escapeXml(attr.name)}</td><td class="mono">${escapeXml(attr.type)}</td><td>${attr.isPK ? 'PK' : attr.isFK ? 'FK' : ''}</td></tr>`).join('\n')}
-				</table>
-			</div>`).join('\n')}
-			<ul>${domainData.relationships.map(r => `<li>${escapeXml(domainData.entities.find(e => e.id === r.fromId)?.name || r.fromId)} &rarr; ${escapeXml(domainData.entities.find(e => e.id === r.toId)?.name || r.toId)} (${escapeXml(r.kind)}${r.label ? ` - ${escapeXml(r.label)}` : ''})</li>`).join('\n')}</ul>
-		</div>
+		${sections.map((s, i) => `<div class="section">
+			<h2>${i + 1}. ${s.title}</h2>
+			${s.body}
+		</div>`).join('\n')}
 	</div>
+
+<script>
+(function () {
+	'use strict';
+	document.querySelectorAll('.meta-value').forEach(function (el) {
+		el.addEventListener('keydown', function (e) {
+			if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+		});
+		el.addEventListener('blur', function () {
+			var field = el.getAttribute('data-field');
+			var payload = {};
+			payload[field] = el.textContent.trim();
+			fetch('/api/requirements/metadata', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			}).catch(function () {});
+		});
+	});
+})();
+</script>
+</body>
+</html>`;
+}
+
+/**
+ * Shown instead of the real document whenever nothing's been generated yet
+ * - this view is entirely derived from the Use Case Model, so it offers
+ * the same sign-in/generate action generateUseCaseDiagramEmptyHTML does,
+ * just styled as a document rather than a diagram card.
+ */
+export function generateSrsEmptyHTML(signedIn: boolean): string {
+	return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Software Requirements Specification</title>
+${THEME_SYNC_SCRIPT}
+<style>
+${DOC_STYLE}
+	body { display: flex; align-items: center; justify-content: center; }
+	#doc { max-width: 420px; padding: 0 28px; text-align: center; }
+	.kicker { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); font-weight: 700; margin-bottom: 6px; }
+	p { color: var(--text-dim); font-size: 13px; line-height: 1.6; margin: 0 0 16px; }
+	button {
+		border: none; background: var(--accent); color: #fff; font-weight: 650;
+		font-size: 13px; padding: 9px 18px; border-radius: 8px; cursor: pointer;
+	}
+	button:disabled { opacity: 0.6; cursor: wait; }
+	#error { color: #D6455B; font-size: 12px; margin-top: 12px; display: none; }
+</style>
+</head>
+<body>
+	<div id="doc">
+		<div class="kicker">Software Requirements Specification</div>
+		${signedIn
+			? `<p>Generate the Use Case Model first - this document is built from it.</p><button id="action">Generate</button>`
+			: `<p>Sign in to generate a Use Case Model, which this document is built from.</p><button id="action">Sign In</button>`}
+		<div id="error"></div>
+	</div>
+<script>
+(function () {
+	'use strict';
+	var signedIn = ${JSON.stringify(signedIn)};
+	var btn = document.getElementById('action');
+	var errEl = document.getElementById('error');
+
+	btn.addEventListener('click', function () {
+		if (!signedIn) {
+			window.parent.postMessage({ command: 'startSignIn' }, '*');
+			return;
+		}
+		btn.disabled = true;
+		btn.textContent = 'Generating...';
+		errEl.style.display = 'none';
+		fetch('/api/use-case-diagram/generate', { method: 'POST' })
+			.then(function (r) { return r.json(); })
+			.then(function (result) {
+				if (result.ok) { location.reload(); return; }
+				throw new Error(result.error || 'Generation failed.');
+			})
+			.catch(function (err) {
+				btn.disabled = false;
+				btn.textContent = 'Retry';
+				errEl.textContent = err.message || String(err);
+				errEl.style.display = 'block';
+			});
+	});
+})();
+</script>
 </body>
 </html>`;
 }

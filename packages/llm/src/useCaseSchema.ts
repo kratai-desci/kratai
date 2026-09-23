@@ -51,6 +51,13 @@ export interface UseCaseDiagramData {
 	associations: UseCaseAssociation[];
 	relations: UseCaseRelation[];
 	nfrs?: UseCaseNFR[];
+	// Document metadata for the Requirements (SRS) view - user-entered, not
+	// LLM output (a company/client name isn't inferable from code), so
+	// these are edited in place on that view and saved back via
+	// view.ts's /api/requirements/metadata route, not part of
+	// UseCaseModelOutput below.
+	preparedBy?: string;
+	clientName?: string;
 }
 
 /** What the model is asked to produce - workspaceName/systemName are added

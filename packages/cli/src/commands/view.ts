@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
-import { CodeParserService, DiagramGeneratorService, GitDiffEnricher, FolderStructureBuilder, MarkdownExporter } from '@kratai/analysis';
+import { CodeParserService, DiagramGeneratorService, GitDiffEnricher, FolderStructureBuilder } from '@kratai/analysis';
 import { ClassDiagramView } from '@kratai/diagram-view';
 import { loadCliConfig, saveFolderExpanded, saveFolderOrder, saveFolderPanelOpen, saveFolderVisibility } from '../config.js';
 import { openFile } from '../openFile.js';
@@ -10,13 +10,13 @@ import { buildKnowledgeGraphData } from '../knowledgeGraphData.js';
 import { generateKnowledgeGraphHTML } from '../knowledgeGraphView.js';
 import { buildStackLayerData } from '../stackLayerData.js';
 import { generateStackLayerHTML } from '../stackLayerView.js';
-import { loadCachedUseCaseDiagramData, saveCachedUseCaseDiagramData, buildUseCaseExtractionSummary, buildMockUseCaseDiagramData, UseCaseDiagramData } from '../useCaseDiagramData.js';
+import { loadCachedUseCaseDiagramData, saveCachedUseCaseDiagramData, buildUseCaseExtractionSummary, UseCaseDiagramData } from '../useCaseDiagramData.js';
 import { generateUseCaseDiagramHTML, generateUseCaseDiagramEmptyHTML } from '../useCaseDiagramView.js';
 import { buildMockDomainModelData } from '../domainModelData.js';
 import { generateDomainModelHTML } from '../domainModelView.js';
 import { buildDiffScorecard } from '../diffScorecardData.js';
 import { generateDiffScorecardHTML } from '../diffScorecardView.js';
-import { generateSrsDocHTML } from '../srsDocView.js';
+import { generateSrsDocHTML, generateSrsEmptyHTML } from '../srsDocView.js';
 import { executeChatTool } from '../chatTools.js';
 import { UI_ACTION_TOOL_NAMES } from '@kratai/llm';
 import type { ConversationMessage, ChatStepResult } from '@kratai/llm';
@@ -56,7 +56,7 @@ export interface ViewOptions {
 	// token startSignIn/the auth flow produced. This package never touches
 	// a provider key directly anymore (see @kratai/llm, which kratai-web
 	// depends on instead).
-	generateUseCaseDiagram?: (markdown: string, workspaceName: string) => Promise<UseCaseDiagramData>;
+	generateUseCaseDiagram?: (summary: string, workspaceName: string) => Promise<UseCaseDiagramData>;
 	// Same desktop-owned relay shape (packages/desktop/src/main/chatProxy.ts),
 	// but ONE model turn per call, not a full reply - the model may come
 	// back wanting to call a tool (see chatTools.ts), which only this
@@ -106,7 +106,6 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 
 	let { nodes, edges } = DiagramGeneratorService.generateReactFlowData(diagramData);
 	let folderCount = FolderStructureBuilder.countFolders(FolderStructureBuilder.build(nodes));
-	let markdown = MarkdownExporter.toMarkdown(diagramData, diagramName, config.folders);
 	// Generation is a manual, explicit action (see /api/use-case-diagram/
 	// generate below) - a real API call, unlike the other views' free
 	// re-renders - so whatever was last generated is loaded once here and
@@ -121,7 +120,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// The parse above (diagramData/nodes/edges) is the expensive part and
 	// stays cached for the server's lifetime, but the two diagram pages
 	// themselves are cheap to re-render - regenerating them fresh on every
-	// request (rather than once at startup, like markdown/shellHtml above)
+	// request (rather than once at startup, like shellHtml above)
 	// means a folder order/hidden/expanded change made from either page's
 	// panel shows up correctly the next time *either* page loads, without
 	// needing to restart the server. Baking them once was the original
@@ -156,13 +155,16 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	function renderDiffScorecard(): string {
 		return generateDiffScorecardHTML(buildDiffScorecard(diagramData, diagramName), { mock: true });
 	}
-	function renderSrsDoc(): string {
-		const ucData = useCaseData || buildMockUseCaseDiagramData(diagramName);
-		return generateSrsDocHTML(ucData, buildMockDomainModelData(diagramName), { mock: !useCaseData });
+	// Real data only, same pattern as renderUseCaseDiagram() - this doc is
+	// built entirely from the Use Case Model, so it has nothing to show
+	// until that's been generated for real.
+	function renderRequirementsDoc(): string {
+		if (useCaseData) return generateSrsDocHTML(useCaseData);
+		return generateSrsEmptyHTML(getAuthStatus().signedIn);
 	}
 
 	// Re-runs the expensive parse (the refresh button's whole job) and
-	// swaps out the cached diagramData/nodes/edges/markdown closures above -
+	// swaps out the cached diagramData/nodes/edges closures above -
 	// renderClassDiagram/renderKnowledgeGraph/renderStackLayer read those same `let` bindings, so
 	// the very next iframe reload picks up the new data with no other
 	// wiring needed. Reloads config from disk too, in case selectedFolders/
@@ -187,7 +189,6 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 
 		({ nodes, edges } = DiagramGeneratorService.generateReactFlowData(diagramData));
 		folderCount = FolderStructureBuilder.countFolders(FolderStructureBuilder.build(nodes));
-		markdown = MarkdownExporter.toMarkdown(diagramData, diagramName, freshConfig.folders);
 
 		return { classCount: nodes.length, folderCount, edgeCount: edges.length };
 	}
@@ -211,14 +212,6 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	}
 
 	const server = http.createServer((req, res) => {
-		if (req.url === '/download.md') {
-			res.writeHead(200, {
-				'Content-Type': 'text/markdown; charset=utf-8',
-				'Content-Disposition': `attachment; filename="${diagramName}.md"`
-			});
-			res.end(markdown);
-			return;
-		}
 		if (req.method === 'POST' && req.url === '/api/folder-order') {
 			handleJsonPost<{ orders?: Record<string, number> }>(req, res, payload => {
 				saveFolderOrder(workspacePath, payload.orders || {});
@@ -290,6 +283,15 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 					res.end(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
 				}
 			})();
+			return;
+		}
+		if (req.method === 'POST' && req.url === '/api/requirements/metadata') {
+			handleJsonPost<{ preparedBy?: string; clientName?: string }>(req, res, payload => {
+				if (!useCaseData) throw new Error('Generate the Use Case Model before editing document metadata.');
+				if (typeof payload.preparedBy === 'string') useCaseData.preparedBy = payload.preparedBy;
+				if (typeof payload.clientName === 'string') useCaseData.clientName = payload.clientName;
+				saveCachedUseCaseDiagramData(workspacePath, useCaseData);
+			});
 			return;
 		}
 		if (req.method === 'POST' && req.url === '/api/chat') {
@@ -385,7 +387,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			: req.url === '/use-case-diagram' ? renderUseCaseDiagram()
 			: req.url === '/domain-model' ? renderDomainModel()
 			: req.url === '/diff-scorecard' ? renderDiffScorecard()
-			: req.url === '/srs-preview' ? renderSrsDoc()
+			: req.url === '/srs-preview' ? renderRequirementsDoc()
 			: shellHtml;
 		res.writeHead(200, { 'Content-Type': 'text/html' });
 		res.end(html);

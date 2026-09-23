@@ -108,5 +108,7 @@
       "name": "Non-Intrusive Telemetry",
       "text": "Telemetry collection must operate asynchronously and respect user configuration and privacy settings."
     }
-  ]
+  ],
+  "preparedBy": "Decentralized Science,Inc",
+  "clientName": ""
 }
