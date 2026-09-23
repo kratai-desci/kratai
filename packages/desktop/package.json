@@ -20,7 +20,8 @@
   },
   "dependencies": {
     "@kratai/cli": "*",
-    "@kratai/llm": "*"
+    "@kratai/llm": "*",
+    "pdf-lib": "^1.17.1"
   },
   "devDependencies": {
     "@types/node": "22.x",
@@ -43,7 +44,9 @@
     "protocols": [
       {
         "name": "kratai",
-        "schemes": ["kratai"]
+        "schemes": [
+          "kratai"
+        ]
       }
     ],
     "publish": {

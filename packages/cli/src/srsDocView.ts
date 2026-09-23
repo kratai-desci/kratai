@@ -81,7 +81,11 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 	if (useCaseData.overview) {
 		sections.push({ title: 'Overview', body: `<p>${escapeXml(useCaseData.overview)}</p>` });
 	}
-	sections.push({ title: 'Use Case Diagram', body: `<div class="diagram-wrap">${diagramSvg}</div>` });
+	sections.push({
+		title: 'Use Case Diagram',
+		body: (useCaseData.narrative ? `<p>${escapeXml(useCaseData.narrative)}</p>` : '') +
+			`<div class="diagram-wrap">${diagramSvg}</div>`
+	});
 	sections.push({
 		title: 'Actors &amp; roles',
 		body: `<table>
@@ -110,8 +114,8 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 		const entityName = (id: string) => dataModelData.entities.find(e => e.id === id)?.name || id;
 		sections.push({
 			title: 'Data model',
-			body: `<div class="diagram-wrap">${dataModelSvg}</div>` +
-				(dataModelData.narrative ? `<p>${escapeXml(dataModelData.narrative)}</p>` : '') +
+			body: (dataModelData.narrative ? `<p>${escapeXml(dataModelData.narrative)}</p>` : '') +
+				`<div class="diagram-wrap">${dataModelSvg}</div>` +
 				dataModelData.entities.map(e => `<div class="entity-block">
 				<h3>${escapeXml(e.name)}</h3>
 				<table>
@@ -164,6 +168,13 @@ ${DOC_STYLE}
 	.use-case-item p { margin: 0; }
 	.use-case-nfrs { margin: 8px 0 0; padding-left: 18px; color: var(--text-dim); font-size: 12px; line-height: 1.6; }
 	.nfr-id { display: inline-block; font-size: 10px; font-family: ui-monospace, monospace; color: var(--accent-2); margin-right: 6px; }
+	/* Explicit gap rather than relying on each diagram's own internal
+	   canvas padding for breathing room - buildDataModelSvg happens to pad
+	   its content ~50px from the canvas edge, but buildUseCaseDiagramSvg's
+	   boundary box sits flush at y=0, so without this the text-to-diagram
+	   gap was inconsistent between the two sections (fine in one, none in
+	   the other). */
+	.diagram-wrap { margin-top: 28px; }
 	.diagram-wrap svg { width: 100%; height: auto; display: block; }
 	.entity-block { margin-bottom: 14px; }
 	.entity-block:last-of-type { margin-bottom: 0; }
