@@ -31,7 +31,7 @@ export async function exportRequirementsPdf(port: number, workspaceName: string)
 		// this tool" stamp a client-ready document shouldn't carry. An
 		// explicit empty headerTemplate suppresses that; footerTemplate
 		// carries only a plain page number, nothing else. The document's
-		// own srsDocView.ts print styles (hidden Generate-PDF button, empty
+		// own srsDocView.ts print styles (hidden Download-PDF button, empty
 		// meta fields collapsed, forced light colors) handle the rest.
 		const pdfBuffer = await win.webContents.printToPDF({
 			printBackground: true,

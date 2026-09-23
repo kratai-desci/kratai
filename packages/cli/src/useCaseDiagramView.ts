@@ -217,7 +217,7 @@ export function buildUseCaseDiagramSvg(data: UseCaseDiagramData): UseCaseDiagram
  * buildUseCaseDiagramSvg above) plus hover-to-trace, click-to-open detail
  * popups, and the header/actions chrome.
  */
-export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, options: { mock?: boolean; signedIn?: boolean } = {}): string {
+export function generateUseCaseDiagramHTML(data: UseCaseDiagramData): string {
 	const { svg: diagramSvg } = buildUseCaseDiagramSvg(data);
 
 	// Adjacency only needs which ids connect to which - no layout/position
@@ -401,9 +401,8 @@ ${DIAGRAM_SVG_STYLE}
 	</div>
 	<div id="header">
 		<h1>${escapeXml(data.workspaceName)}</h1>
-		<span class="sub">${data.actors.length} actors &bull; ${data.useCases.length} use cases${options.mock ? ' &bull; mock data' : ''}</span>
-		${data.overview ? `<button id="overview-btn" type="button" style="pointer-events:auto;">Project Overview</button>` : ''}
-		${options.mock && options.signedIn !== undefined ? `<button id="gen-real" style="pointer-events:auto;margin-left:8px;border:1px solid var(--border);background:var(--surface);color:var(--accent);font-size:11px;font-weight:650;padding:4px 10px;border-radius:100px;cursor:pointer;">${options.signedIn ? 'Generate from this codebase' : 'Sign in to generate'}</button>` : ''}
+		<span class="sub">${data.actors.length} actors &bull; ${data.useCases.length} use cases</span>
+		${data.narrative ? `<button id="overview-btn" type="button" style="pointer-events:auto;">Overview</button>` : ''}
 	</div>
 	<div id="hint">click an actor, use case, or NFR for detail &bull; hover to trace connections</div>
 
@@ -531,29 +530,7 @@ ${DIAGRAM_SVG_STYLE}
 	var overviewBtn = document.getElementById('overview-btn');
 	if (overviewBtn) {
 		overviewBtn.addEventListener('click', function () {
-			openDetail('OVERVIEW', ${JSON.stringify(data.workspaceName)}, '<p class="detail-desc">' + escapeHtml(${JSON.stringify(data.overview || '')}) + '</p>');
-		});
-	}
-
-	var genRealBtn = document.getElementById('gen-real');
-	if (genRealBtn) {
-		genRealBtn.addEventListener('click', function () {
-			if (${JSON.stringify(!!options.signedIn)} !== true) {
-				window.parent.postMessage({ command: 'startSignIn' }, '*');
-				return;
-			}
-			genRealBtn.disabled = true;
-			genRealBtn.textContent = 'Generating...';
-			fetch('/api/use-case-diagram/generate', { method: 'POST' })
-				.then(function (r) { return r.json(); })
-				.then(function (result) {
-					if (result.ok) { location.reload(); return; }
-					throw new Error(result.error || 'Generation failed.');
-				})
-				.catch(function (err) {
-					genRealBtn.disabled = false;
-					genRealBtn.textContent = 'Retry';
-				});
+			openDetail('OVERVIEW', ${JSON.stringify(data.workspaceName)}, '<p class="detail-desc">' + escapeHtml(${JSON.stringify(data.narrative || '')}) + '</p>');
 		});
 	}
 

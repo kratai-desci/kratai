@@ -43,13 +43,22 @@ export interface UseCaseNFR {
 export interface UseCaseDiagramData {
 	workspaceName: string;
 	systemName: string;
-	// Short project-goal/context blurb shown at the top of the diagram.
-	// Optional for the same reason as UseCaseActor.role/description above.
+	// Short project-goal/context blurb - what the Spec (Requirements) doc's
+	// "Overview" section shows. Not shown on the interactive diagram itself
+	// (see narrative below for that view's own explanation) - optional for
+	// the same reason as UseCaseActor.role/description above.
 	overview?: string;
 	actors: UseCaseActor[];
 	useCases: UseCaseItem[];
 	associations: UseCaseAssociation[];
 	relations: UseCaseRelation[];
+	// Role-by-role, plain-language explanation of who uses this system -
+	// each actor's main goal/responsibility and what it can actually do in
+	// the app - shown behind an "Overview" button on the Use Case Model
+	// view (same click-to-open-popup pattern as DataModelData's narrative).
+	// Distinct from `overview` above: this is about the actors/use cases in
+	// THIS diagram, not what the project is for as a whole.
+	narrative?: string;
 	nfrs?: UseCaseNFR[];
 	// Document metadata for the Requirements (SRS) view - user-entered, not
 	// LLM output (a company/client name isn't inferable from code), so
@@ -62,7 +71,7 @@ export interface UseCaseDiagramData {
 
 /** What the model is asked to produce - workspaceName/systemName are added
  * afterward from data we already trust, not requested from the model. */
-export type UseCaseModelOutput = Pick<UseCaseDiagramData, 'actors' | 'useCases' | 'associations' | 'relations' | 'overview' | 'nfrs'>;
+export type UseCaseModelOutput = Pick<UseCaseDiagramData, 'actors' | 'useCases' | 'associations' | 'relations' | 'overview' | 'narrative' | 'nfrs'>;
 
 /**
  * Model output is untrusted input - it can omit fields, invent ids that
@@ -90,10 +99,12 @@ export function validateUseCaseModelOutput(raw: unknown): UseCaseModelOutput {
 	const relations = parseRelations(obj.relations, useCaseIds);
 	const nfrs = parseNfrs(obj.nfrs, useCaseIds);
 	const overview = typeof obj.overview === 'string' && obj.overview.trim() ? obj.overview.trim() : undefined;
+	const narrative = typeof obj.narrative === 'string' && obj.narrative.trim() ? obj.narrative.trim() : undefined;
 
 	return {
 		actors, useCases, associations, relations,
 		...(overview ? { overview } : {}),
+		...(narrative ? { narrative } : {}),
 		...(nfrs.length > 0 ? { nfrs } : {})
 	};
 }

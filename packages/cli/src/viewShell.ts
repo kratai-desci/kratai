@@ -273,12 +273,12 @@ export function generateShellHTML(
 		// were pulled from this list (still reachable via SRC_BY_MODE - see
 		// applyAiUiActions) but stay out of the manual picker for now.
 		var VIEW_OPTIONS = [
-			['srs', 'Requirements'], ['usecase', 'Use Case Model'], ['domain', 'Domain Model'],
+			['srs', 'Spec'], ['usecase', 'Use Case Model'], ['data', 'Data Model'],
 			['class', 'Class Diagram'], ['scorecard', 'Code Review']
 		];
 		var SRC_BY_MODE = {
 			graph: '/knowledge-graph', class: '/class-diagram', stack: '/stack-layer',
-			usecase: '/use-case-diagram', domain: '/domain-model', scorecard: '/diff-scorecard',
+			usecase: '/use-case-diagram', data: '/data-model', scorecard: '/diff-scorecard',
 			srs: '/srs-preview'
 		};
 

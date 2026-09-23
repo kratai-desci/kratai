@@ -9,5 +9,7 @@ export * from './geminiClient.js';
 export * from './llmFactory.js';
 export * from './useCaseSchema.js';
 export * from './useCaseExtraction.js';
+export * from './dataModelSchema.js';
+export * from './dataModelExtraction.js';
 export * from './chatToolDefinitions.js';
 export * from './chatAboutArchitecture.js';

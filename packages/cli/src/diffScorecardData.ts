@@ -19,12 +19,12 @@ export interface ScorecardData {
 // real model - see the file-level comment on buildDiffScorecard for why.
 const OK_LINES = [
 	'Consistent with the existing Use Case Model - no drift detected.',
-	'Matches the Domain Model shape for this entity; no review needed.',
+	'Matches the Data Model shape for this entity; no review needed.',
 	'Internal change only - doesn\'t touch any documented use case or actor.'
 ];
 const WARNING_LINES = [
 	'New public surface here isn\'t reflected in any use case yet - consider updating the spec.',
-	'Shape changed in a way that may affect the Domain Model - worth a domain-model review.',
+	'Shape changed in a way that may affect the Data Model - worth a data-model review.',
 	'Touches an entry point with no associated NFR - flag for a requirements pass.'
 ];
 

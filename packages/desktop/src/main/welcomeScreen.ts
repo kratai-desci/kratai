@@ -59,7 +59,7 @@ export function getWelcomeHTML(recentWorkspaces: string[]): string {
 <body>
 	<div id="card">
 		<h1>Welcome to kratai</h1>
-		<p>A spec-driven IDE: keep your use cases, domain model, and design docs in sync with the code as it changes.</p>
+		<p>A spec-driven IDE: keep your use cases, data model, and design docs in sync with the code as it changes.</p>
 		<a class="cta" href="kratai-action://pick-folder">Select a folder to get started</a>
 		${recentList}
 	</div>

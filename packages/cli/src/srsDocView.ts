@@ -1,5 +1,7 @@
 import { UseCaseDiagramData, UseCaseNFR } from './useCaseDiagramData.js';
 import { buildUseCaseDiagramSvg, DIAGRAM_SVG_STYLE } from './useCaseDiagramView.js';
+import { DataModelData } from './dataModelData.js';
+import { buildDataModelSvg, DATA_MODEL_SVG_STYLE } from './dataModelView.js';
 
 function escapeXml(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -40,15 +42,14 @@ const THEME_SYNC_SCRIPT = `<script>
 
 /**
  * Software Requirements Specification - a formatted document assembled
- * entirely from real Use Case Model data (see useCaseExtraction.ts's
- * prompt), including the same diagram image the Use Case Model view draws
+ * from real Use Case Model data (see useCaseExtraction.ts's prompt),
+ * including the same diagram image the Use Case Model view draws
  * (buildUseCaseDiagramSvg, shared so it looks identical in both places).
- * No Domain Model section here yet - that view is still mock
- * (domainModelData.ts) and mixing real with fake content in one document
- * would misrepresent the mock parts as trustworthy; it gets added once
- * that view goes real too.
+ * dataModelData is optional and real too (dataModelExtraction.ts) -
+ * its section only appears when there's actually something in it, same
+ * skip-empty-sections rule as Overview/Project-wide NFRs below.
  */
-export function generateSrsDocHTML(useCaseData: UseCaseDiagramData): string {
+export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelData?: DataModelData): string {
 	const { svg: diagramSvg } = buildUseCaseDiagramSvg(useCaseData);
 
 	const projectNfrs = (useCaseData.nfrs || []).filter(n => n.useCaseId === null);
@@ -104,6 +105,24 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData): string {
 			</div>`;
 		}).join('\n')
 	});
+	if (dataModelData && dataModelData.entities.length > 0) {
+		const { svg: dataModelSvg } = buildDataModelSvg(dataModelData);
+		const entityName = (id: string) => dataModelData.entities.find(e => e.id === id)?.name || id;
+		sections.push({
+			title: 'Data model',
+			body: `<div class="diagram-wrap">${dataModelSvg}</div>` +
+				(dataModelData.narrative ? `<p>${escapeXml(dataModelData.narrative)}</p>` : '') +
+				dataModelData.entities.map(e => `<div class="entity-block">
+				<h3>${escapeXml(e.name)}</h3>
+				<table>
+					<tr><th>Attribute</th><th>Type</th><th>Key</th></tr>
+					${e.attributes.map(attr => `<tr><td class="mono">${escapeXml(attr.name)}</td><td class="mono">${escapeXml(attr.type)}</td><td>${attr.isPK ? 'PK' : attr.isFK ? 'FK' : ''}</td></tr>`).join('\n')}
+				</table>
+			</div>`).join('\n') + (dataModelData.relationships.length > 0
+				? `<ul>${dataModelData.relationships.map(r => `<li>${escapeXml(entityName(r.fromId))} &rarr; ${escapeXml(entityName(r.toId))} (${escapeXml(r.kind)}${r.label ? ` - ${escapeXml(r.label)}` : ''})</li>`).join('\n')}</ul>`
+				: '')
+		});
+	}
 	if (projectNfrs.length > 0) {
 		sections.push({
 			title: 'Project-wide non-functional requirements',
@@ -146,7 +165,25 @@ ${DOC_STYLE}
 	.use-case-nfrs { margin: 8px 0 0; padding-left: 18px; color: var(--text-dim); font-size: 12px; line-height: 1.6; }
 	.nfr-id { display: inline-block; font-size: 10px; font-family: ui-monospace, monospace; color: var(--accent-2); margin-right: 6px; }
 	.diagram-wrap svg { width: 100%; height: auto; display: block; }
+	.entity-block { margin-bottom: 14px; }
+	.entity-block:last-of-type { margin-bottom: 0; }
+	.entity-block h3 { margin: 0 0 6px; font-size: 13px; }
+	.mono { font-family: ui-monospace, monospace; color: var(--text-faint); font-size: 11px; }
 ${DIAGRAM_SVG_STYLE}
+${DATA_MODEL_SVG_STYLE}
+
+	#pdf-download {
+		position: fixed; top: 18px; right: 22px; z-index: 10;
+		display: flex; align-items: center; gap: 8px;
+	}
+	#pdf-download button {
+		border: none; background: var(--accent); color: #fff; font-weight: 650;
+		font-size: 12.5px; padding: 8px 16px; border-radius: 8px; cursor: pointer;
+		display: flex; align-items: center; gap: 6px;
+	}
+	#pdf-download button:disabled { opacity: 0.6; cursor: wait; }
+	#pdf-status { font-size: 12px; color: var(--text-dim); max-width: 220px; text-align: right; }
+	#pdf-status.error { color: #D6455B; }
 
 	/* Applies when Electron's printToPDF renders this page (see
 	   pdfExport.ts) - it goes through the same print pipeline as a browser
@@ -158,6 +195,7 @@ ${DIAGRAM_SVG_STYLE}
 			--bg: #ffffff; --surface: #ffffff; --text: #111111; --text-dim: #333333; --text-faint: #666666;
 			--border: #cccccc; --accent: #17203A; --accent-2: #17203A;
 		}
+		#pdf-download { display: none; }
 		.meta-value { border-bottom: none; }
 		.meta-field:has(.meta-value:empty) { display: none; }
 		/* A whole section (e.g. every use case) is often taller than one
@@ -171,6 +209,10 @@ ${DIAGRAM_SVG_STYLE}
 </style>
 </head>
 <body>
+	<div id="pdf-download">
+		<span id="pdf-status"></span>
+		<button id="pdf-btn">Download PDF</button>
+	</div>
 	<div id="doc">
 		<div id="doc-header">
 			<div class="kicker">Software Requirements Specification</div>
@@ -204,6 +246,33 @@ ${DIAGRAM_SVG_STYLE}
 				body: JSON.stringify(payload)
 			}).catch(function () {});
 		});
+	});
+
+	var pdfBtn = document.getElementById('pdf-btn');
+	var pdfStatus = document.getElementById('pdf-status');
+	pdfBtn.addEventListener('click', function () {
+		pdfBtn.disabled = true;
+		pdfBtn.textContent = 'Generating...';
+		pdfStatus.textContent = '';
+		pdfStatus.classList.remove('error');
+		fetch('/api/requirements/export-pdf', { method: 'POST' })
+			.then(function (r) { return r.json(); })
+			.then(function (result) {
+				if (!result.ok && result.error) throw new Error(result.error);
+				// ok with no path means the user cancelled the save dialog -
+				// not a failure, nothing to show.
+				if (result.ok && result.path) {
+					pdfStatus.textContent = 'Saved ' + result.path;
+				}
+			})
+			.catch(function (err) {
+				pdfStatus.textContent = err.message || String(err);
+				pdfStatus.classList.add('error');
+			})
+			.finally(function () {
+				pdfBtn.disabled = false;
+				pdfBtn.textContent = 'Download PDF';
+			});
 	});
 })();
 </script>

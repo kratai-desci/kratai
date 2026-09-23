@@ -6,52 +6,42 @@
       "id": "developer",
       "name": "Developer",
       "side": "left",
-      "role": "Software Engineer",
-      "description": "Analyzes codebases, inspects interactive architecture diagrams, and runs analysis workflows via CLI or desktop app."
+      "role": "Software Developer",
+      "description": "Runs repository analysis, inspects file paths, views interactive component diagrams, and exports visual models."
     },
     {
       "id": "llm-provider",
       "name": "LLM Provider",
       "side": "right",
-      "role": "External AI Service",
-      "description": "Provides language model services to enrich parsed codebase metadata with high-level summaries and insights."
+      "role": "AI Model Provider",
+      "description": "Supplies external language model capabilities to generate contextual summaries for analyzed codebase components."
     }
   ],
   "useCases": [
     {
       "id": "analyze-codebase",
       "name": "Analyze Codebase",
-      "description": "Parses repository source files, framework structures, and Git history into an architectural domain model."
-    },
-    {
-      "id": "generate-diagram",
-      "name": "Generate Architecture Diagram",
-      "description": "Transforms analyzed codebase domain models into visual diagram structures."
+      "description": "Parses source files, framework configurations, and git history to extract software architecture metadata."
     },
     {
       "id": "view-diagram",
-      "name": "View Interactive Diagram",
-      "description": "Renders visual architecture diagrams within the desktop application and diagram UI components."
+      "name": "View Architecture Diagram",
+      "description": "Renders interactive visual diagrams of software components and their dependencies."
+    },
+    {
+      "id": "enrich-analysis",
+      "name": "Enrich Analysis with AI",
+      "description": "Generates natural language summaries and context for parsed components using external LLMs."
     },
     {
       "id": "export-diagram",
       "name": "Export Diagram",
-      "description": "Exports generated architectural diagrams into external file formats."
+      "description": "Saves rendered architecture diagrams into external file formats for external distribution."
     },
     {
-      "id": "enrich-with-llm",
-      "name": "Enrich Model with LLM",
-      "description": "Enhances parsed codebase metadata using external AI models for deeper semantic understanding."
-    },
-    {
-      "id": "run-cli-command",
-      "name": "Run CLI Command",
-      "description": "Executes analysis, diagram generation, and export operations directly from the terminal."
-    },
-    {
-      "id": "collect-telemetry",
-      "name": "Collect Telemetry",
-      "description": "Gathers anonymous diagnostics and usage metrics during application execution."
+      "id": "inspect-file-path",
+      "name": "Inspect Code Path",
+      "description": "Queries specific repository paths or files to retrieve detailed structural information."
     }
   ],
   "associations": [
@@ -69,46 +59,34 @@
     },
     {
       "actorId": "developer",
-      "useCaseId": "run-cli-command"
+      "useCaseId": "inspect-file-path"
     },
     {
       "actorId": "llm-provider",
-      "useCaseId": "enrich-with-llm"
+      "useCaseId": "enrich-analysis"
     }
   ],
   "relations": [
     {
-      "kind": "include",
-      "fromId": "generate-diagram",
-      "toId": "analyze-codebase"
-    },
-    {
       "kind": "extend",
-      "fromId": "enrich-with-llm",
+      "fromId": "enrich-analysis",
       "toId": "analyze-codebase"
     }
   ],
-  "overview": "Kratai is a codebase analysis and architectural diagram generation tool available as a CLI and Desktop application. It parses source code repositories and Git history, enriches metadata using LLMs, and renders interactive architectural diagrams.",
+  "overview": "Kratai is a codebase analysis and visualization platform that parses repository structure, framework usage, and git history to generate interactive architecture diagrams across desktop and CLI interfaces.",
+  "narrative": "This system's users are composed of Developers and LLM Providers. Developers interact with the CLI or desktop application to analyze code repositories, inspect specific paths, view interactive structural diagrams, and export visual models. LLM Providers serve as external service integrations that enrich analysis outputs with automated summaries when AI features are invoked.",
   "nfrs": [
     {
-      "id": "parsing-extensibility",
-      "useCaseId": "analyze-codebase",
-      "name": "Parser Extensibility",
-      "text": "The parsing engine must maintain modular support for extensible language syntax and framework rules."
+      "id": "telemetry-logging",
+      "useCaseId": null,
+      "name": "Telemetry Collection",
+      "text": "The system collects execution metrics and operational telemetry during codebase analysis sessions."
     },
     {
-      "id": "llm-reliability",
-      "useCaseId": "enrich-with-llm",
-      "name": "LLM Failure Resilience",
-      "text": "Enrichment calls to external LLM providers must gracefully handle API latency and failure without interrupting base parsing."
-    },
-    {
-      "id": "telemetry-privacy",
-      "useCaseId": "collect-telemetry",
-      "name": "Non-Intrusive Telemetry",
-      "text": "Telemetry collection must operate asynchronously and respect user configuration and privacy settings."
+      "id": "llm-data-privacy",
+      "useCaseId": "enrich-analysis",
+      "name": "AI Request Security",
+      "text": "External LLM API integration must securely process code snippets without unauthorized persistence."
     }
-  ],
-  "preparedBy": "Decentralized Science,Inc",
-  "clientName": ""
+  ]
 }

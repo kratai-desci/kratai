@@ -12,8 +12,8 @@ import { buildStackLayerData } from '../stackLayerData.js';
 import { generateStackLayerHTML } from '../stackLayerView.js';
 import { loadCachedUseCaseDiagramData, saveCachedUseCaseDiagramData, buildUseCaseExtractionSummary, UseCaseDiagramData } from '../useCaseDiagramData.js';
 import { generateUseCaseDiagramHTML, generateUseCaseDiagramEmptyHTML } from '../useCaseDiagramView.js';
-import { buildMockDomainModelData } from '../domainModelData.js';
-import { generateDomainModelHTML } from '../domainModelView.js';
+import { loadCachedDataModelData, saveCachedDataModelData, buildDataModelExtractionSummary, DataModelData } from '../dataModelData.js';
+import { generateDataModelHTML, generateDataModelEmptyHTML } from '../dataModelView.js';
 import { buildDiffScorecard } from '../diffScorecardData.js';
 import { generateDiffScorecardHTML } from '../diffScorecardView.js';
 import { generateSrsDocHTML, generateSrsEmptyHTML } from '../srsDocView.js';
@@ -57,6 +57,9 @@ export interface ViewOptions {
 	// a provider key directly anymore (see @kratai/llm, which kratai-web
 	// depends on instead).
 	generateUseCaseDiagram?: (summary: string, workspaceName: string) => Promise<UseCaseDiagramData>;
+	// Same desktop-owned relay shape, pointed at kratai-web's data-model
+	// generate route instead - see packages/desktop/src/main/generateProxy.ts.
+	generateDataModel?: (summary: string, workspaceName: string) => Promise<DataModelData>;
 	// Same desktop-owned relay shape (packages/desktop/src/main/chatProxy.ts),
 	// but ONE model turn per call, not a full reply - the model may come
 	// back wanting to call a tool (see chatTools.ts), which only this
@@ -66,6 +69,11 @@ export interface ViewOptions {
 	// done:true. kratai-web never runs this loop itself for the same
 	// reason it never executes tools itself.
 	chat?: (messages: ConversationMessage[], workspaceName: string, summary: string) => Promise<ChatStepResult>;
+	// Desktop-owned (packages/desktop/src/main/pdfExport.ts) - builds on
+	// Electron's own webContents.printToPDF() against this same server's
+	// /srs-preview page, so this stays a plain HTTP hook like the others
+	// rather than needing any native bridge of its own.
+	exportRequirementsPdf?: () => Promise<{ ok: boolean; path?: string; error?: string }>;
 }
 
 export async function runView(options: ViewOptions): Promise<http.Server> {
@@ -83,7 +91,9 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	const startSignInHook = options.startSignIn || (() => {});
 	const signOutHook = options.signOut || (() => {});
 	const generateUseCaseDiagramHook = options.generateUseCaseDiagram;
+	const generateDataModelHook = options.generateDataModel;
 	const chatHook = options.chat;
+	const exportRequirementsPdfHook = options.exportRequirementsPdf;
 
 	const config = loadCliConfig(workspacePath, undefined, {});
 	const diagramName = path.basename(workspacePath);
@@ -111,6 +121,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// re-renders - so whatever was last generated is loaded once here and
 	// reused across requests/reparse, not regenerated on every reparse.
 	let useCaseData: UseCaseDiagramData | undefined = loadCachedUseCaseDiagramData(workspacePath);
+	let dataModelData: DataModelData | undefined = loadCachedDataModelData(workspacePath);
 	const shellHtml = generateShellHTML(diagramName, {
 		classCount: nodes.length,
 		folderCount,
@@ -140,17 +151,18 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		const freshConfig = loadCliConfig(workspacePath, undefined, {});
 		return generateStackLayerHTML(buildStackLayerData(diagramName, nodes, edges, freshConfig));
 	}
-	// Real data (a real extraction call's result, now including overview/
-	// role/description/nfrs - see useCaseExtraction.ts's prompt) or the
-	// real "sign in / generate" empty-state card. No mock fallback in the
-	// default path any more - buildMockUseCaseDiagramData still exists as
-	// a UI fixture (useCaseDiagramData.ts), just not wired in here.
+	// Real data (a real extraction call's result, including overview/role/
+	// description/nfrs - see useCaseExtraction.ts's prompt) or the real
+	// "sign in / generate" empty-state card.
 	function renderUseCaseDiagram(): string {
 		if (useCaseData) return generateUseCaseDiagramHTML(useCaseData);
 		return generateUseCaseDiagramEmptyHTML(getAuthStatus().signedIn);
 	}
-	function renderDomainModel(): string {
-		return generateDomainModelHTML(buildMockDomainModelData(diagramName), { mock: true });
+	// Real data or the real "sign in / generate" empty-state card - same
+	// pattern as renderUseCaseDiagram.
+	function renderDataModel(): string {
+		if (dataModelData) return generateDataModelHTML(dataModelData);
+		return generateDataModelEmptyHTML(getAuthStatus().signedIn);
 	}
 	function renderDiffScorecard(): string {
 		return generateDiffScorecardHTML(buildDiffScorecard(diagramData, diagramName), { mock: true });
@@ -159,7 +171,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// built entirely from the Use Case Model, so it has nothing to show
 	// until that's been generated for real.
 	function renderRequirementsDoc(): string {
-		if (useCaseData) return generateSrsDocHTML(useCaseData);
+		if (useCaseData) return generateSrsDocHTML(useCaseData, dataModelData);
 		return generateSrsEmptyHTML(getAuthStatus().signedIn);
 	}
 
@@ -285,6 +297,25 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			})();
 			return;
 		}
+		if (req.method === 'POST' && req.url === '/api/data-model/generate') {
+			(async () => {
+				try {
+					if (!generateDataModelHook) throw new Error('Generation is only available in the kratai desktop app.');
+					// Built fresh from the current diagramData, not cached, so a
+					// /api/refresh in between always reflects the latest code -
+					// same reasoning as the use case model's own summary.
+					const summary = buildDataModelExtractionSummary(diagramData, diagramName);
+					dataModelData = await generateDataModelHook(summary, diagramName);
+					saveCachedDataModelData(workspacePath, dataModelData);
+					res.writeHead(200, { 'Content-Type': 'application/json' });
+					res.end(JSON.stringify({ ok: true }));
+				} catch (error) {
+					res.writeHead(400, { 'Content-Type': 'application/json' });
+					res.end(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+				}
+			})();
+			return;
+		}
 		if (req.method === 'POST' && req.url === '/api/requirements/metadata') {
 			handleJsonPost<{ preparedBy?: string; clientName?: string }>(req, res, payload => {
 				if (!useCaseData) throw new Error('Generate the Use Case Model before editing document metadata.');
@@ -292,6 +323,20 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 				if (typeof payload.clientName === 'string') useCaseData.clientName = payload.clientName;
 				saveCachedUseCaseDiagramData(workspacePath, useCaseData);
 			});
+			return;
+		}
+		if (req.method === 'POST' && req.url === '/api/requirements/export-pdf') {
+			(async () => {
+				try {
+					if (!exportRequirementsPdfHook) throw new Error('PDF export is only available in the kratai desktop app.');
+					const result = await exportRequirementsPdfHook();
+					res.writeHead(200, { 'Content-Type': 'application/json' });
+					res.end(JSON.stringify(result));
+				} catch (error) {
+					res.writeHead(400, { 'Content-Type': 'application/json' });
+					res.end(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+				}
+			})();
 			return;
 		}
 		if (req.method === 'POST' && req.url === '/api/chat') {
@@ -385,7 +430,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			: req.url === '/knowledge-graph' ? renderKnowledgeGraph()
 			: req.url === '/stack-layer' ? renderStackLayer()
 			: req.url === '/use-case-diagram' ? renderUseCaseDiagram()
-			: req.url === '/domain-model' ? renderDomainModel()
+			: req.url === '/data-model' ? renderDataModel()
 			: req.url === '/diff-scorecard' ? renderDiffScorecard()
 			: req.url === '/srs-preview' ? renderRequirementsDoc()
 			: shellHtml;
