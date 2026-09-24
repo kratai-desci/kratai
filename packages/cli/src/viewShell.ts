@@ -598,11 +598,7 @@ export function generateShellHTML(
 		// Content-specific fixups for whatever a generic frame just loaded -
 		// only class-diagram needs its embedded header hidden (it duplicates
 		// the shell's own topbar) and its #zoomctl/#folder-panel-toggle-wrap
-		// nudged up to where that hidden header would have put them. Also
-		// where the mock "AI abstract view" trigger gets injected (see
-		// addAbstractViewButton) - class-diagram is @kratai/diagram-view's
-		// own self-contained page, so same-origin DOM injection here is how
-		// the shell adds anything to it without touching that package.
+		// nudged up to where that hidden header would have put them.
 		function applyFrameFixups(frameId) {
 			if (frameKind[frameId] !== 'class') return;
 			var doc = document.getElementById(frameId).contentDocument;
@@ -612,36 +608,6 @@ export function generateShellHTML(
 			var style = doc.createElement('style');
 			style.textContent = '#zoomctl { top: 18px !important; } #folder-panel-toggle-wrap { top: 16px !important; }';
 			doc.head.appendChild(style);
-			addAbstractViewButton(doc);
-		}
-
-		// Mock only - no real folder-curation call this phase (see the plan
-		// this came from). Just makes the interaction reviewable: click ->
-		// brief "Curating..." state -> "Applied" state, nothing on screen
-		// actually changes yet.
-		function addAbstractViewButton(doc) {
-			if (doc.getElementById('kratai-abstract-btn')) return;
-			var btn = doc.createElement('button');
-			btn.id = 'kratai-abstract-btn';
-			btn.textContent = 'Generate abstract view with AI';
-			btn.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:99999;'
-				+ 'border:none;background:#3459E0;color:#fff;font-weight:650;font-size:12px;'
-				+ 'padding:7px 16px;border-radius:100px;cursor:pointer;font-family:inherit;box-shadow:0 2px 10px rgba(0,0,0,0.2);';
-			btn.addEventListener('click', function () {
-				if (btn.disabled) return;
-				btn.disabled = true;
-				btn.style.cursor = 'wait';
-				btn.textContent = 'Curating (mock)...';
-				setTimeout(function () {
-					btn.textContent = 'Abstract view applied (mock)';
-					setTimeout(function () {
-						btn.textContent = 'Generate abstract view with AI';
-						btn.disabled = false;
-						btn.style.cursor = 'pointer';
-					}, 1800);
-				}, 700);
-			});
-			doc.body.appendChild(btn);
 		}
 
 		['frame-a', 'frame-b'].forEach(function (frameId) {
