@@ -1,14 +1,15 @@
 import type { Server } from 'http';
 import * as path from 'path';
-import { app, BrowserWindow, Menu, dialog, nativeImage } from 'electron';
+import { app, BrowserWindow, Menu, dialog, nativeImage, shell } from 'electron';
 import { runView } from '@kratai/cli';
 import { addRecentWorkspace, listRecentWorkspaces } from './workspaceStore.js';
 import { hasSeenOnboarding, markOnboardingSeen } from './onboardingStore.js';
 import { getOnboardingScript } from './onboarding.js';
 import { getLayout, saveLayout } from './layoutStore.js';
-import { startSignIn, handleAuthCallback, getAuthStatus, signOut } from './auth.js';
+import { startSignIn, handleAuthCallback, getAuthStatus, signOut, KRATAI_WEB_URL } from './auth.js';
 import { generateUseCaseDiagram, generateDataModel } from './generateProxy.js';
 import { chatStep } from './chatProxy.js';
+import { getBalanceCents } from './balanceProxy.js';
 import { getWelcomeHTML, getLoadingHTML } from './welcomeScreen.js';
 import { exportRequirementsPdf } from './pdfExport.js';
 
@@ -127,6 +128,8 @@ function ensureMainWindow(): BrowserWindow {
 		} else if (parsed.hostname === 'open') {
 			const target = parsed.searchParams.get('path');
 			if (target) void openWorkspace(target);
+		} else if (parsed.hostname === 'open-dashboard') {
+			void shell.openExternal(new URL('/dashboard', KRATAI_WEB_URL).toString());
 		}
 	});
 	return mainWindow;
@@ -167,6 +170,7 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 			generateUseCaseDiagram,
 			generateDataModel,
 			chat: chatStep,
+			getBalance: getBalanceCents,
 			// port isn't known until runView resolves below, hence the `!` -
 			// by the time this actually gets called (a button click, well
 			// after this promise settles), currentServer is set.

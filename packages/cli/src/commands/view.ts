@@ -76,6 +76,11 @@ export interface ViewOptions {
 	// /srs-preview page, so this stays a plain HTTP hook like the others
 	// rather than needing any native bridge of its own.
 	exportRequirementsPdf?: () => Promise<{ ok: boolean; path?: string; error?: string }>;
+	// Also desktop-owned (packages/desktop/src/main/balanceProxy.ts) - reads
+	// the signed-in user's remaining AI credit from kratai-web, plus the
+	// signup-credit baseline the shell's meter renders "how full" against.
+	// Returns null rather than throwing when signed out, same as the hook itself.
+	getBalance?: () => Promise<{ balanceCents: number; totalCents: number } | null>;
 }
 
 export async function runView(options: ViewOptions): Promise<http.Server> {
@@ -96,6 +101,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	const generateDataModelHook = options.generateDataModel;
 	const chatHook = options.chat;
 	const exportRequirementsPdfHook = options.exportRequirementsPdf;
+	const getBalanceHook = options.getBalance || (async () => null);
 
 	const config = loadCliConfig(workspacePath, undefined, {});
 	const diagramName = path.basename(workspacePath);
@@ -276,6 +282,13 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			signOutHook();
 			res.writeHead(200, { 'Content-Type': 'application/json' });
 			res.end(JSON.stringify({ ok: true }));
+			return;
+		}
+		if (req.method === 'GET' && req.url === '/api/balance') {
+			getBalanceHook().then(balance => {
+				res.writeHead(200, { 'Content-Type': 'application/json' });
+				res.end(JSON.stringify(balance));
+			});
 			return;
 		}
 		if (req.method === 'POST' && req.url === '/api/use-case-diagram/generate') {

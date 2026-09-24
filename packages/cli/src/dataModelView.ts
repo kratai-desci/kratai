@@ -437,7 +437,11 @@ export function generateDataModelEmptyHTML(signedIn: boolean): string {
 		fetch('/api/data-model/generate', { method: 'POST' })
 			.then(function (r) { return r.json(); })
 			.then(function (result) {
-				if (result.ok) { location.reload(); return; }
+				if (result.ok) {
+					window.parent.postMessage({ command: 'balanceChanged' }, '*');
+					location.reload();
+					return;
+				}
 				throw new Error(result.error || 'Generation failed.');
 			})
 			.catch(function (err) {

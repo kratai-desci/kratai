@@ -63,18 +63,21 @@ export function generateShellHTML(
 		--bg: #EEF2FA; --surface: #FFFFFF; --surface-2: #F4F7FD;
 		--text: #17203A; --text-dim: #5C6785; --text-faint: #94A0BE;
 		--border: #DCE3F2; --accent: #3459E0; --accent-2: #14A6B8;
+		--warn: #C87A17; --danger: #D6455B;
 	}
 	@media (prefers-color-scheme: dark) {
 		:root:not([data-theme="light"]) {
 			--bg: #0A0E19; --surface: #131A2E; --surface-2: #171F38;
 			--text: #E8ECFB; --text-dim: #939CBE; --text-faint: #5B6488;
 			--border: #262E4E; --accent: #6D93F5; --accent-2: #4FDCEA;
+			--warn: #E6A23C; --danger: #F0687D;
 		}
 	}
 	:root[data-theme="dark"] {
 		--bg: #0A0E19; --surface: #131A2E; --surface-2: #171F38;
 		--text: #E8ECFB; --text-dim: #939CBE; --text-faint: #5B6488;
 		--border: #262E4E; --accent: #6D93F5; --accent-2: #4FDCEA;
+		--warn: #E6A23C; --danger: #F0687D;
 	}
 	* { box-sizing: border-box; }
 	html, body { height: 100%; }
@@ -160,6 +163,16 @@ export function generateShellHTML(
 	}
 	.view-picker-item .check { width: 13px; flex-shrink: 0; font-weight: 650; }
 	#picker-sep { color: var(--text-faint); font-size: 12px; }
+	/* The account button sits near the topbar's right edge - a menu that
+	   opens leftward-from-the-left-edge (the pickers' default) would run
+	   off the window, so this anchors it to the button's right edge instead. */
+	.view-picker-menu.align-right { left: auto; right: 0; }
+	.account-menu-static {
+		padding: 5px 10px; font-size: 12.5px; cursor: default;
+	}
+	#account-menu-email { font-weight: 650; color: var(--text); }
+	#account-menu-balance { color: var(--text-dim); }
+	.account-menu-sep { height: 1px; background: var(--border); margin: 4px 2px; }
 
 	#topbar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 	#theme-toggle, #refresh-btn, #chat-toggle {
@@ -302,11 +315,23 @@ export function generateShellHTML(
 		background: var(--surface-2); color: var(--text-dim); cursor: pointer;
 		display: flex; align-items: center; gap: 6px; flex-shrink: 0;
 		padding: 0 12px 0 8px; font-size: 12px; font-family: inherit;
-		max-width: 180px;
+		max-width: 180px; position: relative; overflow: hidden;
 	}
 	#account-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 	#account-btn:disabled { cursor: wait; opacity: 0.7; }
 	#account-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	/* Remaining AI credit, as a thin fill along the bottom edge of the
+	   account pill rather than a separate element - it's account
+	   information, not its own toolbar action, so it belongs inside the
+	   thing it's describing. */
+	#balance-bar {
+		display: none; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+		background: var(--border);
+	}
+	#balance-bar-fill {
+		display: block; height: 100%; width: 100%; background: var(--accent);
+		transition: width 0.3s ease, background-color 0.3s ease;
+	}
 </style>
 </head>
 <body>
@@ -323,10 +348,20 @@ export function generateShellHTML(
 			<button id="chat-toggle" class="active" title="Toggle AI dialog">
 				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
 			</button>
-			<button id="account-btn" title="Sign in">
-				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-				<span id="account-label">Sign in</span>
-			</button>
+			<div class="view-picker-wrap" id="account-wrap">
+				<button id="account-btn" title="Sign in">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+					<span id="account-label">Sign in</span>
+					<span id="balance-bar"><span id="balance-bar-fill"></span></span>
+				</button>
+				<div class="view-picker-menu align-right" id="account-menu" style="display:none">
+					<div class="account-menu-static" id="account-menu-email"></div>
+					<div class="account-menu-static" id="account-menu-balance"></div>
+					<div class="account-menu-sep"></div>
+					<div class="view-picker-item" id="account-menu-dashboard"><span class="check"></span><span>Open dashboard</span></div>
+					<div class="view-picker-item" id="account-menu-signout"><span class="check"></span><span>Sign out</span></div>
+				</div>
+			</div>
 			<button id="theme-toggle" title="Toggle theme"></button>
 		</div>
 	</div>
@@ -525,9 +560,12 @@ export function generateShellHTML(
 		}
 		document.addEventListener('click', function (e) {
 			if (openPickerMenu && !openPickerMenu.wrap.contains(e.target)) closeOpenPickerMenu();
+			if (accountMenuOpen && !accountWrap.contains(e.target)) closeAccountMenu();
 		});
 		document.addEventListener('keydown', function (e) {
-			if (e.key === 'Escape') closeOpenPickerMenu();
+			if (e.key !== 'Escape') return;
+			closeOpenPickerMenu();
+			closeAccountMenu();
 		});
 
 		// Custom dropdown, not a native <select> - see .view-picker-menu's
@@ -656,6 +694,11 @@ export function generateShellHTML(
 			// this when signed out - it can't trigger sign-in itself since the
 			// account button/poll loop lives in the shell, not that iframe.
 			if (e.data.command === 'startSignIn') beginSignIn();
+			// Posted by useCaseDiagramView.ts/dataModelView.ts right after a
+			// successful generation, which spends credit - same reasoning as
+			// startSignIn above, the balance display lives in the shell, not
+			// in whichever iframe just triggered the spend.
+			if (e.data.command === 'balanceChanged') refreshBalance();
 		});
 
 		// ---- account: sign in with a kratai-web account for hosted AI
@@ -665,21 +708,56 @@ export function generateShellHTML(
 		// trip) so this page has no way to be told synchronously when it's
 		// done - it polls /api/auth/status instead, same-origin, while a
 		// sign-in is in flight. ----
+		var accountWrap = document.getElementById('account-wrap');
 		var accountBtn = document.getElementById('account-btn');
 		var accountLabel = document.getElementById('account-label');
+		var accountMenu = document.getElementById('account-menu');
+		var accountMenuEmail = document.getElementById('account-menu-email');
+		var accountMenuBalance = document.getElementById('account-menu-balance');
+		var accountMenuDashboard = document.getElementById('account-menu-dashboard');
+		var accountMenuSignout = document.getElementById('account-menu-signout');
+		var balanceBar = document.getElementById('balance-bar');
+		var balanceBarFill = document.getElementById('balance-bar-fill');
 		var statusPoll = null;
+		var accountMenuOpen = false;
+
+		function closeAccountMenu() {
+			if (!accountMenuOpen) return;
+			accountMenu.style.display = 'none';
+			accountMenuOpen = false;
+		}
+
+		function refreshBalance() {
+			if (!AUTH_STATUS.signedIn) { balanceBar.style.display = 'none'; return; }
+			fetch('/api/balance').then(function (res) { return res.json(); }).then(function (data) {
+				if (!data || typeof data.balanceCents !== 'number' || typeof data.totalCents !== 'number' || data.totalCents <= 0) {
+					balanceBar.style.display = 'none';
+					return;
+				}
+				var pct = Math.max(0, Math.min(100, (data.balanceCents / data.totalCents) * 100));
+				balanceBarFill.style.width = pct + '%';
+				balanceBarFill.style.background = pct <= 15 ? 'var(--danger)' : pct <= 40 ? 'var(--warn)' : 'var(--accent)';
+				var balanceText = '$' + (data.balanceCents / 100).toFixed(2) + ' credit remaining';
+				accountBtn.title = (AUTH_STATUS.email || 'Signed in') + ' \\u2022 ' + balanceText;
+				accountMenuBalance.textContent = balanceText;
+				balanceBar.style.display = 'block';
+			}).catch(function () {});
+		}
 
 		function renderAccountButton() {
 			if (AUTH_STATUS.signedIn) {
 				accountLabel.textContent = AUTH_STATUS.email || 'Signed in';
-				accountBtn.title = 'Sign out';
+				accountBtn.title = AUTH_STATUS.email || 'Signed in';
+				accountMenuEmail.textContent = AUTH_STATUS.email || 'Signed in';
 			} else {
 				accountLabel.textContent = 'Sign in';
 				accountBtn.title = 'Sign in with kratai';
+				closeAccountMenu();
 			}
 			accountBtn.disabled = false;
 		}
 		renderAccountButton();
+		refreshBalance();
 
 		function stopPolling() {
 			if (statusPoll) { clearInterval(statusPoll); statusPoll = null; }
@@ -708,6 +786,7 @@ export function generateShellHTML(
 					stopPolling();
 					AUTH_STATUS = status;
 					renderAccountButton();
+					refreshBalance();
 					// Picks up the new signed-in state server-side
 					// (renderUseCaseDiagram reads getAuthStatus() fresh on every
 					// request) - otherwise the empty state's "Sign In" CTA would
@@ -721,16 +800,37 @@ export function generateShellHTML(
 			}, 1500);
 		}
 
-		accountBtn.addEventListener('click', function () {
+		accountBtn.addEventListener('click', function (e) {
 			if (AUTH_STATUS.signedIn) {
-				accountBtn.disabled = true;
-				fetch('/api/auth/sign-out', { method: 'POST' }).then(function () {
-					AUTH_STATUS = { signedIn: false, email: null };
-					renderAccountButton();
-				});
+				e.stopPropagation();
+				if (accountMenuOpen) { closeAccountMenu(); return; }
+				accountMenu.style.display = 'block';
+				accountMenuOpen = true;
 				return;
 			}
 			beginSignIn();
+		});
+
+		accountMenuDashboard.addEventListener('click', function (e) {
+			e.stopPropagation();
+			closeAccountMenu();
+			// Same sentinel-URL trick as the welcome screen's own links (see
+			// welcomeScreen.ts) - index.ts's will-navigate interceptor turns
+			// this into shell.openExternal rather than navigating this
+			// window itself, since the dashboard is a real kratai-web page,
+			// not something to load inside the app's own shell.
+			window.location.href = 'kratai-action://open-dashboard';
+		});
+
+		accountMenuSignout.addEventListener('click', function (e) {
+			e.stopPropagation();
+			closeAccountMenu();
+			accountBtn.disabled = true;
+			fetch('/api/auth/sign-out', { method: 'POST' }).then(function () {
+				AUTH_STATUS = { signedIn: false, email: null };
+				renderAccountButton();
+				refreshBalance();
+			});
 		});
 
 		// ---- theme: light/dark, defaults to system, remembered once the
@@ -1007,6 +1107,7 @@ export function generateShellHTML(
 					applyAiUiActions(result.data.uiActions);
 					appendChatMessage('ai', result.data.reply);
 					chatHistory.push({ role: 'assistant', text: result.data.reply });
+					refreshBalance();
 				})
 				.catch(function (error) {
 					thinkingEntry.remove();
