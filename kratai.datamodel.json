@@ -1,0 +1,162 @@
+{
+  "workspaceName": "kratai",
+  "entities": [
+    {
+      "id": "class-info",
+      "name": "Class Info",
+      "attributes": [
+        {
+          "name": "name",
+          "type": "string",
+          "isPK": true
+        },
+        {
+          "name": "filePath",
+          "type": "string"
+        },
+        {
+          "name": "classType",
+          "type": "string"
+        },
+        {
+          "name": "changeStatus",
+          "type": "string"
+        },
+        {
+          "name": "extends",
+          "type": "string"
+        },
+        {
+          "name": "isInterface",
+          "type": "boolean"
+        },
+        {
+          "name": "isAbstract",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "id": "class-relationship",
+      "name": "Class Relationship",
+      "attributes": [
+        {
+          "name": "from",
+          "type": "string",
+          "isFK": true
+        },
+        {
+          "name": "to",
+          "type": "string",
+          "isFK": true
+        },
+        {
+          "name": "type",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "data-entity",
+      "name": "Data Entity",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "string",
+          "isPK": true
+        },
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "data-relationship",
+      "name": "Data Relationship",
+      "attributes": [
+        {
+          "name": "fromId",
+          "type": "string",
+          "isFK": true
+        },
+        {
+          "name": "toId",
+          "type": "string",
+          "isFK": true
+        },
+        {
+          "name": "kind",
+          "type": "string"
+        },
+        {
+          "name": "label",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "git-comparison-result",
+      "name": "Git Comparison Result",
+      "attributes": [
+        {
+          "name": "workspaceName",
+          "type": "string",
+          "isPK": true
+        },
+        {
+          "name": "currentBranch",
+          "type": "string"
+        },
+        {
+          "name": "compareTarget",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "file-change",
+      "name": "File Change",
+      "attributes": [
+        {
+          "name": "path",
+          "type": "string",
+          "isPK": true
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "additions",
+          "type": "number"
+        },
+        {
+          "name": "deletions",
+          "type": "number"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "fromId": "class-info",
+      "toId": "class-relationship",
+      "kind": "one-to-many",
+      "label": "originates relationship"
+    },
+    {
+      "fromId": "data-entity",
+      "toId": "data-relationship",
+      "kind": "one-to-many",
+      "label": "connects via"
+    },
+    {
+      "fromId": "git-comparison-result",
+      "toId": "file-change",
+      "kind": "one-to-many",
+      "label": "tracks"
+    }
+  ],
+  "narrative": "The domain models the structural analysis and evolution of a codebase by tracking software components and their interconnections. Analyzed code constructs are cataloged as classes that link to other classes through directed structural relationships, while data models model high-level entities and their schema bindings. Repository diff operations aggregate individual file modifications under comparison results to show how the codebase changes over time."
+}

@@ -97,8 +97,16 @@ export function generateShellHTML(
 		font-variant-numeric: tabular-nums;
 	}
 	#view-pickers { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+	/* Custom dropdown, not a native <select> - a native select's OS-drawn
+	   menu opens centered on the currently-selected option, and when that
+	   option isn't first in the list and the trigger sits near the top of
+	   the window (true here - the picker lives in the topbar), there's no
+	   room above it to show the earlier options without scrolling. That
+	   read as "the list is cut off". A custom menu just draws downward from
+	   the button, so the full list is always visible top-to-bottom. */
+	.view-picker-wrap { position: relative; flex-shrink: 0; }
 	.view-picker {
-		appearance: none; -webkit-appearance: none;
+		appearance: none; -webkit-appearance: none; display: block;
 		background: var(--surface-2) url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%226%22 viewBox=%220 0 10 6%22%3E%3Cpath d=%22M1 1l4 4 4-4%22 stroke=%22%235C6785%22 stroke-width=%221.4%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E') no-repeat right 10px center;
 		border: 1px solid var(--border); border-radius: 100px;
 		color: var(--text); font-weight: 650;
@@ -106,8 +114,45 @@ export function generateShellHTML(
 		padding: 7px 28px 7px 14px; cursor: pointer; flex-shrink: 0;
 		transition: border-color 0.15s ease;
 	}
-	.view-picker:hover { border-color: var(--accent); }
+	.view-picker:hover, .view-picker.open { border-color: var(--accent); }
 	.view-picker:focus { outline: none; border-color: var(--accent); }
+	.view-picker-menu {
+		position: absolute; top: calc(100% + 5px); left: 0; z-index: 20;
+		background: color-mix(in srgb, var(--surface) 88%, transparent);
+		backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+		border: 1px solid var(--border); border-radius: 9px;
+		box-shadow: 0 6px 18px rgba(10, 14, 25, 0.16), 0 1px 3px rgba(10, 14, 25, 0.1);
+		padding: 5px; min-width: 180px; width: max-content; max-height: 60vh; overflow-y: auto;
+	}
+	.view-picker-item {
+		display: flex; align-items: center; gap: 7px; white-space: nowrap;
+		font-size: 13px; font-weight: 400; color: var(--text);
+		padding: 5px 10px; border-radius: 5px; cursor: default;
+	}
+	.view-picker-item.selected { font-weight: 650; }
+	/* Native macOS menus open with the selected item already highlighted
+	   (it starts focused), then the highlight follows the pointer as you
+	   move over other items. :not(:hover) on the menu keeps the selected
+	   item's highlight showing only while nothing else in the menu is
+	   being hovered; the plain :hover rule below takes over the instant
+	   the pointer actually reaches a specific row. */
+	.view-picker-menu:not(:hover) .view-picker-item.selected,
+	.view-picker-item:hover {
+		/* The CSS system-color keyword Highlight (the OS's own actual
+		   selection color - macOS's system blue here, same as a native
+		   <select>'s menu) turns out to carry its own baked-in 0.6 alpha on
+		   this platform - confirmed via getComputedStyle, and CSS
+		   relative-color syntax (rgb(from Highlight r g b)) doesn't strip
+		   it either despite not referencing alpha, so this hardcodes the
+		   same blue's own r/g/b at full opacity instead. Composited over
+		   this menu's translucent backdrop, the 0.6-alpha version washed
+		   out pale instead of the punchy solid blue a native menu actually
+		   shows. Text stays a plain explicit white rather than the
+		   HighlightText keyword, which doesn't reliably resolve to white
+		   everywhere. */
+		background: rgb(128, 188, 254); color: #fff;
+	}
+	.view-picker-item .check { width: 13px; flex-shrink: 0; font-weight: 650; }
 	#picker-sep { color: var(--text-faint); font-size: 12px; }
 
 	#topbar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
@@ -189,9 +234,45 @@ export function generateShellHTML(
 	}
 	.chat-msg.user .speaker { color: var(--accent); }
 	.chat-msg.ai .speaker { color: var(--accent-2); }
+	.chat-msg.thinking .speaker { color: var(--accent-2); }
 	.chat-msg.error .speaker { color: #D6455B; }
 	.chat-msg.error .line { color: #D6455B; }
 	.chat-msg .line { color: var(--text); }
+
+	/* Minimal markdown rendering for AI replies (bold/code/headers/lists/hr)
+	   - headers are deliberately NOT sized up like real page headings, just
+	   bold at body size, since a giant h1 inside a narrow chat bubble reads
+	   as a rendering bug rather than a heading. */
+	.chat-msg .line p { margin: 0 0 6px; }
+	.chat-msg .line p:last-child { margin-bottom: 0; }
+	.chat-msg .line h1, .chat-msg .line h2, .chat-msg .line h3,
+	.chat-msg .line h4, .chat-msg .line h5, .chat-msg .line h6 {
+		margin: 8px 0 2px; font-size: 13.5px; font-weight: 700;
+	}
+	.chat-msg .line h1:first-child, .chat-msg .line h2:first-child, .chat-msg .line h3:first-child {
+		margin-top: 0;
+	}
+	.chat-msg .line strong { font-weight: 700; }
+	.chat-msg .line em { font-style: italic; }
+	.chat-msg .line code {
+		font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+		background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 0.92em;
+	}
+	.chat-msg .line ul { margin: 4px 0; padding-left: 18px; }
+	.chat-msg .line li { margin: 2px 0; }
+	.chat-msg .line hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+
+	.thinking-dots { display: inline-flex; gap: 3px; vertical-align: middle; }
+	.thinking-dots span {
+		width: 5px; height: 5px; border-radius: 50%; background: var(--text-faint);
+		animation: kratai-chat-thinking 1.1s ease-in-out infinite;
+	}
+	.thinking-dots span:nth-child(2) { animation-delay: 0.15s; }
+	.thinking-dots span:nth-child(3) { animation-delay: 0.3s; }
+	@keyframes kratai-chat-thinking {
+		0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+		30% { opacity: 1; transform: translateY(-2px); }
+	}
 	#chat-input-row { flex-shrink: 0; display: flex; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--border); }
 	#chat-input {
 		flex: 1; border: 1px solid var(--border); border-radius: 100px;
@@ -423,22 +504,79 @@ export function generateShellHTML(
 			});
 		})();
 
+		// Closes whichever picker menu is currently open (at most one at a
+		// time) - called before opening another, and on any click/Escape
+		// outside the open menu. Kept as a single module-level reference
+		// rather than a per-picker flag since renderPickers() rebuilds the
+		// whole #view-pickers subtree on every change anyway, so there's
+		// never more than one real DOM menu alive to track.
+		var openPickerMenu = null;
+		function closeOpenPickerMenu() {
+			if (!openPickerMenu) return;
+			openPickerMenu.menu.style.display = 'none';
+			openPickerMenu.btn.classList.remove('open');
+			openPickerMenu = null;
+		}
+		document.addEventListener('click', function (e) {
+			if (openPickerMenu && !openPickerMenu.wrap.contains(e.target)) closeOpenPickerMenu();
+		});
+		document.addEventListener('keydown', function (e) {
+			if (e.key === 'Escape') closeOpenPickerMenu();
+		});
+
+		// Custom dropdown, not a native <select> - see .view-picker-menu's
+		// CSS comment for why (a native select's menu can end up scrolled/
+		// cut off when the trigger sits near the top of the window). Always
+		// draws its full option list downward from the button instead.
 		// extraFlatOptions (e.g. 'None') render after the real view options -
 		// kept as a separate param rather than folded into VIEW_OPTIONS since
 		// 'None' isn't a real view (the narrow picker never offers it - see
 		// renderPickers).
 		function renderPicker(container, options, extraFlatOptions, selected, onPick) {
-			var select = document.createElement('select');
-			select.className = 'view-picker';
-			options.concat(extraFlatOptions || []).forEach(function (opt) {
-				var option = document.createElement('option');
-				option.value = opt[0];
-				option.textContent = opt[1];
-				select.appendChild(option);
+			var all = options.concat(extraFlatOptions || []);
+			var current = all.filter(function (opt) { return opt[0] === selected; })[0] || all[0];
+
+			var wrap = document.createElement('div');
+			wrap.className = 'view-picker-wrap';
+
+			var btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'view-picker';
+			btn.textContent = current[1];
+
+			var menu = document.createElement('div');
+			menu.className = 'view-picker-menu';
+			menu.style.display = 'none';
+			all.forEach(function (opt) {
+				var item = document.createElement('div');
+				item.className = 'view-picker-item' + (opt[0] === selected ? ' selected' : '');
+				var check = document.createElement('span');
+				check.className = 'check';
+				check.textContent = opt[0] === selected ? '✓' : '';
+				var label = document.createElement('span');
+				label.textContent = opt[1];
+				item.appendChild(check);
+				item.appendChild(label);
+				item.addEventListener('click', function (e) {
+					e.stopPropagation();
+					closeOpenPickerMenu();
+					if (opt[0] !== selected) onPick(opt[0]);
+				});
+				menu.appendChild(item);
 			});
-			select.value = selected;
-			select.addEventListener('change', function () { onPick(select.value); });
-			container.appendChild(select);
+
+			btn.addEventListener('click', function (e) {
+				e.stopPropagation();
+				if (openPickerMenu && openPickerMenu.btn === btn) { closeOpenPickerMenu(); return; }
+				closeOpenPickerMenu();
+				menu.style.display = 'block';
+				btn.classList.add('open');
+				openPickerMenu = { btn: btn, menu: menu, wrap: wrap };
+			});
+
+			wrap.appendChild(btn);
+			wrap.appendChild(menu);
+			container.appendChild(wrap);
 		}
 
 		function renderPickers() {
@@ -734,6 +872,48 @@ export function generateShellHTML(
 			saveLayout();
 		});
 
+		// ---- minimal markdown rendering for AI replies: bold/italic/code/
+		// headers/bullet-lists/hr. Escapes HTML first (the reply is model
+		// output, not code this page trusts blindly), then applies regex
+		// substitutions on the now-inert escaped text - the markdown
+		// characters themselves (asterisk, backtick, hash) aren't HTML-special, so escaping
+		// first doesn't interfere with matching them afterward. Deliberately
+		// not a full markdown parser (tables, nested lists, links) - this
+		// covers what the model's replies actually use in practice. ----
+		function escapeHtml(s) {
+			var d = document.createElement('div');
+			d.textContent = s;
+			return d.innerHTML;
+		}
+		function inlineMarkdown(s) {
+			return s
+				.replace(/\`([^\`]+)\`/g, '<code>$1</code>')
+				.replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>')
+				.replace(/\\*([^*]+)\\*/g, '<em>$1</em>');
+		}
+		function renderMarkdownLite(text) {
+			var lines = escapeHtml(text).split('\\n');
+			var html = '';
+			var inList = false;
+			function closeList() { if (inList) { html += '</ul>'; inList = false; } }
+			lines.forEach(function (line) {
+				var trimmed = line.trim();
+				if (trimmed === '---' || trimmed === '***') { closeList(); html += '<hr>'; return; }
+				var header = trimmed.match(/^(#{1,6})\\s+(.*)$/);
+				if (header) { closeList(); html += '<h6>' + inlineMarkdown(header[2]) + '</h6>'; return; }
+				var item = trimmed.match(/^[*-]\\s+(.*)$/);
+				if (item) {
+					if (!inList) { html += '<ul>'; inList = true; }
+					html += '<li>' + inlineMarkdown(item[1]) + '</li>';
+					return;
+				}
+				closeList();
+				if (trimmed) html += '<p>' + inlineMarkdown(trimmed) + '</p>';
+			});
+			closeList();
+			return html;
+		}
+
 		function appendChatMessage(role, text) {
 			var log = document.getElementById('chat-log');
 			var entry = document.createElement('div');
@@ -743,11 +923,18 @@ export function generateShellHTML(
 			speaker.textContent = (role === 'user' ? 'You' : 'kratai') + ': ';
 			var line = document.createElement('span');
 			line.className = 'line';
-			line.textContent = text;
+			if (role === 'thinking') {
+				line.innerHTML = '<span class="thinking-dots"><span></span><span></span><span></span></span>';
+			} else if (role === 'ai') {
+				line.innerHTML = renderMarkdownLite(text);
+			} else {
+				line.textContent = text;
+			}
 			entry.appendChild(speaker);
 			entry.appendChild(line);
 			log.appendChild(entry);
 			log.scrollTop = log.scrollHeight;
+			return entry;
 		}
 
 		// Client-held history, not server-stored - resent in full each turn
@@ -796,17 +983,46 @@ export function generateShellHTML(
 						if (frameKind[frameId] === 'graph') highlightInFrame(frameId, action.name);
 					});
 				}
+				// Queued by view.ts's chat loop after a spec-editing tool call
+				// (update_srs_metadata/update_use_case_model/update_data_model)
+				// actually changes something - reloads whichever frame is
+				// showing the affected view, same location.reload() the
+				// refresh button already uses, so an edit made via chat shows
+				// up without the user manually refreshing.
+				if (action.type === 'refresh_view' && action.view) {
+					['frame-a', 'frame-b'].forEach(function (frameId) {
+						if (frameKind[frameId] !== action.view) return;
+						var frame = document.getElementById(frameId);
+						if (frame.contentWindow) frame.contentWindow.location.reload();
+					});
+				}
 			});
 		}
 
+		// Guards against a second send firing while one is already in flight -
+		// the send button disables, but Enter's keydown handler doesn't check
+		// button state on its own, so without this a fast double-Enter could
+		// fire two overlapping requests against the same chatHistory.
+		var chatSending = false;
+
 		function sendChatMessage() {
+			if (chatSending) return;
 			var input = document.getElementById('chat-input');
 			var text = input.value.trim();
 			if (!text) return;
+			chatSending = true;
 			appendChatMessage('user', text);
 			chatHistory.push({ role: 'user', text: text });
 			input.value = '';
 			document.getElementById('chat-send').disabled = true;
+			input.disabled = true;
+			// A tool-call loop server-side (view.ts) can mean several real
+			// model round trips before a reply comes back - previously
+			// nothing showed between sending and the reply appearing, which
+			// read as the app having frozen on anything but an instant
+			// answer. This placeholder is removed the moment a real
+			// message (reply or error) is appended in its place.
+			var thinkingEntry = appendChatMessage('thinking', '');
 			fetch('/api/chat', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -814,16 +1030,20 @@ export function generateShellHTML(
 			})
 				.then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
 				.then(function (result) {
+					thinkingEntry.remove();
 					if (!result.ok) throw new Error(result.data.error || 'Chat request failed.');
 					applyAiUiActions(result.data.uiActions);
 					appendChatMessage('ai', result.data.reply);
 					chatHistory.push({ role: 'assistant', text: result.data.reply });
 				})
 				.catch(function (error) {
+					thinkingEntry.remove();
 					appendChatMessage('error', error.message);
 				})
 				.finally(function () {
+					chatSending = false;
 					document.getElementById('chat-send').disabled = false;
+					input.disabled = false;
 					input.focus();
 				});
 		}

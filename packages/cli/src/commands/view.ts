@@ -18,7 +18,9 @@ import { buildDiffScorecard } from '../diffScorecardData.js';
 import { generateDiffScorecardHTML } from '../diffScorecardView.js';
 import { generateSrsDocHTML, generateSrsEmptyHTML } from '../srsDocView.js';
 import { executeChatTool } from '../chatTools.js';
-import { UI_ACTION_TOOL_NAMES } from '@kratai/llm';
+import { executeSpecTool } from '../chatSpecTools.js';
+import { buildChatSummary } from '../chatContext.js';
+import { UI_ACTION_TOOL_NAMES, SPEC_TOOL_NAMES } from '@kratai/llm';
 import type { ConversationMessage, ChatStepResult } from '@kratai/llm';
 
 export interface AuthStatus {
@@ -348,10 +350,13 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 						if (!chatHook) throw new Error('Chat is only available in the kratai desktop app.');
 						const { messages } = JSON.parse(body) as { messages?: ConversationMessage[] };
 						if (!Array.isArray(messages) || messages.length === 0) throw new Error('Missing messages.');
-						// Rebuilt fresh each turn (cheap - see buildUseCaseExtractionSummary)
-						// rather than cached, so a mid-conversation /api/refresh is
-						// reflected in the very next reply.
-						const summary = buildUseCaseExtractionSummary(diagramData, diagramName);
+						// Rebuilt fresh before every model turn (cheap - see
+						// buildUseCaseExtractionSummary), not just once per request, so a
+						// spec edit earlier in this same loop (or a mid-conversation
+						// /api/refresh) is reflected in the very next turn. Includes the
+						// full Spec (useCaseData/dataModelData), not just codebase
+						// routes - see chatContext.ts.
+						let summary = buildChatSummary(diagramData, diagramName, useCaseData, dataModelData);
 
 						// The tool-call loop: each chatHook() call is one model turn
 						// (one kratai-web round trip). When the model wants a tool, it
@@ -364,7 +369,9 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 						// effects for the shell's own browser JS to carry out - there's
 						// nothing meaningful to hand back to the model as a "result", so
 						// they get a trivial acknowledgment and are separately
-						// accumulated here to ride along with the final reply.
+						// accumulated here to ride along with the final reply. A
+						// successful spec edit (SPEC_TOOL_NAMES) queues the same kind of
+						// side effect - the shell reloading whichever view just changed.
 						const uiActions: Array<{ type: string } & Record<string, unknown>> = [];
 						const MAX_TOOL_ITERATIONS = 6;
 						for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
@@ -376,14 +383,32 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 							}
 							console.log(`[chat] turn ${i + 1}: ${step.toolCalls.map(c => `${c.name}(${JSON.stringify(c.input)})`).join(', ')}`);
 							conversation.push({ role: 'assistant', text: step.assistantText, toolCalls: step.toolCalls });
+							let specChanged = false;
 							const toolResults = step.toolCalls.map(call => {
 								if (UI_ACTION_TOOL_NAMES.has(call.name)) {
 									uiActions.push({ type: call.name, ...call.input });
 									return { toolCallId: call.id, output: 'Shown to the user.' };
 								}
+								if (SPEC_TOOL_NAMES.has(call.name)) {
+									const result = executeSpecTool(call.name, call.input, useCaseData, dataModelData);
+									if (result.updatedUseCaseData) {
+										useCaseData = result.updatedUseCaseData;
+										saveCachedUseCaseDiagramData(workspacePath, useCaseData);
+										uiActions.push({ type: 'refresh_view', view: 'usecase' }, { type: 'refresh_view', view: 'srs' });
+										specChanged = true;
+									}
+									if (result.updatedDataModelData) {
+										dataModelData = result.updatedDataModelData;
+										saveCachedDataModelData(workspacePath, dataModelData);
+										uiActions.push({ type: 'refresh_view', view: 'data' }, { type: 'refresh_view', view: 'srs' });
+										specChanged = true;
+									}
+									return { toolCallId: call.id, output: result.output };
+								}
 								return { toolCallId: call.id, output: executeChatTool(call.name, call.input, diagramData) };
 							});
 							conversation.push({ role: 'user', toolResults });
+							if (specChanged) summary = buildChatSummary(diagramData, diagramName, useCaseData, dataModelData);
 						}
 						// Ran out of tool budget. A follow-up call with allowTools:false
 						// looked like the obvious fix, but testing showed Gemini doesn't

@@ -59,8 +59,8 @@ export const CHAT_TOOL_DEFINITIONS: ToolDefinition[] = [
 			properties: {
 				view: {
 					type: 'string',
-					enum: ['graph', 'class', 'stack', 'usecase'],
-					description: '"graph" = 3D Knowledge Graph, "class" = Class Diagram, "stack" = 3D Stack Layer, "usecase" = Use Case Diagram'
+					enum: ['graph', 'class', 'stack', 'usecase', 'data', 'srs'],
+					description: '"graph" = 3D Knowledge Graph, "class" = Class Diagram, "stack" = 3D Stack Layer, "usecase" = Use Case Model, "data" = Data Model, "srs" = the Spec document'
 				}
 			},
 			required: ['view']
@@ -73,6 +73,137 @@ export const CHAT_TOOL_DEFINITIONS: ToolDefinition[] = [
 			type: 'object',
 			properties: { name: { type: 'string', description: 'Exact class/file name, as returned by search_classes' } },
 			required: ['name']
+		}
+	},
+	{
+		name: 'update_srs_metadata',
+		description: 'Edit the Spec document\'s header metadata. Only include the field(s) you want to change - an omitted field is left as-is.',
+		inputSchema: {
+			type: 'object',
+			properties: {
+				preparedBy: { type: 'string', description: 'Name of the person or company preparing the document' },
+				clientName: { type: 'string', description: 'Name of the client this document is for (optional)' }
+			}
+		}
+	},
+	{
+		name: 'update_use_case_model',
+		description: 'Edit the Use Case Model. Only include the top-level field(s) you want to change - an omitted field is left as-is. IMPORTANT: "actors", "useCases", "associations", "relations", and "nfrs" each REPLACE the entire current list, not merge into it - to add one actor, pass every existing actor from the summary above plus the new one, not just the new one alone. Existing ids must be reused exactly (as given in the summary) to keep an item the same; a new item needs a new unique kebab-case id. The edit is rejected if it would leave zero actors or zero use cases.',
+		inputSchema: {
+			type: 'object',
+			properties: {
+				overview: { type: 'string', description: '1-2 sentence project-goal blurb' },
+				narrative: { type: 'string', description: 'Role-by-role plain-language explanation of who the actors are and what they do' },
+				actors: {
+					type: 'array',
+					description: 'The COMPLETE replacement list of actors',
+					items: {
+						type: 'object',
+						properties: {
+							id: { type: 'string' },
+							name: { type: 'string' },
+							side: { type: 'string', enum: ['left', 'right'] },
+							role: { type: 'string' },
+							description: { type: 'string' }
+						},
+						required: ['id', 'name']
+					}
+				},
+				useCases: {
+					type: 'array',
+					description: 'The COMPLETE replacement list of use cases',
+					items: {
+						type: 'object',
+						properties: { id: { type: 'string' }, name: { type: 'string' }, description: { type: 'string' } },
+						required: ['id', 'name']
+					}
+				},
+				associations: {
+					type: 'array',
+					description: 'The COMPLETE replacement list of actor-to-use-case links',
+					items: {
+						type: 'object',
+						properties: { actorId: { type: 'string' }, useCaseId: { type: 'string' } },
+						required: ['actorId', 'useCaseId']
+					}
+				},
+				relations: {
+					type: 'array',
+					description: 'The COMPLETE replacement list of <<include>>/<<extend>> links between use cases',
+					items: {
+						type: 'object',
+						properties: {
+							kind: { type: 'string', enum: ['include', 'extend'] },
+							fromId: { type: 'string' },
+							toId: { type: 'string' }
+						},
+						required: ['kind', 'fromId', 'toId']
+					}
+				},
+				nfrs: {
+					type: 'array',
+					description: 'The COMPLETE replacement list of non-functional requirements',
+					items: {
+						type: 'object',
+						properties: {
+							id: { type: 'string' },
+							useCaseId: { type: 'string', description: 'A use case id above, to scope this NFR to one capability. Omit this key entirely for a project-wide NFR - do not pass an empty string or null.' },
+							name: { type: 'string' },
+							text: { type: 'string' }
+						},
+						required: ['id', 'name', 'text']
+					}
+				}
+			}
+		}
+	},
+	{
+		name: 'update_data_model',
+		description: 'Edit the Data Model. Only include the top-level field(s) you want to change - an omitted field is left as-is. IMPORTANT: "entities" and "relationships" each REPLACE the entire current list, not merge into it - to add one entity, pass every existing entity from the summary above plus the new one, not just the new one alone. Existing ids must be reused exactly (as given in the summary) to keep an item the same; a new item needs a new unique kebab-case id.',
+		inputSchema: {
+			type: 'object',
+			properties: {
+				narrative: { type: 'string', description: 'Short conceptual paragraph explaining how the entities relate and why' },
+				entities: {
+					type: 'array',
+					description: 'The COMPLETE replacement list of entities',
+					items: {
+						type: 'object',
+						properties: {
+							id: { type: 'string' },
+							name: { type: 'string' },
+							attributes: {
+								type: 'array',
+								items: {
+									type: 'object',
+									properties: {
+										name: { type: 'string' },
+										type: { type: 'string' },
+										isPK: { type: 'boolean' },
+										isFK: { type: 'boolean' }
+									},
+									required: ['name', 'type']
+								}
+							}
+						},
+						required: ['id', 'name']
+					}
+				},
+				relationships: {
+					type: 'array',
+					description: 'The COMPLETE replacement list of relationships',
+					items: {
+						type: 'object',
+						properties: {
+							fromId: { type: 'string' },
+							toId: { type: 'string' },
+							kind: { type: 'string', enum: ['one-to-one', 'one-to-many', 'many-to-many'] },
+							label: { type: 'string' }
+						},
+						required: ['fromId', 'toId', 'kind']
+					}
+				}
+			}
 		}
 	}
 ];
@@ -87,3 +218,12 @@ export const CHAT_TOOL_DEFINITIONS: ToolDefinition[] = [
  * perform - see view.ts's own doc comment on the split.
  */
 export const UI_ACTION_TOOL_NAMES = new Set(['show_view', 'highlight_class']);
+
+/**
+ * Spec-editing tools - unlike the read-only tools above, these mutate
+ * kratai.usecases.json/kratai.datamodel.json. Routed in view.ts's chat loop
+ * to @kratai/cli's chatSpecTools.ts (executeSpecTool), the only layer with
+ * a live, mutable reference to useCaseData/dataModelData and the save
+ * functions that persist them.
+ */
+export const SPEC_TOOL_NAMES = new Set(['update_srs_metadata', 'update_use_case_model', 'update_data_model']);
