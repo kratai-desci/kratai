@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@kratai/cli": "*",
-    "@kratai/llm": "*",
+    "@kratai-desci/llm": "*",
     "pdf-lib": "^1.17.1"
   },
   "devDependencies": {

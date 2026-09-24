@@ -1,4 +1,4 @@
-import { UseCaseDiagramData, DataModelData, validateUseCaseModelOutput, validateDataModelOutput } from '@kratai/llm';
+import { UseCaseDiagramData, DataModelData, validateUseCaseModelOutput, validateDataModelOutput } from '@kratai-desci/llm';
 
 export interface SpecToolResult {
 	output: string;

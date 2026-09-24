@@ -1,12 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { DiagramData, ClassInfo } from '@kratai/analysis';
-import { UseCaseDiagramData } from '@kratai/llm';
+import { UseCaseDiagramData } from '@kratai-desci/llm';
 
-// The shape itself is owned by @kratai/llm - it's the contract the model's
+// The shape itself is owned by @kratai-desci/llm - it's the contract the model's
 // JSON output has to satisfy (see useCaseSchema.ts there), so it's defined
 // once and re-exported here rather than duplicated.
-export type { UseCaseDiagramData, UseCaseActor, UseCaseItem, UseCaseAssociation, UseCaseRelation, UseCaseNFR } from '@kratai/llm';
+export type { UseCaseDiagramData, UseCaseActor, UseCaseItem, UseCaseAssociation, UseCaseRelation, UseCaseNFR } from '@kratai-desci/llm';
 
 const CACHE_FILE = 'kratai.usecases.json';
 

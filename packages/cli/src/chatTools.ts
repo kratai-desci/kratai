@@ -99,7 +99,7 @@ function getFolderStructure(diagramData: DiagramData): string {
 }
 
 /**
- * The other half of chatToolDefinitions.ts's schemas (in @kratai/llm) -
+ * The other half of chatToolDefinitions.ts's schemas (in @kratai-desci/llm) -
  * split across packages because this is the only layer with access to a
  * codebase's actual parsed data. view.ts's chat loop calls this once per
  * tool the model asked for, feeding the string result straight back as a

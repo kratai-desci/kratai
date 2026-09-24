@@ -20,8 +20,8 @@ import { generateSrsDocHTML, generateSrsEmptyHTML } from '../srsDocView.js';
 import { executeChatTool } from '../chatTools.js';
 import { executeSpecTool } from '../chatSpecTools.js';
 import { buildChatSummary } from '../chatContext.js';
-import { UI_ACTION_TOOL_NAMES, SPEC_TOOL_NAMES } from '@kratai/llm';
-import type { ConversationMessage, ChatStepResult } from '@kratai/llm';
+import { UI_ACTION_TOOL_NAMES, SPEC_TOOL_NAMES } from '@kratai-desci/llm';
+import type { ConversationMessage, ChatStepResult } from '@kratai-desci/llm';
 
 export interface AuthStatus {
 	signedIn: boolean;
@@ -56,7 +56,7 @@ export interface ViewOptions {
 	// Also desktop-owned (packages/desktop/src/main/generateProxy.ts) - an
 	// authenticated call to kratai-web's LLM proxy, using whatever device
 	// token startSignIn/the auth flow produced. This package never touches
-	// a provider key directly anymore (see @kratai/llm, which kratai-web
+	// a provider key directly anymore (see @kratai-desci/llm, which kratai-web
 	// depends on instead).
 	generateUseCaseDiagram?: (summary: string, workspaceName: string) => Promise<UseCaseDiagramData>;
 	// Same desktop-owned relay shape, pointed at kratai-web's data-model

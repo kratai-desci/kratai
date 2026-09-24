@@ -1,4 +1,4 @@
-// @kratai/llm - the one seam between kratai's deterministic static analysis
+// @kratai-desci/llm - the one seam between kratai's deterministic static analysis
 // (@kratai/analysis, never network-dependent) and anything that needs a
 // model call: use case diagram extraction, and the AI chat panel.
 

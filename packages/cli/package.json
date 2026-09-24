@@ -30,7 +30,7 @@
   "dependencies": {
     "@kratai/analysis": "*",
     "@kratai/diagram-view": "*",
-    "@kratai/llm": "*"
+    "@kratai-desci/llm": "*"
   },
   "devDependencies": {
     "@types/node": "22.x",

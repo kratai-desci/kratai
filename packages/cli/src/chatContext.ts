@@ -1,5 +1,5 @@
 import { DiagramData } from '@kratai/analysis';
-import { UseCaseDiagramData, DataModelData } from '@kratai/llm';
+import { UseCaseDiagramData, DataModelData } from '@kratai-desci/llm';
 import { buildUseCaseExtractionSummary } from './useCaseDiagramData.js';
 
 function specSection(useCaseData: UseCaseDiagramData | undefined, dataModelData: DataModelData | undefined): string {

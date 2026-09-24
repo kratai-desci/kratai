@@ -1,4 +1,4 @@
-import { UseCaseDiagramData, DataModelData } from '@kratai/llm';
+import { UseCaseDiagramData, DataModelData } from '@kratai-desci/llm';
 import { getDeviceToken, KRATAI_WEB_URL } from './auth.js';
 
 /**

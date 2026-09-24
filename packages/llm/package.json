@@ -1,10 +1,10 @@
 {
-  "name": "@kratai/llm",
-  "version": "1.0.0",
+  "name": "@kratai-desci/llm",
+  "version": "1.0.1",
   "description": "LLM client and prompt/response handling shared across kratai apps - the seam between kratai's own deterministic static analysis and anything that needs a model call (use case diagram extraction, AI chat). Published so kratai-web (a separate repo, not part of this npm workspace) can depend on the exact same extraction/validation logic the desktop app uses, so the two never drift on what counts as a correct use case diagram.",
   "license": "MIT",
   "publishConfig": {
-    "access": "public"
+    "registry": "https://npm.pkg.github.com"
   },
   "repository": {
     "type": "git",

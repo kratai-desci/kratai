@@ -1,13 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { DiagramData, ClassInfo } from '@kratai/analysis';
-import { DataModelData } from '@kratai/llm';
+import { DataModelData } from '@kratai-desci/llm';
 
-// The shape itself is owned by @kratai/llm - it's the contract the model's
+// The shape itself is owned by @kratai-desci/llm - it's the contract the model's
 // JSON output has to satisfy (see dataModelSchema.ts there), so it's
 // defined once and re-exported here rather than duplicated - same split
 // useCaseDiagramData.ts uses for the Use Case Model.
-export type { DataModelData, DataEntity, DataAttribute, DataRelationship } from '@kratai/llm';
+export type { DataModelData, DataEntity, DataAttribute, DataRelationship } from '@kratai-desci/llm';
 
 const CACHE_FILE = 'kratai.datamodel.json';
 

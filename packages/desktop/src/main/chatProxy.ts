@@ -1,4 +1,4 @@
-import { ConversationMessage, ChatStepResult } from '@kratai/llm';
+import { ConversationMessage, ChatStepResult } from '@kratai-desci/llm';
 import { getDeviceToken, KRATAI_WEB_URL } from './auth.js';
 
 /**
