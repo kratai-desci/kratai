@@ -15,7 +15,7 @@ function statusLabel(status: string): string {
  * other views' shell (theme sync script, same CSS custom properties) so it
  * reads as part of the same app.
  */
-export function generateDiffScorecardHTML(data: ScorecardData, options: { mock?: boolean } = {}): string {
+export function generateDiffScorecardHTML(data: ScorecardData): string {
 	function renderItem(item: ScorecardItem): string {
 		return `<div class="item ${item.flag}">
 			<div class="item-top">
@@ -115,7 +115,7 @@ export function generateDiffScorecardHTML(data: ScorecardData, options: { mock?:
 	<div id="page">
 		<div id="header">
 			<h1>${escapeXml(data.workspaceName)}</h1>
-			<span class="sub">code review${options.mock ? ' &bull; mock commentary' : ''}</span>
+			<span class="sub">code review</span>
 		</div>
 		<div id="score-card">
 			<div id="score-ring" style="--score-color: ${data.overallScore >= 80 ? 'var(--ok)' : data.overallScore >= 55 ? 'var(--warn)' : 'var(--deleted)'}">${data.overallScore}</div>

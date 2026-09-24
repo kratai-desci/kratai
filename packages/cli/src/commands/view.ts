@@ -167,7 +167,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		return generateDataModelEmptyHTML(getAuthStatus().signedIn);
 	}
 	function renderDiffScorecard(): string {
-		return generateDiffScorecardHTML(buildDiffScorecard(diagramData, diagramName), { mock: true });
+		return generateDiffScorecardHTML(buildDiffScorecard(diagramData, diagramName, useCaseData, dataModelData));
 	}
 	// Real data only, same pattern as renderUseCaseDiagram() - this doc is
 	// built entirely from the Use Case Model, so it has nothing to show
