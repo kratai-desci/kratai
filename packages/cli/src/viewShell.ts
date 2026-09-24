@@ -90,7 +90,13 @@ export function generateShellHTML(
 		gap: 16px; padding: 14px 20px;
 		background: var(--surface); border-bottom: 1px solid var(--border);
 	}
-	#topbar h1 { margin: 0; font-size: 15px; font-weight: 650; }
+	#topbar h1 { margin: 0; font-size: 15px; font-weight: 650; display: inline; }
+	#beta-badge {
+		display: inline-block; vertical-align: middle; margin-left: 8px;
+		font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+		color: var(--accent); border: 1px solid var(--accent); border-radius: 100px;
+		padding: 1px 7px; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+	}
 	#topbar .sub {
 		margin: 3px 0 0 0; font-size: 12.5px; color: var(--text-dim);
 		font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
@@ -306,7 +312,7 @@ export function generateShellHTML(
 <body>
 	<div id="topbar">
 		<div>
-			<h1>${workspaceName}</h1>
+			<h1>${workspaceName}</h1><span id="beta-badge" title="kratai is in beta - expect rough edges">Beta</span>
 			<p class="sub">${stats.classCount} classes &bull; ${stats.folderCount} folders &bull; ${stats.edgeCount} relationships</p>
 		</div>
 		<div id="view-pickers"></div>

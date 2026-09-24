@@ -40,7 +40,13 @@ export function getWelcomeHTML(recentWorkspaces: string[]): string {
 <style>
 	${BRAND_STYLE}
 	#card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px 44px; max-width: 420px; text-align: center; }
-	#card h1 { margin: 0 0 8px; font-size: 20px; }
+	#card h1 { margin: 0 0 8px; font-size: 20px; display: inline; }
+	#beta-badge {
+		display: inline-block; vertical-align: middle; margin-left: 8px;
+		font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+		color: var(--accent); border: 1px solid var(--accent); border-radius: 100px;
+		padding: 2px 8px; font-family: ui-monospace, monospace;
+	}
 	#card p { color: var(--text-dim); font-size: 13.5px; line-height: 1.6; margin: 0 0 24px; }
 	.cta {
 		display: inline-block; border: none; background: var(--accent); color: #fff; font-weight: 650;
@@ -58,7 +64,7 @@ export function getWelcomeHTML(recentWorkspaces: string[]): string {
 </head>
 <body>
 	<div id="card">
-		<h1>Welcome to kratai</h1>
+		<h1>Welcome to kratai</h1><span id="beta-badge">Beta</span>
 		<p>A spec-driven IDE: keep your use cases, data model, and design docs in sync with the code as it changes.</p>
 		<a class="cta" href="kratai-action://pick-folder">Select a folder to get started</a>
 		${recentList}
