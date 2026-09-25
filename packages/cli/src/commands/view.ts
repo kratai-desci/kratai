@@ -404,11 +404,6 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			});
 			return;
 		}
-		if (req.method === 'GET' && req.url === '/api/debug/summary') {
-			res.writeHead(200, { 'Content-Type': 'text/plain' });
-			res.end(buildChatSummary(diagramData, diagramName, useCaseData, dataModelData));
-			return;
-		}
 		if (req.method === 'POST' && req.url === '/api/use-case-diagram/generate') {
 			(async () => {
 				try {
