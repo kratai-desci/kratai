@@ -143,20 +143,20 @@
       "fromId": "class-info",
       "toId": "class-relationship",
       "kind": "one-to-many",
-      "label": "originates relationship"
+      "label": "creates relationship"
     },
     {
       "fromId": "data-entity",
       "toId": "data-relationship",
       "kind": "one-to-many",
-      "label": "connects via"
+      "label": "connected via"
     },
     {
       "fromId": "git-comparison-result",
       "toId": "file-change",
       "kind": "one-to-many",
-      "label": "tracks"
+      "label": "tracks changes"
     }
   ],
-  "narrative": "The domain models the structural analysis and evolution of a codebase by tracking software components and their interconnections. Analyzed code constructs are cataloged as classes that link to other classes through directed structural relationships, while data models model high-level entities and their schema bindings. Repository diff operations aggregate individual file modifications under comparison results to show how the codebase changes over time."
+  "narrative": "The domain model represents structural analysis and evolution of the codebase by tracking software components and dependencies. Analyzed code structure is stored as classes connected to other classes through directed structural relationships, while the data model represents high-level entities and schemas. Git diff comparison captures file modification entries under comparison results to showcase codebase evolution over time."
 }
