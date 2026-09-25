@@ -20,6 +20,7 @@ import { generateSrsDocHTML, generateSrsEmptyHTML } from '../srsDocView.js';
 import { executeChatTool } from '../chatTools.js';
 import { executeSpecTool } from '../chatSpecTools.js';
 import { buildChatSummary } from '../chatContext.js';
+import { loadCachedChatHistory, saveCachedChatHistory } from '../chatHistoryData.js';
 import { UI_ACTION_TOOL_NAMES, SPEC_TOOL_NAMES } from '@kratai-desci/llm';
 import type { ConversationMessage, ChatStepResult } from '@kratai-desci/llm';
 
@@ -153,6 +154,11 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// reused across requests/reparse, not regenerated on every reparse.
 	let useCaseData: UseCaseDiagramData | undefined = loadCachedUseCaseDiagramData(workspacePath);
 	let dataModelData: DataModelData | undefined = loadCachedDataModelData(workspacePath);
+	// Display history only (user/assistant text turns) - never the
+	// intermediate tool-call/tool-result messages a single /api/chat
+	// request builds up internally (see that handler's own `conversation`
+	// array), which live and die within one request.
+	let chatHistory: ConversationMessage[] = loadCachedChatHistory(workspacePath);
 
 	// First-open auto-generation: a signed-in user with nothing cached yet
 	// would otherwise land on two empty "Generate" cards and have to click
@@ -247,7 +253,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		classCount: nodes.length,
 		folderCount,
 		edgeCount: edges.length
-	}, getLayout(), getAuthStatus());
+	}, getLayout(), getAuthStatus(), chatHistory);
 
 	// The parse above (diagramData/nodes/edges) is the expensive part and
 	// stays cached for the server's lifetime, but the two diagram pages
@@ -503,6 +509,12 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 						for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
 							const step = await chatHook(conversation, diagramName, summary);
 							if (step.done) {
+								// messages is the client's own display history (already
+								// includes the just-sent user turn) - only the final reply
+								// needs adding, never the tool-call turns above (conversation),
+								// which exist only for this one request's internal loop.
+								chatHistory = [...messages, { role: 'assistant', text: step.reply }];
+								saveCachedChatHistory(workspacePath, chatHistory);
 								res.writeHead(200, { 'Content-Type': 'application/json' });
 								res.end(JSON.stringify({ ok: true, reply: step.reply, uiActions }));
 								return;
@@ -570,6 +582,8 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 						// often-vague opening searches.
 						const gathered = Array.from(new Set(allOutputs)).slice(-4).join('\n\n').slice(0, 3000);
 						const reply = `I looked into several parts of the codebase but couldn't settle on a complete answer within my lookup budget. Here's what I found along the way:\n\n${gathered}\n\nTry asking a more specific question (about one particular class, route, or file) for a fuller answer.`;
+						chatHistory = [...messages, { role: 'assistant', text: reply }];
+						saveCachedChatHistory(workspacePath, chatHistory);
 						res.writeHead(200, { 'Content-Type': 'application/json' });
 						res.end(JSON.stringify({ ok: true, reply, uiActions }));
 						return;

@@ -43,7 +43,8 @@ export function generateShellHTML(
 	workspaceName: string,
 	stats: ShellStats,
 	initialLayout: Record<string, unknown>,
-	authStatus: { signedIn: boolean; email: string | null }
+	authStatus: { signedIn: boolean; email: string | null },
+	initialChatHistory: { role: 'user' | 'assistant'; text?: string }[] = []
 ): string {
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -390,6 +391,11 @@ export function generateShellHTML(
 		// no-flash-of-wrong-state reason as STORED_LAYOUT - kept in sync
 		// afterward by the sign-in poll loop below, not re-embedded.
 		var AUTH_STATUS = ${JSON.stringify(authStatus)};
+		// Restored conversation from a previous session (view.ts's
+		// chatHistoryData.ts) - display turns only, no tool-call internals.
+		// Rendered into the chat log and used to seed chatHistory below,
+		// rather than always starting empty.
+		var STORED_CHAT_HISTORY = ${JSON.stringify(initialChatHistory)};
 		// The one flat list every picker draws from - spec-driven views
 		// first, then code-exploration ones. Knowledge Graph/Stack Layer
 		// were pulled from this list (still reachable via SRC_BY_MODE - see
@@ -1011,14 +1017,19 @@ export function generateShellHTML(
 
 		// Client-held history, not server-stored - resent in full each turn
 		// (see /api/chat's own doc comment on why that's an accepted
-		// simplicity tradeoff for a first version). Starts empty every
-		// reload. Only plain {role, text} entries go in here - the tool-call
-		// loop (a model asking to search/inspect the codebase mid-answer)
-		// happens entirely server-side in view.ts before a reply ever comes
-		// back, so this page only ever sees a final answer, never a pending
-		// tool call. A failed request doesn't add anything, so the next
-		// attempt just resends the same pending question.
-		var chatHistory = [];
+		// simplicity tradeoff for a first version). Seeded from
+		// STORED_CHAT_HISTORY (view.ts persists it to kratai.chat.json after
+		// each reply) rather than starting empty every reload. Only plain
+		// {role, text} entries go in here - the tool-call loop (a model
+		// asking to search/inspect the codebase mid-answer) happens entirely
+		// server-side in view.ts before a reply ever comes back, so this
+		// page only ever sees a final answer, never a pending tool call. A
+		// failed request doesn't add anything, so the next attempt just
+		// resends the same pending question.
+		var chatHistory = STORED_CHAT_HISTORY.slice();
+		chatHistory.forEach(function (m) {
+			if (m.text) appendChatMessage(m.role === 'assistant' ? 'ai' : 'user', m.text);
+		});
 
 		// The AI can change what's on screen, unprompted, as part of
 		// answering (show_view/highlight_class tool calls - see
