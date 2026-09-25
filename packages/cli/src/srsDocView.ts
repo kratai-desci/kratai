@@ -171,10 +171,11 @@ ${DOC_STYLE}
 	}
 	.meta-value:hover, .meta-value:focus { border-bottom-color: var(--accent); }
 	.meta-value:empty:before { content: attr(data-placeholder); color: var(--text-faint); }
-	/* Cover-page content (About this document, Overview) - deliberately
-	   not styled like .section below (no card background/border, no
-	   numbered h2) so it reads as front matter, not part of the numbered
-	   body that starts right after it. */
+	/* "About this document" only now - front matter that lives on the
+	   cover page itself, deliberately not styled like .section (no card
+	   background/border, no numbered h2). Overview moved to a real
+	   .section below (unnumbered - see the sections array comment) so it
+	   reads visually the same as Use Case Diagram/Use cases/etc. */
 	.cover-block { margin-top: 22px; }
 	.cover-label { font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); margin-bottom: 4px; }
 	.cover-block p { color: var(--text-dim); font-size: 12.5px; line-height: 1.6; margin: 0; }
@@ -315,8 +316,8 @@ ${DATA_MODEL_SVG_STYLE}
 			</div>
 		</div>
 
-		${useCaseData.overview ? `<div class="cover-block overview-block">
-			<div class="cover-label">Overview</div>
+		${useCaseData.overview ? `<div class="section">
+			<h2>Overview</h2>
 			<p>${escapeXml(useCaseData.overview)}</p>
 		</div>` : ''}
 
