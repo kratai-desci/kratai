@@ -291,7 +291,19 @@ ${DATA_MODEL_SVG_STYLE}
 		   atomic pieces (one use case, one table row, and now one diagram -
 		   safe only because it's height-capped above - from splitting. */
 		.section { border: none; box-shadow: none; }
-		.use-case-item, tr, .diagram-wrap { break-inside: avoid; }
+		.use-case-item, tr, .diagram-wrap, .entity-block { break-inside: avoid; }
+		/* Without this, a section heading can land as the very last line
+			   on a page with its own body starting fresh on the next one -
+			   the browser's default pagination has no notion of "keep a
+			   heading with its content," only the explicit break rules
+			   above/below it. break-after: avoid on the heading itself tells
+			   it never to break immediately after - if a break would
+			   otherwise fall right there, the heading (and the start of its
+			   body) gets pushed to the next page as a unit instead. Doesn't
+			   guarantee the *whole* section fits on one page (see the
+			   .section comment above), just that the heading is never
+			   orphaned from all of its content. */
+		.section h2 { break-after: avoid; page-break-after: avoid; }
 	}
 </style>
 </head>
