@@ -268,19 +268,21 @@ ${DATA_MODEL_SVG_STYLE}
 		   its own break-inside: avoid), stranding "1. Use Case Diagram"'s
 		   heading and intro text on page 1 while the diagram itself lands
 		   alone on page 2. */
-		#doc-header { break-after: page; page-break-after: always; }
-			/* Pushes "About this document" toward the bottom of the cover
-			   page, top/bottom weighted like a real title page (title +
-			   Overview up top, boilerplate low) instead of everything
-			   stacked flush under the title. Print-only - in the live
-			   scrollable view this would just be a huge dead gap, so the
-			   normal .cover-block margin-top: 22px above still applies
-			   there. A fixed px push (not a page-height flex layout) is
-			   deliberately conservative - tuned against a real exported PDF
-			   (title+meta+a ~4-line Overview) to sit low without risking
-			   the block itself spilling onto page 2, which the break-after
-			   above would then turn into a stray near-empty page 3. */
-			.cover-about { margin-top: 320px; }
+		/* #doc-header is now the entire page-1 cover (just title/meta/
+			   About-doc - Overview moved below it, to page 2, see the
+			   #doc-header markup below) and is stretched to fill the printed
+			   page (100vh = one page's content-box height under Chromium's
+			   print pagination, the standard one-section-per-page trick) so
+			   flex space-between can pin the title block to the real top and
+			   .cover-about to the real bottom, instead of guessing a margin
+			   that only approximately reaches the bottom edge. -48px matches
+			   #doc's own padding-top above, which pushes #doc-header down
+			   from the page's top edge before this height is measured. */
+			#doc-header {
+				height: calc(100vh - 48px);
+				display: flex; flex-direction: column; justify-content: space-between;
+				break-after: page; page-break-after: always;
+			}
 		/* A whole section (e.g. every use case) is often taller than one
 		   page - avoiding a break on the *section* pushes the entire block
 		   to the next page rather than letting it flow, stranding
@@ -299,21 +301,24 @@ ${DATA_MODEL_SVG_STYLE}
 	</div>
 	<div id="doc">
 		<div id="doc-header">
-			<div class="kicker">Software Requirements Specification</div>
-			<h1>${escapeXml(useCaseData.workspaceName)}</h1>
-			<div class="doc-meta">
-				<div class="meta-field"><span class="meta-label">Prepared by</span><span class="meta-value" contenteditable="true" data-field="preparedBy" data-placeholder="add name or company">${escapeXml(useCaseData.preparedBy || '')}</span></div>
-				<div class="meta-field"><span class="meta-label">Client</span><span class="meta-value" contenteditable="true" data-field="clientName" data-placeholder="add client (optional)">${escapeXml(useCaseData.clientName || '')}</span></div>
+			<div class="cover-top">
+				<div class="kicker">Software Requirements Specification</div>
+				<h1>${escapeXml(useCaseData.workspaceName)}</h1>
+				<div class="doc-meta">
+					<div class="meta-field"><span class="meta-label">Prepared by</span><span class="meta-value" contenteditable="true" data-field="preparedBy" data-placeholder="add name or company">${escapeXml(useCaseData.preparedBy || '')}</span></div>
+					<div class="meta-field"><span class="meta-label">Client</span><span class="meta-value" contenteditable="true" data-field="clientName" data-placeholder="add client (optional)">${escapeXml(useCaseData.clientName || '')}</span></div>
+				</div>
 			</div>
-			${useCaseData.overview ? `<div class="cover-block">
-				<div class="cover-label">Overview</div>
-				<p>${escapeXml(useCaseData.overview)}</p>
-			</div>` : ''}
 			<div class="cover-block cover-about">
 				<div class="cover-label">About this document</div>
 				<p>${ABOUT_DOC_TEXT}</p>
 			</div>
 		</div>
+
+		${useCaseData.overview ? `<div class="cover-block overview-block">
+			<div class="cover-label">Overview</div>
+			<p>${escapeXml(useCaseData.overview)}</p>
+		</div>` : ''}
 
 		${sections.map((s, i) => `<div class="section">
 			<h2>${i + 1}. ${s.title}</h2>
