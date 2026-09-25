@@ -28,21 +28,3 @@ const iconDest = path.join(__dirname, 'out', 'main', 'assets', 'icon.png');
 fs.mkdirSync(path.dirname(iconDest), { recursive: true });
 fs.copyFileSync(iconSrc, iconDest);
 console.log('[copy-vendor] copied icon.png');
-
-// Onboarding screenshots (assets/onboarding/{light,dark}/*.png) - onboarding.ts
-// reads these at runtime and inlines them as data URIs into the injected
-// overlay, picking whichever theme subfolder matches the page's own theme.
-function copyDirRecursive(srcDir, destDir) {
-	fs.mkdirSync(destDir, { recursive: true });
-	for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
-		const srcPath = path.join(srcDir, entry.name);
-		const destPath = path.join(destDir, entry.name);
-		if (entry.isDirectory()) {
-			copyDirRecursive(srcPath, destPath);
-		} else {
-			fs.copyFileSync(srcPath, destPath);
-		}
-	}
-}
-copyDirRecursive(path.join(__dirname, 'assets', 'onboarding'), path.join(__dirname, 'out', 'main', 'assets', 'onboarding'));
-console.log('[copy-vendor] copied onboarding screenshots');

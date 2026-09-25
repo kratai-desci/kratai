@@ -438,9 +438,9 @@ export function generateShellHTML(
 				})
 			}).catch(function () {});
 		}
-		var leftMode = storedLayout.leftMode || 'usecase';
+		var leftMode = storedLayout.leftMode || 'srs';
 		var rightMode = storedLayout.rightMode || 'class';
-		var narrowMode = storedLayout.narrowMode || 'usecase';
+		var narrowMode = storedLayout.narrowMode || 'srs';
 		// What each generic frame is currently showing - drives which
 		// content-specific fixups (see applyFrameFixups) apply on load, and
 		// which frames a folder-config-changed message should reload.

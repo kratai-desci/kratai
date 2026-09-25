@@ -3,8 +3,6 @@ import * as path from 'path';
 import { app, BrowserWindow, Menu, dialog, nativeImage, shell } from 'electron';
 import { runView } from '@kratai/cli';
 import { addRecentWorkspace, listRecentWorkspaces } from './workspaceStore.js';
-import { hasSeenOnboarding, markOnboardingSeen } from './onboardingStore.js';
-import { getOnboardingScript } from './onboarding.js';
 import { getLayout, saveLayout } from './layoutStore.js';
 import { startSignIn, handleAuthCallback, getAuthStatus, signOut, KRATAI_WEB_URL } from './auth.js';
 import { generateUseCaseDiagram, generateDataModel } from './generateProxy.js';
@@ -245,16 +243,6 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 
 	mainWindow!.setTitle(`kratai - ${workspacePath}`);
 	await mainWindow!.loadURL(url);
-
-	if (!hasSeenOnboarding()) {
-		showOnboarding();
-		markOnboardingSeen();
-	}
-}
-
-function showOnboarding(): void {
-	if (!mainWindow || mainWindow.isDestroyed()) return;
-	void mainWindow.webContents.executeJavaScript(getOnboardingScript(path.join(__dirname, 'assets')));
 }
 
 async function promptForWorkspace(): Promise<void> {
@@ -281,12 +269,6 @@ function buildMenu(): void {
 			submenu: [
 				{ role: 'reload' },
 				{ role: 'toggleDevTools' }
-			]
-		},
-		{
-			label: 'Help',
-			submenu: [
-				{ label: 'Show Getting Started', click: () => showOnboarding() }
 			]
 		}
 	]));
