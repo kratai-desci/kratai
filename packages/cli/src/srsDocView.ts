@@ -256,6 +256,16 @@ ${DATA_MODEL_SVG_STYLE}
 		#pdf-download { display: none; }
 		.meta-value { border-bottom: none; }
 		.meta-field:has(.meta-value:empty) { display: none; }
+		/* pdfExport.ts prints page 1 alone (no running header) then "2-"
+		   with the real header, on the assumption that page 1 is a title
+		   page and the numbered body starts on page 2 - true once this
+		   forces it, but without it the browser just keeps flowing content
+		   onto page 1 until something doesn't fit (usually the first
+		   diagram, since it's the first atomic block big enough to trigger
+		   its own break-inside: avoid), stranding "1. Use Case Diagram"'s
+		   heading and intro text on page 1 while the diagram itself lands
+		   alone on page 2. */
+		#doc-header { break-after: page; page-break-after: always; }
 		/* A whole section (e.g. every use case) is often taller than one
 		   page - avoiding a break on the *section* pushes the entire block
 		   to the next page rather than letting it flow, stranding
