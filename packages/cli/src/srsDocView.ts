@@ -40,6 +40,14 @@ const THEME_SYNC_SCRIPT = `<script>
 	} catch (e) {}
 </script>`;
 
+// Identical on every generated document, unlike Overview (real,
+// project-specific content) - explains what an SRS is at all, for a reader
+// who's never seen one, before the project-specific Overview right below it
+// on the cover page. Deliberately not a numbered section - it's framing for
+// the document itself, not a requirement.
+const ABOUT_DOC_TEXT = "This Software Requirements Specification (SRS) describes what this system does, who uses it, and how its parts fit together - its actors and use cases, its data model, and the non-functional requirements it must satisfy. It's meant to give anyone unfamiliar with the codebase a clear, shared reference for what the system is and does, independent of implementation detail.";
+
+
 /**
  * Software Requirements Specification - a formatted document assembled
  * from real Use Case Model data (see useCaseExtraction.ts's prompt),
@@ -78,17 +86,19 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 	// position rather than a fixed "5." etc, so skipping one never leaves a
 	// gap in the numbering.
 	const sections: { title: string; body: string }[] = [];
-	if (useCaseData.overview) {
-		sections.push({ title: 'Overview', body: `<p>${escapeXml(useCaseData.overview)}</p>` });
-	}
+	// Overview moved to the cover page (below, alongside ABOUT_DOC_TEXT) -
+	// it's project-specific framing, not a requirement, so it doesn't
+	// belong numbered alongside Use Case Diagram/Data model/etc.
 	sections.push({
 		title: 'Use Case Diagram',
-		body: (useCaseData.narrative ? `<p>${escapeXml(useCaseData.narrative)}</p>` : '') +
+		body: `<p class="section-intro">This section shows how each actor interacts with the system through its key use cases.</p>` +
+			(useCaseData.narrative ? `<p>${escapeXml(useCaseData.narrative)}</p>` : '') +
 			`<figure class="diagram-wrap">${diagramSvg}<figcaption>Figure 1: Use Case Diagram</figcaption></figure>`
 	});
 	sections.push({
 		title: 'Actors &amp; roles',
-		body: `<table>
+		body: `<p class="section-intro">The following actors were identified as participants in the system, along with the use cases each one is involved in.</p>
+			<table>
 			<tr><th>Actor</th><th>Role</th><th>Description</th><th>Use cases</th></tr>
 			${useCaseData.actors.map(a => `<tr>
 				<td>${escapeXml(a.name.replace(/\n/g, ' '))}</td>
@@ -100,7 +110,8 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 	});
 	sections.push({
 		title: 'Use cases',
-		body: useCaseData.useCases.map((u, i) => {
+		body: `<p class="section-intro">Each use case below describes one capability the system provides, along with any requirements specific to it.</p>` +
+			useCaseData.useCases.map((u, i) => {
 			const nfrs = nfrsByUseCase[u.id] || [];
 			return `<div class="use-case-item">
 				<h3>UC-${i + 1}: ${escapeXml(u.name.replace(/\n/g, ' '))}</h3>
@@ -114,7 +125,8 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 		const entityName = (id: string) => dataModelData.entities.find(e => e.id === id)?.name || id;
 		sections.push({
 			title: 'Data model',
-			body: (dataModelData.narrative ? `<p>${escapeXml(dataModelData.narrative)}</p>` : '') +
+			body: `<p class="section-intro">This section describes the system's core data entities and how they relate to one another.</p>` +
+				(dataModelData.narrative ? `<p>${escapeXml(dataModelData.narrative)}</p>` : '') +
 				`<figure class="diagram-wrap">${dataModelSvg}<figcaption>Figure 2: Data Model Entity-Relationship Diagram</figcaption></figure>` +
 				dataModelData.entities.map(e => `<div class="entity-block">
 				<h3>${escapeXml(e.name)}</h3>
@@ -130,7 +142,8 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 	if (projectNfrs.length > 0) {
 		sections.push({
 			title: 'Project-wide non-functional requirements',
-			body: `<ul>${projectNfrs.map(n => `<li><span class="nfr-id">NFR-${nfrNumberById[n.id]}</span><strong>${escapeXml(n.name)}:</strong> ${escapeXml(n.text)}</li>`).join('\n')}</ul>`
+			body: `<p class="section-intro">The following non-functional requirements apply across the whole system, rather than to any single use case.</p>` +
+				`<ul>${projectNfrs.map(n => `<li><span class="nfr-id">NFR-${nfrNumberById[n.id]}</span><strong>${escapeXml(n.name)}:</strong> ${escapeXml(n.text)}</li>`).join('\n')}</ul>`
 		});
 	}
 
@@ -155,9 +168,26 @@ ${DOC_STYLE}
 	}
 	.meta-value:hover, .meta-value:focus { border-bottom-color: var(--accent); }
 	.meta-value:empty:before { content: attr(data-placeholder); color: var(--text-faint); }
+	/* Cover-page content (About this document, Overview) - deliberately
+	   not styled like .section below (no card background/border, no
+	   numbered h2) so it reads as front matter, not part of the numbered
+	   body that starts right after it. */
+	.cover-block { margin-top: 22px; }
+	.cover-label { font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); margin-bottom: 4px; }
+	.cover-block p { color: var(--text-dim); font-size: 12.5px; line-height: 1.6; margin: 0; }
 	.section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px 26px; margin-top: 18px; }
 	.section h2 { margin: 0 0 12px; font-size: 14px; }
 	.section p { color: var(--text-dim); font-size: 13px; line-height: 1.6; margin: 0; }
+	/* Static framing text (e.g. "This section shows how each actor
+	   interacts...") - italic and a shade lighter than real content so
+	   it's visually distinct from the project-specific narrative/data
+	   that follows it in the same section. */
+	/* .section p.section-intro, not just .section-intro - .section p's own
+	   margin:0 rule has equal-or-higher specificity (one class + one type
+	   selector) than a bare .section-intro class, so without the extra
+	   specificity here it would silently lose that fight and this
+	   paragraph would just look like a normal section paragraph. */
+	.section p.section-intro { color: var(--text-faint); font-style: italic; font-size: 12px; margin: 0 0 12px; }
 	table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 	th { text-align: left; color: var(--text-faint); font-weight: 650; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.03em; padding: 4px 8px; }
 	td { padding: 8px; border-top: 1px solid var(--border); vertical-align: top; }
@@ -250,6 +280,14 @@ ${DATA_MODEL_SVG_STYLE}
 				<div class="meta-field"><span class="meta-label">Prepared by</span><span class="meta-value" contenteditable="true" data-field="preparedBy" data-placeholder="add name or company">${escapeXml(useCaseData.preparedBy || '')}</span></div>
 				<div class="meta-field"><span class="meta-label">Client</span><span class="meta-value" contenteditable="true" data-field="clientName" data-placeholder="add client (optional)">${escapeXml(useCaseData.clientName || '')}</span></div>
 			</div>
+			<div class="cover-block">
+				<div class="cover-label">About this document</div>
+				<p>${ABOUT_DOC_TEXT}</p>
+			</div>
+			${useCaseData.overview ? `<div class="cover-block">
+				<div class="cover-label">Overview</div>
+				<p>${escapeXml(useCaseData.overview)}</p>
+			</div>` : ''}
 		</div>
 
 		${sections.map((s, i) => `<div class="section">
