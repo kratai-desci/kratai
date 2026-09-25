@@ -130,6 +130,8 @@ function ensureMainWindow(): BrowserWindow {
 			if (target) void openWorkspace(target);
 		} else if (parsed.hostname === 'open-dashboard') {
 			void shell.openExternal(new URL('/dashboard', KRATAI_WEB_URL).toString());
+		} else if (parsed.hostname === 'sign-in') {
+			startSignIn();
 		} else if (parsed.hostname === 'generate-now') {
 			resolveGenerateChoice?.(true);
 		} else if (parsed.hostname === 'skip-generate') {
@@ -169,7 +171,7 @@ function promptGenerateChoice(info: { workspaceName: string; missing: string[]; 
 
 async function showWelcomeScreen(): Promise<void> {
 	ensureMainWindow();
-	await loadDataHTML(getWelcomeHTML(listRecentWorkspaces()));
+	await loadDataHTML(getWelcomeHTML(listRecentWorkspaces(), getAuthStatus().signedIn));
 }
 
 async function openWorkspace(workspacePath: string): Promise<void> {

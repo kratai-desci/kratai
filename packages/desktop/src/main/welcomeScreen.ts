@@ -26,12 +26,20 @@ const BRAND_STYLE = `
 	}
 `;
 
-export function getWelcomeHTML(recentWorkspaces: string[]): string {
+// signedIn is passed in (not read here) so this stays a pure render of
+// whatever index.ts's showWelcomeScreen already knows, same as
+// recentWorkspaces - keeps this file free of any direct auth.js import.
+export function getWelcomeHTML(recentWorkspaces: string[], signedIn: boolean): string {
 	const recentList = recentWorkspaces.length === 0 ? '' : `
 		<div class="recent">
 			<div class="recent-label">Recent</div>
 			${recentWorkspaces.map(p => `<a class="recent-item" href="kratai-action://open?path=${encodeURIComponent(p)}">${p.split('/').pop()}<span class="path">${p}</span></a>`).join('\n')}
 		</div>`;
+	// A nudge, not a gate - the whole point of this option over requiring
+	// sign-in up front is that local analysis/diagramming needs no account
+	// at all, only the AI features do. Omitted entirely once signed in,
+	// rather than showing a now-pointless link.
+	const signInNudge = signedIn ? '' : `<a class="secondary-link" href="kratai-action://sign-in">Sign in to unlock AI features</a>`;
 
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -52,6 +60,11 @@ export function getWelcomeHTML(recentWorkspaces: string[]): string {
 		display: inline-block; border: none; background: var(--accent); color: #fff; font-weight: 650;
 		font-size: 13.5px; padding: 11px 22px; border-radius: 9px; cursor: pointer; text-decoration: none;
 	}
+	.secondary-link {
+		display: block; margin-top: 14px; color: var(--text-dim); font-size: 12px; font-weight: 600;
+		text-decoration: none;
+	}
+	.secondary-link:hover { color: var(--accent); }
 	.recent { margin-top: 28px; text-align: left; }
 	.recent-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 8px; }
 	.recent-item {
@@ -67,6 +80,7 @@ export function getWelcomeHTML(recentWorkspaces: string[]): string {
 		<h1>Welcome to kratai</h1><span id="beta-badge">Beta</span>
 		<p>A spec-driven IDE: keep your use cases, data model, and design docs in sync with the code as it changes.</p>
 		<a class="cta" href="kratai-action://pick-folder">Select a folder to get started</a>
+		${signInNudge}
 		${recentList}
 	</div>
 </body>
