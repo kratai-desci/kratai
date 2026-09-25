@@ -55,6 +55,40 @@ function updateDataModel(input: Record<string, unknown>, dataModelData: DataMode
 	}
 }
 
+// generate() is view.ts's own closure (summary-building + the real
+// generateUseCaseDiagram/generateDataModel proxy hook + saving to disk) -
+// this file stays decoupled from how a summary gets built or which proxy
+// hits kratai-web, same reasoning as updateUseCaseModel/updateDataModel
+// staying decoupled from persistence (view.ts owns that too). Guarding
+// against an existing model here, not just in the tool description, since
+// a model can call a tool the prompt told it not to.
+export interface SpecToolGenerators {
+	generateUseCaseModel?: () => Promise<UseCaseDiagramData>;
+	generateDataModel?: () => Promise<DataModelData>;
+}
+
+async function generateUseCaseModelTool(useCaseData: UseCaseDiagramData | undefined, generate: SpecToolGenerators['generateUseCaseModel']): Promise<SpecToolResult> {
+	if (useCaseData) return { output: 'A Use Case Model already exists - use update_use_case_model to edit it instead of generating a new one.' };
+	if (!generate) return { output: 'Generation is only available in the kratai desktop app.' };
+	try {
+		const generated = await generate();
+		return { output: 'Use Case Model generated.', updatedUseCaseData: generated };
+	} catch (error) {
+		return { output: `Could not generate the Use Case Model: ${error instanceof Error ? error.message : String(error)}` };
+	}
+}
+
+async function generateDataModelTool(dataModelData: DataModelData | undefined, generate: SpecToolGenerators['generateDataModel']): Promise<SpecToolResult> {
+	if (dataModelData) return { output: 'A Data Model already exists - use update_data_model to edit it instead of generating a new one.' };
+	if (!generate) return { output: 'Generation is only available in the kratai desktop app.' };
+	try {
+		const generated = await generate();
+		return { output: 'Data Model generated.', updatedDataModelData: generated };
+	} catch (error) {
+		return { output: `Could not generate the Data Model: ${error instanceof Error ? error.message : String(error)}` };
+	}
+}
+
 /**
  * The mutating counterpart of chatTools.ts's executeChatTool - routed
  * separately in view.ts's chat loop (see SPEC_TOOL_NAMES in
@@ -63,13 +97,16 @@ function updateDataModel(input: Record<string, unknown>, dataModelData: DataMode
  * executeChatTool's read-only DiagramData access has. Returns the updated
  * object(s) rather than mutating in place - view.ts owns reassigning its
  * own `let` and saving to disk, same as the real Generate routes already do.
+ * Async (unlike a plain patch) because the generate_* tools are real
+ * network calls to kratai-web, not just local JSON merging.
  */
-export function executeSpecTool(
+export async function executeSpecTool(
 	name: string,
 	input: Record<string, unknown>,
 	useCaseData: UseCaseDiagramData | undefined,
-	dataModelData: DataModelData | undefined
-): SpecToolResult {
+	dataModelData: DataModelData | undefined,
+	generators: SpecToolGenerators = {}
+): Promise<SpecToolResult> {
 	switch (name) {
 		case 'update_srs_metadata':
 			return updateSrsMetadata(input, useCaseData);
@@ -77,6 +114,10 @@ export function executeSpecTool(
 			return updateUseCaseModel(input, useCaseData);
 		case 'update_data_model':
 			return updateDataModel(input, dataModelData);
+		case 'generate_use_case_model':
+			return generateUseCaseModelTool(useCaseData, generators.generateUseCaseModel);
+		case 'generate_data_model':
+			return generateDataModelTool(dataModelData, generators.generateDataModel);
 		default:
 			return { output: `Unknown tool: ${name}` };
 	}

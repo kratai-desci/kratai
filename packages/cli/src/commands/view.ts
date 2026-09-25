@@ -510,13 +510,26 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 							console.log(`[chat] turn ${i + 1}: ${step.toolCalls.map(c => `${c.name}(${JSON.stringify(c.input)})`).join(', ')}`);
 							conversation.push({ role: 'assistant', text: step.assistantText, toolCalls: step.toolCalls });
 							let specChanged = false;
-							const toolResults = step.toolCalls.map(call => {
+							// Sequential, not Promise.all - a turn can include both a
+							// generate_* and an update_* call together, and running them
+							// concurrently would race on the same useCaseData/
+							// dataModelData reassignment below.
+							const toolResults: { toolCallId: string; output: string }[] = [];
+							for (const call of step.toolCalls) {
 								if (UI_ACTION_TOOL_NAMES.has(call.name)) {
 									uiActions.push({ type: call.name, ...call.input });
-									return { toolCallId: call.id, output: 'Shown to the user.' };
+									toolResults.push({ toolCallId: call.id, output: 'Shown to the user.' });
+									continue;
 								}
 								if (SPEC_TOOL_NAMES.has(call.name)) {
-									const result = executeSpecTool(call.name, call.input, useCaseData, dataModelData);
+									const result = await executeSpecTool(call.name, call.input, useCaseData, dataModelData, {
+										generateUseCaseModel: generateUseCaseDiagramHook
+											? () => generateUseCaseDiagramHook(buildUseCaseExtractionSummary(diagramData, diagramName), diagramName)
+											: undefined,
+										generateDataModel: generateDataModelHook
+											? () => generateDataModelHook(buildDataModelExtractionSummary(diagramData, diagramName), diagramName)
+											: undefined
+									});
 									if (result.updatedUseCaseData) {
 										useCaseData = result.updatedUseCaseData;
 										saveCachedUseCaseDiagramData(workspacePath, useCaseData);
@@ -529,10 +542,11 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 										uiActions.push({ type: 'refresh_view', view: 'data' }, { type: 'refresh_view', view: 'srs' });
 										specChanged = true;
 									}
-									return { toolCallId: call.id, output: result.output };
+									toolResults.push({ toolCallId: call.id, output: result.output });
+									continue;
 								}
-								return { toolCallId: call.id, output: executeChatTool(call.name, call.input, diagramData) };
-							});
+								toolResults.push({ toolCallId: call.id, output: executeChatTool(call.name, call.input, diagramData) });
+							}
 							conversation.push({ role: 'user', toolResults });
 							if (specChanged) summary = buildChatSummary(diagramData, diagramName, useCaseData, dataModelData);
 						}

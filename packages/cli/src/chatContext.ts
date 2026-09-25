@@ -3,8 +3,11 @@ import { UseCaseDiagramData, DataModelData } from '@kratai-desci/llm';
 import { buildUseCaseExtractionSummary } from './useCaseDiagramData.js';
 
 function specSection(useCaseData: UseCaseDiagramData | undefined, dataModelData: DataModelData | undefined): string {
-	if (!useCaseData && !dataModelData) return '';
-
+	// Always rendered, even when both are missing - an early return here
+	// used to leave this whole section out of the summary in that case,
+	// which meant the model had no explicit signal that nothing exists yet
+	// (silence, not a stated fact) and would reach for the update_* tools
+	// out of habit instead of generate_use_case_model/generate_data_model.
 	const lines: string[] = ['', '## Spec (current data - you can read AND edit this via tools)'];
 
 	if (useCaseData) {
@@ -45,6 +48,8 @@ function specSection(useCaseData: UseCaseDiagramData | undefined, dataModelData:
 			lines.push('', 'Project-wide NFRs:');
 			projectNfrs.forEach(n => lines.push(`- ${n.id} "${n.name}": ${n.text}`));
 		}
+	} else {
+		lines.push('', '### Use Case Model', 'Not generated yet - call generate_use_case_model if the user asks for one, not update_use_case_model.');
 	}
 
 	if (dataModelData) {
@@ -62,6 +67,8 @@ function specSection(useCaseData: UseCaseDiagramData | undefined, dataModelData:
 			lines.push('', 'Relationships:');
 			dataModelData.relationships.forEach(r => lines.push(`- ${r.fromId} -> ${r.toId} (${r.kind}${r.label ? `, "${r.label}"` : ''})`));
 		}
+	} else {
+		lines.push('', '### Data Model', 'Not generated yet - call generate_data_model if the user asks for one, not update_data_model.');
 	}
 
 	return lines.join('\n');

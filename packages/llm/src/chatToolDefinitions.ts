@@ -205,6 +205,16 @@ export const CHAT_TOOL_DEFINITIONS: ToolDefinition[] = [
 				}
 			}
 		}
+	},
+	{
+		name: 'generate_use_case_model',
+		description: 'Create a brand-new Use Case Model from scratch, extracted directly from the actual codebase - not from anything in this conversation. Only call this when none exists yet (the summary above will say so) and the user actually asked for one (e.g. "write up a spec", "generate a use case model") - never speculatively. Costs a real AI call, same as clicking Generate in the UI. If one already exists, use update_use_case_model to edit it instead - calling this again would be rejected. Takes no input.',
+		inputSchema: { type: 'object', properties: {} }
+	},
+	{
+		name: 'generate_data_model',
+		description: 'Create a brand-new Data Model from scratch, extracted directly from the actual codebase - not from anything in this conversation. Only call this when none exists yet (the summary above will say so) and the user actually asked for one. Costs a real AI call, same as clicking Generate in the UI. If one already exists, use update_data_model to edit it instead - calling this again would be rejected. Takes no input.',
+		inputSchema: { type: 'object', properties: {} }
 	}
 ];
 
@@ -226,4 +236,7 @@ export const UI_ACTION_TOOL_NAMES = new Set(['show_view', 'highlight_class']);
  * a live, mutable reference to useCaseData/dataModelData and the save
  * functions that persist them.
  */
-export const SPEC_TOOL_NAMES = new Set(['update_srs_metadata', 'update_use_case_model', 'update_data_model']);
+export const SPEC_TOOL_NAMES = new Set([
+	'update_srs_metadata', 'update_use_case_model', 'update_data_model',
+	'generate_use_case_model', 'generate_data_model'
+]);
