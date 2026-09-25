@@ -158,8 +158,11 @@ ${THEME_SYNC_SCRIPT}
 ${DOC_STYLE}
 	#doc { max-width: 760px; margin: 0 auto; padding: 48px 28px 60px; }
 	#doc-header { margin-bottom: 8px; }
-	#doc-header .kicker { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); font-weight: 700; }
-	#doc-header h1 { margin: 4px 0 0; font-size: 24px; }
+	/* Sized for a standalone title page (page 1 is cover-only, forced by
+	   #doc-header's own break-after: page below), not a header sitting
+	   above body content - hence bigger than a typical in-page heading. */
+	#doc-header .kicker { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); font-weight: 700; }
+	#doc-header h1 { margin: 10px 0 0; font-size: 42px; }
 	.doc-meta { display: flex; gap: 24px; margin-top: 14px; flex-wrap: wrap; }
 	.meta-field { font-size: 12.5px; color: var(--text-dim); }
 	.meta-label { color: var(--text-faint); margin-right: 6px; }
@@ -266,6 +269,18 @@ ${DATA_MODEL_SVG_STYLE}
 		   heading and intro text on page 1 while the diagram itself lands
 		   alone on page 2. */
 		#doc-header { break-after: page; page-break-after: always; }
+			/* Pushes "About this document" toward the bottom of the cover
+			   page, top/bottom weighted like a real title page (title +
+			   Overview up top, boilerplate low) instead of everything
+			   stacked flush under the title. Print-only - in the live
+			   scrollable view this would just be a huge dead gap, so the
+			   normal .cover-block margin-top: 22px above still applies
+			   there. A fixed px push (not a page-height flex layout) is
+			   deliberately conservative - tuned against a real exported PDF
+			   (title+meta+a ~4-line Overview) to sit low without risking
+			   the block itself spilling onto page 2, which the break-after
+			   above would then turn into a stray near-empty page 3. */
+			.cover-about { margin-top: 320px; }
 		/* A whole section (e.g. every use case) is often taller than one
 		   page - avoiding a break on the *section* pushes the entire block
 		   to the next page rather than letting it flow, stranding
@@ -290,14 +305,14 @@ ${DATA_MODEL_SVG_STYLE}
 				<div class="meta-field"><span class="meta-label">Prepared by</span><span class="meta-value" contenteditable="true" data-field="preparedBy" data-placeholder="add name or company">${escapeXml(useCaseData.preparedBy || '')}</span></div>
 				<div class="meta-field"><span class="meta-label">Client</span><span class="meta-value" contenteditable="true" data-field="clientName" data-placeholder="add client (optional)">${escapeXml(useCaseData.clientName || '')}</span></div>
 			</div>
-			<div class="cover-block">
-				<div class="cover-label">About this document</div>
-				<p>${ABOUT_DOC_TEXT}</p>
-			</div>
 			${useCaseData.overview ? `<div class="cover-block">
 				<div class="cover-label">Overview</div>
 				<p>${escapeXml(useCaseData.overview)}</p>
 			</div>` : ''}
+			<div class="cover-block cover-about">
+				<div class="cover-label">About this document</div>
+				<p>${ABOUT_DOC_TEXT}</p>
+			</div>
 		</div>
 
 		${sections.map((s, i) => `<div class="section">
