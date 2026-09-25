@@ -260,6 +260,18 @@ ${DATA_MODEL_SVG_STYLE}
 		#pdf-download { display: none; }
 		.meta-value { border-bottom: none; }
 		.meta-field:has(.meta-value:empty) { display: none; }
+		/* General, content-length-independent pagination rule (unlike the
+		   fixed pixel/margin values elsewhere in this file, which are only
+		   tuned against this one project's data) - the CSS Fragmentation
+		   spec's widow/orphan control, the same mechanism Word/LaTeX use.
+		   Without it, a long Overview/narrative/description on some *other*
+		   project (this one's are all short) could leave a single line of
+		   text stranded alone at the top or bottom of a page. break-inside/
+		   break-after above already protect headings and atomic blocks
+		   (one row, one use case, one entity) regardless of how much
+		   content they hold; this is the paragraph-level equivalent, so no
+		   text block needs hand-tuning no matter how long it runs. */
+		p, li { orphans: 2; widows: 2; }
 		/* pdfExport.ts prints page 1 alone (no running header) then "2-"
 		   with the real header, on the assumption that page 1 is a title
 		   page and the numbered body starts on page 2 - true once this
