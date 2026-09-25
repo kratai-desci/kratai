@@ -30,24 +30,20 @@ const BRAND_STYLE = `
 	}
 `;
 
-// signedIn and logoDataUrl are passed in (not read/loaded here) so this
-// stays a pure render of whatever index.ts's showWelcomeScreen already
-// knows, same reasoning as recentWorkspaces - keeps this file free of any
-// direct auth.js import or filesystem access. logoDataUrl comes from
-// index.ts's already-loaded `icon` nativeImage (icon.toDataURL()) - this
-// screen has no server behind it yet (see the file-level comment), so a
-// relative asset path wouldn't resolve; it has to be inlined as a data URI.
-export function getWelcomeHTML(recentWorkspaces: string[], signedIn: boolean, logoDataUrl: string): string {
+// logoDataUrl is passed in (not loaded here) so this stays a pure render of
+// whatever index.ts's showWelcomeScreen already knows, same reasoning as
+// recentWorkspaces - keeps this file free of any filesystem access. It
+// comes from index.ts's already-loaded `icon` nativeImage (icon.toDataURL())
+// - this screen has no server behind it yet (see the file-level comment),
+// so a relative asset path wouldn't resolve; it has to be inlined as a data
+// URI. Only ever shown to a signed-in user now (see getSignInHTML below and
+// index.ts's app.whenReady()), so there's no sign-in affordance here.
+export function getWelcomeHTML(recentWorkspaces: string[], logoDataUrl: string): string {
 	const recentList = recentWorkspaces.length === 0 ? '' : `
 		<div class="recent">
 			<div class="recent-label">Recent</div>
 			${recentWorkspaces.map(p => `<a class="recent-item" href="kratai-action://open?path=${encodeURIComponent(p)}">${p.split('/').pop()}<span class="path">${p}</span></a>`).join('\n')}
 		</div>`;
-	// A nudge, not a gate - the whole point of this option over requiring
-	// sign-in up front is that local analysis/diagramming needs no account
-	// at all, only the AI features do. Omitted entirely once signed in,
-	// rather than showing a now-pointless link.
-	const signInNudge = signedIn ? '' : `<a class="secondary-link" href="kratai-action://sign-in">Sign in to unlock AI features</a>`;
 
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -100,8 +96,67 @@ export function getWelcomeHTML(recentWorkspaces: string[], signedIn: boolean, lo
 		</div>
 		<p>A spec-driven IDE: keep your use cases, data model, and design docs in sync with the code as it changes.</p>
 		<a class="cta" href="kratai-action://pick-folder">Select a folder to get started</a>
-		${signInNudge}
 		${recentList}
+	</div>
+</body>
+</html>`;
+}
+
+/**
+ * The very first thing anyone sees - sign-in is required before folder
+ * selection, not an optional nudge (a prior version tried the nudge; the
+ * call was made to gate instead, so the free-value-first tradeoff is a
+ * deliberate, known cost here, not an oversight). Since gating removes the
+ * chance to discover the $30 free credit by exploring, this screen states
+ * it directly - the whole point of gating instead of nudging was to make
+ * the value clear up front rather than leaving someone to find it later.
+ * errorMessage is shown when a previous sign-in attempt failed (see
+ * index.ts's handleDeepLink) - a hard gate can't afford to fail silently
+ * the way an optional nudge could.
+ */
+export function getSignInHTML(logoDataUrl: string, errorMessage?: string): string {
+	const error = errorMessage ? `<p class="error">${escapeHtml(errorMessage)}</p>` : '';
+
+	return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+	${BRAND_STYLE}
+	#card {
+		background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+		box-shadow: var(--card-shadow); padding: 40px 44px 36px; max-width: 400px; text-align: center;
+		display: flex; flex-direction: column; align-items: center;
+	}
+	.logo {
+		width: 52px; height: 52px; border-radius: 12px;
+		margin-bottom: 18px; box-shadow: 0 6px 16px -4px rgba(23, 32, 58, 0.35);
+	}
+	.heading-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; }
+	.heading-row h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+	#beta-badge {
+		font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+		color: var(--accent); border: 1px solid var(--accent); border-radius: 100px;
+		padding: 2px 8px; font-family: ui-monospace, monospace;
+	}
+	#card p { color: var(--text-dim); font-size: 13.5px; line-height: 1.6; margin: 0 0 28px; }
+	.cta {
+		display: inline-block; border: none; background: var(--accent); color: #fff; font-weight: 650;
+		font-size: 13.5px; padding: 12px 24px; border-radius: 10px; cursor: pointer; text-decoration: none;
+		box-shadow: 0 8px 20px -6px color-mix(in srgb, var(--accent) 60%, transparent);
+	}
+	.error { color: #D6455B !important; font-size: 12.5px !important; margin: 16px 0 0 !important; }
+</style>
+</head>
+<body>
+	<div id="card">
+		<img class="logo" src="${logoDataUrl}" alt="">
+		<div class="heading-row">
+			<h1>Welcome to kratai</h1><span id="beta-badge">Beta</span>
+		</div>
+		<p>Sign in to get $30 of free AI credit - kratai uses it to generate and keep your use cases, data model, and design docs in sync with the code.</p>
+		<a class="cta" href="kratai-action://sign-in">Sign in to continue</a>
+		${error}
 	</div>
 </body>
 </html>`;

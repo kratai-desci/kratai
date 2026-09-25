@@ -8,7 +8,7 @@ import { startSignIn, handleAuthCallback, getAuthStatus, signOut, KRATAI_WEB_URL
 import { generateUseCaseDiagram, generateDataModel } from './generateProxy.js';
 import { chatStep } from './chatProxy.js';
 import { getBalanceCents } from './balanceProxy.js';
-import { getWelcomeHTML, getLoadingHTML, getGeneratePromptHTML } from './welcomeScreen.js';
+import { getWelcomeHTML, getSignInHTML, getLoadingHTML, getGeneratePromptHTML } from './welcomeScreen.js';
 import { exportRequirementsPdf } from './pdfExport.js';
 
 const PROTOCOL = 'kratai';
@@ -62,7 +62,17 @@ function focusMainWindow(): void {
 
 function handleDeepLink(url: string): void {
 	if (!url.startsWith(`${PROTOCOL}://`)) return;
-	handleAuthCallback(url).finally(focusMainWindow);
+	handleAuthCallback(url).then(result => {
+		// !currentServer means we're still short of a workspace being open -
+		// either on the sign-in gate itself, or the folder-picker welcome
+		// screen (reachable if sign-in from a *previous* launch is still
+		// valid but this particular window hasn't proceeded past it yet).
+		// A sign-in while a workspace is already open (re-auth) intentionally
+		// does nothing extra here - the account menu just reflects it.
+		if (currentServer) return;
+		if (result.status === 'success') return proceedPastSignIn();
+		if (result.status === 'failure') return showSignInGate(result.message);
+	}).finally(focusMainWindow);
 }
 
 function findDeepLinkArg(argv: string[]): string | undefined {
@@ -173,7 +183,24 @@ function promptGenerateChoice(info: { workspaceName: string; missing: string[]; 
 
 async function showWelcomeScreen(): Promise<void> {
 	ensureMainWindow();
-	await loadDataHTML(getWelcomeHTML(listRecentWorkspaces(), getAuthStatus().signedIn, logoDataUrl));
+	await loadDataHTML(getWelcomeHTML(listRecentWorkspaces(), logoDataUrl));
+}
+
+// Only ever reachable already signed in - app.whenReady() and
+// handleDeepLink's post-sign-in branch are the only callers, and both only
+// call this once getAuthStatus().signedIn is true.
+async function proceedPastSignIn(): Promise<void> {
+	const [mostRecent] = listRecentWorkspaces();
+	if (mostRecent) {
+		await openWorkspace(mostRecent);
+	} else {
+		await showWelcomeScreen();
+	}
+}
+
+function showSignInGate(errorMessage?: string): void {
+	ensureMainWindow();
+	void loadDataHTML(getSignInHTML(logoDataUrl, errorMessage));
 }
 
 async function openWorkspace(workspacePath: string): Promise<void> {
@@ -297,13 +324,16 @@ app.whenReady().then(async () => {
 
 	buildMenu();
 
-	const [mostRecent] = listRecentWorkspaces();
-	if (mostRecent) {
-		await openWorkspace(mostRecent);
+	// Sign-in is a mandatory gate, not an optional nudge - checked before
+	// the recent-workspace fast-path below, so a returning user who signed
+	// out (or never finished signing in) hits the gate again instead of
+	// sailing straight into a workspace. See welcomeScreen.ts's
+	// getSignInHTML for why this trades away the "explore before you
+	// commit" path a deferred/optional sign-in would have kept.
+	if (getAuthStatus().signedIn) {
+		await proceedPastSignIn();
 	} else {
-		// True first run only - a returning user with a recent workspace
-		// still gets the fast auto-open path above, unchanged.
-		await showWelcomeScreen();
+		showSignInGate();
 	}
 
 	// Windows/Linux, launched fresh via a kratai:// link rather than
@@ -314,7 +344,11 @@ app.whenReady().then(async () => {
 
 	app.on('activate', () => {
 		if (BrowserWindow.getAllWindows().length === 0) {
-			void promptForWorkspace();
+			if (getAuthStatus().signedIn) {
+				void promptForWorkspace();
+			} else {
+				showSignInGate();
+			}
 		}
 	});
 });
