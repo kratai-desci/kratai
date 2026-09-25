@@ -33,6 +33,10 @@ app.setName('kratai');
 // __dirname here is out/main/ (see esbuild.js banner) - copy-vendor.js puts
 // the icon at out/main/assets/icon.png right next to this bundle.
 const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.png'));
+// Reuses the already-loaded icon rather than a second fs.readFileSync - the
+// welcome screen (welcomeScreen.ts) has no server behind it yet, so it
+// needs this inlined as a data URI rather than an asset path.
+const logoDataUrl = icon.toDataURL();
 
 // The whole point of "wire the desktop app to the new UI": this app has no
 // renderer of its own. It runs the exact same local view server `kratai
@@ -171,7 +175,7 @@ function promptGenerateChoice(info: { workspaceName: string; missing: string[]; 
 
 async function showWelcomeScreen(): Promise<void> {
 	ensureMainWindow();
-	await loadDataHTML(getWelcomeHTML(listRecentWorkspaces(), getAuthStatus().signedIn));
+	await loadDataHTML(getWelcomeHTML(listRecentWorkspaces(), getAuthStatus().signedIn, logoDataUrl));
 }
 
 async function openWorkspace(workspacePath: string): Promise<void> {

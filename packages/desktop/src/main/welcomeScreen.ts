@@ -11,9 +11,13 @@ const BRAND_STYLE = `
 		--bg: #EEF2FA; --surface: #FFFFFF; --text: #17203A; --text-dim: #5C6785;
 		--border: #DCE3F2; --accent: #3459E0; --ok: #1FA37C; --warn: #C87A17;
 		--dot: color-mix(in srgb, #94A0BE 55%, transparent);
+		--card-shadow: 0 24px 64px -24px rgba(23, 32, 58, 0.22), 0 8px 24px -8px rgba(23, 32, 58, 0.10);
 	}
 	@media (prefers-color-scheme: dark) {
-		:root { --bg: #0A0E19; --surface: #131A2E; --text: #E8ECFB; --text-dim: #939CBE; --border: #262E4E; --accent: #6D93F5; --ok: #3FCB9F; --warn: #E6A23C; --dot: color-mix(in srgb, #262E4E 70%, transparent); }
+		:root {
+			--bg: #0A0E19; --surface: #131A2E; --text: #E8ECFB; --text-dim: #939CBE; --border: #262E4E; --accent: #6D93F5; --ok: #3FCB9F; --warn: #E6A23C; --dot: color-mix(in srgb, #262E4E 70%, transparent);
+			--card-shadow: 0 24px 64px -24px rgba(0, 0, 0, 0.55), 0 8px 24px -8px rgba(0, 0, 0, 0.35);
+		}
 	}
 	* { box-sizing: border-box; }
 	html, body { margin: 0; padding: 0; height: 100%; }
@@ -26,10 +30,14 @@ const BRAND_STYLE = `
 	}
 `;
 
-// signedIn is passed in (not read here) so this stays a pure render of
-// whatever index.ts's showWelcomeScreen already knows, same as
-// recentWorkspaces - keeps this file free of any direct auth.js import.
-export function getWelcomeHTML(recentWorkspaces: string[], signedIn: boolean): string {
+// signedIn and logoDataUrl are passed in (not read/loaded here) so this
+// stays a pure render of whatever index.ts's showWelcomeScreen already
+// knows, same reasoning as recentWorkspaces - keeps this file free of any
+// direct auth.js import or filesystem access. logoDataUrl comes from
+// index.ts's already-loaded `icon` nativeImage (icon.toDataURL()) - this
+// screen has no server behind it yet (see the file-level comment), so a
+// relative asset path wouldn't resolve; it has to be inlined as a data URI.
+export function getWelcomeHTML(recentWorkspaces: string[], signedIn: boolean, logoDataUrl: string): string {
 	const recentList = recentWorkspaces.length === 0 ? '' : `
 		<div class="recent">
 			<div class="recent-label">Recent</div>
@@ -47,25 +55,34 @@ export function getWelcomeHTML(recentWorkspaces: string[], signedIn: boolean): s
 <meta charset="UTF-8">
 <style>
 	${BRAND_STYLE}
-	#card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px 44px; max-width: 420px; text-align: center; }
-	#card h1 { margin: 0 0 8px; font-size: 20px; display: inline; }
+	#card {
+		background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+		box-shadow: var(--card-shadow); padding: 40px 44px 36px; max-width: 400px; text-align: center;
+		display: flex; flex-direction: column; align-items: center;
+	}
+	.logo {
+		width: 52px; height: 52px; border-radius: 12px;
+		margin-bottom: 18px; box-shadow: 0 6px 16px -4px rgba(23, 32, 58, 0.35);
+	}
+	.heading-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; }
+	.heading-row h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
 	#beta-badge {
-		display: inline-block; vertical-align: middle; margin-left: 8px;
 		font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
 		color: var(--accent); border: 1px solid var(--accent); border-radius: 100px;
 		padding: 2px 8px; font-family: ui-monospace, monospace;
 	}
-	#card p { color: var(--text-dim); font-size: 13.5px; line-height: 1.6; margin: 0 0 24px; }
+	#card p { color: var(--text-dim); font-size: 13.5px; line-height: 1.6; margin: 0 0 28px; }
 	.cta {
 		display: inline-block; border: none; background: var(--accent); color: #fff; font-weight: 650;
-		font-size: 13.5px; padding: 11px 22px; border-radius: 9px; cursor: pointer; text-decoration: none;
+		font-size: 13.5px; padding: 12px 24px; border-radius: 10px; cursor: pointer; text-decoration: none;
+		box-shadow: 0 8px 20px -6px color-mix(in srgb, var(--accent) 60%, transparent);
 	}
 	.secondary-link {
-		display: block; margin-top: 14px; color: var(--text-dim); font-size: 12px; font-weight: 600;
+		display: block; margin-top: 16px; color: var(--text-dim); font-size: 12px; font-weight: 600;
 		text-decoration: none;
 	}
 	.secondary-link:hover { color: var(--accent); }
-	.recent { margin-top: 28px; text-align: left; }
+	.recent { margin-top: 30px; padding-top: 24px; border-top: 1px solid var(--border); text-align: left; width: 100%; }
 	.recent-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 8px; }
 	.recent-item {
 		display: block; padding: 8px 10px; border-radius: 8px; color: var(--text); text-decoration: none;
@@ -77,7 +94,10 @@ export function getWelcomeHTML(recentWorkspaces: string[], signedIn: boolean): s
 </head>
 <body>
 	<div id="card">
-		<h1>Welcome to kratai</h1><span id="beta-badge">Beta</span>
+		<img class="logo" src="${logoDataUrl}" alt="">
+		<div class="heading-row">
+			<h1>Welcome to kratai</h1><span id="beta-badge">Beta</span>
+		</div>
 		<p>A spec-driven IDE: keep your use cases, data model, and design docs in sync with the code as it changes.</p>
 		<a class="cta" href="kratai-action://pick-folder">Select a folder to get started</a>
 		${signInNudge}
