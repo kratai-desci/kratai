@@ -180,6 +180,11 @@ ${DOC_STYLE}
 	.cover-label { font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); margin-bottom: 4px; }
 	.cover-block p { color: var(--text-dim); font-size: 12.5px; line-height: 1.6; margin: 0; }
 	.section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px 26px; margin-top: 18px; }
+	/* Overview and "1. Use Case Diagram" are the only two sections that
+	   ever share a page (see .section-new-page below), so this is the one
+	   section-to-section gap actually worth tightening - every other pair
+	   starts on a fresh page, where the gap above it is moot. */
+	.overview-section + .section { margin-top: 8px; }
 	.section h2 { margin: 0 0 12px; font-size: 14px; }
 	.section p { color: var(--text-dim); font-size: 13px; line-height: 1.6; margin: 0; }
 	/* Static framing text (e.g. "This section shows how each actor
@@ -304,6 +309,15 @@ ${DATA_MODEL_SVG_STYLE}
 		   safe only because it's height-capped above - from splitting. */
 		.section { border: none; box-shadow: none; }
 		.use-case-item, tr, .diagram-wrap, .entity-block { break-inside: avoid; }
+		/* Every section from "2. Actors & roles" on always starts a fresh
+		   page - a simpler, more predictable rule than packing as much as
+		   fits and hoping the orphan/widow rules below catch whatever's
+		   left over. Overview and "1. Use Case Diagram" are deliberately
+		   excluded (no .section-new-page class - see sections.map below) so
+		   they keep sharing page 2. Accepts trailing whitespace on a page
+		   whose section just doesn't fill it (e.g. Project-wide NFRs with
+		   one bullet) as the tradeoff for that predictability. */
+		.section-new-page { break-before: page; page-break-before: always; }
 		/* Without this, a section heading can land as the very last line
 			   on a page with its own body starting fresh on the next one -
 			   the browser's default pagination has no notion of "keep a
@@ -340,12 +354,12 @@ ${DATA_MODEL_SVG_STYLE}
 			</div>
 		</div>
 
-		${useCaseData.overview ? `<div class="section">
+		${useCaseData.overview ? `<div class="section overview-section">
 			<h2>Overview</h2>
 			<p>${escapeXml(useCaseData.overview)}</p>
 		</div>` : ''}
 
-		${sections.map((s, i) => `<div class="section">
+		${sections.map((s, i) => `<div class="section${i > 0 ? ' section-new-page' : ''}">
 			<h2>${i + 1}. ${s.title}</h2>
 			${s.body}
 		</div>`).join('\n')}
