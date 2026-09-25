@@ -7,14 +7,14 @@
       "name": "Developer",
       "side": "left",
       "role": "Desktop Application User",
-      "description": "Interacts with the Desktop Application to complete onboarding, analyze codebases, view 3D architecture diagrams, inspect code paths, export PDF/diagram reports, manage auth, and check AI usage balances."
+      "description": "Interacts with the Desktop Application to complete onboarding, analyze codebases, view 3D architecture diagrams, inspect code paths, chat with an AI assistant about the code and its generated Spec, export PDF/diagram reports, manage auth, and check AI usage balances and spend history from the desktop app or the web dashboard."
     },
     {
       "id": "llm-provider",
       "name": "LLM Provider",
       "side": "right",
       "role": "AI Service Integration",
-      "description": "External language model API that generates contextual AI summaries and code enrichment."
+      "description": "External language model API that generates contextual AI summaries and code enrichment, and powers the chat assistant's replies and Spec-editing tool calls."
     },
     {
       "id": "auth-service",
@@ -51,19 +51,29 @@
       "description": "Generates natural language architectural summaries and context for parsed components using LLMs."
     },
     {
+      "id": "chat-with-assistant",
+      "name": "Chat with AI Assistant",
+      "description": "Lets a Developer ask questions about the analyzed codebase and its generated Spec in a chat panel, and ask the assistant to generate or edit the Use Case Model or Data Model directly. Stays scoped to the current project, and the conversation is remembered across app restarts."
+    },
+    {
       "id": "export-diagram",
       "name": "Export Visuals & PDF",
-      "description": "Saves rendered diagrams into visual image files or formatted PDF analysis reports."
+      "description": "Saves rendered diagrams into visual image files or a formatted Software Requirements Specification PDF report."
     },
     {
       "id": "manage-authentication",
       "name": "Manage User Authentication",
-      "description": "Authenticates desktop users via web OAuth and securely stores local session credentials."
+      "description": "Authenticates users via web OAuth (Google or GitHub) from either the desktop app's device sign-in flow or the web dashboard, and securely stores session credentials."
     },
     {
       "id": "check-ai-balance",
       "name": "Check AI Token Balance",
-      "description": "Queries and displays remaining AI service tokens and credits available for analysis enrichment."
+      "description": "Queries and displays remaining AI service credits available for analysis enrichment from the desktop app's topbar."
+    },
+    {
+      "id": "view-account-dashboard",
+      "name": "View Account Dashboard",
+      "description": "Shows a signed-in Developer their AI credit balance and a log of recent spend by feature (chat, Use Case Model generation, Data Model generation) from the web dashboard."
     }
   ],
   "associations": [
@@ -89,6 +99,10 @@
     },
     {
       "actorId": "developer",
+      "useCaseId": "chat-with-assistant"
+    },
+    {
+      "actorId": "developer",
       "useCaseId": "export-diagram"
     },
     {
@@ -100,8 +114,16 @@
       "useCaseId": "check-ai-balance"
     },
     {
+      "actorId": "developer",
+      "useCaseId": "view-account-dashboard"
+    },
+    {
       "actorId": "llm-provider",
       "useCaseId": "enrich-analysis"
+    },
+    {
+      "actorId": "llm-provider",
+      "useCaseId": "chat-with-assistant"
     },
     {
       "useCaseId": "manage-authentication",
@@ -113,16 +135,51 @@
       "kind": "extend",
       "toId": "analyze-codebase",
       "fromId": "enrich-analysis"
+    },
+    {
+      "kind": "extend",
+      "toId": "analyze-codebase",
+      "fromId": "chat-with-assistant"
     }
   ],
-  "overview": "Kratai Desktop is an interactive desktop application for repository analysis, 3D architecture diagramming, PDF report exports, and AI-driven codebase enrichment.",
-  "narrative": "The Desktop Application acts as the central UI hub for developers. A Developer completes onboarding, analyzes local repository workspaces, views interactive 3D architecture diagrams, inspects code paths, exports visual diagrams or PDF reports, manages authentication, and checks AI usage balances. External backend services support the app: the LLM Provider enriches code analysis with summaries, while the Authentication Service handles login verification and token storage.",
+  "overview": "Kratai Desktop is an interactive desktop application for repository analysis, 3D architecture diagramming, AI-driven codebase enrichment, and Software Requirements Specification generation - backed by an AI chat assistant and a pay-as-you-go credit balance viewable from the desktop app or the web dashboard.",
+  "narrative": "The Desktop Application acts as the central UI hub for developers. A Developer completes onboarding, analyzes local repository workspaces, views interactive 3D architecture diagrams, inspects code paths, chats with an AI assistant about the codebase and its generated Spec, exports visual diagrams or PDF reports, manages authentication, and checks AI usage balances and spend history. External backend services support the app: the LLM Provider powers both AI enrichment and chat, while the Authentication Service handles login verification and token storage.",
   "nfrs": [
     {
       "id": "ai-request-security",
       "useCaseId": "enrich-analysis",
       "name": "AI Request Security",
       "text": "External LLM API integration must securely process code snippets without unauthorized persistence."
+    },
+    {
+      "id": "chat-scope-guardrail",
+      "useCaseId": "chat-with-assistant",
+      "name": "Scope Guardrail",
+      "text": "The AI chat assistant only answers questions about the current codebase and its generated Spec, and declines requests outside that scope."
+    },
+    {
+      "id": "bounded-tool-loop",
+      "useCaseId": "chat-with-assistant",
+      "name": "Bounded Tool Loop",
+      "text": "Each chat request runs through a fixed maximum number of tool-call turns, so the assistant can never loop indefinitely or run up an unbounded bill on one request."
+    },
+    {
+      "id": "chat-history-persistence",
+      "useCaseId": "chat-with-assistant",
+      "name": "Conversation Persistence",
+      "text": "Chat history is cached locally per workspace and automatically restored the next time the app opens, capped to the most recent 40 messages."
+    },
+    {
+      "id": "device-token-security",
+      "useCaseId": "manage-authentication",
+      "name": "Token Storage Security",
+      "text": "Sign-in tokens are stored server-side only as salted hashes, never in plaintext, and are verified on every authenticated request."
+    },
+    {
+      "id": "billing-markup-consistency",
+      "useCaseId": null,
+      "name": "Metered Billing",
+      "text": "Every AI-metered call is billed at a fixed markup over provider cost and logged alongside the balance debit, so a user's balance never changes without a matching spend record."
     },
     {
       "id": "telemetry-logging",
