@@ -16,7 +16,8 @@
     "build": "npm run typecheck && node esbuild.js && node copy-vendor.js",
     "start": "electron .",
     "dev": "npm run build && electron .",
-    "package": "npm run build && electron-builder --dir"
+    "package": "npm run build && electron-builder --dir",
+    "dist:mac": "npm run build && electron-builder --mac"
   },
   "dependencies": {
     "@kratai/cli": "*",
@@ -56,7 +57,15 @@
     },
     "mac": {
       "icon": "assets/icon.png",
-      "category": "public.app-category.developer-tools"
+      "category": "public.app-category.developer-tools",
+      "identity": "Sirisilp Kongsilp (5ZE9C28V7E)",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "target": ["dmg", "zip"],
+      "notarize": {
+        "teamId": "5ZE9C28V7E"
+      }
     },
     "win": {
       "icon": "assets/icon.png"
