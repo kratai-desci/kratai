@@ -106,13 +106,12 @@ export function getWelcomeHTML(recentWorkspaces: string[], logoDataUrl: string):
  * The very first thing anyone sees - sign-in is required before folder
  * selection, not an optional nudge (a prior version tried the nudge; the
  * call was made to gate instead, so the free-value-first tradeoff is a
- * deliberate, known cost here, not an oversight). Since gating removes the
- * chance to discover the $30 free credit by exploring, this screen states
- * it directly - the whole point of gating instead of nudging was to make
- * the value clear up front rather than leaving someone to find it later.
- * errorMessage is shown when a previous sign-in attempt failed (see
- * index.ts's handleDeepLink) - a hard gate can't afford to fail silently
- * the way an optional nudge could.
+ * deliberate, known cost here, not an oversight). No supporting copy below
+ * the heading (e.g. the signup credit amount) - that's a marketing/pricing
+ * message that belongs on the website, not hardcoded into a shipped binary
+ * where it can't be updated without a new release. errorMessage is shown
+ * when a previous sign-in attempt failed (see index.ts's handleDeepLink) -
+ * a hard gate can't afford to fail silently the way an optional nudge could.
  */
 export function getSignInHTML(logoDataUrl: string, errorMessage?: string): string {
 	const error = errorMessage ? `<p class="error">${escapeHtml(errorMessage)}</p>` : '';
@@ -132,20 +131,19 @@ export function getSignInHTML(logoDataUrl: string, errorMessage?: string): strin
 		width: 52px; height: 52px; border-radius: 12px;
 		margin-bottom: 18px; box-shadow: 0 6px 16px -4px rgba(23, 32, 58, 0.35);
 	}
-	.heading-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; }
+	.heading-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 28px; }
 	.heading-row h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
 	#beta-badge {
 		font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
 		color: var(--accent); border: 1px solid var(--accent); border-radius: 100px;
 		padding: 2px 8px; font-family: ui-monospace, monospace;
 	}
-	#card p { color: var(--text-dim); font-size: 13.5px; line-height: 1.6; margin: 0 0 28px; }
 	.cta {
 		display: inline-block; border: none; background: var(--accent); color: #fff; font-weight: 650;
 		font-size: 13.5px; padding: 12px 24px; border-radius: 10px; cursor: pointer; text-decoration: none;
 		box-shadow: 0 8px 20px -6px color-mix(in srgb, var(--accent) 60%, transparent);
 	}
-	.error { color: #D6455B !important; font-size: 12.5px !important; margin: 16px 0 0 !important; }
+	.error { color: #D6455B; font-size: 12.5px; line-height: 1.5; margin: 16px 0 0; }
 </style>
 </head>
 <body>
@@ -154,7 +152,6 @@ export function getSignInHTML(logoDataUrl: string, errorMessage?: string): strin
 		<div class="heading-row">
 			<h1>Welcome to kratai</h1><span id="beta-badge">Beta</span>
 		</div>
-		<p>Sign in to get $30 of free AI credit - kratai uses it to generate and keep your use cases, data model, and design docs in sync with the code.</p>
 		<a class="cta" href="kratai-action://sign-in">Sign in to continue</a>
 		${error}
 	</div>
