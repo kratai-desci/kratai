@@ -179,7 +179,7 @@
       "id": "billing-markup-consistency",
       "useCaseId": null,
       "name": "Metered Billing",
-      "text": "Every AI-metered call is billed at a fixed markup over provider cost and logged alongside the balance debit, so a user's balance never changes without a matching spend record."
+      "text": "Every AI-metered call is billed at a fixed 2.5x markup over provider cost and logged alongside the balance debit, so a user's balance never changes without a matching spend record."
     },
     {
       "id": "telemetry-logging",
