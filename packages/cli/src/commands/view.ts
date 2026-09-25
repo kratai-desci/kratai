@@ -28,6 +28,11 @@ export interface AuthStatus {
 	email: string | null;
 }
 
+export interface GenerationProgressStep {
+	label: string;
+	status: 'pending' | 'active' | 'done' | 'error';
+}
+
 export interface ViewOptions {
 	path: string;
 	port: number;
@@ -81,6 +86,22 @@ export interface ViewOptions {
 	// signup-credit baseline the shell's meter renders "how full" against.
 	// Returns null rather than throwing when signed out, same as the hook itself.
 	getBalance?: () => Promise<{ balanceCents: number; totalCents: number } | null>;
+	// Called with the full current checklist while runView is doing
+	// first-open auto-generation (below) - once with everything still
+	// 'pending' before the first call starts (so the desktop app can show
+	// the whole plan upfront, not just "generating..." with no sense of how
+	// much is left), then again on every status change. Never called at all
+	// when nothing needs generating.
+	onProgress?: (steps: GenerationProgressStep[]) => void;
+	// Gates the first-open auto-generation below - called only when signed
+	// in and at least one of the two isn't cached, with the real numbers
+	// from the parse that already just happened (not a guess made before
+	// it). The desktop app uses this to show a "generate now?" prompt with
+	// real project size and the user's current balance (index.ts), and
+	// resolves it with their choice - never inferred, since the whole point
+	// is an informed choice every time there's something to generate, not a
+	// standing preference.
+	confirmGenerate?: (info: { workspaceName: string; missing: string[]; classCount: number; folderCount: number }) => Promise<boolean>;
 }
 
 export async function runView(options: ViewOptions): Promise<http.Server> {
@@ -101,7 +122,9 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	const generateDataModelHook = options.generateDataModel;
 	const chatHook = options.chat;
 	const exportRequirementsPdfHook = options.exportRequirementsPdf;
+	const onProgressHook = options.onProgress || (() => {});
 	const getBalanceHook = options.getBalance || (async () => null);
+	const confirmGenerateHook = options.confirmGenerate || (async () => false);
 
 	const config = loadCliConfig(workspacePath, undefined, {});
 	const diagramName = path.basename(workspacePath);
@@ -130,6 +153,96 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// reused across requests/reparse, not regenerated on every reparse.
 	let useCaseData: UseCaseDiagramData | undefined = loadCachedUseCaseDiagramData(workspacePath);
 	let dataModelData: DataModelData | undefined = loadCachedDataModelData(workspacePath);
+
+	// First-open auto-generation: a signed-in user with nothing cached yet
+	// would otherwise land on two empty "Generate" cards and have to click
+	// each by hand before the Spec means anything. Never inferred silently
+	// from just "signed in + something's missing" - confirmGenerateHook
+	// decides, given the real numbers from the parse that just happened
+	// (the desktop app shows these plus the user's balance in a "generate
+	// now?" prompt - see index.ts). Failures (no credit, network) during
+	// the actual generation below are swallowed either way - the
+	// empty-state cards are still there as a manual fallback. The full
+	// checklist is reported once up front (before anything starts) so the
+	// desktop app can show the whole plan, not just "generating..." with no
+	// sense of how much is left.
+	const wantsUseCase = getAuthStatus().signedIn && !useCaseData && !!generateUseCaseDiagramHook;
+	const wantsDataModel = getAuthStatus().signedIn && !dataModelData && !!generateDataModelHook;
+	// Specifications (the SRS doc) isn't its own generation step - it's
+	// derived for free from these two (see srsDocView.ts) - but it's listed
+	// first here since it's what the user actually cares about ending up
+	// with, and both underlying pieces feed it.
+	const missingLabels: string[] = [];
+	if (wantsUseCase || wantsDataModel) missingLabels.push('Specifications');
+	if (wantsUseCase) missingLabels.push('Use Case Model');
+	if (wantsDataModel) missingLabels.push('Data Model');
+
+	const shouldAutoGenerate = (wantsUseCase || wantsDataModel) && await confirmGenerateHook({
+		workspaceName: diagramName,
+		missing: missingLabels,
+		classCount: nodes.length,
+		folderCount
+	});
+
+	// Specifications rides along in the checklist too (as a derived,
+	// no-cost step - see missingLabels above) so what the user sees here
+	// matches the plan they already agreed to in the prompt, rather than
+	// one of the three items just silently disappearing. It never has a
+	// real 'active' state of its own (there's no separate work happening
+	// for it), so unlike the other two it starts 'done' rather than
+	// 'pending' - showing it "in progress" would just sit there looking
+	// stuck since nothing ever moves it. Only corrected to 'error' at the
+	// very end, and only if one of the two below actually failed.
+	const steps: GenerationProgressStep[] = [];
+	if (shouldAutoGenerate) steps.push({ label: 'Specifications', status: 'done' });
+	if (shouldAutoGenerate && wantsUseCase) steps.push({ label: 'Use Case Model', status: 'pending' });
+	if (shouldAutoGenerate && wantsDataModel) steps.push({ label: 'Data Model', status: 'pending' });
+
+	if (steps.length > 0) {
+		onProgressHook(steps.slice());
+
+		if (!useCaseData && generateUseCaseDiagramHook) {
+			const step = steps.find(s => s.label === 'Use Case Model')!;
+			step.status = 'active';
+			onProgressHook(steps.slice());
+			try {
+				const summary = buildUseCaseExtractionSummary(diagramData, diagramName);
+				useCaseData = await generateUseCaseDiagramHook(summary, diagramName);
+				saveCachedUseCaseDiagramData(workspacePath, useCaseData);
+				step.status = 'done';
+			} catch (error) {
+				step.status = 'error';
+				console.warn(`Skipping automatic Use Case Model generation: ${error instanceof Error ? error.message : error}`);
+			}
+			onProgressHook(steps.slice());
+		}
+
+		if (!dataModelData && generateDataModelHook) {
+			const step = steps.find(s => s.label === 'Data Model')!;
+			step.status = 'active';
+			onProgressHook(steps.slice());
+			try {
+				const summary = buildDataModelExtractionSummary(diagramData, diagramName);
+				dataModelData = await generateDataModelHook(summary, diagramName);
+				saveCachedDataModelData(workspacePath, dataModelData);
+				step.status = 'done';
+			} catch (error) {
+				step.status = 'error';
+				console.warn(`Skipping automatic Data Model generation: ${error instanceof Error ? error.message : error}`);
+			}
+			onProgressHook(steps.slice());
+		}
+
+		const specStep = steps.find(s => s.label === 'Specifications');
+		if (specStep) {
+			// Only really "ready" once both underlying pieces exist -
+			// whether from just now or already-cached - not just "the loop
+			// finished" (a failure above would otherwise still show it done).
+			specStep.status = useCaseData && dataModelData ? 'done' : 'error';
+			onProgressHook(steps.slice());
+		}
+	}
+
 	const shellHtml = generateShellHTML(diagramName, {
 		classCount: nodes.length,
 		folderCount,

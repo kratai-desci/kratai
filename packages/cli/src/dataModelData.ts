@@ -32,6 +32,12 @@ export function saveCachedDataModelData(workspacePath: string, data: DataModelDa
 	fs.writeFileSync(path.join(workspacePath, CACHE_FILE), JSON.stringify(data, null, 2) + '\n', 'utf-8');
 }
 
+// Cheap existence check (no parse) - see useCaseDiagramData.ts's
+// hasCachedUseCaseDiagramData for why this exists alongside the full loader.
+export function hasCachedDataModelData(workspacePath: string): boolean {
+	return fs.existsSync(path.join(workspacePath, CACHE_FILE));
+}
+
 const DATA_MODEL_TYPES = new Set<ClassInfo['classType']>(['entity', 'repository']);
 const MAX_SUMMARY_CLASSES = 60;
 

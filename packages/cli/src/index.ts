@@ -6,4 +6,10 @@
 // bin bundle (out/cli.mjs), so neither build step touches the other's
 // output.
 export { runView } from './commands/view.js';
-export type { ViewOptions } from './commands/view.js';
+export type { ViewOptions, GenerationProgressStep } from './commands/view.js';
+// Lets the desktop app decide whether to show its "generate now?" prompt
+// (index.ts) before even calling runView - see these functions' own doc
+// comments for why a cheap existence check is worth having separately from
+// the full cached-data loaders runView itself uses.
+export { hasCachedUseCaseDiagramData } from './useCaseDiagramData.js';
+export { hasCachedDataModelData } from './dataModelData.js';

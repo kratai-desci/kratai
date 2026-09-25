@@ -10,7 +10,7 @@ import { startSignIn, handleAuthCallback, getAuthStatus, signOut, KRATAI_WEB_URL
 import { generateUseCaseDiagram, generateDataModel } from './generateProxy.js';
 import { chatStep } from './chatProxy.js';
 import { getBalanceCents } from './balanceProxy.js';
-import { getWelcomeHTML, getLoadingHTML } from './welcomeScreen.js';
+import { getWelcomeHTML, getLoadingHTML, getGeneratePromptHTML } from './welcomeScreen.js';
 import { exportRequirementsPdf } from './pdfExport.js';
 
 const PROTOCOL = 'kratai';
@@ -130,9 +130,41 @@ function ensureMainWindow(): BrowserWindow {
 			if (target) void openWorkspace(target);
 		} else if (parsed.hostname === 'open-dashboard') {
 			void shell.openExternal(new URL('/dashboard', KRATAI_WEB_URL).toString());
+		} else if (parsed.hostname === 'generate-now') {
+			resolveGenerateChoice?.(true);
+		} else if (parsed.hostname === 'skip-generate') {
+			resolveGenerateChoice?.(false);
 		}
 	});
 	return mainWindow;
+}
+
+// Resolved by the will-navigate handler above when the user clicks either
+// button on getGeneratePromptHTML - see promptGenerateChoice below for why
+// this indirection exists (there's no preload/contextBridge to just await
+// a click handler's return value across, same constraint as every other
+// sentinel-URL action in this file).
+let resolveGenerateChoice: ((generate: boolean) => void) | undefined;
+
+/**
+ * Asks the user, with real project size and cost context, before spending
+ * their credit on first-open auto-generation - see welcomeScreen.ts's
+ * getGeneratePromptHTML doc comment for why this exists as a separate step
+ * rather than just generating the moment something's missing. Wired
+ * directly as runView's confirmGenerate hook (index.ts's openWorkspace),
+ * so classCount/folderCount here are the real numbers from the parse that
+ * just happened, not a guess made before it.
+ */
+function promptGenerateChoice(info: { workspaceName: string; missing: string[]; classCount: number; folderCount: number }): Promise<boolean> {
+	return new Promise(resolve => {
+		resolveGenerateChoice = (generate: boolean) => {
+			resolveGenerateChoice = undefined;
+			resolve(generate);
+		};
+		void getBalanceCents().then(balance => {
+			void loadDataHTML(getGeneratePromptHTML(info, balance?.balanceCents ?? null));
+		});
+	});
 }
 
 async function showWelcomeScreen(): Promise<void> {
@@ -146,13 +178,23 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 		currentServer = undefined;
 	}
 
+	ensureMainWindow();
+
 	// Shown immediately, before the (potentially multi-second) parse below
 	// - otherwise a first-run user watches the welcome screen freeze with
 	// no feedback until the shell suddenly appears fully parsed. Framed
 	// generically ("Building your Spec & Design...") rather than naming
-	// parsing/AI steps - see welcomeScreen.ts.
-	ensureMainWindow();
+	// parsing/AI steps - see welcomeScreen.ts. If confirmGenerate ends up
+	// firing (signed in, something's missing), it replaces this with the
+	// "generate now?" prompt; if the user agrees, onProgress then replaces
+	// that with the real checklist.
 	await loadDataHTML(getLoadingHTML());
+
+	// Set only if the user actually agreed to generate (promptGenerateChoice
+	// resolving true) - lets the final "done" checklist frame get a beat on
+	// screen below before loadURL cuts over to the real app, without
+	// delaying the common case where nothing needed generating at all.
+	let didAutoGenerate = false;
 
 	try {
 		// port: 0 - let the OS pick a free port. A desktop app shouldn't
@@ -171,6 +213,11 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 			generateDataModel,
 			chat: chatStep,
 			getBalance: getBalanceCents,
+			confirmGenerate: async info => {
+				didAutoGenerate = await promptGenerateChoice(info);
+				return didAutoGenerate;
+			},
+			onProgress: steps => { void loadDataHTML(getLoadingHTML(steps)); },
 			// port isn't known until runView resolves below, hence the `!` -
 			// by the time this actually gets called (a button click, well
 			// after this promise settles), currentServer is set.
@@ -184,6 +231,11 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 
 	addRecentWorkspace(workspacePath);
 	const url = `http://localhost:${resolvedPort(currentServer)}`;
+
+	// Otherwise the checklist's last update (Specifications flipping to
+	// done) and this navigation both fire back-to-back with nothing
+	// between them - the frame never actually paints before it's replaced.
+	if (didAutoGenerate) await new Promise(resolve => setTimeout(resolve, 700));
 
 	mainWindow!.setTitle(`kratai - ${workspacePath}`);
 	await mainWindow!.loadURL(url);

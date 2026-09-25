@@ -14,9 +14,10 @@ const CACHE_FILE = 'kratai.usecases.json';
  * Generated diagrams are cached workspace-locally (like kratai.local.json,
  * not Electron's global userData) since the content is about this specific
  * codebase, not a personal app preference - see loadCliConfig's own doc
- * comment in config.ts for the same distinction. Regeneration is a manual
- * "Generate"/"Regenerate" action (view.ts's /api/use-case-diagram/generate
- * route), never automatic, since it costs a real API call.
+ * comment in config.ts for the same distinction. Regeneration is always an
+ * explicit action - either the manual "Generate"/"Regenerate" button
+ * (view.ts's /api/use-case-diagram/generate route) or the desktop app's
+ * first-open prompt (index.ts) - never silent, since it costs a real API call.
  */
 export function loadCachedUseCaseDiagramData(workspacePath: string): UseCaseDiagramData | undefined {
 	const filePath = path.join(workspacePath, CACHE_FILE);
@@ -27,6 +28,13 @@ export function loadCachedUseCaseDiagramData(workspacePath: string): UseCaseDiag
 		console.error('Error loading cached use case diagram:', error);
 		return undefined;
 	}
+}
+
+// Cheap existence check (no parse) - lets the desktop app decide whether to
+// show its "generate now?" prompt (index.ts) without paying for a full
+// loadCachedUseCaseDiagramData() JSON parse just to answer yes/no.
+export function hasCachedUseCaseDiagramData(workspacePath: string): boolean {
+	return fs.existsSync(path.join(workspacePath, CACHE_FILE));
 }
 
 export function saveCachedUseCaseDiagramData(workspacePath: string, data: UseCaseDiagramData): void {
