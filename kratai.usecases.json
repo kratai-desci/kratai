@@ -6,87 +6,131 @@
       "id": "developer",
       "name": "Developer",
       "side": "left",
-      "role": "Software Developer",
-      "description": "Runs repository analysis, inspects file paths, views interactive component diagrams, and exports visual models."
+      "role": "Desktop Application User",
+      "description": "Interacts with the Desktop Application to complete onboarding, analyze codebases, view 3D architecture diagrams, inspect code paths, export PDF/diagram reports, manage auth, and check AI usage balances."
     },
     {
       "id": "llm-provider",
       "name": "LLM Provider",
       "side": "right",
-      "role": "AI Model Provider",
-      "description": "Supplies external language model capabilities to generate contextual summaries for analyzed codebase components."
+      "role": "AI Service Integration",
+      "description": "External language model API that generates contextual AI summaries and code enrichment."
+    },
+    {
+      "id": "auth-service",
+      "name": "Authentication Service",
+      "side": "right",
+      "role": "External Identity Service",
+      "description": "External OAuth identity provider handling user sign-in tokens and session verification."
     }
   ],
   "useCases": [
     {
+      "id": "complete-onboarding",
+      "name": "Complete Onboarding & Welcome",
+      "description": "Guides new users through welcome screens, setup steps, and onboarding walkthrough cards."
+    },
+    {
       "id": "analyze-codebase",
-      "name": "Analyze Codebase",
-      "description": "Parses source files, framework configurations, and git history to extract software architecture metadata."
+      "name": "Analyze Codebase Workspace",
+      "description": "Parses local repository source code, framework constructs, and git history with visual loading progress."
     },
     {
       "id": "view-diagram",
       "name": "View Architecture Diagram",
-      "description": "Renders interactive visual diagrams of software components and their dependencies."
-    },
-    {
-      "id": "enrich-analysis",
-      "name": "Enrich Analysis with AI",
-      "description": "Generates natural language summaries and context for parsed components using external LLMs."
-    },
-    {
-      "id": "export-diagram",
-      "name": "Export Diagram",
-      "description": "Saves rendered architecture diagrams into external file formats for external distribution."
+      "description": "Renders interactive 3D dependency graphs, class diagrams, and visual models inside the desktop application."
     },
     {
       "id": "inspect-file-path",
       "name": "Inspect Code Path",
-      "description": "Queries specific repository paths or files to retrieve detailed structural information."
+      "description": "Drills down into specific code files, classes, reachability paths, and git file changes."
+    },
+    {
+      "id": "enrich-analysis",
+      "name": "Enrich Analysis with AI",
+      "description": "Generates natural language architectural summaries and context for parsed components using LLMs."
+    },
+    {
+      "id": "export-diagram",
+      "name": "Export Visuals & PDF",
+      "description": "Saves rendered diagrams into visual image files or formatted PDF analysis reports."
+    },
+    {
+      "id": "manage-authentication",
+      "name": "Manage User Authentication",
+      "description": "Authenticates desktop users via web OAuth and securely stores local session credentials."
+    },
+    {
+      "id": "check-ai-balance",
+      "name": "Check AI Token Balance",
+      "description": "Queries and displays remaining AI service tokens and credits available for analysis enrichment."
     }
   ],
   "associations": [
+    {
+      "useCaseId": "complete-onboarding",
+      "actorId": "developer"
+    },
     {
       "actorId": "developer",
       "useCaseId": "analyze-codebase"
     },
     {
+      "useCaseId": "view-diagram",
+      "actorId": "developer"
+    },
+    {
+      "useCaseId": "inspect-file-path",
+      "actorId": "developer"
+    },
+    {
       "actorId": "developer",
-      "useCaseId": "view-diagram"
+      "useCaseId": "enrich-analysis"
     },
     {
       "actorId": "developer",
       "useCaseId": "export-diagram"
     },
     {
+      "useCaseId": "manage-authentication",
+      "actorId": "developer"
+    },
+    {
       "actorId": "developer",
-      "useCaseId": "inspect-file-path"
+      "useCaseId": "check-ai-balance"
     },
     {
       "actorId": "llm-provider",
       "useCaseId": "enrich-analysis"
+    },
+    {
+      "useCaseId": "manage-authentication",
+      "actorId": "auth-service"
     }
   ],
   "relations": [
     {
       "kind": "extend",
-      "fromId": "enrich-analysis",
-      "toId": "analyze-codebase"
+      "toId": "analyze-codebase",
+      "fromId": "enrich-analysis"
     }
   ],
-  "overview": "Kratai is a codebase analysis and visualization platform that parses repository structure, framework usage, and git history to generate interactive architecture diagrams across desktop and CLI interfaces.",
-  "narrative": "This system's users are composed of Developers and LLM Providers. Developers interact with the CLI or desktop application to analyze code repositories, inspect specific paths, view interactive structural diagrams, and export visual models. LLM Providers serve as external service integrations that enrich analysis outputs with automated summaries when AI features are invoked.",
+  "overview": "Kratai Desktop is an interactive desktop application for repository analysis, 3D architecture diagramming, PDF report exports, and AI-driven codebase enrichment.",
+  "narrative": "The Desktop Application acts as the central UI hub for developers. A Developer completes onboarding, analyzes local repository workspaces, views interactive 3D architecture diagrams, inspects code paths, exports visual diagrams or PDF reports, manages authentication, and checks AI usage balances. External backend services support the app: the LLM Provider enriches code analysis with summaries, while the Authentication Service handles login verification and token storage.",
   "nfrs": [
+    {
+      "id": "ai-request-security",
+      "useCaseId": "enrich-analysis",
+      "name": "AI Request Security",
+      "text": "External LLM API integration must securely process code snippets without unauthorized persistence."
+    },
     {
       "id": "telemetry-logging",
       "useCaseId": null,
       "name": "Telemetry Collection",
       "text": "The system collects execution metrics and operational telemetry during codebase analysis sessions."
-    },
-    {
-      "id": "llm-data-privacy",
-      "useCaseId": "enrich-analysis",
-      "name": "AI Request Security",
-      "text": "External LLM API integration must securely process code snippets without unauthorized persistence."
     }
-  ]
+  ],
+  "preparedBy": "Kratai Engineering Team",
+  "clientName": "Developer Community"
 }
