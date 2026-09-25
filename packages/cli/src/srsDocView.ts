@@ -84,7 +84,7 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 	sections.push({
 		title: 'Use Case Diagram',
 		body: (useCaseData.narrative ? `<p>${escapeXml(useCaseData.narrative)}</p>` : '') +
-			`<div class="diagram-wrap">${diagramSvg}</div>`
+			`<figure class="diagram-wrap">${diagramSvg}<figcaption>Figure 1: Use Case Diagram</figcaption></figure>`
 	});
 	sections.push({
 		title: 'Actors &amp; roles',
@@ -115,7 +115,7 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 		sections.push({
 			title: 'Data model',
 			body: (dataModelData.narrative ? `<p>${escapeXml(dataModelData.narrative)}</p>` : '') +
-				`<div class="diagram-wrap">${dataModelSvg}</div>` +
+				`<figure class="diagram-wrap">${dataModelSvg}<figcaption>Figure 2: Data Model Entity-Relationship Diagram</figcaption></figure>` +
 				dataModelData.entities.map(e => `<div class="entity-block">
 				<h3>${escapeXml(e.name)}</h3>
 				<table>
@@ -174,8 +174,25 @@ ${DOC_STYLE}
 	   boundary box sits flush at y=0, so without this the text-to-diagram
 	   gap was inconsistent between the two sections (fine in one, none in
 	   the other). */
-	.diagram-wrap { margin-top: 28px; }
-	.diagram-wrap svg { width: 100%; height: auto; display: block; }
+	.diagram-wrap { margin: 28px 0 0; }
+	/* max-height, not a fixed height - a diagram with few actors/use cases
+	   should stay its natural (smaller) size, not stretch up to fill this.
+	   width/height: auto (not width: 100%) so the SVG's own viewBox aspect
+	   ratio drives the scaling - capping height alone while forcing
+	   width:100% would leave blank space inside the SVG's box instead of
+	   actually shrinking it. 400px, tuned against a real exported PDF (a
+	   diagram with 3 actors/8 use cases plus its heading+narrative above
+	   and caption below, on a US Letter page with pdfExport.ts's margins
+	   and header/footer) - the first attempt at 560px still didn't leave
+	   enough of the page free to avoid a break. The print-only
+	   .diagram-wrap break-inside: avoid rule further down only works
+	   *because* this keeps it small enough to reliably fit one page; it'd
+	   just strand a whole page mostly blank again otherwise (see that
+	   rule's own comment). */
+	.diagram-wrap svg { display: block; max-width: 100%; max-height: 400px; width: auto; height: auto; margin: 0 auto; }
+	.diagram-wrap figcaption {
+		margin-top: 10px; text-align: center; font-size: 11.5px; font-style: italic; color: var(--text-faint);
+	}
 	.entity-block { margin-bottom: 14px; }
 	.entity-block:last-of-type { margin-bottom: 0; }
 	.entity-block h3 { margin: 0 0 6px; font-size: 13px; }
@@ -213,9 +230,10 @@ ${DATA_MODEL_SVG_STYLE}
 		   page - avoiding a break on the *section* pushes the entire block
 		   to the next page rather than letting it flow, stranding
 		   whatever page it didn't fit on mostly blank. Keep only the small
-		   atomic pieces (one use case, one table row) from splitting. */
+		   atomic pieces (one use case, one table row, and now one diagram -
+		   safe only because it's height-capped above - from splitting. */
 		.section { border: none; box-shadow: none; }
-		.use-case-item, tr { break-inside: avoid; }
+		.use-case-item, tr, .diagram-wrap { break-inside: avoid; }
 	}
 </style>
 </head>
