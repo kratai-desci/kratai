@@ -17,7 +17,8 @@
     "start": "electron .",
     "dev": "npm run build && electron .",
     "package": "npm run build && electron-builder --dir",
-    "dist:mac": "npm run build && electron-builder --mac"
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win"
   },
   "dependencies": {
     "@kratai/cli": "*",
@@ -68,7 +69,10 @@
       }
     },
     "win": {
-      "icon": "assets/icon.png"
+      "icon": "assets/icon.png",
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ]
     }
   }
 }
