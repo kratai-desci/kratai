@@ -33,9 +33,11 @@ jobs:
       - run: npm install
 
       # npm workspaces doesn't build in dependency order, so this has to be
-      # explicit: analysis -> diagram-view -> cli -> desktop (each depends
-      # on the one before it's compiled output, not just its source).
+      # explicit: analysis/llm have no internal workspace deps and build
+      # first, diagram-view needs analysis's output, cli needs analysis +
+      # diagram-view + llm's output, desktop needs cli + llm's output.
       - run: npm run build --workspace=packages/analysis
+      - run: npm run build --workspace=packages/llm
       - run: npm run build --workspace=packages/diagram-view
       - run: npm run build --workspace=packages/cli
       - run: npm run build --workspace=packages/desktop
