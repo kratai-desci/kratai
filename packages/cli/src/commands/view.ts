@@ -19,9 +19,10 @@ import { generateDiffScorecardHTML } from '../diffScorecardView.js';
 import { generateSrsDocHTML, generateSrsEmptyHTML } from '../srsDocView.js';
 import { executeChatTool } from '../chatTools.js';
 import { executeSpecTool } from '../chatSpecTools.js';
+import { executeFileTool } from '../fileTools.js';
 import { buildChatSummary } from '../chatContext.js';
 import { loadCachedChatHistory, saveCachedChatHistory } from '../chatHistoryData.js';
-import { UI_ACTION_TOOL_NAMES, SPEC_TOOL_NAMES } from '@kratai-desci/llm';
+import { UI_ACTION_TOOL_NAMES, SPEC_TOOL_NAMES, FILE_TOOL_NAMES } from '@kratai-desci/llm';
 import type { ConversationMessage, ChatStepResult } from '@kratai-desci/llm';
 
 export interface AuthStatus {
@@ -505,7 +506,12 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 						// successful spec edit (SPEC_TOOL_NAMES) queues the same kind of
 						// side effect - the shell reloading whichever view just changed.
 						const uiActions: Array<{ type: string } & Record<string, unknown>> = [];
-						const MAX_TOOL_ITERATIONS = 6;
+						// Raised from 6 now that read_file/list_directory exist - a real
+						// requirement-extraction question (e.g. "draft a spec") needs to
+						// list a folder, read several files, then maybe look at one more
+						// based on what it found, which the old class-lookup-only budget
+						// was sized for but this isn't.
+						const MAX_TOOL_ITERATIONS = 20;
 						for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
 							const step = await chatHook(conversation, diagramName, summary);
 							if (step.done) {
@@ -555,6 +561,10 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 										specChanged = true;
 									}
 									toolResults.push({ toolCallId: call.id, output: result.output });
+									continue;
+								}
+								if (FILE_TOOL_NAMES.has(call.name)) {
+									toolResults.push({ toolCallId: call.id, output: executeFileTool(call.name, call.input, workspacePath) });
 									continue;
 								}
 								toolResults.push({ toolCallId: call.id, output: executeChatTool(call.name, call.input, diagramData) });

@@ -76,6 +76,23 @@ export const CHAT_TOOL_DEFINITIONS: ToolDefinition[] = [
 		}
 	},
 	{
+		name: 'read_file',
+		description: 'Read a file\'s raw contents by path, relative to the project root. Use this for anything the class-oriented tools above can\'t see: business logic inside method bodies, test files, README/docs, config files (.json/.yaml/.toml), API/schema definitions, CI/infra files - real requirements often live in these, not in the class structure. Truncated if very large. Refuses .env files, private keys, and other credential-shaped paths.',
+		inputSchema: {
+			type: 'object',
+			properties: { path: { type: 'string', description: 'File path relative to the project root, e.g. "src/routes/auth.ts" or "README.md"' } },
+			required: ['path']
+		}
+	},
+	{
+		name: 'list_directory',
+		description: 'List files and subfolders (one level deep) at a path relative to the project root. Use this to discover exact file names/paths before read_file, rather than guessing. Noise directories (node_modules, .git, build output) are always omitted.',
+		inputSchema: {
+			type: 'object',
+			properties: { path: { type: 'string', description: 'Folder path relative to the project root; omit or use "." for the root' } }
+		}
+	},
+	{
 		name: 'update_srs_metadata',
 		description: 'Edit the Spec document\'s header metadata. Only include the field(s) you want to change - an omitted field is left as-is.',
 		inputSchema: {
@@ -228,6 +245,15 @@ export const CHAT_TOOL_DEFINITIONS: ToolDefinition[] = [
  * perform - see view.ts's own doc comment on the split.
  */
 export const UI_ACTION_TOOL_NAMES = new Set(['show_view', 'highlight_class']);
+
+/**
+ * General-purpose filesystem access - unlike the class-oriented tools
+ * above (which read the already-parsed DiagramData), these read real files
+ * on disk. Routed in view.ts's chat loop to @kratai/cli's fileTools.ts
+ * (executeFileTool), the only layer with a workspacePath to resolve
+ * against.
+ */
+export const FILE_TOOL_NAMES = new Set(['read_file', 'list_directory']);
 
 /**
  * Spec-editing tools - unlike the read-only tools above, these mutate
