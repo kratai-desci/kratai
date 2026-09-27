@@ -3,6 +3,18 @@ import { LlmClient, LlmCompletion, LlmError, ConversationMessage, ToolDefinition
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
+// Flash tier (the default below) is tuned for cheap/fast structural lookups
+// - fine for the one-shot Use Case/Data Model extraction routes, too shallow
+// for chat's now-agentic exploration (reading real files across code,
+// tests, docs, config to synthesize a comprehensive answer). Verified
+// against Google's own pricing docs (ai.google.dev/gemini-api/docs/pricing)
+// as of 2026-09-28 - this is the current Pro-tier flagship. It's a
+// "-preview" model, meaning Google can change or retire it with less notice
+// than a GA model; if it starts erroring, check that page again before
+// assuming the code is at fault (the same kind of deprecation gemini-3.6-flash
+// itself was picked to replace - see the comment on kratai-web's pricing.ts).
+export const GEMINI_CHAT_MODEL = 'gemini-3.1-pro-preview';
+
 interface GeminiPart {
 	text?: string;
 	functionCall?: { name: string; args?: Record<string, unknown> };
