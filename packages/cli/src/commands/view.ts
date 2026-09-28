@@ -203,6 +203,12 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	const steps: GenerationProgressStep[] = [];
 	if (shouldAutoGenerate) steps.push({ label: 'Specifications', status: 'done' });
 	if (shouldAutoGenerate && wantsUseCase) steps.push({ label: 'Use Case Model', status: 'pending' });
+	// Its own step, not folded into "Use Case Model" above - this is a
+	// second, separately-costed pass (reads real files, not just the
+	// summary) that can meaningfully take longer, so it needs its own
+	// visible progress rather than "Use Case Model" just sitting on
+	// 'active' for an unexplained extra stretch.
+	if (shouldAutoGenerate && wantsUseCase) steps.push({ label: 'Use Case Detail', status: 'pending' });
 	if (shouldAutoGenerate && wantsDataModel) steps.push({ label: 'Data Model', status: 'pending' });
 
 	if (steps.length > 0) {
@@ -210,6 +216,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 
 		if (!useCaseData && generateUseCaseDiagramHook) {
 			const step = steps.find(s => s.label === 'Use Case Model')!;
+			const detailStep = steps.find(s => s.label === 'Use Case Detail');
 			step.status = 'active';
 			onProgressHook(steps.slice());
 			try {
@@ -217,8 +224,15 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 				useCaseData = await generateUseCaseDiagramHook(summary, diagramName);
 				saveCachedUseCaseDiagramData(workspacePath, useCaseData);
 				step.status = 'done';
+				onProgressHook(steps.slice());
+				if (detailStep) {
+					detailStep.status = 'active';
+					onProgressHook(steps.slice());
+					detailStep.status = await detailFillUseCaseModel() ? 'done' : 'error';
+				}
 			} catch (error) {
 				step.status = 'error';
+				if (detailStep) detailStep.status = 'error';
 				console.warn(`Skipping automatic Use Case Model generation: ${error instanceof Error ? error.message : error}`);
 			}
 			onProgressHook(steps.slice());
@@ -247,6 +261,127 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			// finished" (a failure above would otherwise still show it done).
 			specStep.status = useCaseData && dataModelData ? 'done' : 'error';
 			onProgressHook(steps.slice());
+		}
+	}
+
+	/**
+	 * The tool-call loop, extracted so both the real /api/chat route and
+	 * the auto-detail-fill step below (see detailFillUseCaseModel) can
+	 * drive it - a synthetic instruction is just another conversation to
+	 * run through the exact same loop, not a separate mechanism. Bounded
+	 * so a model that never stops calling tools can't hang the request
+	 * forever. Doesn't touch chatHistory/saveCachedChatHistory itself -
+	 * callers decide whether a given run belongs in the visible transcript.
+	 */
+	async function runChatLoop(initialMessages: ConversationMessage[]): Promise<{ reply: string; uiActions: Array<{ type: string } & Record<string, unknown>> }> {
+		if (!chatHook) throw new Error('Chat is only available in the kratai desktop app.');
+		let summary = buildChatSummary(diagramData, diagramName, useCaseData, dataModelData);
+		const conversation: ConversationMessage[] = [...initialMessages];
+		const uiActions: Array<{ type: string } & Record<string, unknown>> = [];
+		const MAX_TOOL_ITERATIONS = 20;
+		for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+			const step = await chatHook(conversation, diagramName, summary);
+			if (step.done) return { reply: step.reply, uiActions };
+			console.log(`[chat] turn ${i + 1}: ${step.toolCalls.map(c => `${c.name}(${JSON.stringify(c.input)})`).join(', ')}`);
+			conversation.push({ role: 'assistant', text: step.assistantText, toolCalls: step.toolCalls });
+			let specChanged = false;
+			// Sequential, not Promise.all - a turn can include both a
+			// generate_* and an update_* call together, and running them
+			// concurrently would race on the same useCaseData/
+			// dataModelData reassignment below.
+			const toolResults: { toolCallId: string; output: string }[] = [];
+			for (const call of step.toolCalls) {
+				if (UI_ACTION_TOOL_NAMES.has(call.name)) {
+					uiActions.push({ type: call.name, ...call.input });
+					toolResults.push({ toolCallId: call.id, output: 'Shown to the user.' });
+					continue;
+				}
+				if (SPEC_TOOL_NAMES.has(call.name)) {
+					const result = await executeSpecTool(call.name, call.input, useCaseData, dataModelData, {
+						generateUseCaseModel: generateUseCaseDiagramHook
+							? () => generateUseCaseDiagramHook(buildUseCaseExtractionSummary(diagramData, diagramName), diagramName)
+							: undefined,
+						generateDataModel: generateDataModelHook
+							? () => generateDataModelHook(buildDataModelExtractionSummary(diagramData, diagramName), diagramName)
+							: undefined
+					});
+					if (result.updatedUseCaseData) {
+						useCaseData = result.updatedUseCaseData;
+						saveCachedUseCaseDiagramData(workspacePath, useCaseData);
+						uiActions.push({ type: 'refresh_view', view: 'usecase' }, { type: 'refresh_view', view: 'srs' });
+						specChanged = true;
+					}
+					if (result.updatedDataModelData) {
+						dataModelData = result.updatedDataModelData;
+						saveCachedDataModelData(workspacePath, dataModelData);
+						uiActions.push({ type: 'refresh_view', view: 'data' }, { type: 'refresh_view', view: 'srs' });
+						specChanged = true;
+					}
+					toolResults.push({ toolCallId: call.id, output: result.output });
+					continue;
+				}
+				if (FILE_TOOL_NAMES.has(call.name)) {
+					toolResults.push({ toolCallId: call.id, output: executeFileTool(call.name, call.input, workspacePath) });
+					continue;
+				}
+				toolResults.push({ toolCallId: call.id, output: executeChatTool(call.name, call.input, diagramData) });
+			}
+			conversation.push({ role: 'user', toolResults });
+			if (specChanged) summary = buildChatSummary(diagramData, diagramName, useCaseData, dataModelData);
+		}
+		// Ran out of tool budget. A follow-up call with allowTools:false
+		// looked like the obvious fix, but testing showed Gemini doesn't
+		// reliably honor "no tools declared" once its own history already
+		// shows a tool-calling pattern - it can still emit a function call
+		// (even hallucinating a nonexistent tool name), so trusting the
+		// provider to stop can't be how this terminates. Synthesizing
+		// directly from what was already gathered is guaranteed to end the
+		// request, costs no extra model call, and is honest about the
+		// limitation instead of pretending the partial exploration was a
+		// complete answer.
+		const allOutputs = conversation
+			.filter((m): m is ConversationMessage & { toolResults: NonNullable<ConversationMessage['toolResults']> } => !!m.toolResults?.length)
+			.flatMap(m => m.toolResults)
+			.map(r => r.output);
+		// Dedupe (the same lookup can legitimately recur across turns) and
+		// keep only the most recent few - later lookups are usually closer
+		// to what the model was actually converging on than its first,
+		// often-vague opening searches.
+		const gathered = Array.from(new Set(allOutputs)).slice(-4).join('\n\n').slice(0, 3000);
+		const reply = `I looked into several parts of the codebase but couldn't settle on a complete answer within my lookup budget. Here's what I found along the way:\n\n${gathered}\n\nTry asking a more specific question (about one particular class, route, or file) for a fuller answer.`;
+		return { reply, uiActions };
+	}
+
+	// Auto-chained right after a fresh Use Case Model generation (both the
+	// first-open flow and the manual Generate button below) - the one-shot
+	// extraction above only ever sees a route/folder summary, never real
+	// implementation, so it never fills goal/preconditions/mainFlow/
+	// postconditions (see useCaseSchema.ts's comment on UseCaseItem).
+	// Reuses the exact same tool loop chat already has instead of a
+	// separate mechanism, with a synthetic instruction standing in for
+	// what a user would type - the model reads real files via
+	// read_file/list_directory and grounds each use case's detail in what's
+	// actually implemented (or leaves it unset - see
+	// chatAboutArchitecture.ts's system prompt). Appended to chatHistory
+	// like a real turn so it's visible next time chat is opened, not a
+	// silent background mutation. Returns whether it actually succeeded
+	// (rather than swallowing the error itself) so callers with their own
+	// progress/status reporting - the first-open checklist's "Use Case
+	// Detail" step, the manual route's response - can show the truth
+	// instead of claiming success either way; the generated (still atomic,
+	// still useful) Use Case Model stands regardless of this step's outcome,
+	// so a caller is free to treat a `false` as non-fatal.
+	async function detailFillUseCaseModel(): Promise<boolean> {
+		if (!chatHook || !useCaseData) return false;
+		const instruction = 'I just generated the Use Case Model for this project. For each use case, add goal, preconditions, mainFlow, and postconditions detail via update_use_case_model - read the actual route/handler/component code behind each one first (read_file/list_directory), and ground every step in what the code really does. If you can\'t find or confirm real behavior for a use case, leave its detail fields unset for that one rather than guessing - don\'t let one uncertain use case stop you from detailing the rest. When you\'re done, briefly summarize what you added and, if any, which use cases you left as-is and why.';
+		try {
+			const { reply } = await runChatLoop([{ role: 'user', text: instruction }]);
+			chatHistory = [...chatHistory, { role: 'user', text: instruction }, { role: 'assistant', text: reply }];
+			saveCachedChatHistory(workspacePath, chatHistory);
+			return true;
+		} catch (error) {
+			console.warn(`Skipping automatic use case detail fill: ${error instanceof Error ? error.message : error}`);
+			return false;
 		}
 	}
 
@@ -423,6 +558,14 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 					const summary = buildUseCaseExtractionSummary(diagramData, diagramName);
 					useCaseData = await generateUseCaseDiagramHook(summary, diagramName);
 					saveCachedUseCaseDiagramData(workspacePath, useCaseData);
+					// Same auto-chain as first-open's checklist (see
+					// detailFillUseCaseModel's own comment) - this manual click
+					// has no step-by-step progress UI to update, so its only
+					// visible effect on failure is the console.warn inside
+					// detailFillUseCaseModel itself; the response still reports
+					// ok:true regardless, since the generated model is real and
+					// useful either way.
+					await detailFillUseCaseModel();
 					res.writeHead(200, { 'Content-Type': 'application/json' });
 					res.end(JSON.stringify({ ok: true }));
 				} catch (error) {
@@ -480,118 +623,13 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 				req.on('data', chunk => { body += chunk; });
 				req.on('end', async () => {
 					try {
-						if (!chatHook) throw new Error('Chat is only available in the kratai desktop app.');
 						const { messages } = JSON.parse(body) as { messages?: ConversationMessage[] };
 						if (!Array.isArray(messages) || messages.length === 0) throw new Error('Missing messages.');
-						// Rebuilt fresh before every model turn (cheap - see
-						// buildUseCaseExtractionSummary), not just once per request, so a
-						// spec edit earlier in this same loop (or a mid-conversation
-						// /api/refresh) is reflected in the very next turn. Includes the
-						// full Spec (useCaseData/dataModelData), not just codebase
-						// routes - see chatContext.ts.
-						let summary = buildChatSummary(diagramData, diagramName, useCaseData, dataModelData);
-
-						// The tool-call loop: each chatHook() call is one model turn
-						// (one kratai-web round trip). When the model wants a tool, it
-						// can only be executed here (this process holds diagramData) -
-						// kratai-web just hands the request back rather than trying to
-						// run it itself. Bounded so a model that never stops calling
-						// tools can't hang the request forever.
-						const conversation: ConversationMessage[] = [...messages];
-						// UI-action calls (show_view/highlight_class) are pure side
-						// effects for the shell's own browser JS to carry out - there's
-						// nothing meaningful to hand back to the model as a "result", so
-						// they get a trivial acknowledgment and are separately
-						// accumulated here to ride along with the final reply. A
-						// successful spec edit (SPEC_TOOL_NAMES) queues the same kind of
-						// side effect - the shell reloading whichever view just changed.
-						const uiActions: Array<{ type: string } & Record<string, unknown>> = [];
-						// Raised from 6 now that read_file/list_directory exist - a real
-						// requirement-extraction question (e.g. "draft a spec") needs to
-						// list a folder, read several files, then maybe look at one more
-						// based on what it found, which the old class-lookup-only budget
-						// was sized for but this isn't.
-						const MAX_TOOL_ITERATIONS = 20;
-						for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
-							const step = await chatHook(conversation, diagramName, summary);
-							if (step.done) {
-								// messages is the client's own display history (already
-								// includes the just-sent user turn) - only the final reply
-								// needs adding, never the tool-call turns above (conversation),
-								// which exist only for this one request's internal loop.
-								chatHistory = [...messages, { role: 'assistant', text: step.reply }];
-								saveCachedChatHistory(workspacePath, chatHistory);
-								res.writeHead(200, { 'Content-Type': 'application/json' });
-								res.end(JSON.stringify({ ok: true, reply: step.reply, uiActions }));
-								return;
-							}
-							console.log(`[chat] turn ${i + 1}: ${step.toolCalls.map(c => `${c.name}(${JSON.stringify(c.input)})`).join(', ')}`);
-							conversation.push({ role: 'assistant', text: step.assistantText, toolCalls: step.toolCalls });
-							let specChanged = false;
-							// Sequential, not Promise.all - a turn can include both a
-							// generate_* and an update_* call together, and running them
-							// concurrently would race on the same useCaseData/
-							// dataModelData reassignment below.
-							const toolResults: { toolCallId: string; output: string }[] = [];
-							for (const call of step.toolCalls) {
-								if (UI_ACTION_TOOL_NAMES.has(call.name)) {
-									uiActions.push({ type: call.name, ...call.input });
-									toolResults.push({ toolCallId: call.id, output: 'Shown to the user.' });
-									continue;
-								}
-								if (SPEC_TOOL_NAMES.has(call.name)) {
-									const result = await executeSpecTool(call.name, call.input, useCaseData, dataModelData, {
-										generateUseCaseModel: generateUseCaseDiagramHook
-											? () => generateUseCaseDiagramHook(buildUseCaseExtractionSummary(diagramData, diagramName), diagramName)
-											: undefined,
-										generateDataModel: generateDataModelHook
-											? () => generateDataModelHook(buildDataModelExtractionSummary(diagramData, diagramName), diagramName)
-											: undefined
-									});
-									if (result.updatedUseCaseData) {
-										useCaseData = result.updatedUseCaseData;
-										saveCachedUseCaseDiagramData(workspacePath, useCaseData);
-										uiActions.push({ type: 'refresh_view', view: 'usecase' }, { type: 'refresh_view', view: 'srs' });
-										specChanged = true;
-									}
-									if (result.updatedDataModelData) {
-										dataModelData = result.updatedDataModelData;
-										saveCachedDataModelData(workspacePath, dataModelData);
-										uiActions.push({ type: 'refresh_view', view: 'data' }, { type: 'refresh_view', view: 'srs' });
-										specChanged = true;
-									}
-									toolResults.push({ toolCallId: call.id, output: result.output });
-									continue;
-								}
-								if (FILE_TOOL_NAMES.has(call.name)) {
-									toolResults.push({ toolCallId: call.id, output: executeFileTool(call.name, call.input, workspacePath) });
-									continue;
-								}
-								toolResults.push({ toolCallId: call.id, output: executeChatTool(call.name, call.input, diagramData) });
-							}
-							conversation.push({ role: 'user', toolResults });
-							if (specChanged) summary = buildChatSummary(diagramData, diagramName, useCaseData, dataModelData);
-						}
-						// Ran out of tool budget. A follow-up call with allowTools:false
-						// looked like the obvious fix, but testing showed Gemini doesn't
-						// reliably honor "no tools declared" once its own history
-						// already shows a tool-calling pattern - it can still emit a
-						// function call (even hallucinating a nonexistent tool name),
-						// so trusting the provider to stop can't be how this
-						// terminates. Synthesizing directly from what was already
-						// gathered is guaranteed to end the request, costs no extra
-						// model call, and is honest about the limitation instead of
-						// pretending the partial exploration was a complete answer.
-						const allOutputs = conversation
-							.filter((m): m is ConversationMessage & { toolResults: NonNullable<ConversationMessage['toolResults']> } => !!m.toolResults?.length)
-							.flatMap(m => m.toolResults)
-							.map(r => r.output);
-						// Dedupe (the same lookup can legitimately recur across turns) and
-						// keep only the most recent few - later lookups are usually closer
-						// to what the model was actually converging on than its first,
-						// often-vague opening searches.
-						const gathered = Array.from(new Set(allOutputs)).slice(-4).join('\n\n').slice(0, 3000);
-						const reply = `I looked into several parts of the codebase but couldn't settle on a complete answer within my lookup budget. Here's what I found along the way:\n\n${gathered}\n\nTry asking a more specific question (about one particular class, route, or file) for a fuller answer.`;
+						const { reply, uiActions } = await runChatLoop(messages);
+						// messages is the client's own display history (already
+						// includes the just-sent user turn) - only the final reply
+						// needs adding, never the tool-call turns runChatLoop built
+						// up internally for this one request.
 						chatHistory = [...messages, { role: 'assistant', text: reply }];
 						saveCachedChatHistory(workspacePath, chatHistory);
 						res.writeHead(200, { 'Content-Type': 'application/json' });
