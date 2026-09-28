@@ -246,6 +246,14 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData): string {
 		number: i + 1,
 		name: uc.name.replace(/\n/g, ' '),
 		description: uc.description || '',
+		// "Fully dressed" detail (see useCaseSchema.ts) - absent for a use
+		// case that's only been through the one-shot Generate flow, chat
+		// fills these in afterward. Empty array, not omitted, when unset -
+		// simpler for the client-side render below to check .length on.
+		goal: uc.goal || '',
+		preconditions: uc.preconditions || [],
+		mainFlow: uc.mainFlow || [],
+		postconditions: uc.postconditions || [],
 		actors: data.associations.filter(a => a.useCaseId === uc.id)
 			.map(a => data.actors.find(x => x.id === a.actorId)?.name.replace(/\n/g, ' ') || '').filter(Boolean),
 		// {id, name} only - clicking a chip opens its own full detail via
@@ -384,8 +392,8 @@ ${DIAGRAM_SVG_STYLE}
 	.detail-desc { margin: 0; color: var(--text-dim); font-size: 13px; line-height: 1.6; }
 	.detail-section { margin-top: 16px; }
 	.detail-section h3 { margin: 0 0 6px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); }
-	.detail-section p, .detail-section ul { margin: 0; color: var(--text-dim); font-size: 12.5px; line-height: 1.6; }
-	.detail-section ul { padding-left: 18px; }
+	.detail-section p, .detail-section ul, .detail-section ol { margin: 0; color: var(--text-dim); font-size: 12.5px; line-height: 1.6; }
+	.detail-section ul, .detail-section ol { padding-left: 18px; }
 	.nfr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 	.nfr-chip {
 		border: 1px solid var(--accent-2); background: none; color: var(--accent-2);
@@ -491,11 +499,20 @@ ${DIAGRAM_SVG_STYLE}
 	document.getElementById('detail-close').addEventListener('click', closeDetail);
 	document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDetail(); });
 
+	function detailList(label, items, ordered) {
+		if (!items.length) return '';
+		var tag = ordered ? 'ol' : 'ul';
+		return '<div class="detail-section"><h3>' + escapeHtml(label) + '</h3><' + tag + '>' + items.map(function (i) { return '<li>' + escapeHtml(i) + '</li>'; }).join('') + '</' + tag + '></div>';
+	}
 	function openUseCaseDetail(id) {
 		var uc = UC_DETAILS.filter(function (u) { return u.id === id; })[0];
 		if (!uc) return;
 		var html = uc.description ? '<p class="detail-desc">' + escapeHtml(uc.description) + '</p>' : '<p class="detail-desc">No description yet.</p>';
+		if (uc.goal) html += '<div class="detail-section"><h3>Goal</h3><p>' + escapeHtml(uc.goal) + '</p></div>';
 		if (uc.actors.length) html += '<div class="detail-section"><h3>Actors</h3><p>' + escapeHtml(uc.actors.join(', ')) + '</p></div>';
+		html += detailList('Preconditions', uc.preconditions, false);
+		html += detailList('Main flow', uc.mainFlow, true);
+		html += detailList('Postconditions', uc.postconditions, false);
 		if (uc.nfrs.length) html += '<div class="detail-section"><h3>Non-functional requirements</h3><div class="nfr-chips">' + uc.nfrs.map(function (n) { return '<button type="button" class="nfr-chip" data-nfr-chip="' + n.id + '">' + escapeHtml(n.name) + '</button>'; }).join('') + '</div></div>';
 		openDetail('USE CASE UC-' + uc.number, uc.name, html);
 	}

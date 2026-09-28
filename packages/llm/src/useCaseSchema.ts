@@ -16,6 +16,22 @@ export interface UseCaseItem {
 	// Shown in the click-to-open detail popup (see useCaseDiagramView.ts) -
 	// optional for the same reason as UseCaseActor.role/description above.
 	description?: string;
+	// "Fully dressed" detail (Cockburn's term) - goal/preconditions/mainFlow/
+	// postconditions - deliberately separate from description above, not a
+	// replacement for it. All optional and all-or-nothing in practice: the
+	// one-shot Generate button's extraction only ever sees a route/folder
+	// summary, never real implementation, so it never fills these (a
+	// plausible-sounding but ungrounded flow would be worse than none -
+	// see useCaseExtraction.ts). They're meant to be filled in afterward by
+	// chat, which can read_file the real handler/route code first - see
+	// chatAboutArchitecture.ts's system prompt.
+	goal?: string;
+	preconditions?: string[];
+	// Numbered actor<->system steps, in order - "Step 3" in the UI is
+	// mainFlow[2], not a stored number, so reordering is just reordering
+	// the array.
+	mainFlow?: string[];
+	postconditions?: string[];
 }
 
 export interface UseCaseAssociation {
@@ -130,6 +146,15 @@ function parseActors(raw: unknown): UseCaseActor[] {
 	return result;
 }
 
+// Used for preconditions/mainFlow/postconditions - each a list of short
+// strings. Non-string entries are dropped rather than failing the whole
+// use case, same defensive posture as everything else in this file.
+function parseStringList(raw: unknown): string[] | undefined {
+	if (!Array.isArray(raw)) return undefined;
+	const list = raw.filter((s): s is string => typeof s === 'string' && s.trim().length > 0);
+	return list.length > 0 ? list : undefined;
+}
+
 function parseUseCases(raw: unknown): UseCaseItem[] {
 	if (!Array.isArray(raw)) return [];
 	const seen = new Set<string>();
@@ -142,6 +167,13 @@ function parseUseCases(raw: unknown): UseCaseItem[] {
 		seen.add(e.id);
 		const uc: UseCaseItem = { id: e.id, name: e.name };
 		if (typeof e.description === 'string' && e.description) uc.description = e.description;
+		if (typeof e.goal === 'string' && e.goal) uc.goal = e.goal;
+		const preconditions = parseStringList(e.preconditions);
+		if (preconditions) uc.preconditions = preconditions;
+		const mainFlow = parseStringList(e.mainFlow);
+		if (mainFlow) uc.mainFlow = mainFlow;
+		const postconditions = parseStringList(e.postconditions);
+		if (postconditions) uc.postconditions = postconditions;
 		result.push(uc);
 	});
 	return result;

@@ -131,7 +131,15 @@ export const CHAT_TOOL_DEFINITIONS: ToolDefinition[] = [
 					description: 'The COMPLETE replacement list of use cases',
 					items: {
 						type: 'object',
-						properties: { id: { type: 'string' }, name: { type: 'string' }, description: { type: 'string' } },
+						properties: {
+							id: { type: 'string' },
+							name: { type: 'string' },
+							description: { type: 'string', description: 'One-sentence summary' },
+							goal: { type: 'string', description: 'Why this use case exists - the underlying need it serves, one sentence' },
+							preconditions: { type: 'array', items: { type: 'string' }, description: 'What must already be true before this use case starts, e.g. "User is signed in"' },
+							mainFlow: { type: 'array', items: { type: 'string' }, description: 'Numbered actor<->system steps in order, e.g. "User submits the signup form", "System creates the account and sends a verification email" - ground this in the real code (read_file the actual route/handler first), never invent plausible-sounding steps' },
+							postconditions: { type: 'array', items: { type: 'string' }, description: 'What is true/changed after this use case completes successfully' }
+						},
 						required: ['id', 'name']
 					}
 				},

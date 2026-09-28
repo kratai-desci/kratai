@@ -113,9 +113,23 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 		body: `<p class="section-intro">Each use case below describes one capability the system provides, along with any requirements specific to it.</p>` +
 			useCaseData.useCases.map((u, i) => {
 			const nfrs = nfrsByUseCase[u.id] || [];
+			// goal/preconditions/mainFlow/postconditions are the "fully
+			// dressed" detail chat fills in afterward (see
+			// chatAboutArchitecture.ts) - absent for a use case that's only
+			// ever been through the one-shot Generate flow, which is why
+			// every one of these is conditional rather than always rendered.
+			const detailBlock = (label: string, items: string[] | undefined, ordered: boolean) => {
+				if (!items || items.length === 0) return '';
+				const tag = ordered ? 'ol' : 'ul';
+				return `<div class="uc-detail"><span class="uc-detail-label">${label}</span><${tag}>${items.map(i => `<li>${escapeXml(i)}</li>`).join('')}</${tag}></div>`;
+			};
 			return `<div class="use-case-item">
 				<h3>UC-${i + 1}: ${escapeXml(u.name.replace(/\n/g, ' '))}</h3>
 				<p>${escapeXml(u.description || 'No description captured yet.')}</p>
+				${u.goal ? `<p class="uc-goal"><strong>Goal:</strong> ${escapeXml(u.goal)}</p>` : ''}
+				${detailBlock('Preconditions', u.preconditions, false)}
+				${detailBlock('Main flow', u.mainFlow, true)}
+				${detailBlock('Postconditions', u.postconditions, false)}
 				${nfrs.length > 0 ? `<ul class="use-case-nfrs">${nfrs.map(n => `<li><span class="nfr-id">NFR-${nfrNumberById[n.id]}</span><strong>${escapeXml(n.name)}:</strong> ${escapeXml(n.text)}</li>`).join('\n')}</ul>` : ''}
 			</div>`;
 		}).join('\n')
@@ -205,6 +219,14 @@ ${DOC_STYLE}
 	.use-case-item:last-child { margin-bottom: 0; }
 	.use-case-item h3 { margin: 0 0 4px; font-size: 13px; }
 	.use-case-item p { margin: 0; }
+	/* .use-case-item p.uc-goal, not just .uc-goal - same specificity fight
+	   as .section p.section-intro elsewhere in this file: the bare
+	   .use-case-item p rule above would otherwise win and flatten this
+	   margin back to 0. */
+	.use-case-item p.uc-goal { margin-top: 6px; font-style: italic; color: var(--text-dim); }
+	.uc-detail { margin-top: 8px; }
+	.uc-detail-label { display: block; font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-faint); margin-bottom: 3px; }
+	.uc-detail ul, .uc-detail ol { margin: 0; padding-left: 18px; color: var(--text-dim); font-size: 12px; line-height: 1.6; }
 	.use-case-nfrs { margin: 8px 0 0; padding-left: 18px; color: var(--text-dim); font-size: 12px; line-height: 1.6; }
 	.nfr-id { display: inline-block; font-size: 10px; font-family: ui-monospace, monospace; color: var(--accent-2); margin-right: 6px; }
 	/* Explicit gap rather than relying on each diagram's own internal
