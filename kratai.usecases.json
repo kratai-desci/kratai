@@ -6,186 +6,386 @@
       "id": "developer",
       "name": "Developer",
       "side": "left",
-      "role": "Desktop Application User",
-      "description": "Interacts with the desktop application to onboard, analyze the codebase, view 3D architecture diagrams, inspect code paths, chat with the AI assistant, export PDF reports/diagrams, manage authentication, and check AI usage balance."
+      "role": "User",
+      "description": "The developer using the desktop application."
+    },
+    {
+      "id": "kratai-web-services",
+      "name": "Kratai Web Services",
+      "side": "right",
+      "role": "External System",
+      "description": "The external web service managing accounts, tokens, and proxying AI requests."
     },
     {
       "id": "llm-provider",
       "name": "LLM Provider",
       "side": "right",
-      "role": "AI Service Integration",
-      "description": "External language model API that generates contextual architecture summaries, enriched code insights, and answers chat queries with tool execution capability."
-    },
-    {
-      "id": "auth-service",
-      "name": "Authentication Service",
-      "side": "left",
-      "role": "External Identity Service",
-      "description": "External OAuth identity provider managing sign-in tokens and session verification."
+      "role": "External System",
+      "description": "The external AI backend processing generation requests."
     }
   ],
   "useCases": [
     {
-      "id": "complete-onboarding",
-      "name": "Complete Onboarding",
-      "description": "Guides new users through welcome screens, setup steps, and feature tour cards."
+      "id": "authenticate-user",
+      "name": "Authenticate User (Login & Logout)",
+      "description": "Log in and log out of the Kratai desktop application securely via PKCE browser flow.",
+      "goal": "Establish a secure, authenticated local session to allow access to core application features and token usage.",
+      "preconditions": [
+        "Developer has downloaded and launched the desktop app."
+      ],
+      "mainFlow": [
+        "Developer opens the desktop application and is presented with a sign-in gate.",
+        "Developer chooses to sign in, which initiates a PKCE challenge.",
+        "System opens the default OS web browser to the Kratai Web Services login page.",
+        "Developer authenticates on the web.",
+        "Kratai Web Services redirects to a kratai:// deep-link with an authorization code.",
+        "System intercepts the deep-link, exchanges the code for a token, and stores it in local device persistence.",
+        "System clears the token from local storage upon Developer requesting logout."
+      ],
+      "postconditions": [
+        "Developer has a valid local session token.",
+        "The main application UI and project selection screens are unlocked."
+      ]
     },
     {
-      "id": "analyze-codebase",
-      "name": "Analyze Codebase Workspace",
-      "description": "Parses repository source code, framework structures, and Git history while displaying progress."
+      "id": "view-ai-balance",
+      "name": "View AI Token Balance",
+      "description": "View remaining AI tokens directly from the desktop shell.",
+      "goal": "Allow the developer to track their AI usage and remaining budget transparently.",
+      "preconditions": [
+        "Developer is authenticated."
+      ],
+      "mainFlow": [
+        "System reads the local session token.",
+        "System's main process securely queries the device-balance API at Kratai Web Services.",
+        "System broadcasts the fetched balance over IPC.",
+        "System renders the updated credit amount in the UI top bar meter."
+      ],
+      "postconditions": [
+        "The correct token balance is visible on-screen."
+      ]
     },
     {
-      "id": "view-diagram",
-      "name": "View Architecture Diagram",
-      "description": "Renders interactive 3D dependency graphs, class diagrams, and data models within the desktop application."
+      "id": "open-dashboard",
+      "name": "Open Account Dashboard",
+      "description": "Open the Kratai account dashboard in the default browser.",
+      "goal": "Provide quick access to web-based account management.",
+      "preconditions": [
+        "None."
+      ],
+      "mainFlow": [
+        "Developer clicks the Manage Account or Dashboard button.",
+        "System intercepts the kratai-action://open-dashboard event.",
+        "System launches the default OS browser navigated to the external user dashboard."
+      ],
+      "postconditions": [
+        "The web dashboard is open in the user's browser."
+      ]
     },
     {
-      "id": "inspect-file-path",
-      "name": "Inspect Code Path",
-      "description": "Drills down into code files, classes, relationship paths, and file changes in Git."
+      "id": "onboard-project",
+      "name": "Onboard and Setup Project",
+      "description": "Select a codebase folder and configure it for analysis.",
+      "goal": "Import a local repository and safely prepare it for architectural extraction.",
+      "preconditions": [
+        "Developer is authenticated."
+      ],
+      "mainFlow": [
+        "Developer selects a new folder via the OS file picker or clicks a recent workspace.",
+        "System analyzes the raw directory size and file count.",
+        "System checks if Spec models already exist for the project.",
+        "If no specs exist, System prompts Developer with the projected AI cost versus their current balance.",
+        "Developer explicitly consents to generation (or skips).",
+        "System displays a real-time loading checklist while performing extraction or opening the shell."
+      ],
+      "postconditions": [
+        "The project is loaded and the main architecture shell is active."
+      ]
     },
     {
-      "id": "enrich-analysis",
-      "name": "Enrich Analysis with AI",
-      "description": "Generates natural language architectural summaries and context for analyzed components using LLMs."
+      "id": "view-srs",
+      "name": "View Software Specification (SRS)",
+      "description": "Read the generated Use Case Model and Data Model documents in a readable format.",
+      "goal": "Provide a centralized, text-and-visual view of all extracted requirements and data schemas.",
+      "preconditions": [
+        "A project is onboarded and Spec models have been generated."
+      ],
+      "mainFlow": [
+        "Developer navigates to the Spec Document view in the desktop shell.",
+        "System renders the textual narrative, actor list, full use case details, and NFRs from the parsed spec data.",
+        "System renders the Data Model schemas and entity relationships."
+      ],
+      "postconditions": [
+        "The Spec document is displayed for reading."
+      ]
     },
     {
-      "id": "chat-with-assistant",
+      "id": "export-pdf",
+      "name": "Export PDF Reports",
+      "description": "Export the SRS or diagrams as a PDF file.",
+      "goal": "Allow the developer to share offline architectural documentation with clients or team members.",
+      "preconditions": [
+        "Developer has an active workspace and a view open to export."
+      ],
+      "mainFlow": [
+        "Developer triggers a PDF export for a specific diagram or the full SRS view.",
+        "System orchestrates a background render of the active SVG or document.",
+        "System opens a native OS save dialog to request a file destination.",
+        "System writes the generated PDF file to the selected disk path."
+      ],
+      "postconditions": [
+        "A PDF file is successfully saved to the local file system."
+      ]
+    },
+    {
+      "id": "view-class-diagram",
+      "name": "View Class Diagram",
+      "description": "View the hierarchical Class Diagram of the parsed codebase.",
+      "goal": "Allow the developer to visualize class structures, properties, methods, and folder groupings.",
+      "preconditions": [
+        "A project is onboarded and analyzed."
+      ],
+      "mainFlow": [
+        "Developer navigates to the Class Diagram view.",
+        "System parses local code files, extracting classes, interfaces, and methods.",
+        "System maps these nodes into their directory folder structures.",
+        "System renders the nodes, grouping them visually inside folder boxes.",
+        "System applies git diff statuses (added, modified, deleted) to nodes if changes exist."
+      ],
+      "postconditions": [
+        "The complete architectural hierarchy is visible."
+      ]
+    },
+    {
+      "id": "interact-class-diagram",
+      "name": "Interact with Class Diagram",
+      "description": "Interact with Class Diagram elements such as folding folders, focusing classes, and toggling relationship lines.",
+      "goal": "Enable navigation and decluttering of complex dependency graphs.",
+      "preconditions": [
+        "The Class Diagram is actively rendered."
+      ],
+      "mainFlow": [
+        "Developer clicks a folder node header to collapse or expand its internal classes.",
+        "Developer toggles global dependency lines on or off to reduce visual noise.",
+        "Developer clicks a specific class node to enter Focus Mode, dimming unrelated components.",
+        "Developer clicks a property or method to open the raw source code in the editor."
+      ],
+      "postconditions": [
+        "The diagram's visual state is updated based on the interaction."
+      ]
+    },
+    {
+      "id": "review-code-changes",
+      "name": "Review Code Changes",
+      "description": "Review the structural impact of uncommitted git changes in the architecture diagrams.",
+      "goal": "Provide a visual diff to understand how current work affects the overall architecture before committing.",
+      "preconditions": [
+        "The project has git tracking enabled and local changes exist."
+      ],
+      "mainFlow": [
+        "Developer modifies files locally in their IDE.",
+        "System detects uncommitted git modifications in the workspace.",
+        "System analyzes the differences to find added, modified, or deleted structural members (classes, methods).",
+        "System overlays color-coded highlights (e.g., green for added, yellow for modified, red for deleted) directly onto the Class Diagram nodes.",
+        "Developer visually reviews these highlights."
+      ],
+      "postconditions": [
+        "The architectural impact of the local diff is understood."
+      ]
+    },
+    {
+      "id": "view-generate-use-case",
+      "name": "View and Generate Use Case Model",
+      "description": "Analyze codebase and extract actors and use cases into the Spec document.",
+      "goal": "Automate the creation of a Use Case Model by having the AI analyze the codebase's behavior and routing.",
+      "preconditions": [
+        "Developer has sufficient AI tokens."
+      ],
+      "mainFlow": [
+        "Developer prompts the system to generate or regenerate the Use Case Model.",
+        "System gathers architectural context (routes, entry points, class data).",
+        "System securely sends the context to the LLM Provider.",
+        "LLM Provider identifies actors, use cases, and relationships, returning structured schema data.",
+        "System validates the schema, defensively dropping dangling references.",
+        "System saves the resulting Use Case Model to disk and renders it in the UI."
+      ],
+      "postconditions": [
+        "The Use Case Model is populated and visible."
+      ]
+    },
+    {
+      "id": "view-generate-data-model",
+      "name": "View and Generate Data Model",
+      "description": "Analyze codebase and extract data entities into the Spec document.",
+      "goal": "Automate the creation of a Domain/Data Model by having the AI inspect ORM schemas, interfaces, and types.",
+      "preconditions": [
+        "Developer has sufficient AI tokens."
+      ],
+      "mainFlow": [
+        "Developer prompts the system to generate or regenerate the Data Model.",
+        "System gathers context around data access, schemas, and types.",
+        "System securely sends the context to the LLM Provider.",
+        "LLM Provider identifies entities, attributes, and relationships.",
+        "System validates and writes the resulting Data Model to disk.",
+        "System updates the Data Model view UI."
+      ],
+      "postconditions": [
+        "The Data Model is populated and visible."
+      ]
+    },
+    {
+      "id": "chat-with-ai-assistant",
       "name": "Chat with AI Assistant",
-      "description": "Allows developers to query the codebase and generated Spec in a chat panel and instruct the assistant to create or modify the Use Case Model or Data Model directly."
-    },
-    {
-      "id": "export-diagram",
-      "name": "Export Diagrams and PDF Reports",
-      "description": "Saves diagrams as image files or PDF software specification reports."
-    },
-    {
-      "id": "manage-authentication",
-      "name": "Manage User Authentication",
-      "description": "Authenticates users via Web OAuth (Google or GitHub) and securely stores session info."
-    },
-    {
-      "id": "check-ai-balance",
-      "name": "Check AI Token Balance",
-      "description": "Queries and displays remaining AI credit balance for analysis from the top bar of the application."
-    },
-    {
-      "id": "view-account-dashboard",
-      "name": "View User Account Dashboard",
-      "description": "Displays AI credit balance and usage history categorized by feature from the web dashboard."
+      "description": "Engage in an interactive conversation with the AI to ask questions about the architecture or instruct it to update specifications.",
+      "goal": "Allow the developer to explore codebase architecture iteratively and trigger local tool actions through conversational AI.",
+      "preconditions": [
+        "Developer is authenticated and has an active workspace."
+      ],
+      "mainFlow": [
+        "Developer enters a query or instruction in the AI Chat panel.",
+        "System packages the current conversation history and workspace summary.",
+        "System sends a stateless request to Kratai Web Services via /api/chat.",
+        "Kratai Web Services proxies the request to the LLM Provider.",
+        "LLM Provider returns either a text response or a tool call request (e.g., read_file, update_use_case_model).",
+        "If a tool call is received, the local System executes it securely against the local codebase and loops the result back to the LLM.",
+        "System displays the final AI text response in the chat panel."
+      ],
+      "postconditions": [
+        "The developer's question is answered or the requested action is completed.",
+        "AI token balance is decremented."
+      ]
     }
   ],
   "associations": [
     {
       "actorId": "developer",
-      "useCaseId": "complete-onboarding"
+      "useCaseId": "authenticate-user"
     },
     {
-      "useCaseId": "analyze-codebase",
+      "useCaseId": "view-ai-balance",
       "actorId": "developer"
     },
     {
-      "useCaseId": "view-diagram",
+      "useCaseId": "open-dashboard",
       "actorId": "developer"
     },
     {
-      "actorId": "developer",
-      "useCaseId": "inspect-file-path"
-    },
-    {
-      "actorId": "developer",
-      "useCaseId": "enrich-analysis"
-    },
-    {
-      "useCaseId": "chat-with-assistant",
+      "useCaseId": "onboard-project",
       "actorId": "developer"
     },
     {
       "actorId": "developer",
-      "useCaseId": "export-diagram"
+      "useCaseId": "view-srs"
+    },
+    {
+      "useCaseId": "export-pdf",
+      "actorId": "developer"
     },
     {
       "actorId": "developer",
-      "useCaseId": "manage-authentication"
+      "useCaseId": "view-class-diagram"
     },
     {
-      "useCaseId": "check-ai-balance",
+      "actorId": "developer",
+      "useCaseId": "interact-class-diagram"
+    },
+    {
+      "actorId": "developer",
+      "useCaseId": "review-code-changes"
+    },
+    {
+      "useCaseId": "view-generate-use-case",
       "actorId": "developer"
     },
     {
-      "useCaseId": "view-account-dashboard",
+      "useCaseId": "view-generate-data-model",
       "actorId": "developer"
+    },
+    {
+      "useCaseId": "chat-with-ai-assistant",
+      "actorId": "developer"
+    },
+    {
+      "useCaseId": "authenticate-user",
+      "actorId": "kratai-web-services"
+    },
+    {
+      "useCaseId": "view-ai-balance",
+      "actorId": "kratai-web-services"
+    },
+    {
+      "actorId": "kratai-web-services",
+      "useCaseId": "chat-with-ai-assistant"
     },
     {
       "actorId": "llm-provider",
-      "useCaseId": "enrich-analysis"
+      "useCaseId": "view-generate-use-case"
     },
     {
-      "useCaseId": "chat-with-assistant",
-      "actorId": "llm-provider"
+      "actorId": "llm-provider",
+      "useCaseId": "view-generate-data-model"
     },
     {
-      "useCaseId": "manage-authentication",
-      "actorId": "auth-service"
+      "actorId": "llm-provider",
+      "useCaseId": "chat-with-ai-assistant"
     }
   ],
   "relations": [
     {
+      "fromId": "view-generate-use-case",
       "kind": "extend",
-      "fromId": "enrich-analysis",
-      "toId": "analyze-codebase"
+      "toId": "onboard-project"
     },
     {
-      "fromId": "chat-with-assistant",
+      "toId": "onboard-project",
       "kind": "extend",
-      "toId": "analyze-codebase"
+      "fromId": "view-generate-data-model"
     }
   ],
-  "overview": "Kratai Desktop is an interactive desktop application for repository analysis, 3D architecture diagram generation, AI-powered codebase enrichment, and Software Requirements Specification (SRS) generation with an AI chat assistant and pay-as-you-go credit balance.",
-  "narrative": "The desktop application serves as the primary user interface for developers. Developers onboard, analyze repository workspaces, view interactive 3D architecture diagrams, inspect code paths, chat with an AI assistant about the codebase and generated Spec, export diagrams or PDF reports, manage sign-in, and monitor usage history and AI credit balance, supported by external backend services including LLM providers processing AI queries and authentication services managing tokens and logins.",
+  "overview": "Kratai is a desktop workspace that parses local codebases to render interactive architectural class diagrams overlaid with live Git diffs, allowing developers to explore system structure and track uncommitted changes. By securely integrating multi-provider LLMs and interactive chat, it analyzes source code to auto-generate and export fully-dressed Use Case Models, Data Models, and PDF software specifications while managing AI token usage via PKCE-authenticated web services.",
+  "narrative": "The developer securely logs into the application via Kratai Web Services. They proceed through onboarding by selecting a local project and evaluating AI token costs. Developers can view, interact with, and analyze the auto-generated codebase architecture through the Class Diagram view, review uncommitted structural code changes, and chat with an AI assistant to explore the architecture. They can generate and view specification models (Use Case and Data Models) utilizing the multi-provider LLM integration, and export these as PDF reports.",
   "nfrs": [
     {
-      "id": "ai-request-security",
-      "useCaseId": "enrich-analysis",
-      "name": "AI Request Security",
-      "text": "External LLM API connections must process code snippets securely without unauthorized storage."
+      "id": "pkce-oauth-flow",
+      "useCaseId": "authenticate-user",
+      "name": "PKCE OAuth Flow",
+      "text": "Authentication must utilize a PKCE challenge/verifier flow, opening the system browser for sign-in and capturing the result via a kratai:// deep link callback."
     },
     {
-      "id": "question-answering-scope",
-      "useCaseId": "chat-with-assistant",
-      "name": "Question Answering Scope",
-      "text": "The AI chat assistant will only answer questions about the current codebase and generated Spec, rejecting out-of-scope requests."
+      "id": "local-token-storage",
+      "useCaseId": "authenticate-user",
+      "name": "Local Token Storage",
+      "text": "Device tokens retrieved from the exchange endpoint must be stored locally. Signing out only clears the local credential."
     },
     {
-      "id": "tool-loop-limit",
-      "useCaseId": "chat-with-assistant",
-      "name": "Tool Loop Limit",
-      "text": "Each chat request runs through a predefined maximum number of tool execution turns to prevent infinite loops."
+      "id": "desktop-ipc-sync",
+      "useCaseId": "view-ai-balance",
+      "name": "Desktop IPC Sync",
+      "text": "Token balance must be securely synchronized via IPC polling between the main process and renderer."
     },
     {
-      "id": "chat-history-persistence",
-      "useCaseId": "chat-with-assistant",
-      "name": "Chat History Persistence",
-      "text": "Chat history is cached locally per workspace and restored automatically when reopening the app, limited to the 40 most recent messages."
+      "id": "mandatory-auth-gate",
+      "useCaseId": "onboard-project",
+      "name": "Mandatory Auth Gate",
+      "text": "Sign-in is a hard gate; users cannot proceed to folder selection or the application UI without an active session."
     },
     {
-      "id": "token-storage-security",
-      "useCaseId": "manage-authentication",
-      "name": "Token Storage Security",
-      "text": "Sign-in tokens are stored server-side only as salted hashes and validated on every authenticated request."
+      "id": "explicit-ai-consent",
+      "useCaseId": "onboard-project",
+      "name": "Explicit AI Cost Consent",
+      "text": "First-open auto-generation of specs must display the current AI credit balance and project size, prompting for explicit user consent before proceeding."
     },
     {
-      "id": "billing-markup-consistency",
+      "id": "multi-llm-support",
       "useCaseId": null,
-      "name": "Billing Markup Consistency",
-      "text": "All billed AI operations are charged at a fixed 2.5x provider cost margin and logged along with balance deductions."
+      "name": "Multi-Provider LLM Integration",
+      "text": "The system must abstract LLM integration to support multiple configurable AI backends (e.g., Anthropic Claude and Google Gemini) for generation tasks."
     },
     {
-      "id": "telemetry-logging",
-      "useCaseId": null,
-      "name": "Telemetry Logging",
-      "text": "The system collects operational metrics and telemetry during codebase analysis sessions."
+      "id": "use-case-schema",
+      "useCaseId": "view-generate-use-case",
+      "name": "Use Case Schema & Validation",
+      "text": "Functional Requirements are captured as fully-dressed use cases. Untrusted LLM schema generation must be safely validated by dropping dangling relations instead of failing. NFRs support a short name and detail text."
     }
   ],
   "preparedBy": "Kratai Engineering Team",

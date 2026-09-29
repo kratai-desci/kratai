@@ -2,63 +2,87 @@
   "workspaceName": "kratai",
   "entities": [
     {
-      "id": "class-info",
-      "name": "Class Info",
+      "id": "user",
+      "name": "User",
       "attributes": [
         {
-          "name": "name",
-          "type": "string",
-          "isPK": true
-        },
-        {
-          "name": "filePath",
+          "name": "token",
           "type": "string"
         },
         {
-          "name": "classType",
-          "type": "string"
-        },
-        {
-          "name": "changeStatus",
-          "type": "string"
-        },
-        {
-          "name": "extends",
-          "type": "string"
-        },
-        {
-          "name": "isInterface",
-          "type": "boolean"
-        },
-        {
-          "name": "isAbstract",
-          "type": "boolean"
-        }
-      ]
-    },
-    {
-      "id": "class-relationship",
-      "name": "Class Relationship",
-      "attributes": [
-        {
-          "name": "from",
-          "type": "string",
-          "isFK": true
-        },
-        {
-          "name": "to",
-          "type": "string",
-          "isFK": true
-        },
-        {
-          "name": "type",
+          "name": "email",
           "type": "string"
         }
       ]
     },
     {
-      "id": "data-entity",
-      "name": "Data Entity",
+      "id": "project",
+      "name": "Project",
+      "attributes": [
+        {
+          "name": "workspacePath",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "spec",
+      "name": "Spec",
+      "attributes": [
+        {
+          "name": "preparedBy",
+          "type": "string"
+        },
+        {
+          "name": "clientName",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "use-case-model",
+      "name": "Use Case Model",
+      "attributes": [
+        {
+          "name": "workspaceName",
+          "type": "string"
+        },
+        {
+          "name": "systemName",
+          "type": "string"
+        },
+        {
+          "name": "overview",
+          "type": "string"
+        },
+        {
+          "name": "narrative",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "data-model",
+      "name": "Data Model",
+      "attributes": [
+        {
+          "name": "workspaceName",
+          "type": "string"
+        },
+        {
+          "name": "narrative",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "class-diagram",
+      "name": "Class Diagram",
+      "attributes": []
+    },
+    {
+      "id": "use-case-item",
+      "name": "Use Case Item",
       "attributes": [
         {
           "name": "id",
@@ -68,95 +92,98 @@
         {
           "name": "name",
           "type": "string"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "goal",
+          "type": "string"
+        },
+        {
+          "name": "preconditions",
+          "type": "string[]"
+        },
+        {
+          "name": "mainFlow",
+          "type": "string[]"
+        },
+        {
+          "name": "postconditions",
+          "type": "string[]"
         }
       ]
     },
     {
-      "id": "data-relationship",
-      "name": "Data Relationship",
+      "id": "nfr",
+      "name": "NFR",
       "attributes": [
         {
-          "name": "fromId",
-          "type": "string",
-          "isFK": true
-        },
-        {
-          "name": "toId",
-          "type": "string",
-          "isFK": true
-        },
-        {
-          "name": "kind",
-          "type": "string"
-        },
-        {
-          "name": "label",
-          "type": "string"
-        }
-      ]
-    },
-    {
-      "id": "git-comparison-result",
-      "name": "Git Comparison Result",
-      "attributes": [
-        {
-          "name": "workspaceName",
+          "name": "id",
           "type": "string",
           "isPK": true
         },
         {
-          "name": "currentBranch",
+          "name": "name",
           "type": "string"
         },
         {
-          "name": "compareTarget",
+          "name": "text",
           "type": "string"
-        }
-      ]
-    },
-    {
-      "id": "file-change",
-      "name": "File Change",
-      "attributes": [
-        {
-          "name": "path",
-          "type": "string",
-          "isPK": true
-        },
-        {
-          "name": "status",
-          "type": "string"
-        },
-        {
-          "name": "additions",
-          "type": "number"
-        },
-        {
-          "name": "deletions",
-          "type": "number"
         }
       ]
     }
   ],
   "relationships": [
     {
-      "fromId": "class-info",
-      "toId": "class-relationship",
+      "fromId": "user",
+      "toId": "project",
       "kind": "one-to-many",
-      "label": "creates relationship"
+      "label": "has"
     },
     {
-      "fromId": "data-entity",
-      "toId": "data-relationship",
-      "kind": "one-to-many",
-      "label": "connected via"
+      "fromId": "project",
+      "toId": "spec",
+      "kind": "one-to-one",
+      "label": "has"
     },
     {
-      "fromId": "git-comparison-result",
-      "toId": "file-change",
+      "fromId": "spec",
+      "toId": "use-case-model",
+      "kind": "one-to-one",
+      "label": "composed of"
+    },
+    {
+      "fromId": "spec",
+      "toId": "data-model",
+      "kind": "one-to-one",
+      "label": "composed of"
+    },
+    {
+      "fromId": "spec",
+      "toId": "class-diagram",
+      "kind": "one-to-one",
+      "label": "composed of"
+    },
+    {
+      "fromId": "use-case-model",
+      "toId": "use-case-item",
       "kind": "one-to-many",
-      "label": "tracks changes"
+      "label": "contains"
+    },
+    {
+      "fromId": "use-case-model",
+      "toId": "nfr",
+      "kind": "one-to-many",
+      "label": "has project-wide"
+    },
+    {
+      "fromId": "use-case-item",
+      "toId": "nfr",
+      "kind": "one-to-many",
+      "label": "has specific"
     }
   ],
-  "narrative": "The domain model represents structural analysis and evolution of the codebase by tracking software components and dependencies. Analyzed code structure is stored as classes connected to other classes through directed structural relationships, while the data model represents high-level entities and schemas. Git diff comparison captures file modification entries under comparison results to showcase codebase evolution over time."
+  "narrative": "The conceptual domain model outlines the application's workspace and specification hierarchy. A User manages multiple Projects, each containing exactly one Spec. This Spec serves as a unified container composed of exactly one Use Case Model, Data Model, and Class Diagram. Requirements are tracked within the Use Case Model as individual Use Case Items. Non-Functional Requirements (NFRs) can be scoped globally directly to the Use Case Model, or locally to a specific Use Case Item."
 }
