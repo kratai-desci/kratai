@@ -2,6 +2,78 @@
 
 All notable changes to kratai will be documented in this file.
 
+## [3.0.0] - 2026-09-29
+
+kratai is no longer just an architecture-diagram tool — it's a spec-driven
+development toolkit. It now reads your codebase and generates a real spec
+(Use Case Model, Data Model, SRS document) grounded in the actual code,
+backed by an AI chat that reads your real files before answering.
+
+### Added
+- **Use Case Model & Data Model generation** — actors, use cases,
+  associations, entities, and relationships extracted from a real codebase
+  via LLM, not invented.
+- **Atomic use cases** — extraction now produces one actor/trigger/outcome
+  per use case, with no fixed cap, so each one works as a standalone UAT
+  script instead of merging several capabilities together.
+- **"Fully dressed" use case detail** — goal, preconditions, main flow, and
+  postconditions, filled in by chat (grounded in real `read_file`'d code)
+  after every generation, auto-chained so it happens without an extra step.
+- **AI chat with real filesystem access** — `read_file`/`list_directory`
+  tools, workspace-jailed and secret-file-denied, so chat can ground
+  answers and spec edits in the actual code instead of just a structural
+  summary.
+- **Generated SRS document** with PDF export — cover page, section intros,
+  and pagination rules that keep headings and entity blocks from getting
+  orphaned across page breaks.
+- **Sign-in gate** — the desktop app now requires a kratai.com account
+  before use, replacing the old onboarding walkthrough; the account
+  carries an AI credit balance.
+- **macOS code signing and notarization** for desktop builds.
+- **Persistent chat history** across sessions.
+- **Beta badge** in the CLI viewer and desktop welcome screen.
+
+### Changed
+- Chat's model upgraded to Gemini's Pro tier (the one-shot generation
+  routes stay on Flash for cost).
+- Use cases are written at the behavior level, not the UI level —
+  extraction and chat-driven edits both avoid describing interface
+  mechanics (button labels, layout) in favor of actor intent and system
+  response.
+- The SRS document's Project-wide NFRs section now sits right after Use
+  Cases, ahead of Data Model.
+- Removed chat's topic-scope guardrail (an accepted, revisitable risk
+  pre-launch).
+
+### Fixed
+- CI's `windows-smoke-test.yml` and `release.yml` were missing a
+  `packages/llm` build step in their explicit dependency order, cascading
+  into unrelated type errors.
+- Neither Gemini model had a real entry in the billing rate table, so both
+  were silently billed at an inflated fallback rate (~6x actual cost)
+  instead of the documented markup.
+
+## [2.1.0] - 2026-08-29
+
+### Added
+- **Native desktop app** — kratai now ships as a real installable Electron
+  app, not just a CLI-served local web view.
+- **Release workflow** producing real desktop installers, with the Windows
+  build uploaded as a downloadable CI artifact.
+- **Windows smoke-test CI workflow**, verified end-to-end on a real
+  Windows runner.
+- **Theme-adaptive first-run onboarding overlay** (later replaced by a
+  sign-in gate — see 3.0.0).
+
+### Changed
+- Repo cleanup for the desktop pivot — removed `benchmarks/` and the old
+  `mockups/` prototype folder.
+- Added `CONTRIBUTING.md` and linked it and the CLA from the README.
+
+### Fixed
+- Django model fields declared as class-level assignments weren't detected
+  by the Python parser.
+
 ## [2.0.0] - 2026-08-24
 
 kratai's UI is now a standalone CLI-served web app instead of a VS Code
