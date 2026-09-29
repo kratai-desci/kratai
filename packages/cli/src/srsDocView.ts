@@ -134,6 +134,13 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 			</div>`;
 		}).join('\n')
 	});
+	if (projectNfrs.length > 0) {
+		sections.push({
+			title: 'Project-wide non-functional requirements',
+			body: `<p class="section-intro">The following non-functional requirements apply across the whole system, rather than to any single use case.</p>` +
+				`<ul>${projectNfrs.map(n => `<li><span class="nfr-id">NFR-${nfrNumberById[n.id]}</span><strong>${escapeXml(n.name)}:</strong> ${escapeXml(n.text)}</li>`).join('\n')}</ul>`
+		});
+	}
 	if (dataModelData && dataModelData.entities.length > 0) {
 		const { svg: dataModelSvg } = buildDataModelSvg(dataModelData);
 		const entityName = (id: string) => dataModelData.entities.find(e => e.id === id)?.name || id;
@@ -151,13 +158,6 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 			</div>`).join('\n') + (dataModelData.relationships.length > 0
 				? `<ul>${dataModelData.relationships.map(r => `<li>${escapeXml(entityName(r.fromId))} &rarr; ${escapeXml(entityName(r.toId))} (${escapeXml(r.kind)}${r.label ? ` - ${escapeXml(r.label)}` : ''})</li>`).join('\n')}</ul>`
 				: '')
-		});
-	}
-	if (projectNfrs.length > 0) {
-		sections.push({
-			title: 'Project-wide non-functional requirements',
-			body: `<p class="section-intro">The following non-functional requirements apply across the whole system, rather than to any single use case.</p>` +
-				`<ul>${projectNfrs.map(n => `<li><span class="nfr-id">NFR-${nfrNumberById[n.id]}</span><strong>${escapeXml(n.name)}:</strong> ${escapeXml(n.text)}</li>`).join('\n')}</ul>`
 		});
 	}
 
