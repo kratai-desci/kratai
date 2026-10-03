@@ -39,7 +39,9 @@ export interface ShellStats {
  * loads - same-origin, so the shell can reach into its contentDocument
  * directly - so there's a single header instead of two stacked ones.
  */
-// Shown once at the top of an empty chat for a project with no code. Display
+// chatMode: 'code' is a normal project; 'blank' is a project with no code and no
+// spec yet (chat is how it gets started); 'draft' is no code but a spec exists.
+// Shown once at the top of an empty chat for a project with no code and no spec. Display
 // only - it is drawn in the page but never added to chatHistory, which is what
 // gets sent to the AI (some providers reject a conversation that begins with an
 // assistant turn, and there's nothing for the model to have "said" here anyway).
@@ -51,7 +53,7 @@ export function generateShellHTML(
 	initialLayout: Record<string, unknown>,
 	authStatus: { signedIn: boolean; email: string | null },
 	initialChatHistory: { role: 'user' | 'assistant'; text?: string }[] = [],
-	noCode = false
+	chatMode: 'code' | 'blank' | 'draft' = 'code'
 ): string {
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -383,7 +385,7 @@ export function generateShellHTML(
 		<div id="chat-panel">
 			<div id="chat-log"></div>
 			<div id="chat-input-row">
-				<input id="chat-input" type="text" placeholder="${noCode ? 'Describe your project...' : 'Ask about this architecture...'}">
+				<input id="chat-input" type="text" placeholder="${chatMode === 'blank' ? 'Describe your project...' : chatMode === 'draft' ? 'Ask me to change anything in your spec...' : 'Ask about this architecture...'}">
 				<button id="chat-send" type="button">Send</button>
 			</div>
 		</div>
@@ -403,7 +405,7 @@ export function generateShellHTML(
 		// Rendered into the chat log and used to seed chatHistory below,
 		// rather than always starting empty.
 		var STORED_CHAT_HISTORY = ${JSON.stringify(initialChatHistory)};
-		var NO_CODE = ${JSON.stringify(noCode)};
+		var NO_CODE = ${JSON.stringify(chatMode === 'blank')};
 		var NO_CODE_OPENER = ${JSON.stringify(NO_CODE_OPENER)};
 		// The one flat list every picker draws from - spec-driven views
 		// first, then code-exploration ones. Knowledge Graph/Stack Layer

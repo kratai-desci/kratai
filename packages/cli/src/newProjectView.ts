@@ -1,38 +1,54 @@
-import { BRAND_STYLE } from './welcomeScreen.js';
-
 function escapeHtml(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 /**
- * Full-window guided first draft for a project with no code - shown before the
- * project view opens (see index.ts's promptNewProjectSetup), in the same card
- * style as the welcome screen so it reads as setup, not as part of the app.
- * Steps: overview, actors, use cases per actor, non-functional requirements,
- * review. UI PREVIEW ONLY: every suggestion is hard-coded mock data, nothing
- * calls the AI or writes a spec, and both exits ("Skip" and "Open project")
- * just continue into the app. Like every screen here it has no preload, so the
- * exits are kratai-action:// links that index.ts's will-navigate handler turns
- * into a real action.
+ * Full-window guided first draft for a project with no code and no spec,
+ * served at /new-project (view.ts redirects a blank project here from /) in
+ * the same card style as the desktop welcome screen so it reads as setup, not
+ * as part of the app. Steps: overview, actors, use cases per actor,
+ * non-functional requirements, review. Each suggestion step asks the AI via
+ * POST /api/new-project/ai; "Create my spec" posts every choice to
+ * /api/new-project/create, which builds and saves the spec; "Skip for now"
+ * posts to /api/new-project/skip. All three end by going back to "/".
  */
-export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): string {
+export function generateNewProjectHTML(workspaceName: string, logoDataUrl: string): string {
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>New project</title>
 <style>
-	${BRAND_STYLE}
+	:root {
+		--bg: #EEF2FA; --surface: #FFFFFF; --text: #17203A; --text-dim: #5C6785;
+		--border: #DCE3F2; --accent: #3459E0; --ok: #1FA37C; --warn: #C87A17;
+		--dot: color-mix(in srgb, #94A0BE 55%, transparent);
+		--card-shadow: 0 24px 64px -24px rgba(23, 32, 58, 0.22), 0 8px 24px -8px rgba(23, 32, 58, 0.10);
+	}
+	@media (prefers-color-scheme: dark) {
+		:root {
+			--bg: #0A0E19; --surface: #131A2E; --text: #E8ECFB; --text-dim: #939CBE; --border: #262E4E; --accent: #6D93F5; --ok: #3FCB9F; --warn: #E6A23C; --dot: color-mix(in srgb, #262E4E 70%, transparent);
+			--card-shadow: 0 24px 64px -24px rgba(0, 0, 0, 0.55), 0 8px 24px -8px rgba(0, 0, 0, 0.35);
+		}
+	}
+	* { box-sizing: border-box; }
+	html, body { margin: 0; padding: 0; height: 100%; }
+	body {
+		background: var(--bg); color: var(--text);
+		font-family: ui-sans-serif, -apple-system, 'Segoe UI', system-ui, sans-serif;
+		display: flex; align-items: center; justify-content: center;
+		background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+		background-size: 22px 22px;
+	}
 	:root { --text-faint: color-mix(in srgb, var(--text-dim) 75%, var(--bg)); --accent-2: var(--ok); }
-	button, a.btn { font: inherit; cursor: pointer; text-decoration: none; }
+	button { font: inherit; cursor: pointer; }
 	#card { width: min(700px, calc(100vw - 48px)); max-height: calc(100vh - 48px); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--card-shadow); overflow: hidden; }
 	#head { display: flex; align-items: center; gap: 12px; padding: 22px 28px 4px; }
 	#head img { width: 38px; height: 38px; border-radius: 9px; box-shadow: 0 4px 12px -4px rgba(23, 32, 58, 0.35); }
 	#head .who { flex: 1; min-width: 0; }
 	#head .kicker { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
-	#head .kicker .preview { margin-left: 6px; padding: 1px 7px; border: 1px dashed var(--border); border-radius: 999px; color: var(--text-dim); text-transform: none; letter-spacing: 0; font-weight: 600; }
 	#head h1 { margin: 2px 0 0; font-size: 18px; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-	#head .skip { font-size: 12.5px; font-weight: 600; color: var(--text-dim); text-decoration: none; }
+	#head .skip { border: none; background: none; padding: 0; font-size: 12.5px; font-weight: 600; color: var(--text-dim); }
 	#head .skip:hover { color: var(--accent); }
 	#steps { display: flex; gap: 6px; padding: 14px 28px 6px; flex-wrap: wrap; }
 	.step { display: flex; align-items: center; gap: 7px; padding: 5px 11px 5px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-faint); font-size: 12px; font-weight: 600; }
@@ -92,6 +108,8 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 	.checks .mark { width: 20px; height: 20px; flex: none; display: grid; place-items: center; border-radius: 50%; font-size: 11px; border: 2px solid var(--border); }
 	.checks li.done .mark { background: var(--accent-2); border-color: var(--accent-2); color: #fff; }
 	.checks li.active .mark { border-color: var(--border); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
+	.problem { padding: 14px 16px; border: 1px solid var(--warn); border-radius: 10px; color: var(--text); font-size: 13.5px; line-height: 1.55; }
+	.problem + .actions { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
 	#nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; border-top: 1px solid var(--border); }
 	#nav .where { font-size: 12.5px; color: var(--text-faint); }
 	#nav .right { display: flex; gap: 8px; align-items: center; }
@@ -101,16 +119,15 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 	.review ul { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.7; }
 	.review .actor-line { font-weight: 650; margin-top: 4px; }
 	.will { margin-top: 16px; padding: 12px 14px; border-radius: 10px; background: var(--bg); color: var(--text-dim); font-size: 13px; line-height: 1.55; }
-	.will strong, #note strong { color: var(--text); }
-	#note { margin-top: 12px; padding: 13px 15px; border-radius: 10px; border: 1px dashed var(--accent); color: var(--text-dim); font-size: 13px; line-height: 1.55; }
+	.will strong { color: var(--text); }
 </style>
 </head>
 <body>
 <div id="card">
 	<div id="head">
-		<img src="${logoDataUrl}" alt="">
-		<div class="who"><div class="kicker">New project<span class="preview">UI preview - examples only, nothing is saved</span></div><h1>${escapeHtml(workspaceName)}</h1></div>
-		<a class="skip" href="kratai-action://skip-setup">Skip for now</a>
+		${logoDataUrl ? `<img src="${escapeHtml(logoDataUrl)}" alt="">` : ''}
+		<div class="who"><div class="kicker">New project</div><h1>${escapeHtml(workspaceName)}</h1></div>
+		<button class="skip" data-action="skip">Skip for now</button>
 	</div>
 	<div id="steps"></div>
 	<div id="stage"></div>
@@ -119,49 +136,22 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 <script>
 (function () {
 	'use strict';
-	var PROJECT = ${JSON.stringify(workspaceName)};
+	var PROJECT = ${JSON.stringify(workspaceName).replace(/</g, '\\u003c')};
 	var STEPS = ['Overview', 'Actors', 'Use cases', 'Requirements', 'Review'];
+	var PRETICKED = 3;
 
-	// Mock suggestions - in the real flow these come from the AI, based on step 1.
-	var ACTOR_SUGGESTIONS = [
-		{ name: 'User', desc: 'Someone who signs up and uses the app day to day', on: true },
-		{ name: 'Administrator', desc: 'Manages accounts and keeps the system healthy', on: true },
-		{ name: 'Guest', desc: 'A visitor who has not signed in yet', on: false },
-		{ name: 'External service', desc: 'A third-party system the app talks to, such as email or payments', on: false }
-	];
-	var USE_CASE_SUGGESTIONS = {
-		'User': ['Create an account', 'Log in', 'Browse listings', 'Message another user', 'Update my profile'],
-		'Administrator': ['Review reported content', 'Suspend an account', 'View usage statistics'],
-		'Guest': ['Browse public listings', 'Register for an account'],
-		'External service': ['Deliver a notification', 'Confirm a payment']
-	};
-	var USE_CASE_DEFAULT = ['Log in', 'View my dashboard', 'Update my settings'];
-	var NFR_SUGGESTIONS = [
-		{ name: 'Security', desc: 'People can only see and change their own data.', cat: 'Functionality', on: true },
-		{ name: 'Ease of use', desc: 'A new user completes their first task without any help.', cat: 'Usability', on: true },
-		{ name: 'Availability', desc: 'The service is up at least 99.5% of the time.', cat: 'Reliability', on: false },
-		{ name: 'Speed', desc: 'Common pages respond in under 2 seconds.', cat: 'Performance', on: true },
-		{ name: 'Traceability', desc: 'Errors are logged so a problem can be traced to its cause.', cat: 'Supportability', on: false },
-		{ name: 'Browser support', desc: 'Works on the latest two versions of the major browsers.', cat: 'Constraints', on: false }
-	];
-
-	var state = { step: 0, ucIndex: 0, what: '', who: '', actors: null, useCases: {}, nfrs: null, created: false, loading: null, creating: null };
-	// What each AI-backed step's suggestions were last generated from, so moving
-	// forward only "regenerates" them when an earlier choice actually changed.
-	var lastSig = {};
+	// actors / nfrs stay null until the AI (or "continue without suggestions")
+	// fills them; useCases is keyed by actor name. Items added by the user carry
+	// mine: true so a regenerated suggestion list does not drop them.
+	var state = { step: 0, ucIndex: 0, what: '', who: '', actors: null, actorsSig: null, useCases: {}, nfrs: null, loading: null, creating: null, error: null };
 
 	function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-	function ensureActors() { if (!state.actors) state.actors = ACTOR_SUGGESTIONS.map(function (a) { return { name: a.name, desc: a.desc, on: a.on }; }); }
-	function ensureNfrs() { if (!state.nfrs) state.nfrs = NFR_SUGGESTIONS.map(function (n) { return { name: n.name, desc: n.desc, cat: n.cat, on: n.on }; }); }
-	function chosenActors() { ensureActors(); return state.actors.filter(function (a) { return a.on; }); }
-	function ensureUseCases(actor) {
-		if (!state.useCases[actor.name]) {
-			var list = USE_CASE_SUGGESTIONS[actor.name] || USE_CASE_DEFAULT;
-			state.useCases[actor.name] = list.map(function (n, i) { return { name: n, on: i < 3 }; });
-		}
-		return state.useCases[actor.name];
-	}
-	function chosenNfrs() { ensureNfrs(); return state.nfrs.filter(function (n) { return n.on; }); }
+	function chosenActors() { return (state.actors || []).filter(function (a) { return a.on; }); }
+	function ucList(actor) { return state.useCases[actor.name] || []; }
+	function chosenUcs(actor) { return ucList(actor).filter(function (u) { return u.on; }); }
+	function totalUcs() { return chosenActors().reduce(function (n, a) { return n + chosenUcs(a).length; }, 0); }
+	function chosenNfrs() { return (state.nfrs || []).filter(function (n) { return n.on; }); }
+	function has(list, name) { var k = name.toLowerCase(); return list.filter(function (x) { return x.name.toLowerCase() === k; })[0]; }
 
 	function opt(kind, idx, on, title, desc, cat) {
 		return '<div class="opt' + (on ? ' on' : '') + '" role="checkbox" aria-checked="' + (on ? 'true' : 'false') + '" tabindex="0" data-kind="' + kind + '" data-idx="' + idx + '">' +
@@ -177,10 +167,10 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 			'<label class="field"><span class="label">Who will use it, and what problem does it solve?</span><textarea id="who" placeholder="Housemates who keep forgetting whose turn it is, which causes arguments.">' + esc(state.who) + '</textarea><span class="hint">Optional, but it makes the suggestions better.</span></label>';
 	}
 	function stepActors() {
-		ensureActors();
+		var actors = state.actors || [];
 		return '<h2>Who will use it?</h2><p class="sub">An actor is a kind of person (or system) that interacts with your app. <span class="tag">Suggested from your description</span> - tick the ones that fit, or add your own.</p>' +
 			'<div class="addrow"><input type="text" id="add-actor" placeholder="Add your own, e.g. Landlord"><button class="btn" data-action="add-actor">Add</button></div>' +
-			grid(state.actors.map(function (a, i) { return opt('actor', i, a.on, a.name, a.desc || 'Added by you'); }).join(''));
+			(actors.length ? grid(actors.map(function (a, i) { return opt('actor', i, a.on, a.name, a.desc || (a.mine ? 'Added by you' : ''), ''); }).join('')) : '<div class="empty">No suggestions - add the actors yourself above.</div>');
 	}
 	// One actor per screen (state.ucIndex), so each actor gets its own full
 	// attention instead of a long list of everyone's use cases.
@@ -188,73 +178,134 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 		var actors = chosenActors();
 		if (actors.length === 0) return '<h2>What can they do?</h2><div class="empty">Choose at least one actor in the previous step.</div>';
 		var actor = actors[state.ucIndex];
-		var list = ensureUseCases(actor);
-		var picked = list.filter(function (u) { return u.on; }).length;
-		return '<h2>What can ' + esc(actor.name) + ' do?<span class="count">' + picked + ' selected</span></h2>' +
+		var list = ucList(actor);
+		return '<h2>What can ' + esc(actor.name) + ' do?<span class="count">' + chosenUcs(actor).length + ' selected</span></h2>' +
 			'<p class="sub">' + (actor.desc ? esc(actor.desc) + '. ' : '') + 'A use case is one thing this actor does, named with a verb (for example "Log in"). <span class="tag">Suggested</span> - keep the ones you need and add the rest.</p>' +
 			'<div class="addrow"><input type="text" data-add-uc="' + state.ucIndex + '" placeholder="Add a use case for ' + esc(actor.name) + '"><button class="btn" data-action="add-uc" data-idx="' + state.ucIndex + '">Add</button></div>' +
-			grid(list.map(function (u, i) { return opt('uc', state.ucIndex + ':' + i, u.on, u.name, '', ''); }).join(''));
+			(list.length ? grid(list.map(function (u, i) { return opt('uc', state.ucIndex + ':' + i, u.on, u.name, '', ''); }).join('')) : '<div class="empty">No suggestions - add this actor\\'s use cases yourself above.</div>');
 	}
 	function stepNfrs() {
-		ensureNfrs();
+		var nfrs = state.nfrs || [];
 		return '<h2>What qualities matter?</h2><p class="sub">Non-functional requirements describe how well the system must work, not what it does. <span class="tag">Suggested</span> - grouped the way FURPS+ organises them.</p>' +
 			'<div class="addrow"><input type="text" id="add-nfr" placeholder="Add your own, e.g. Works offline"><button class="btn" data-action="add-nfr">Add</button></div>' +
-			grid(state.nfrs.map(function (n, i) { return opt('nfr', i, n.on, n.name, n.desc, n.cat); }).join(''));
+			(nfrs.length ? grid(nfrs.map(function (n, i) { return opt('nfr', i, n.on, n.name, n.desc, n.cat); }).join('')) : '<div class="empty">No suggestions - add requirements yourself above, or skip this step.</div>');
 	}
 	function stepReview() {
 		var actors = chosenActors();
 		var html = '<div class="review"><h2>Review</h2><p class="sub">This is what the first draft of your spec will be built from.</p>';
-		html += '<h3>Overview</h3><p>' + (state.what ? esc(state.what) : '<em>(nothing entered)</em>') + '</p>' + (state.who ? '<p>' + esc(state.who) + '</p>' : '');
+		html += '<h3>Overview</h3><p>' + esc(state.what) + '</p>' + (state.who ? '<p>' + esc(state.who) + '</p>' : '');
 		html += '<h3>Actors and use cases</h3>';
-		if (actors.length === 0) html += '<p><em>No actors chosen.</em></p>';
 		actors.forEach(function (a) {
-			var ucs = ensureUseCases(a).filter(function (u) { return u.on; });
+			var ucs = chosenUcs(a);
 			html += '<p class="actor-line">' + esc(a.name) + '</p><ul>' + (ucs.length ? ucs.map(function (u) { return '<li>' + esc(u.name) + '</li>'; }).join('') : '<li><em>no use cases chosen</em></li>') + '</ul>';
 		});
 		var nfrs = chosenNfrs();
 		html += '<h3>Requirements</h3><ul>' + (nfrs.length ? nfrs.map(function (n) { return '<li><strong>' + esc(n.name) + '</strong> - ' + esc(n.desc) + '</li>'; }).join('') : '<li><em>none chosen</em></li>') + '</ul>';
-		html += '<div class="will">When you create the spec, kratai also drafts a <strong>data model</strong> from these use cases and writes the full document. Then the chat opens: <em>"Here is the initial design - tell me what to change."</em></div>';
-		if (state.created) html += '<div id="note"><strong>This is a UI preview.</strong> Nothing was generated or saved. In the real flow this step builds the spec (overview, use case model, data model) and the chat takes over for edits.</div>';
+		if (totalUcs() === 0) html += '<div class="will"><strong>Choose at least one use case</strong> before creating the spec - go back to the Use cases step.</div>';
+		else html += '<div class="will">When you create the spec, kratai also drafts a <strong>data model</strong> from these use cases and writes the full document. Then the chat opens: <em>"Here is the initial design - tell me what to change."</em></div>';
 		return html + '</div>';
 	}
-
 	var RENDER = [stepOverview, stepActors, stepUseCases, stepNfrs, stepReview];
 
-	// --- Simulated AI processing (the real flow calls the model here) ---
-	function names(list) { return list.map(function (x) { return x.name; }).join(', '); }
-	function sigFor(step) {
-		if (step === 1) return state.what + '|' + state.who;
-		if (step === 2) return names(chosenActors());
-		if (step === 3) return chosenActors().map(function (a) { return a.name + ':' + names(ensureUseCases(a).filter(function (u) { return u.on; })); }).join(';');
-		return '';
+	// --- Talking to the view server ---
+	function api(path, body) {
+		return fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(
+			function (r) { return r.json().catch(function () { return { ok: false, error: 'Unexpected response from kratai.' }; }); },
+			function () { throw new Error('Could not reach kratai. Check your connection and try again.'); }
+		).then(function (j) { if (!j.ok) throw new Error(j.error || 'Something went wrong.'); return j; });
 	}
-	function needsGeneration(step) { return step >= 1 && step <= 3 && lastSig[step] !== sigFor(step); }
+	function missingUseCaseActors() { return chosenActors().filter(function (a) { return !state.useCases[a.name]; }); }
+	function actorPayload(list) { return list.map(function (a) { return { name: a.name, description: a.desc, kind: a.kind }; }); }
+	function payload(step) {
+		var body = { what: state.what.trim(), who: state.who.trim() };
+		if (step === 'use-cases') body.actors = actorPayload(missingUseCaseActors());
+		else if (step !== 'actors') {
+			body.actors = actorPayload(chosenActors());
+			body.useCases = {};
+			chosenActors().forEach(function (a) { body.useCases[a.name] = chosenUcs(a).map(function (u) { return u.name; }); });
+			if (step === 'create') body.requirements = chosenNfrs().map(function (n) { return { name: n.name, description: n.mine ? n.name : n.desc, category: n.mine ? 'Constraints' : n.cat }; });
+		}
+		return body;
+	}
+	function actorsSig() { return state.what.trim() + '|' + state.who.trim(); }
+
+	// What each step shows while the AI works on it.
 	var LOADING = {
-		1: function () { return { title: 'Thinking about who will use ' + PROJECT, sub: 'Reading your description to suggest the people and systems involved.', ms: 1800 }; },
-		2: function () { return { title: 'Drafting use cases', sub: 'Working out what ' + names(chosenActors()) + ' will each need to do.', ms: 2300 }; },
-		3: function () { return { title: 'Choosing requirements that fit', sub: 'Matching quality needs to the use cases you picked.', ms: 1600 }; }
+		'actors': function () { return { title: 'Thinking about who will use ' + PROJECT, sub: 'Reading your description to suggest the people and systems involved.' }; },
+		'use-cases': function () { return { title: 'Drafting use cases', sub: 'Working out what ' + missingUseCaseActors().map(function (a) { return a.name; }).join(', ') + ' will each need to do.' }; },
+		'requirements': function () { return { title: 'Choosing requirements that fit', sub: 'Matching quality needs to the use cases you picked.' }; }
 	};
-	function startLoading(step) {
-		var info = LOADING[step]();
-		state.loading = info;
-		render(true);
-		setTimeout(function () { lastSig[step] = sigFor(step); state.loading = null; render(true); }, info.ms);
+	function apply(step, data) {
+		var list = Array.isArray(data) ? data : [];
+		if (step === 'actors') {
+			var mine = (state.actors || []).filter(function (a) { return a.mine; });
+			state.actors = list.map(function (a, i) { return { name: a.name, desc: a.description || '', kind: a.kind === 'system' ? 'system' : 'person', on: i < PRETICKED }; });
+			mine.forEach(function (a) { if (!has(state.actors, a.name)) state.actors.push(a); });
+			state.actorsSig = actorsSig();
+		} else if (step === 'use-cases') {
+			var byActor = data && typeof data === 'object' ? data : {};
+			missingUseCaseActors().forEach(function (a) {
+				state.useCases[a.name] = (Array.isArray(byActor[a.name]) ? byActor[a.name] : []).map(function (n, i) { return { name: n, on: i < PRETICKED }; });
+			});
+		} else if (step === 'requirements') {
+			state.nfrs = list.map(function (r) { return { name: r.name, desc: r.description, cat: r.category, on: !!r.recommended }; });
+		}
 	}
+	function applyNothing(step) {
+		if (step === 'actors') { state.actors = state.actors || []; state.actorsSig = actorsSig(); }
+		else if (step === 'use-cases') missingUseCaseActors().forEach(function (a) { state.useCases[a.name] = []; });
+		else if (step === 'requirements') state.nfrs = state.nfrs || [];
+	}
+	function fail(err, retry, skip) {
+		state.loading = null; state.creating = null;
+		state.error = { message: err && err.message ? err.message : 'Something went wrong.', retry: retry, skip: skip };
+		render(true);
+	}
+	function generate(step) {
+		state.error = null;
+		state.loading = LOADING[step]();
+		render(true);
+		api('/api/new-project/ai', { step: step, input: payload(step) }).then(function (res) {
+			apply(step, res.data);
+			state.loading = null;
+			render(true);
+		}).catch(function (err) {
+			fail(err, function () { generate(step); }, function () { applyNothing(step); state.error = null; render(true); });
+		});
+	}
+	// Called after state.step has moved: asks the AI only for what is not already
+	// there, so going back and forth does not throw away ticks or edits.
+	function enter() {
+		state.error = null;
+		if (state.step === 1 && state.actorsSig !== actorsSig()) return generate('actors');
+		if (state.step === 2 && chosenActors().length > 0 && missingUseCaseActors().length > 0) return generate('use-cases');
+		if (state.step === 3 && !state.nfrs) return generate('requirements');
+		render(true);
+	}
+
 	var CREATE_STEPS = ['Writing the overview', 'Drafting the use case model', 'Drafting the data model', 'Putting the spec together'];
-	function startCreating() {
+	function create() {
+		state.error = null;
 		state.creating = { done: 0 };
 		render(false);
-		var tick = function () {
-			state.creating.done++;
-			if (state.creating.done >= CREATE_STEPS.length) { state.creating = null; state.created = true; render(false); var st = document.getElementById('stage'); st.scrollTop = st.scrollHeight; return; }
+		// The checklist is pacing, not progress: it ticks on a timer but the last
+		// item only completes when the server has actually written the spec.
+		var timer = setInterval(function () {
+			if (state.creating && state.creating.done < CREATE_STEPS.length - 1) { state.creating.done++; render(false); }
+		}, 3500);
+		api('/api/new-project/create', payload('create')).then(function () {
+			clearInterval(timer);
+			state.creating = { done: CREATE_STEPS.length };
 			render(false);
-			setTimeout(tick, 900);
-		};
-		setTimeout(tick, 900);
+			setTimeout(function () { location.href = '/'; }, 700);
+		}).catch(function (err) {
+			clearInterval(timer);
+			fail(err, create, null);
+		});
 	}
 	function loadingView() {
 		if (state.creating) {
-			return '<div class="loading"><h2><span class="spin"></span>Building your spec</h2><p class="sub">This is where the real version writes your first draft.</p><ul class="checks">' +
+			return '<div class="loading"><h2><span class="spin"></span>Building your spec</h2><p class="sub">Writing your first draft - this takes a little while.</p><ul class="checks">' +
 				CREATE_STEPS.map(function (t, i) {
 					var cls = i < state.creating.done ? 'done' : (i === state.creating.done ? 'active' : '');
 					return '<li class="' + cls + '"><span class="mark">' + (i < state.creating.done ? '&#10003;' : '') + '</span>' + t + '</li>';
@@ -262,15 +313,22 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 		}
 		return '<div class="loading"><h2><span class="spin"></span>' + esc(state.loading.title) + '</h2><p class="sub">' + esc(state.loading.sub) + '</p><div class="skel"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div></div>';
 	}
+	function errorView() {
+		return '<h2>That did not work</h2><div class="problem">' + esc(state.error.message) + '</div><div class="actions">' +
+			'<button class="btn primary" data-action="retry">Try again</button>' +
+			(state.error.skip ? '<button class="btn" data-action="skip-suggestions">Continue without suggestions</button>' : '') + '</div>';
+	}
 
 	// The use cases step covers one actor per screen, so Continue/Back move
 	// through the actors before they move between steps.
 	function goNext() {
 		if (state.step === 1) state.ucIndex = 0;
-		if (state.step === 2 && state.ucIndex < chosenActors().length - 1) state.ucIndex++;
-		else state.step++;
+		if (state.step === 2 && state.ucIndex < chosenActors().length - 1) { state.ucIndex++; return false; }
+		state.step++;
+		return true;
 	}
 	function goBack() {
+		state.error = null;
 		if (state.step === 2 && state.ucIndex > 0) state.ucIndex--;
 		else {
 			state.step--;
@@ -280,6 +338,7 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 	function canContinue() {
 		if (state.step === 0) return state.what.trim().length > 0;
 		if (state.step === 1) return chosenActors().length > 0;
+		if (state.step === 2) return state.ucIndex < chosenActors().length - 1 || totalUcs() > 0;
 		return true;
 	}
 
@@ -295,38 +354,46 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 			return '<div class="step ' + cls + '"><span class="num">' + (i < state.step ? '&#10003;' : (i + 1)) + '</span>' + label + '</div>';
 		}).join('');
 		var busy = !!(state.loading || state.creating);
-		stage.innerHTML = busy ? loadingView() : RENDER[state.step]();
+		stage.innerHTML = busy ? loadingView() : (state.error ? errorView() : RENDER[state.step]());
 		stage.scrollTop = toTop ? 0 : scroll;
 		var last = state.step === STEPS.length - 1;
 		var actors = chosenActors();
 		var perActor = state.step === 2 && actors.length > 0;
 		var nextLabel = perActor && state.ucIndex < actors.length - 1 ? 'Next: ' + esc(actors[state.ucIndex + 1].name) : 'Continue';
-		var primary = last
-			? (state.created ? '<a class="btn primary" href="kratai-action://finish-setup">Open project</a>' : '<button class="btn primary" data-action="create"' + (busy ? ' disabled' : '') + '>Create my spec</button>')
-			: '<button class="btn primary" data-action="next"' + (canContinue() && !busy ? '' : ' disabled') + '>' + nextLabel + '</button>';
+		var primary = state.error ? '' : (last
+			? '<button class="btn primary" data-action="create"' + (busy || totalUcs() === 0 ? ' disabled' : '') + '>Create my spec</button>'
+			: '<button class="btn primary" data-action="next"' + (canContinue() && !busy ? '' : ' disabled') + '>' + nextLabel + '</button>');
 		var where = 'Step ' + (state.step + 1) + ' of ' + STEPS.length + (perActor ? ' - ' + esc(actors[state.ucIndex].name) + ' (' + (state.ucIndex + 1) + ' of ' + actors.length + ')' : '');
 		document.getElementById('nav').innerHTML = '<span class="where">' + where + '</span><div class="right">' +
-			(state.step > 0 && !state.created ? '<button class="btn" data-action="back"' + (busy ? ' disabled' : '') + '>Back</button>' : '') + primary + '</div>';
+			(state.step > 0 ? '<button class="btn" data-action="back"' + (busy ? ' disabled' : '') + '>Back</button>' : '') + primary + '</div>';
 	}
 
+	function addTo(list, item) {
+		var existing = has(list, item.name);
+		if (existing) existing.on = true; else list.push(item);
+	}
 	var card = document.getElementById('card');
 	card.addEventListener('click', function (e) {
 		var t = e.target.closest ? e.target.closest('[data-action]') : null;
 		if (!t) return;
 		var a = t.getAttribute('data-action');
 		var stage = document.getElementById('stage');
-		if (a === 'next') { var before = state.step; goNext(); if (state.step !== before && needsGeneration(state.step)) startLoading(state.step); else render(true); }
+		if (a === 'next') { if (goNext()) enter(); else render(true); }
 		else if (a === 'back') { goBack(); render(true); }
-		else if (a === 'create') { startCreating(); }
+		else if (a === 'create') create();
+		else if (a === 'retry') state.error.retry();
+		else if (a === 'skip-suggestions') state.error.skip();
+		else if (a === 'skip') { api('/api/new-project/skip', {}).then(function () { location.href = '/'; }, function () { location.href = '/'; }); }
 		else if (a === 'add-actor') {
 			var v = document.getElementById('add-actor').value.trim();
-			if (v) { state.actors.push({ name: v, desc: '', on: true }); render(false); }
+			if (v) { state.actors = state.actors || []; addTo(state.actors, { name: v, desc: '', kind: 'person', on: true, mine: true }); render(false); }
 		} else if (a === 'add-nfr') {
 			var w = document.getElementById('add-nfr').value.trim();
-			if (w) { state.nfrs.push({ name: w, desc: 'Added by you', cat: 'Yours', on: true }); render(false); }
+			if (w) { state.nfrs = state.nfrs || []; addTo(state.nfrs, { name: w, desc: 'Added by you', cat: 'Yours', on: true, mine: true }); render(false); }
 		} else if (a === 'add-uc') {
 			var idx = +t.getAttribute('data-idx'), name = stage.querySelector('[data-add-uc="' + idx + '"]').value.trim();
-			if (name) { ensureUseCases(chosenActors()[idx]).push({ name: name, on: true }); render(false); }
+			var actor = chosenActors()[idx];
+			if (name && actor) { state.useCases[actor.name] = state.useCases[actor.name] || []; addTo(state.useCases[actor.name], { name: name, on: true }); render(false); }
 		}
 	});
 	// Flips a card's selection in place (no re-render, so the pop animation plays
@@ -336,13 +403,13 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 		var item;
 		if (kind === 'actor') item = state.actors[+idx];
 		else if (kind === 'nfr') item = state.nfrs[+idx];
-		else { var p = idx.split(':'); item = ensureUseCases(chosenActors()[+p[0]])[+p[1]]; }
+		else { var p = idx.split(':'); item = ucList(chosenActors()[+p[0]])[+p[1]]; }
 		item.on = !item.on;
 		el.classList.toggle('on', item.on);
 		el.setAttribute('aria-checked', item.on ? 'true' : 'false');
 		if (kind === 'uc') {
 			var c = document.querySelector('#stage h2 .count');
-			if (c) c.textContent = ensureUseCases(chosenActors()[+idx.split(':')[0]]).filter(function (u) { return u.on; }).length + ' selected';
+			if (c) c.textContent = chosenUcs(chosenActors()[+idx.split(':')[0]]).length + ' selected';
 		}
 		var next = document.querySelector('[data-action="next"]');
 		if (next) next.disabled = !canContinue();

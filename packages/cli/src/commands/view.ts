@@ -23,7 +23,9 @@ import { executeFileTool } from '../fileTools.js';
 import { buildChatSummary } from '../chatContext.js';
 import { loadCachedChatHistory, saveCachedChatHistory } from '../chatHistoryData.js';
 import { UI_ACTION_TOOL_NAMES, SPEC_TOOL_NAMES, FILE_TOOL_NAMES } from '@kratai-desci/llm';
-import type { ConversationMessage, ChatStepResult } from '@kratai-desci/llm';
+import type { ConversationMessage, ChatStepResult, NewProjectStep, SpecDetails } from '@kratai-desci/llm';
+import { NEW_PROJECT_STEPS, parseWizardChoices, buildProjectSpec, describeWizardOutcome } from '@kratai-desci/llm';
+import { generateNewProjectHTML } from '../newProjectView.js';
 
 export interface AuthStatus {
 	signedIn: boolean;
@@ -104,12 +106,15 @@ export interface ViewOptions {
 	// is an informed choice every time there's something to generate, not a
 	// standing preference.
 	confirmGenerate?: (info: { workspaceName: string; missing: string[]; classCount: number; folderCount: number }) => Promise<boolean>;
-	// Called once, before the project view opens, for a signed-in project that
-	// has no code and no spec yet - there's nothing to generate from, so the
-	// desktop app uses this to walk the user through a guided first draft in
-	// its own full-window screen (same pattern as confirmGenerate above). The
-	// view opens whenever it resolves, however the user left it.
-	setupNewProject?: (info: { workspaceName: string }) => Promise<void>;
+	// Runs one AI step of the new-project wizard (see newProjectView.ts): the
+	// wizard page posts here and this relays to the AI via the desktop app, the
+	// same way chat and Generate do (kratai-web holds the model key and does the
+	// billing). Its presence is also what enables the wizard - a project with no
+	// code, no spec and a signed-in user is sent to it instead of the shell.
+	newProjectAi?: (step: NewProjectStep, input: unknown) => Promise<unknown>;
+	// The app icon as a data URI, for the wizard's header (the view server has no
+	// asset route of its own).
+	logoDataUrl?: string;
 }
 
 const NO_CODE_MESSAGE = 'No code yet - describe your project to chat and it will draft the spec from what you tell it.';
@@ -182,9 +187,6 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// spec - so a code-less project skips this and is drafted through chat
 	// instead (see NO_CODE_MESSAGE).
 	const hasCode = diagramData.classes.length > 0;
-	if (!hasCode && !useCaseData && getAuthStatus().signedIn && options.setupNewProject) {
-		await options.setupNewProject({ workspaceName: diagramName });
-	}
 	const wantsUseCase = hasCode && getAuthStatus().signedIn && !useCaseData && !!generateUseCaseDiagramHook;
 	const wantsDataModel = hasCode && getAuthStatus().signedIn && !dataModelData && !!generateDataModelHook;
 	// Specifications (the SRS doc) isn't its own generation step - it's
@@ -404,11 +406,37 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		}
 	}
 
-	const shellHtml = generateShellHTML(diagramName, {
-		classCount: nodes.length,
-		folderCount,
-		edgeCount: edges.length
-	}, getLayout(), getAuthStatus(), chatHistory, diagramData.classes.length === 0);
+	// Per request, not once at startup: chat history and whether a spec exists
+	// both change while the server runs (the new-project wizard writes both).
+	function renderShell(): string {
+		const chatMode = diagramData.classes.length > 0 ? 'code' : useCaseData ? 'draft' : 'blank';
+		return generateShellHTML(diagramName, {
+			classCount: nodes.length,
+			folderCount,
+			edgeCount: edges.length
+		}, getLayout(), getAuthStatus(), chatHistory, chatMode);
+	}
+
+	// A project with no code, no spec and a signed-in user is walked through the
+	// new-project wizard instead of landing in an empty shell. Skipping it (or
+	// finishing it) only lasts as long as this server does - reopening a project
+	// that still has no spec shows it again.
+	let newProjectDismissed = false;
+	function wizardApplies(): boolean {
+		return !!options.newProjectAi && !newProjectDismissed && diagramData.classes.length === 0 && !useCaseData && getAuthStatus().signedIn;
+	}
+	function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
+		return new Promise((resolve, reject) => {
+			let body = '';
+			req.on('data', chunk => { body += chunk; });
+			req.on('end', () => { try { resolve(JSON.parse(body || '{}')); } catch (error) { reject(error); } });
+			req.on('error', reject);
+		});
+	}
+	function sendJson(res: http.ServerResponse, status: number, payload: unknown): void {
+		res.writeHead(status, { 'Content-Type': 'application/json' });
+		res.end(JSON.stringify(payload));
+	}
 
 	// The parse above (diagramData/nodes/edges) is the expensive part and
 	// stays cached for the server's lifetime, but the two diagram pages
@@ -670,6 +698,57 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			});
 			return;
 		}
+		if (req.method === 'GET' && (req.url === '/' || req.url === '/index.html') && wizardApplies()) {
+			res.writeHead(302, { Location: '/new-project' });
+			res.end();
+			return;
+		}
+		if (req.method === 'POST' && req.url === '/api/new-project/ai') {
+			(async () => {
+				try {
+					if (!options.newProjectAi) throw new Error('The new-project wizard is only available in the kratai desktop app.');
+					const { step, input } = (await readJsonBody(req)) as { step?: string; input?: unknown };
+					if (!NEW_PROJECT_STEPS.includes(step as NewProjectStep) || step === 'draft') throw new Error('Unknown wizard step.');
+					sendJson(res, 200, { ok: true, data: await options.newProjectAi(step as NewProjectStep, input) });
+				} catch (error) {
+					sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
+				}
+			})();
+			return;
+		}
+		if (req.method === 'POST' && req.url === '/api/new-project/create') {
+			(async () => {
+				try {
+					if (!options.newProjectAi) throw new Error('The new-project wizard is only available in the kratai desktop app.');
+					const input = await readJsonBody(req);
+					const choices = parseWizardChoices(input, diagramName);
+					// Checked here too (not just in buildProjectSpec) so a hopeless request
+					// never costs an AI call.
+					if (!choices.actors.some(a => (choices.useCases[a.name] ?? []).length > 0)) throw new Error('Choose at least one actor and one use case.');
+					const details = await options.newProjectAi('draft', input) as SpecDetails;
+					const spec = buildProjectSpec(choices, details);
+					useCaseData = spec.useCaseData;
+					dataModelData = spec.dataModelData;
+					saveCachedUseCaseDiagramData(workspacePath, useCaseData);
+					saveCachedDataModelData(workspacePath, dataModelData);
+					// Recorded like a real chat turn so the model knows what the user
+					// chose when they come back to change it, and the panel opens on
+					// "here is the initial design" rather than an empty log.
+					const outcome = describeWizardOutcome(choices, spec);
+					chatHistory = [...chatHistory, { role: 'user', text: outcome.user }, { role: 'assistant', text: outcome.assistant }];
+					saveCachedChatHistory(workspacePath, chatHistory);
+					sendJson(res, 200, { ok: true });
+				} catch (error) {
+					sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
+				}
+			})();
+			return;
+		}
+		if (req.method === 'POST' && req.url === '/api/new-project/skip') {
+			newProjectDismissed = true;
+			sendJson(res, 200, { ok: true });
+			return;
+		}
 		const html = req.url === '/class-diagram' ? renderClassDiagram()
 			: req.url === '/knowledge-graph' ? renderKnowledgeGraph()
 			: req.url === '/stack-layer' ? renderStackLayer()
@@ -677,7 +756,13 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			: req.url === '/data-model' ? renderDataModel()
 			: req.url === '/diff-scorecard' ? renderDiffScorecard()
 			: req.url === '/srs-preview' ? renderRequirementsDoc()
-			: shellHtml;
+			: req.url === '/new-project' ? (wizardApplies() ? generateNewProjectHTML(diagramName, options.logoDataUrl ?? '') : undefined)
+			: renderShell();
+		if (html === undefined) {
+			res.writeHead(302, { Location: '/' });
+			res.end();
+			return;
+		}
 		res.writeHead(200, { 'Content-Type': 'text/html' });
 		res.end(html);
 	});

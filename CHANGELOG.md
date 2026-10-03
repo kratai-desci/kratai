@@ -11,6 +11,14 @@ All notable changes to kratai will be documented in this file.
   and it drafts the use cases and data model from what you say, creating them
   on first use. The Spec shows the document's empty structure, and chat opens
   with "Tell me about your project…". Projects with code behave exactly as before.
+- **Guided first draft for a blank project.** When you open a folder with no
+  code, a setup wizard walks you through it in its own window: describe the
+  project, pick the actors the AI suggests, pick the use cases for each actor
+  (two-column, click-to-select), pick the requirements that matter, review, and
+  kratai writes the overview, use case model and data model. Chat then opens
+  with the initial design, ready for changes. "Skip for now" goes straight to
+  the empty Spec and chat. The wizard needs `@kratai-desci/llm` 1.1.0 on the
+  server.
 
 ## [3.0.0] - 2026-09-29
 

@@ -9,7 +9,7 @@ import { generateUseCaseDiagram, generateDataModel } from './generateProxy.js';
 import { chatStep } from './chatProxy.js';
 import { getBalanceCents } from './balanceProxy.js';
 import { getWelcomeHTML, getSignInHTML, getLoadingHTML, getGeneratePromptHTML } from './welcomeScreen.js';
-import { getNewProjectHTML } from './newProjectScreen.js';
+import { runNewProjectStep } from './newProjectProxy.js';
 import { exportRequirementsPdf } from './pdfExport.js';
 
 const PROTOCOL = 'kratai';
@@ -149,8 +149,6 @@ function ensureMainWindow(): BrowserWindow {
 			resolveGenerateChoice?.(true);
 		} else if (parsed.hostname === 'skip-generate') {
 			resolveGenerateChoice?.(false);
-		} else if (parsed.hostname === 'finish-setup' || parsed.hostname === 'skip-setup') {
-			resolveNewProjectSetup?.();
 		}
 	});
 	return mainWindow;
@@ -182,28 +180,6 @@ function promptGenerateChoice(info: { workspaceName: string; missing: string[]; 
 			void loadDataHTML(getGeneratePromptHTML(info, balance?.balanceCents ?? null));
 		});
 	});
-}
-
-// Resolved by the will-navigate handler when the user leaves the new-project
-// screen either way (finish or skip) - same sentinel-URL indirection as
-// resolveGenerateChoice above, for the same no-preload reason.
-let resolveNewProjectSetup: (() => void) | undefined;
-
-/**
- * runView's setupNewProject hook: shows the guided first-draft screen for a
- * project with no code and waits until the user leaves it, then puts the
- * loading screen back up while the project view finishes opening. UI preview
- * only for now (see newProjectScreen.ts), so both exits behave the same.
- */
-async function promptNewProjectSetup(info: { workspaceName: string }): Promise<void> {
-	await new Promise<void>(resolve => {
-		resolveNewProjectSetup = () => {
-			resolveNewProjectSetup = undefined;
-			resolve();
-		};
-		void loadDataHTML(getNewProjectHTML(info.workspaceName, logoDataUrl));
-	});
-	await loadDataHTML(getLoadingHTML());
 }
 
 async function showWelcomeScreen(): Promise<void> {
@@ -269,7 +245,8 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 			generateDataModel,
 			chat: chatStep,
 			getBalance: getBalanceCents,
-			setupNewProject: promptNewProjectSetup,
+			newProjectAi: (step, input) => runNewProjectStep(step, input, path.basename(workspacePath)),
+			logoDataUrl,
 			confirmGenerate: async info => {
 				didAutoGenerate = await promptGenerateChoice(info);
 				return didAutoGenerate;

@@ -37,7 +37,7 @@ Codebase summary:
 ${summary}`;
 }
 
-function parseJson(raw: string): unknown {
+export function parseJson(raw: string): unknown {
 	// Models sometimes wrap JSON in a markdown code fence despite being told
 	// not to - stripping it here is cheaper than a second round-trip asking
 	// for a fix.
