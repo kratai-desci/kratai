@@ -16,7 +16,7 @@ import { loadCachedDataModelData, saveCachedDataModelData, buildDataModelExtract
 import { generateDataModelHTML, generateDataModelEmptyHTML } from '../dataModelView.js';
 import { buildDiffScorecard } from '../diffScorecardData.js';
 import { generateDiffScorecardHTML } from '../diffScorecardView.js';
-import { generateSrsDocHTML, generateSrsEmptyHTML } from '../srsDocView.js';
+import { generateSrsDocHTML, generateSrsEmptyHTML, generateSrsSkeletonHTML } from '../srsDocView.js';
 import { executeChatTool } from '../chatTools.js';
 import { executeSpecTool } from '../chatSpecTools.js';
 import { executeFileTool } from '../fileTools.js';
@@ -399,7 +399,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		classCount: nodes.length,
 		folderCount,
 		edgeCount: edges.length
-	}, getLayout(), getAuthStatus(), chatHistory);
+	}, getLayout(), getAuthStatus(), chatHistory, diagramData.classes.length === 0);
 
 	// The parse above (diagramData/nodes/edges) is the expensive part and
 	// stays cached for the server's lifetime, but the two diagram pages
@@ -445,7 +445,11 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// until that's been generated for real.
 	function renderRequirementsDoc(): string {
 		if (useCaseData) return generateSrsDocHTML(useCaseData, dataModelData);
-		return generateSrsEmptyHTML(getAuthStatus().signedIn, diagramData.classes.length > 0);
+		const signedIn = getAuthStatus().signedIn;
+		// No code means there's nothing for Generate to read, so show the
+		// document's empty structure and let chat fill it in instead.
+		if (signedIn && diagramData.classes.length === 0) return generateSrsSkeletonHTML(diagramName);
+		return generateSrsEmptyHTML(signedIn);
 	}
 
 	// Re-runs the expensive parse (the refresh button's whole job) and

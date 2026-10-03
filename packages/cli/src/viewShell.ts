@@ -39,12 +39,19 @@ export interface ShellStats {
  * loads - same-origin, so the shell can reach into its contentDocument
  * directly - so there's a single header instead of two stacked ones.
  */
+// Shown once at the top of an empty chat for a project with no code. Display
+// only - it is drawn in the page but never added to chatHistory, which is what
+// gets sent to the AI (some providers reject a conversation that begins with an
+// assistant turn, and there's nothing for the model to have "said" here anyway).
+const NO_CODE_OPENER = 'Tell me about your project: what is it, who will use it, and what problem does it solve? A few sentences is enough, and I\'ll draft the use cases from your answer.';
+
 export function generateShellHTML(
 	workspaceName: string,
 	stats: ShellStats,
 	initialLayout: Record<string, unknown>,
 	authStatus: { signedIn: boolean; email: string | null },
-	initialChatHistory: { role: 'user' | 'assistant'; text?: string }[] = []
+	initialChatHistory: { role: 'user' | 'assistant'; text?: string }[] = [],
+	noCode = false
 ): string {
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -376,7 +383,7 @@ export function generateShellHTML(
 		<div id="chat-panel">
 			<div id="chat-log"></div>
 			<div id="chat-input-row">
-				<input id="chat-input" type="text" placeholder="Ask about this architecture...">
+				<input id="chat-input" type="text" placeholder="${noCode ? 'Describe your project...' : 'Ask about this architecture...'}">
 				<button id="chat-send" type="button">Send</button>
 			</div>
 		</div>
@@ -396,6 +403,8 @@ export function generateShellHTML(
 		// Rendered into the chat log and used to seed chatHistory below,
 		// rather than always starting empty.
 		var STORED_CHAT_HISTORY = ${JSON.stringify(initialChatHistory)};
+		var NO_CODE = ${JSON.stringify(noCode)};
+		var NO_CODE_OPENER = ${JSON.stringify(NO_CODE_OPENER)};
 		// The one flat list every picker draws from - spec-driven views
 		// first, then code-exploration ones. Knowledge Graph/Stack Layer
 		// were pulled from this list (still reachable via SRC_BY_MODE - see
@@ -1030,6 +1039,8 @@ export function generateShellHTML(
 		chatHistory.forEach(function (m) {
 			if (m.text) appendChatMessage(m.role === 'assistant' ? 'ai' : 'user', m.text);
 		});
+		// Drawn only, never pushed onto chatHistory - see NO_CODE_OPENER.
+		if (NO_CODE && chatHistory.length === 0) appendChatMessage('ai', NO_CODE_OPENER);
 
 		// The AI can change what's on screen, unprompted, as part of
 		// answering (show_view/highlight_class tool calls - see

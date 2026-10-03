@@ -9,7 +9,8 @@ All notable changes to kratai will be documented in this file.
   of failing with "No files found to parse". With no code there is nothing to
   generate from, so the Spec screens point you to chat: describe your project
   and it drafts the use cases and data model from what you say, creating them
-  on first use. Projects with code behave exactly as before.
+  on first use. The Spec shows the document's empty structure, and chat opens
+  with "Tell me about your project…". Projects with code behave exactly as before.
 
 ## [3.0.0] - 2026-09-29
 

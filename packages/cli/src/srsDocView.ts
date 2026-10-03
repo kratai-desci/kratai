@@ -45,6 +45,17 @@ const THEME_SYNC_SCRIPT = `<script>
 // who's never seen one, before the project-specific Overview right below it
 // on the cover page. Deliberately not a numbered section - it's framing for
 // the document itself, not a requirement.
+// Section titles and one-line descriptions, shared by the real document and
+// the empty-project skeleton below so the skeleton can't drift from what the
+// document will actually contain.
+const SECTION = {
+	diagram: { title: 'Use Case Diagram', intro: 'This section shows how each actor interacts with the system through its key use cases.' },
+	actors: { title: 'Actors &amp; roles', intro: 'The following actors were identified as participants in the system, along with the use cases each one is involved in.' },
+	useCases: { title: 'Use cases', intro: 'Each use case below describes one capability the system provides, along with any requirements specific to it.' },
+	nfrs: { title: 'Project-wide non-functional requirements', intro: 'The following non-functional requirements apply across the whole system, rather than to any single use case.' },
+	dataModel: { title: 'Data model', intro: "This section describes the system's core data entities and how they relate to one another." }
+};
+
 const ABOUT_DOC_TEXT = "This Software Requirements Specification (SRS) describes what this system does, who uses it, and how its parts fit together - its actors and use cases, its data model, and the non-functional requirements it must satisfy. It's meant to give anyone unfamiliar with the codebase a clear, shared reference for what the system is and does, independent of implementation detail.";
 
 
@@ -90,14 +101,14 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 	// it's project-specific framing, not a requirement, so it doesn't
 	// belong numbered alongside Use Case Diagram/Data model/etc.
 	sections.push({
-		title: 'Use Case Diagram',
-		body: `<p class="section-intro">This section shows how each actor interacts with the system through its key use cases.</p>` +
+		title: SECTION.diagram.title,
+		body: `<p class="section-intro">${SECTION.diagram.intro}</p>` +
 			(useCaseData.narrative ? `<p>${escapeXml(useCaseData.narrative)}</p>` : '') +
 			`<figure class="diagram-wrap">${diagramSvg}<figcaption>Figure 1: Use Case Diagram</figcaption></figure>`
 	});
 	sections.push({
-		title: 'Actors &amp; roles',
-		body: `<p class="section-intro">The following actors were identified as participants in the system, along with the use cases each one is involved in.</p>
+		title: SECTION.actors.title,
+		body: `<p class="section-intro">${SECTION.actors.intro}</p>
 			<table>
 			<tr><th>Actor</th><th>Role</th><th>Description</th><th>Use cases</th></tr>
 			${useCaseData.actors.map(a => `<tr>
@@ -109,8 +120,8 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 		</table>`
 	});
 	sections.push({
-		title: 'Use cases',
-		body: `<p class="section-intro">Each use case below describes one capability the system provides, along with any requirements specific to it.</p>` +
+		title: SECTION.useCases.title,
+		body: `<p class="section-intro">${SECTION.useCases.intro}</p>` +
 			useCaseData.useCases.map((u, i) => {
 			const nfrs = nfrsByUseCase[u.id] || [];
 			// goal/preconditions/mainFlow/postconditions are the "fully
@@ -136,8 +147,8 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 	});
 	if (projectNfrs.length > 0) {
 		sections.push({
-			title: 'Project-wide non-functional requirements',
-			body: `<p class="section-intro">The following non-functional requirements apply across the whole system, rather than to any single use case.</p>` +
+			title: SECTION.nfrs.title,
+			body: `<p class="section-intro">${SECTION.nfrs.intro}</p>` +
 				`<ul>${projectNfrs.map(n => `<li><span class="nfr-id">NFR-${nfrNumberById[n.id]}</span><strong>${escapeXml(n.name)}:</strong> ${escapeXml(n.text)}</li>`).join('\n')}</ul>`
 		});
 	}
@@ -145,8 +156,8 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 		const { svg: dataModelSvg } = buildDataModelSvg(dataModelData);
 		const entityName = (id: string) => dataModelData.entities.find(e => e.id === id)?.name || id;
 		sections.push({
-			title: 'Data model',
-			body: `<p class="section-intro">This section describes the system's core data entities and how they relate to one another.</p>` +
+			title: SECTION.dataModel.title,
+			body: `<p class="section-intro">${SECTION.dataModel.intro}</p>` +
 				(dataModelData.narrative ? `<p>${escapeXml(dataModelData.narrative)}</p>` : '') +
 				`<figure class="diagram-wrap">${dataModelSvg}<figcaption>Figure 2: Data Model Entity-Relationship Diagram</figcaption></figure>` +
 				dataModelData.entities.map(e => `<div class="entity-block">
@@ -444,7 +455,58 @@ ${DATA_MODEL_SVG_STYLE}
  * the same sign-in/generate action generateUseCaseDiagramEmptyHTML does,
  * just styled as a document rather than a diagram card.
  */
-export function generateSrsEmptyHTML(signedIn: boolean, hasCode = true): string {
+/**
+ * What a project with no code sees in place of the spec until chat has
+ * drafted a Use Case Model: the same sections the real document has, empty
+ * and dimmed, so the structure is visible before there's any content. Display
+ * only - no actions; chat is how it gets filled in, and the view refreshes
+ * into the real document (generateSrsDocHTML) once a Use Case Model exists.
+ */
+export function generateSrsSkeletonHTML(workspaceName: string): string {
+	const sections: { title: string; intro?: string; note: string; numbered: boolean }[] = [
+		{ title: 'Overview', note: "A short summary of what the system is and who it's for.", numbered: false },
+		{ ...SECTION.diagram, note: 'Drawn once actors and use cases have been described.', numbered: true },
+		{ ...SECTION.actors, note: 'Each actor, their role, and the use cases they take part in.', numbered: true },
+		{ ...SECTION.useCases, note: 'One entry per use case: its goal, preconditions, main flow and postconditions.', numbered: true },
+		{ ...SECTION.nfrs, note: 'Qualities the whole system must have, such as speed, security and reliability.', numbered: true },
+		{ ...SECTION.dataModel, note: 'The things the system keeps track of, and how they relate.', numbered: true }
+	];
+	let n = 0;
+	return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeXml(workspaceName)} - Software Requirements Specification</title>
+${THEME_SYNC_SCRIPT}
+<style>
+${DOC_STYLE}
+	#doc { max-width: 760px; margin: 0 auto; padding: 40px 28px 60px; }
+	.kicker { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); font-weight: 700; }
+	h1 { margin: 10px 0 0; font-size: 34px; }
+	.skeleton-lead { color: var(--text-dim); font-size: 13.5px; line-height: 1.6; margin: 12px 0 8px; }
+	.section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 26px; margin-top: 16px; opacity: 0.75; }
+	.section h2 { margin: 0 0 8px; font-size: 14px; }
+	.section-intro { color: var(--text-faint); font-style: italic; font-size: 12px; margin: 0 0 10px; }
+	.skeleton-note { margin: 0; padding: 12px 14px; border: 1px dashed var(--border); border-radius: 8px; color: var(--text-faint); font-size: 12.5px; line-height: 1.5; }
+</style>
+</head>
+<body>
+	<div id="doc">
+		<div class="kicker">Software Requirements Specification</div>
+		<h1>${escapeXml(workspaceName)}</h1>
+		<p class="skeleton-lead">This is the structure your spec will fill in. Describe your project in chat to start.</p>
+		${sections.map(s => `<div class="section">
+			<h2>${s.numbered ? `${++n}. ` : ''}${s.title}</h2>
+			${s.intro ? `<p class="section-intro">${s.intro}</p>` : ''}
+			<p class="skeleton-note">${s.note}</p>
+		</div>`).join('\n')}
+	</div>
+</body>
+</html>`;
+}
+
+export function generateSrsEmptyHTML(signedIn: boolean): string {
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -469,11 +531,9 @@ ${DOC_STYLE}
 <body>
 	<div id="doc">
 		<div class="kicker">Software Requirements Specification</div>
-		${!signedIn
-			? `<p>Sign in to generate a Use Case Model, which this document is built from.</p><button id="action">Sign In</button>`
-			: !hasCode
-				? `<p>No code yet. Describe your project to chat and it will draft the Use Case Model this document is built from.</p>`
-				: `<p>Generate the Use Case Model first - this document is built from it.</p><button id="action">Generate</button>`}
+		${signedIn
+			? `<p>Generate the Use Case Model first - this document is built from it.</p><button id="action">Generate</button>`
+			: `<p>Sign in to generate a Use Case Model, which this document is built from.</p><button id="action">Sign In</button>`}
 		<div id="error"></div>
 	</div>
 <script>
