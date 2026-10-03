@@ -1,4 +1,4 @@
-import { getDeviceToken, KRATAI_WEB_URL } from './auth.js';
+import { getDeviceToken, KRATAI_WEB_URL, failIfSessionExpired } from './auth.js';
 
 export interface BalanceInfo {
 	balanceCents: number;
@@ -21,6 +21,9 @@ export async function getBalanceCents(): Promise<BalanceInfo | null> {
 	const res = await fetch(new URL('/api/account/device-balance', KRATAI_WEB_URL), {
 		headers: { authorization: `Bearer ${token}` }
 	});
+	// A revoked token surfaces here first (the shell asks for the balance on every
+	// load), so this is where a dead session gets noticed without a launch-time check.
+	try { failIfSessionExpired(res); } catch { return null; }
 	if (!res.ok) return null;
 	const data = await res.json().catch(() => ({} as Record<string, unknown>));
 	const { balanceCents, totalCents } = data as { balanceCents?: unknown; totalCents?: unknown };

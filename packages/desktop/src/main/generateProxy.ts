@@ -1,5 +1,5 @@
 import { UseCaseDiagramData, DataModelData } from '@kratai-desci/llm';
-import { getDeviceToken, KRATAI_WEB_URL } from './auth.js';
+import { getDeviceToken, KRATAI_WEB_URL, failIfSessionExpired } from './auth.js';
 
 /**
  * Once BYOK is gone, this app can never hold a shared provider key capable
@@ -18,6 +18,7 @@ export async function generateUseCaseDiagram(summary: string, workspaceName: str
 		headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
 		body: JSON.stringify({ summary, workspaceName })
 	});
+	failIfSessionExpired(res);
 	const data = await res.json().catch(() => ({} as Record<string, unknown>));
 	if (!res.ok) throw new Error((data as { error?: string }).error || `Generation failed (${res.status}).`);
 	return data as UseCaseDiagramData;
@@ -37,6 +38,7 @@ export async function generateDataModel(summary: string, workspaceName: string):
 		headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
 		body: JSON.stringify({ summary, workspaceName })
 	});
+	failIfSessionExpired(res);
 	const data = await res.json().catch(() => ({} as Record<string, unknown>));
 	if (!res.ok) throw new Error((data as { error?: string }).error || `Generation failed (${res.status}).`);
 	return data as DataModelData;

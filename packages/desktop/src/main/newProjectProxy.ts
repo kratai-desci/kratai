@@ -1,5 +1,5 @@
 import type { NewProjectStep } from '@kratai-desci/llm';
-import { getDeviceToken, KRATAI_WEB_URL } from './auth.js';
+import { getDeviceToken, KRATAI_WEB_URL, failIfSessionExpired } from './auth.js';
 
 /**
  * Relays one step of the new-project wizard (the CLI's view server calls this
@@ -16,6 +16,7 @@ export async function runNewProjectStep(step: NewProjectStep, input: unknown, wo
 		headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
 		body: JSON.stringify({ step, input, workspaceName })
 	});
+	failIfSessionExpired(res);
 	const data = await res.json().catch(() => ({} as Record<string, unknown>));
 	if (!res.ok) throw new Error((data as { error?: string }).error || `kratai could not reach its AI service (error ${res.status}). Try again in a moment.`);
 	return (data as { data?: unknown }).data;

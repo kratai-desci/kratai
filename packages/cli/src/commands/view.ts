@@ -426,7 +426,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// permissions, say) does not pay for a second AI draft of the same choices.
 	let lastDraft: { key: string; details: SpecDetails } | undefined;
 	function wizardApplies(): boolean {
-		return !!options.newProjectAi && !newProjectDismissed && diagramData.classes.length === 0 && !useCaseData && getAuthStatus().signedIn
+		return !!options.newProjectAi && !newProjectDismissed && diagramData.classes.length === 0 && !useCaseData
 			// A spec file that exists but could not be read (permissions, bad JSON)
 			// leaves useCaseData empty - the wizard must not offer to overwrite it.
 			&& !hasCachedUseCaseDiagramData(workspacePath);

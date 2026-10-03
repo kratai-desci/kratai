@@ -1,5 +1,5 @@
 import { ConversationMessage, ChatStepResult } from '@kratai-desci/llm';
-import { getDeviceToken, KRATAI_WEB_URL } from './auth.js';
+import { getDeviceToken, KRATAI_WEB_URL, failIfSessionExpired } from './auth.js';
 
 /**
  * Same relay shape as generateProxy.ts's generateUseCaseDiagram, but one
@@ -17,6 +17,7 @@ export async function chatStep(messages: ConversationMessage[], workspaceName: s
 		headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
 		body: JSON.stringify({ messages, workspaceName, summary })
 	});
+	failIfSessionExpired(res);
 	const data = await res.json().catch(() => ({} as Record<string, unknown>));
 	if (!res.ok) throw new Error((data as { error?: string }).error || `Chat request failed (${res.status}).`);
 	return data as ChatStepResult;

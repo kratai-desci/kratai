@@ -4,7 +4,7 @@ import { app, BrowserWindow, Menu, dialog, nativeImage, shell } from 'electron';
 import { runView } from '@kratai/cli';
 import { addRecentWorkspace, listRecentWorkspaces } from './workspaceStore.js';
 import { getLayout, saveLayout } from './layoutStore.js';
-import { startSignIn, handleAuthCallback, getAuthStatus, signOut, KRATAI_WEB_URL } from './auth.js';
+import { startSignIn, handleAuthCallback, getAuthStatus, signOut, setSessionExpiredHandler, KRATAI_WEB_URL } from './auth.js';
 import { generateUseCaseDiagram, generateDataModel } from './generateProxy.js';
 import { chatStep } from './chatProxy.js';
 import { getBalanceCents } from './balanceProxy.js';
@@ -199,12 +199,25 @@ async function proceedPastSignIn(): Promise<void> {
 	}
 }
 
+// The one place the sign-in gate goes up. Closing the project server too is
+// what makes a later sign-in (handleDeepLink checks !currentServer) carry on
+// into the app, and what keeps a signed-out user from lingering in an open project.
 function showSignInGate(errorMessage?: string): void {
+	if (currentServer) {
+		currentServer.close();
+		currentServer = undefined;
+	}
 	ensureMainWindow();
 	void loadDataHTML(getSignInHTML(logoDataUrl, errorMessage));
 }
 
 async function openWorkspace(workspacePath: string): Promise<void> {
+	// Every way into a project (recent, welcome card, File > Open) passes through
+	// here, so this is what makes sign-in mandatory rather than just first.
+	if (!getAuthStatus().signedIn) {
+		showSignInGate();
+		return;
+	}
 	if (currentServer) {
 		currentServer.close();
 		currentServer = undefined;
@@ -240,7 +253,9 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 			saveLayout,
 			startSignIn,
 			getAuthStatus,
-			signOut,
+			// Back to the gate as soon as the response has gone out: the shell would
+			// otherwise sit in an open project with no account.
+			signOut: () => { signOut(); setTimeout(() => showSignInGate(), 0); },
 			generateUseCaseDiagram,
 			generateDataModel,
 			chat: chatStep,
@@ -303,6 +318,8 @@ function buildMenu(): void {
 		}
 	]));
 }
+
+setSessionExpiredHandler(() => showSignInGate('Your session expired. Please sign in again.'));
 
 app.whenReady().then(async () => {
 	// BrowserWindow's `icon` option only affects Windows/Linux taskbars -

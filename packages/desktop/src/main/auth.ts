@@ -113,3 +113,27 @@ export function getDeviceToken(): string | undefined {
 }
 
 export { KRATAI_WEB_URL };
+
+// Called by index.ts to put the sign-in gate back up when the server rejects
+// the stored device token. Registered rather than imported so this file stays
+// free of any window/UI code.
+let onSessionExpired: (() => void) | undefined;
+
+export function setSessionExpiredHandler(handler: () => void): void {
+	onSessionExpired = handler;
+}
+
+/**
+ * Every call to kratai-web with the device token goes through this: a 401
+ * means the token was revoked or expired on the server (the local copy still
+ * looks signed in - checking at launch would need a network round trip and
+ * break offline starts), so forget it and send the user back to the sign-in
+ * gate instead of showing a raw error. Throws on 401 so the caller stops.
+ */
+export function failIfSessionExpired(res: { status: number }): void {
+	if (res.status !== 401) return;
+	saveStoredAuth(undefined);
+	// Deferred so the caller's own error handling finishes before the page is replaced.
+	setTimeout(() => onSessionExpired?.(), 0);
+	throw new Error('Your session expired. Please sign in again.');
+}
