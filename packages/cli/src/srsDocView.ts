@@ -1,4 +1,3 @@
-import { ContextField, contextState } from '@kratai-desci/llm';
 import { UseCaseDiagramData, UseCaseNFR } from './useCaseDiagramData.js';
 import { buildUseCaseDiagramSvg, DIAGRAM_SVG_STYLE } from './useCaseDiagramView.js';
 import { DataModelData } from './dataModelData.js';
@@ -58,25 +57,6 @@ const ABOUT_DOC_TEXT = "This Software Requirements Specification (SRS) describes
  * its section only appears when there's actually something in it, same
  * skip-empty-sections rule as Overview/Project-wide NFRs below.
  */
-interface ContextRowSpec { field: ContextField; label: string; placeholder: string; canSkip: boolean; }
-
-const CONTEXT_ROWS: ContextRowSpec[] = [
-	{ field: 'overview', label: 'Summary', placeholder: 'add a one-line summary: what this is and who it is for', canSkip: false },
-	{ field: 'background', label: 'Background', placeholder: 'add why this project exists and the problem it solves', canSkip: true },
-	{ field: 'goal', label: 'Goal', placeholder: 'add what success looks like', canSkip: true },
-	{ field: 'outOfScope', label: 'Out of scope', placeholder: 'add what this project deliberately will not do', canSkip: true }
-];
-
-function renderContextRow(data: UseCaseDiagramData, row: ContextRowSpec): string {
-	const state = contextState(data, row.field);
-	const label = `<div class="ctx-label">${row.label}</div>`;
-	if (state === 'notRelevant') {
-		return `<div class="ctx-row is-na">${label}<p class="ctx-na">Not relevant to this project</p><button class="ctx-btn" data-action="relevant" data-section="${row.field}">Undo</button></div>`;
-	}
-	const skip = row.canSkip ? `<button class="ctx-btn" data-action="notRelevant" data-section="${row.field}">Not relevant</button>` : '<span></span>';
-	return `<div class="ctx-row ${state === 'filled' ? 'is-filled' : 'is-empty'}">${label}<p class="context-value" contenteditable="true" data-field="${row.field}" data-placeholder="${row.placeholder}">${escapeXml(data[row.field] || '')}</p>${skip}</div>`;
-}
-
 export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelData?: DataModelData): string {
 	const { svg: diagramSvg } = buildUseCaseDiagramSvg(useCaseData);
 
@@ -205,21 +185,14 @@ ${DOC_STYLE}
 	}
 	.meta-value:hover, .meta-value:focus { border-bottom-color: var(--accent); }
 	.meta-value:empty:before { content: attr(data-placeholder); color: var(--text-faint); }
-	/* The Overview card: one card, one row per question (Summary,
-	   Background, Goal, Out of scope). Rows edit in place like .meta-value
-	   but as block paragraphs. A row is one of three states - filled, empty
-	   (unanswered), or not relevant - and only filled rows survive into the
-	   PDF (see @media print), so a project that skips a row just doesn't get
-	   it. */
-	.ctx-row { display: grid; grid-template-columns: 112px 1fr auto; gap: 14px; align-items: baseline; padding: 11px 0; }
-	.ctx-row + .ctx-row { border-top: 1px solid var(--border); }
-	.ctx-label { font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); }
-	.context-value { margin: 0; outline: none; cursor: text; border-bottom: 1px dashed transparent; }
+	/* Background/Goal: same edit-in-place behavior as .meta-value but as a
+	   block paragraph inside a section. The empty placeholder shows on
+	   screen only (see @media print) so an unfilled one is invisible in the
+	   PDF - a project that has no background to share just doesn't get the
+	   heading at all. */
+	.context-value { display: block; outline: none; cursor: text; border-bottom: 1px dashed transparent; }
 	.context-value:hover, .context-value:focus { border-bottom-color: var(--accent); }
 	.context-value:empty:before { content: attr(data-placeholder); color: var(--text-faint); font-style: italic; }
-	.ctx-na { margin: 0; color: var(--text-faint); font-style: italic; }
-	.ctx-btn { font: inherit; font-size: 11px; color: var(--text-faint); background: none; border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; cursor: pointer; white-space: nowrap; }
-	.ctx-btn:hover { color: var(--accent); border-color: var(--accent); }
 	/* "About this document" only now - front matter that lives on the
 	   cover page itself, deliberately not styled like .section (no card
 	   background/border, no numbered h2). Overview moved to a real
@@ -323,9 +296,7 @@ ${DATA_MODEL_SVG_STYLE}
 		.meta-value { border-bottom: none; }
 		.meta-field:has(.meta-value:empty) { display: none; }
 		.context-value { border-bottom: none; }
-		.ctx-btn, .ctx-row.is-empty, .ctx-row.is-na { display: none; }
-		.ctx-row { grid-template-columns: 112px 1fr; }
-		.context-card:not(:has(.ctx-row.is-filled)) { display: none; }
+		.context-section:has(.context-value:empty) { display: none; }
 		/* General, content-length-independent pagination rule (unlike the
 		   fixed pixel/margin values elsewhere in this file, which are only
 		   tuned against this one project's data) - the CSS Fragmentation
@@ -415,9 +386,18 @@ ${DATA_MODEL_SVG_STYLE}
 			</div>
 		</div>
 
-		<div class="section overview-section context-card">
+		${useCaseData.overview ? `<div class="section overview-section">
 			<h2>Overview</h2>
-			${CONTEXT_ROWS.map(row => renderContextRow(useCaseData, row)).join('')}
+			<p>${escapeXml(useCaseData.overview)}</p>
+		</div>` : ''}
+
+		<div class="section overview-section context-section">
+			<h2>Background</h2>
+			<p class="context-value" contenteditable="true" data-field="background" data-placeholder="add why this project started and the problem it solves (optional)">${escapeXml(useCaseData.background || '')}</p>
+		</div>
+		<div class="section overview-section context-section">
+			<h2>Goal</h2>
+			<p class="context-value" contenteditable="true" data-field="goal" data-placeholder="add what this project is trying to achieve (optional)">${escapeXml(useCaseData.goal || '')}</p>
 		</div>
 
 		${sections.map((s, i) => `<div class="section${i > 0 ? ' section-new-page' : ''}">
@@ -442,18 +422,6 @@ ${DATA_MODEL_SVG_STYLE}
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload)
 			}).catch(function () {});
-		});
-	});
-
-	document.querySelectorAll('.ctx-btn').forEach(function (btn) {
-		btn.addEventListener('click', function () {
-			var payload = {};
-			payload[btn.getAttribute('data-action')] = [btn.getAttribute('data-section')];
-			fetch('/api/requirements/metadata', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			}).then(function () { location.reload(); }).catch(function () {});
 		});
 	});
 

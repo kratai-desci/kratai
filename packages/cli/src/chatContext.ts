@@ -1,5 +1,5 @@
 import { DiagramData } from '@kratai/analysis';
-import { UseCaseDiagramData, DataModelData, ContextField, contextState } from '@kratai-desci/llm';
+import { UseCaseDiagramData, DataModelData } from '@kratai-desci/llm';
 import { buildUseCaseExtractionSummary } from './useCaseDiagramData.js';
 
 function specSection(useCaseData: UseCaseDiagramData | undefined, dataModelData: DataModelData | undefined): string {
@@ -13,14 +13,8 @@ function specSection(useCaseData: UseCaseDiagramData | undefined, dataModelData:
 	if (useCaseData) {
 		lines.push('', `Prepared by: ${useCaseData.preparedBy || '(not set)'}`, `Client: ${useCaseData.clientName || '(not set)'}`);
 		lines.push('', '### Use Case Model');
-		// The Overview card's rows, each with an explicit state so the model can
-		// tell "the user said this doesn't apply" from "nobody's asked yet" -
-		// only the latter is something to interview about.
-		const rowLabels: Array<[ContextField, string]> = [['overview', 'Summary'], ['background', 'Background'], ['goal', 'Goal'], ['outOfScope', 'Out of scope']];
-		rowLabels.forEach(([field, label]) => {
-			const state = contextState(useCaseData, field);
-			lines.push(`${label}: ${state === 'filled' ? useCaseData[field] : state === 'notRelevant' ? '(not relevant to this project)' : '(unanswered)'}`);
-		});
+		if (useCaseData.overview) lines.push(`Overview: ${useCaseData.overview}`);
+		lines.push(`Background: ${useCaseData.background || '(not set)'}`, `Goal: ${useCaseData.goal || '(not set)'}`);
 		if (useCaseData.narrative) lines.push(`Narrative: ${useCaseData.narrative}`);
 
 		lines.push('', 'Actors:');

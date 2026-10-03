@@ -22,9 +22,8 @@ import { executeSpecTool } from '../chatSpecTools.js';
 import { executeFileTool } from '../fileTools.js';
 import { buildChatSummary } from '../chatContext.js';
 import { loadCachedChatHistory, saveCachedChatHistory } from '../chatHistoryData.js';
-import { UI_ACTION_TOOL_NAMES, SPEC_TOOL_NAMES, FILE_TOOL_NAMES, applyContextUpdate } from '@kratai-desci/llm';
-import type { ConversationMessage, ChatStepResult, ContextUpdate } from '@kratai-desci/llm';
-import { buildContextInterviewOpener } from '../contextInterview.js';
+import { UI_ACTION_TOOL_NAMES, SPEC_TOOL_NAMES, FILE_TOOL_NAMES } from '@kratai-desci/llm';
+import type { ConversationMessage, ChatStepResult } from '@kratai-desci/llm';
 
 export interface AuthStatus {
 	signedIn: boolean;
@@ -375,26 +374,15 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	async function detailFillUseCaseModel(): Promise<boolean> {
 		if (!chatHook || !useCaseData) return false;
 		const instruction = 'I just generated the Use Case Model for this project. For each use case, add goal, preconditions, mainFlow, and postconditions detail via update_use_case_model - read the actual route/handler/component code behind each one first (read_file/list_directory), and ground every step in what the code really does. If you can\'t find or confirm real behavior for a use case, leave its detail fields unset for that one rather than guessing - don\'t let one uncertain use case stop you from detailing the rest. When you\'re done, briefly summarize what you added and, if any, which use cases you left as-is and why.';
-		let succeeded = false;
 		try {
 			const { reply } = await runChatLoop([{ role: 'user', text: instruction }]);
 			chatHistory = [...chatHistory, { role: 'user', text: instruction }, { role: 'assistant', text: reply }];
 			saveCachedChatHistory(workspacePath, chatHistory);
-			succeeded = true;
+			return true;
 		} catch (error) {
 			console.warn(`Skipping automatic use case detail fill: ${error instanceof Error ? error.message : error}`);
+			return false;
 		}
-		// Last thing in the post-generation flow, whether or not detail fill
-		// worked: ask the first outstanding Overview question so the user
-		// lands in chat already being interviewed instead of facing a
-		// summary-only card. A fixed message, not an LLM call - see
-		// contextInterview.ts.
-		const opener = useCaseData ? buildContextInterviewOpener(useCaseData) : undefined;
-		if (opener) {
-			chatHistory = [...chatHistory, { role: 'assistant', text: opener }];
-			saveCachedChatHistory(workspacePath, chatHistory);
-		}
-		return succeeded;
 	}
 
 	const shellHtml = generateShellHTML(diagramName, {
@@ -607,14 +595,16 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			return;
 		}
 		if (req.method === 'POST' && req.url === '/api/requirements/metadata') {
-			handleJsonPost<{ preparedBy?: string; clientName?: string } & ContextUpdate>(req, res, payload => {
+			handleJsonPost<{ preparedBy?: string; clientName?: string; background?: string; goal?: string }>(req, res, payload => {
 				if (!useCaseData) throw new Error('Generate the Use Case Model before editing document metadata.');
 				if (typeof payload.preparedBy === 'string') useCaseData.preparedBy = payload.preparedBy;
 				if (typeof payload.clientName === 'string') useCaseData.clientName = payload.clientName;
-				// The Overview card's rows (see projectContext.ts) - applyContextUpdate
-				// returns a copy, so reassign rather than mutate; useCaseData is this
-				// closure's own `let`, same as the Generate routes below reassign it.
-				useCaseData = applyContextUpdate(useCaseData, payload);
+				for (const field of ['background', 'goal'] as const) {
+					const value = payload[field];
+					if (typeof value !== 'string') continue;
+					if (value.trim()) useCaseData[field] = value.trim();
+					else delete useCaseData[field];
+				}
 				saveCachedUseCaseDiagramData(workspacePath, useCaseData);
 			});
 			return;
