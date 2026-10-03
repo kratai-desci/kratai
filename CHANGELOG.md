@@ -2,6 +2,15 @@
 
 All notable changes to kratai will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Project context in the Spec** — optional Background (why the project
+  started and the problem it solves) and Goal (what success looks like)
+  sections, written by you or via chat, alongside the generated Overview.
+  An empty one is left out of the exported PDF, so a small project can skip
+  them entirely.
+
 ## [3.0.0] - 2026-09-29
 
 kratai is no longer just an architecture-diagram tool — it's a spec-driven

@@ -94,12 +94,14 @@ export const CHAT_TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: 'update_srs_metadata',
-		description: 'Edit the Spec document\'s header metadata. Only include the field(s) you want to change - an omitted field is left as-is.',
+		description: 'Edit the Spec document\'s header metadata and project context. Only include the field(s) you want to change - an omitted field is left as-is; an empty string clears a field. background and goal are things only the user knows (code cannot say why a project exists), so only write them from what the user actually told you - never infer or invent them.',
 		inputSchema: {
 			type: 'object',
 			properties: {
 				preparedBy: { type: 'string', description: 'Name of the person or company preparing the document' },
-				clientName: { type: 'string', description: 'Name of the client this document is for (optional)' }
+				clientName: { type: 'string', description: 'Name of the client this document is for (optional)' },
+				background: { type: 'string', description: 'Why the project started and the problem it solves, in the user\'s own terms (optional)' },
+				goal: { type: 'string', description: 'What the project is trying to achieve - what success looks like (optional)' }
 			}
 		}
 	},

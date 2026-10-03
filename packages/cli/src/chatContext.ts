@@ -14,6 +14,7 @@ function specSection(useCaseData: UseCaseDiagramData | undefined, dataModelData:
 		lines.push('', `Prepared by: ${useCaseData.preparedBy || '(not set)'}`, `Client: ${useCaseData.clientName || '(not set)'}`);
 		lines.push('', '### Use Case Model');
 		if (useCaseData.overview) lines.push(`Overview: ${useCaseData.overview}`);
+		lines.push(`Background: ${useCaseData.background || '(not set)'}`, `Goal: ${useCaseData.goal || '(not set)'}`);
 		if (useCaseData.narrative) lines.push(`Narrative: ${useCaseData.narrative}`);
 
 		lines.push('', 'Actors:');

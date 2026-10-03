@@ -185,6 +185,14 @@ ${DOC_STYLE}
 	}
 	.meta-value:hover, .meta-value:focus { border-bottom-color: var(--accent); }
 	.meta-value:empty:before { content: attr(data-placeholder); color: var(--text-faint); }
+	/* Background/Goal: same edit-in-place behavior as .meta-value but as a
+	   block paragraph inside a section. The empty placeholder shows on
+	   screen only (see @media print) so an unfilled one is invisible in the
+	   PDF - a project that has no background to share just doesn't get the
+	   heading at all. */
+	.context-value { display: block; outline: none; cursor: text; border-bottom: 1px dashed transparent; }
+	.context-value:hover, .context-value:focus { border-bottom-color: var(--accent); }
+	.context-value:empty:before { content: attr(data-placeholder); color: var(--text-faint); font-style: italic; }
 	/* "About this document" only now - front matter that lives on the
 	   cover page itself, deliberately not styled like .section (no card
 	   background/border, no numbered h2). Overview moved to a real
@@ -287,6 +295,8 @@ ${DATA_MODEL_SVG_STYLE}
 		#pdf-download { display: none; }
 		.meta-value { border-bottom: none; }
 		.meta-field:has(.meta-value:empty) { display: none; }
+		.context-value { border-bottom: none; }
+		.context-section:has(.context-value:empty) { display: none; }
 		/* General, content-length-independent pagination rule (unlike the
 		   fixed pixel/margin values elsewhere in this file, which are only
 		   tuned against this one project's data) - the CSS Fragmentation
@@ -381,6 +391,15 @@ ${DATA_MODEL_SVG_STYLE}
 			<p>${escapeXml(useCaseData.overview)}</p>
 		</div>` : ''}
 
+		<div class="section overview-section context-section">
+			<h2>Background</h2>
+			<p class="context-value" contenteditable="true" data-field="background" data-placeholder="add why this project started and the problem it solves (optional)">${escapeXml(useCaseData.background || '')}</p>
+		</div>
+		<div class="section overview-section context-section">
+			<h2>Goal</h2>
+			<p class="context-value" contenteditable="true" data-field="goal" data-placeholder="add what this project is trying to achieve (optional)">${escapeXml(useCaseData.goal || '')}</p>
+		</div>
+
 		${sections.map((s, i) => `<div class="section${i > 0 ? ' section-new-page' : ''}">
 			<h2>${i + 1}. ${s.title}</h2>
 			${s.body}
@@ -390,7 +409,7 @@ ${DATA_MODEL_SVG_STYLE}
 <script>
 (function () {
 	'use strict';
-	document.querySelectorAll('.meta-value').forEach(function (el) {
+	document.querySelectorAll('.meta-value, .context-value').forEach(function (el) {
 		el.addEventListener('keydown', function (e) {
 			if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
 		});

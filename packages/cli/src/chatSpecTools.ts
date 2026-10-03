@@ -18,6 +18,14 @@ function updateSrsMetadata(input: Record<string, unknown>, useCaseData: UseCaseD
 		updated.clientName = input.clientName;
 		changed.push(`client: "${input.clientName}"`);
 	}
+	for (const field of ['background', 'goal'] as const) {
+		const value = input[field];
+		if (typeof value !== 'string') continue;
+		const trimmed = value.trim();
+		if (trimmed) updated[field] = trimmed;
+		else delete updated[field];
+		changed.push(trimmed ? `${field}: "${trimmed}"` : `${field}: cleared`);
+	}
 	if (changed.length === 0) return { output: 'No fields provided to update.' };
 	return { output: `Updated ${changed.join(', ')}.`, updatedUseCaseData: updated };
 }

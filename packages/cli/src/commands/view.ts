@@ -595,10 +595,16 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			return;
 		}
 		if (req.method === 'POST' && req.url === '/api/requirements/metadata') {
-			handleJsonPost<{ preparedBy?: string; clientName?: string }>(req, res, payload => {
+			handleJsonPost<{ preparedBy?: string; clientName?: string; background?: string; goal?: string }>(req, res, payload => {
 				if (!useCaseData) throw new Error('Generate the Use Case Model before editing document metadata.');
 				if (typeof payload.preparedBy === 'string') useCaseData.preparedBy = payload.preparedBy;
 				if (typeof payload.clientName === 'string') useCaseData.clientName = payload.clientName;
+				for (const field of ['background', 'goal'] as const) {
+					const value = payload[field];
+					if (typeof value !== 'string') continue;
+					if (value.trim()) useCaseData[field] = value.trim();
+					else delete useCaseData[field];
+				}
 				saveCachedUseCaseDiagramData(workspacePath, useCaseData);
 			});
 			return;
