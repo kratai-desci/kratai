@@ -296,7 +296,7 @@ function uniqueId(base: string, taken: Set<string>): string {
  * didn't pick can't appear. The same use case chosen under two actors becomes
  * one use case associated with both.
  */
-export function buildProjectSpec(choices: WizardChoices, details: SpecDetails): { useCaseData: UseCaseDiagramData; dataModelData: DataModelData } {
+export function buildProjectSpec(choices: WizardChoices, details: SpecDetails, workspaceName: string = choices.project.name): { useCaseData: UseCaseDiagramData; dataModelData: DataModelData } {
 	const { project } = choices;
 	const actorIds = new Set<string>();
 	const useCaseIds = new Set<string>();
@@ -334,8 +334,8 @@ export function buildProjectSpec(choices: WizardChoices, details: SpecDetails): 
 	let dataModel: DataModelOutput = { entities: [], relationships: [] };
 	try { dataModel = validateDataModelOutput(details.dataModel); } catch { /* an empty data model is a valid start */ }
 	return {
-		useCaseData: { workspaceName: project.name, systemName: project.name, ...output },
-		dataModelData: { workspaceName: project.name, ...dataModel }
+		useCaseData: { workspaceName, systemName: project.name, ...output },
+		dataModelData: { workspaceName, ...dataModel }
 	};
 }
 
@@ -344,12 +344,13 @@ export function buildProjectSpec(choices: WizardChoices, details: SpecDetails): 
 // ---------------------------------------------------------------------------
 
 /** Rebuilds a WizardChoices from posted JSON, keeping only well-formed entries.
- * The project name always comes from the caller (the folder), never the page. */
+ * The project name is whatever the user typed (it becomes the spec's system
+ * name), falling back to the folder name when left blank. */
 export function parseWizardChoices(raw: unknown, workspaceName: string): WizardChoices {
 	const obj = asObject(raw, 'wizard input');
 	const what = asText(obj.what, 2000);
 	if (!what) throw new LlmError('Describe your project first.');
-	const project: WizardProject = { name: workspaceName, what, ...(asText(obj.who, 2000) ? { who: asText(obj.who, 2000) } : {}) };
+	const project: WizardProject = { name: asText(obj.name, 80) ?? workspaceName, what, ...(asText(obj.who, 2000) ? { who: asText(obj.who, 2000) } : {}) };
 	const actors = dedupeByName((Array.isArray(obj.actors) ? obj.actors : []).flatMap((entry): WizardActor[] => {
 		if (typeof entry !== 'object' || entry === null) return [];
 		const e = entry as Record<string, unknown>;
@@ -379,7 +380,7 @@ export function parseWizardChoices(raw: unknown, workspaceName: string): WizardC
  * of what the user chose (so the model has the context too) and what was made. */
 export function describeWizardOutcome(choices: WizardChoices, spec: { useCaseData: UseCaseDiagramData; dataModelData: DataModelData }): { user: string; assistant: string } {
 	const { project, actors, useCases, requirements } = choices;
-	const user = `I set up this project with the new-project wizard. ${project.what}${project.who ? ` ${project.who}` : ''}\n\nActors and use cases:\n${actors.map(a => `- ${a.name}: ${(useCases[a.name] ?? []).join(', ') || 'none chosen'}`).join('\n')}${requirements.length ? `\n\nRequirements: ${requirements.map(r => r.name).join(', ')}.` : ''}`;
+	const user = `I set up "${project.name}" with the new-project wizard. ${project.what}${project.who ? ` ${project.who}` : ''}\n\nActors and use cases:\n${actors.map(a => `- ${a.name}: ${(useCases[a.name] ?? []).join(', ') || 'none chosen'}`).join('\n')}${requirements.length ? `\n\nRequirements: ${requirements.map(r => r.name).join(', ')}.` : ''}`;
 	const entities = spec.dataModelData.entities.length;
 	const assistant = `Here is the initial design: ${spec.useCaseData.actors.length} actors, ${spec.useCaseData.useCases.length} use cases, ${requirements.length} requirements${entities ? ` and a data model with ${entities} entities` : ''}. Have a look at the Spec view, then tell me what to change - for example "add a use case for resetting a password", "rename the Administrator actor", or "the Horse entity needs a breed field".`;
 	return { user, assistant };

@@ -726,7 +726,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 					// never costs an AI call.
 					if (!choices.actors.some(a => (choices.useCases[a.name] ?? []).length > 0)) throw new Error('Choose at least one actor and one use case.');
 					const details = await options.newProjectAi('draft', input) as SpecDetails;
-					const spec = buildProjectSpec(choices, details);
+					const spec = buildProjectSpec(choices, details, diagramName);
 					useCaseData = spec.useCaseData;
 					dataModelData = spec.dataModelData;
 					saveCachedUseCaseDiagramData(workspacePath, useCaseData);

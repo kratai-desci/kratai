@@ -143,7 +143,7 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 	// actors / nfrs stay null until the AI (or "continue without suggestions")
 	// fills them; useCases is keyed by actor name. Items added by the user carry
 	// mine: true so a regenerated suggestion list does not drop them.
-	var state = { step: 0, ucIndex: 0, what: '', who: '', actors: null, actorsSig: null, useCases: {}, nfrs: null, loading: null, creating: null, error: null };
+	var state = { step: 0, ucIndex: 0, name: PROJECT, what: '', who: '', actors: null, actorsSig: null, useCases: {}, nfrs: null, loading: null, creating: null, error: null };
 
 	function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 	function chosenActors() { return (state.actors || []).filter(function (a) { return a.on; }); }
@@ -162,7 +162,7 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 
 	function stepOverview() {
 		return '<h2>Tell us about your project</h2><p class="sub">A few sentences is enough - this is what the AI uses to suggest everything that follows.</p>' +
-			'<label class="field"><span class="label">Project name</span><input type="text" value="' + esc(PROJECT) + '" readonly></label>' +
+			'<label class="field"><span class="label">Project name</span><input type="text" id="name" value="' + esc(state.name) + '"><span class="hint">Used as the title of your spec. You can change it later in chat.</span></label>' +
 			'<label class="field"><span class="label">What is it?</span><textarea id="what" placeholder="A web app where housemates share chores and keep track of whose turn it is.">' + esc(state.what) + '</textarea></label>' +
 			'<label class="field"><span class="label">Who will use it, and what problem does it solve?</span><textarea id="who" placeholder="Housemates who keep forgetting whose turn it is, which causes arguments.">' + esc(state.who) + '</textarea><span class="hint">Optional, but it makes the suggestions better.</span></label>';
 	}
@@ -217,7 +217,7 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 	function missingUseCaseActors() { return chosenActors().filter(function (a) { return !state.useCases[a.name]; }); }
 	function actorPayload(list) { return list.map(function (a) { return { name: a.name, description: a.desc, kind: a.kind }; }); }
 	function payload(step) {
-		var body = { what: state.what.trim(), who: state.who.trim() };
+		var body = { name: state.name.trim(), what: state.what.trim(), who: state.who.trim() };
 		if (step === 'use-cases') body.actors = actorPayload(missingUseCaseActors());
 		else if (step !== 'actors') {
 			body.actors = actorPayload(chosenActors());
@@ -227,11 +227,11 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 		}
 		return body;
 	}
-	function actorsSig() { return state.what.trim() + '|' + state.who.trim(); }
+	function actorsSig() { return state.name.trim() + '|' + state.what.trim() + '|' + state.who.trim(); }
 
 	// What each step shows while the AI works on it.
 	var LOADING = {
-		'actors': function () { return { title: 'Thinking about who will use ' + PROJECT, sub: 'Reading your description to suggest the people and systems involved.' }; },
+		'actors': function () { return { title: 'Thinking about who will use ' + (state.name.trim() || PROJECT), sub: 'Reading your description to suggest the people and systems involved.' }; },
 		'use-cases': function () { return { title: 'Drafting use cases', sub: 'Working out what ' + missingUseCaseActors().map(function (a) { return a.name; }).join(', ') + ' will each need to do.' }; },
 		'requirements': function () { return { title: 'Choosing requirements that fit', sub: 'Matching quality needs to the use cases you picked.' }; }
 	};
@@ -422,7 +422,8 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 		if ((e.key === ' ' || e.key === 'Enter') && e.target.classList && e.target.classList.contains('opt')) { e.preventDefault(); toggleOpt(e.target); }
 	});
 	card.addEventListener('input', function (e) {
-		if (e.target.id === 'what') { state.what = e.target.value; var b = document.querySelector('[data-action="next"]'); if (b) b.disabled = !canContinue(); }
+		if (e.target.id === 'name') state.name = e.target.value;
+		else if (e.target.id === 'what') { state.what = e.target.value; var b = document.querySelector('[data-action="next"]'); if (b) b.disabled = !canContinue(); }
 		else if (e.target.id === 'who') state.who = e.target.value;
 	});
 	card.addEventListener('keydown', function (e) {

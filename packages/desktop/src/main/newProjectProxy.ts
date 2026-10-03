@@ -17,6 +17,6 @@ export async function runNewProjectStep(step: NewProjectStep, input: unknown, wo
 		body: JSON.stringify({ step, input, workspaceName })
 	});
 	const data = await res.json().catch(() => ({} as Record<string, unknown>));
-	if (!res.ok) throw new Error((data as { error?: string }).error || `Request failed (${res.status}).`);
+	if (!res.ok) throw new Error((data as { error?: string }).error || `kratai could not reach its AI service (error ${res.status}). Try again in a moment.`);
 	return (data as { data?: unknown }).data;
 }
