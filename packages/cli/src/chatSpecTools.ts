@@ -10,6 +10,10 @@ function updateSrsMetadata(input: Record<string, unknown>, useCaseData: UseCaseD
 	if (!useCaseData) return { output: 'No Use Case Model exists yet - generate one first before editing document metadata.' };
 	const updated: UseCaseDiagramData = { ...useCaseData };
 	const changed: string[] = [];
+	if (typeof input.systemName === 'string' && input.systemName.trim()) {
+		updated.systemName = input.systemName.trim();
+		changed.push(`project name: "${updated.systemName}"`);
+	}
 	if (typeof input.preparedBy === 'string') {
 		updated.preparedBy = input.preparedBy;
 		changed.push(`prepared by: "${input.preparedBy}"`);

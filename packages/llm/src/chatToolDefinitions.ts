@@ -98,6 +98,7 @@ export const CHAT_TOOL_DEFINITIONS: ToolDefinition[] = [
 		inputSchema: {
 			type: 'object',
 			properties: {
+				systemName: { type: 'string', description: 'The project name shown as the title of the Spec document (not the folder name)' },
 				preparedBy: { type: 'string', description: 'Name of the person or company preparing the document' },
 				clientName: { type: 'string', description: 'Name of the client this document is for (optional)' }
 			}

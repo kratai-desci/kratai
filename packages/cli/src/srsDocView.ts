@@ -177,7 +177,7 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${escapeXml(useCaseData.workspaceName)} - Software Requirements Specification</title>
+<title>${escapeXml(useCaseData.systemName || useCaseData.workspaceName)} - Software Requirements Specification</title>
 ${THEME_SYNC_SCRIPT}
 <style>
 ${DOC_STYLE}
@@ -375,7 +375,7 @@ ${DATA_MODEL_SVG_STYLE}
 		<div id="doc-header">
 			<div class="cover-top">
 				<div class="kicker">Software Requirements Specification</div>
-				<h1>${escapeXml(useCaseData.workspaceName)}</h1>
+				<h1>${escapeXml(useCaseData.systemName || useCaseData.workspaceName)}</h1>
 				<div class="doc-meta">
 					<div class="meta-field"><span class="meta-label">Prepared by</span><span class="meta-value" contenteditable="true" data-field="preparedBy" data-placeholder="add name or company">${escapeXml(useCaseData.preparedBy || '')}</span></div>
 					<div class="meta-field"><span class="meta-label">Client</span><span class="meta-value" contenteditable="true" data-field="clientName" data-placeholder="add client (optional)">${escapeXml(useCaseData.clientName || '')}</span></div>

@@ -11,7 +11,7 @@ function specSection(useCaseData: UseCaseDiagramData | undefined, dataModelData:
 	const lines: string[] = ['', '## Spec (current data - you can read AND edit this via tools)'];
 
 	if (useCaseData) {
-		lines.push('', `Prepared by: ${useCaseData.preparedBy || '(not set)'}`, `Client: ${useCaseData.clientName || '(not set)'}`);
+		lines.push('', `Project name: ${useCaseData.systemName || useCaseData.workspaceName}`, `Prepared by: ${useCaseData.preparedBy || '(not set)'}`, `Client: ${useCaseData.clientName || '(not set)'}`);
 		lines.push('', '### Use Case Model');
 		if (useCaseData.overview) lines.push(`Overview: ${useCaseData.overview}`);
 		if (useCaseData.narrative) lines.push(`Narrative: ${useCaseData.narrative}`);
