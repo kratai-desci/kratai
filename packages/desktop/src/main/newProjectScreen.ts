@@ -42,6 +42,7 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 	.step.done { color: var(--text-dim); }
 	.step.done .num { background: var(--accent-2); color: #fff; }
 	#stage { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 28px 18px; }
+	@media (min-height: 800px) { #stage { min-height: 470px; } }
 	#stage h2 { margin: 4px 0 4px; font-size: 18px; }
 	#stage .sub { margin: 0 0 16px; color: var(--text-dim); font-size: 13.5px; line-height: 1.55; }
 	label.field { display: block; margin-bottom: 15px; }
@@ -68,6 +69,21 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 	.opt .cat { margin-left: auto; padding-left: 12px; font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-faint); white-space: nowrap; }
 	#stage h2 .count { margin-left: 10px; font-size: 11.5px; font-weight: 600; color: var(--text-faint); }
 	.empty { padding: 14px; border: 1px dashed var(--border); border-radius: 10px; color: var(--text-faint); font-size: 13px; }
+	.loading { padding: 18px 0 8px; }
+	.loading h2 { display: flex; align-items: center; gap: 12px; }
+	.spin { width: 20px; height: 20px; flex: none; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
+	@keyframes spin { to { transform: rotate(360deg); } }
+	.skel { margin-top: 18px; }
+	.sk { height: 52px; border-radius: 11px; margin-bottom: 8px; background: linear-gradient(90deg, var(--bg) 25%, color-mix(in srgb, var(--border) 60%, var(--bg)) 50%, var(--bg) 75%); background-size: 200% 100%; animation: shimmer 1.4s ease-in-out infinite; }
+	.sk:nth-child(2) { animation-delay: 0.1s; } .sk:nth-child(3) { animation-delay: 0.2s; } .sk:nth-child(4) { animation-delay: 0.3s; }
+	@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+	.checks { list-style: none; margin: 18px 0 0; padding: 0; }
+	.checks li { display: flex; align-items: center; gap: 12px; padding: 9px 0; font-size: 14px; color: var(--text-faint); }
+	.checks li.active { color: var(--text); font-weight: 600; }
+	.checks li.done { color: var(--text-dim); }
+	.checks .mark { width: 20px; height: 20px; flex: none; display: grid; place-items: center; border-radius: 50%; font-size: 11px; border: 2px solid var(--border); }
+	.checks li.done .mark { background: var(--accent-2); border-color: var(--accent-2); color: #fff; }
+	.checks li.active .mark { border-color: var(--border); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
 	#nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; border-top: 1px solid var(--border); }
 	#nav .where { font-size: 12.5px; color: var(--text-faint); }
 	#nav .right { display: flex; gap: 8px; align-items: center; }
@@ -121,7 +137,10 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 		{ name: 'Browser support', desc: 'Works on the latest two versions of the major browsers.', cat: 'Constraints', on: false }
 	];
 
-	var state = { step: 0, ucIndex: 0, what: '', who: '', actors: null, useCases: {}, nfrs: null, created: false };
+	var state = { step: 0, ucIndex: 0, what: '', who: '', actors: null, useCases: {}, nfrs: null, created: false, loading: null, creating: null };
+	// What each AI-backed step's suggestions were last generated from, so moving
+	// forward only "regenerates" them when an earlier choice actually changed.
+	var lastSig = {};
 
 	function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 	function ensureActors() { if (!state.actors) state.actors = ACTOR_SUGGESTIONS.map(function (a) { return { name: a.name, desc: a.desc, on: a.on }; }); }
@@ -192,6 +211,49 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 
 	var RENDER = [stepOverview, stepActors, stepUseCases, stepNfrs, stepReview];
 
+	// --- Simulated AI processing (the real flow calls the model here) ---
+	function names(list) { return list.map(function (x) { return x.name; }).join(', '); }
+	function sigFor(step) {
+		if (step === 1) return state.what + '|' + state.who;
+		if (step === 2) return names(chosenActors());
+		if (step === 3) return chosenActors().map(function (a) { return a.name + ':' + names(ensureUseCases(a).filter(function (u) { return u.on; })); }).join(';');
+		return '';
+	}
+	function needsGeneration(step) { return step >= 1 && step <= 3 && lastSig[step] !== sigFor(step); }
+	var LOADING = {
+		1: function () { return { title: 'Thinking about who will use ' + PROJECT, sub: 'Reading your description to suggest the people and systems involved.', ms: 1800 }; },
+		2: function () { return { title: 'Drafting use cases', sub: 'Working out what ' + names(chosenActors()) + ' will each need to do.', ms: 2300 }; },
+		3: function () { return { title: 'Choosing requirements that fit', sub: 'Matching quality needs to the use cases you picked.', ms: 1600 }; }
+	};
+	function startLoading(step) {
+		var info = LOADING[step]();
+		state.loading = info;
+		render(true);
+		setTimeout(function () { lastSig[step] = sigFor(step); state.loading = null; render(true); }, info.ms);
+	}
+	var CREATE_STEPS = ['Writing the overview', 'Drafting the use case model', 'Drafting the data model', 'Putting the spec together'];
+	function startCreating() {
+		state.creating = { done: 0 };
+		render(false);
+		var tick = function () {
+			state.creating.done++;
+			if (state.creating.done >= CREATE_STEPS.length) { state.creating = null; state.created = true; render(false); var st = document.getElementById('stage'); st.scrollTop = st.scrollHeight; return; }
+			render(false);
+			setTimeout(tick, 900);
+		};
+		setTimeout(tick, 900);
+	}
+	function loadingView() {
+		if (state.creating) {
+			return '<div class="loading"><h2><span class="spin"></span>Building your spec</h2><p class="sub">This is where the real version writes your first draft.</p><ul class="checks">' +
+				CREATE_STEPS.map(function (t, i) {
+					var cls = i < state.creating.done ? 'done' : (i === state.creating.done ? 'active' : '');
+					return '<li class="' + cls + '"><span class="mark">' + (i < state.creating.done ? '&#10003;' : '') + '</span>' + t + '</li>';
+				}).join('') + '</ul></div>';
+		}
+		return '<div class="loading"><h2><span class="spin"></span>' + esc(state.loading.title) + '</h2><p class="sub">' + esc(state.loading.sub) + '</p><div class="skel"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div></div>';
+	}
+
 	// The use cases step covers one actor per screen, so Continue/Back move
 	// through the actors before they move between steps.
 	function goNext() {
@@ -223,18 +285,19 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 			var label = i === 2 && state.step === 2 && n > 0 ? s + ' ' + (state.ucIndex + 1) + '/' + n : s;
 			return '<div class="step ' + cls + '"><span class="num">' + (i < state.step ? '&#10003;' : (i + 1)) + '</span>' + label + '</div>';
 		}).join('');
-		stage.innerHTML = RENDER[state.step]();
+		var busy = !!(state.loading || state.creating);
+		stage.innerHTML = busy ? loadingView() : RENDER[state.step]();
 		stage.scrollTop = toTop ? 0 : scroll;
 		var last = state.step === STEPS.length - 1;
 		var actors = chosenActors();
 		var perActor = state.step === 2 && actors.length > 0;
 		var nextLabel = perActor && state.ucIndex < actors.length - 1 ? 'Next: ' + esc(actors[state.ucIndex + 1].name) : 'Continue';
 		var primary = last
-			? (state.created ? '<a class="btn primary" href="kratai-action://finish-setup">Open project</a>' : '<button class="btn primary" data-action="create">Create my spec</button>')
-			: '<button class="btn primary" data-action="next"' + (canContinue() ? '' : ' disabled') + '>' + nextLabel + '</button>';
+			? (state.created ? '<a class="btn primary" href="kratai-action://finish-setup">Open project</a>' : '<button class="btn primary" data-action="create"' + (busy ? ' disabled' : '') + '>Create my spec</button>')
+			: '<button class="btn primary" data-action="next"' + (canContinue() && !busy ? '' : ' disabled') + '>' + nextLabel + '</button>';
 		var where = 'Step ' + (state.step + 1) + ' of ' + STEPS.length + (perActor ? ' - ' + esc(actors[state.ucIndex].name) + ' (' + (state.ucIndex + 1) + ' of ' + actors.length + ')' : '');
 		document.getElementById('nav').innerHTML = '<span class="where">' + where + '</span><div class="right">' +
-			(state.step > 0 && !state.created ? '<button class="btn" data-action="back">Back</button>' : '') + primary + '</div>';
+			(state.step > 0 && !state.created ? '<button class="btn" data-action="back"' + (busy ? ' disabled' : '') + '>Back</button>' : '') + primary + '</div>';
 	}
 
 	var card = document.getElementById('card');
@@ -243,9 +306,9 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 		if (!t) return;
 		var a = t.getAttribute('data-action');
 		var stage = document.getElementById('stage');
-		if (a === 'next') { goNext(); render(true); }
+		if (a === 'next') { var before = state.step; goNext(); if (state.step !== before && needsGeneration(state.step)) startLoading(state.step); else render(true); }
 		else if (a === 'back') { goBack(); render(true); }
-		else if (a === 'create') { state.created = true; render(false); stage.scrollTop = stage.scrollHeight; }
+		else if (a === 'create') { startCreating(); }
 		else if (a === 'add-actor') {
 			var v = document.getElementById('add-actor').value.trim();
 			if (v) { state.actors.push({ name: v, desc: '', on: true }); render(false); }
