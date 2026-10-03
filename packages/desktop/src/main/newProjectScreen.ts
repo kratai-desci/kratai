@@ -66,10 +66,7 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 	.opt .t { font-size: 14px; font-weight: 650; }
 	.opt .d { font-size: 12.5px; color: var(--text-dim); margin-top: 2px; line-height: 1.45; }
 	.opt .cat { margin-left: auto; padding-left: 12px; font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-faint); white-space: nowrap; }
-	.group { margin-top: 18px; }
-	.group:first-of-type { margin-top: 0; }
-	.group h3 { margin: 0 0 8px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
-	.group h3 .count { font-size: 11.5px; font-weight: 600; color: var(--text-faint); }
+	#stage h2 .count { margin-left: 10px; font-size: 11.5px; font-weight: 600; color: var(--text-faint); }
 	.empty { padding: 14px; border: 1px dashed var(--border); border-radius: 10px; color: var(--text-faint); font-size: 13px; }
 	#nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; border-top: 1px solid var(--border); }
 	#nav .where { font-size: 12.5px; color: var(--text-faint); }
@@ -124,7 +121,7 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 		{ name: 'Browser support', desc: 'Works on the latest two versions of the major browsers.', cat: 'Constraints', on: false }
 	];
 
-	var state = { step: 0, what: '', who: '', actors: null, useCases: {}, nfrs: null, created: false };
+	var state = { step: 0, ucIndex: 0, what: '', who: '', actors: null, useCases: {}, nfrs: null, created: false };
 
 	function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 	function ensureActors() { if (!state.actors) state.actors = ACTOR_SUGGESTIONS.map(function (a) { return { name: a.name, desc: a.desc, on: a.on }; }); }
@@ -157,18 +154,18 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 			'<div class="addrow"><input type="text" id="add-actor" placeholder="Add your own, e.g. Landlord"><button class="btn" data-action="add-actor">Add</button></div>' +
 			state.actors.map(function (a, i) { return opt('actor', i, a.on, a.name, a.desc || 'Added by you'); }).join('');
 	}
+	// One actor per screen (state.ucIndex), so each actor gets its own full
+	// attention instead of a long list of everyone's use cases.
 	function stepUseCases() {
 		var actors = chosenActors();
-		var html = '<h2>What can each of them do?</h2><p class="sub">A use case is one thing an actor does, named with a verb (for example "Log in"). <span class="tag">Suggested</span> - keep the ones you need and add the rest.</p>';
-		if (actors.length === 0) return html + '<div class="empty">Choose at least one actor in the previous step.</div>';
-		actors.forEach(function (actor, ai) {
-			var list = ensureUseCases(actor);
-			var picked = list.filter(function (u) { return u.on; }).length;
-			html += '<div class="group"><h3>' + esc(actor.name) + '<span class="count">' + picked + ' selected</span></h3>' +
-				'<div class="addrow"><input type="text" data-add-uc="' + ai + '" placeholder="Add a use case for ' + esc(actor.name) + '"><button class="btn" data-action="add-uc" data-idx="' + ai + '">Add</button></div>' +
-				list.map(function (u, i) { return opt('uc', ai + ':' + i, u.on, u.name, '', ''); }).join('') + '</div>';
-		});
-		return html;
+		if (actors.length === 0) return '<h2>What can they do?</h2><div class="empty">Choose at least one actor in the previous step.</div>';
+		var actor = actors[state.ucIndex];
+		var list = ensureUseCases(actor);
+		var picked = list.filter(function (u) { return u.on; }).length;
+		return '<h2>What can ' + esc(actor.name) + ' do?<span class="count">' + picked + ' selected</span></h2>' +
+			'<p class="sub">' + (actor.desc ? esc(actor.desc) + '. ' : '') + 'A use case is one thing this actor does, named with a verb (for example "Log in"). <span class="tag">Suggested</span> - keep the ones you need and add the rest.</p>' +
+			'<div class="addrow"><input type="text" data-add-uc="' + state.ucIndex + '" placeholder="Add a use case for ' + esc(actor.name) + '"><button class="btn" data-action="add-uc" data-idx="' + state.ucIndex + '">Add</button></div>' +
+			list.map(function (u, i) { return opt('uc', state.ucIndex + ':' + i, u.on, u.name, '', ''); }).join('');
 	}
 	function stepNfrs() {
 		ensureNfrs();
@@ -194,7 +191,26 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 	}
 
 	var RENDER = [stepOverview, stepActors, stepUseCases, stepNfrs, stepReview];
-	function canContinue() { return state.step !== 0 || state.what.trim().length > 0; }
+
+	// The use cases step covers one actor per screen, so Continue/Back move
+	// through the actors before they move between steps.
+	function goNext() {
+		if (state.step === 1) state.ucIndex = 0;
+		if (state.step === 2 && state.ucIndex < chosenActors().length - 1) state.ucIndex++;
+		else state.step++;
+	}
+	function goBack() {
+		if (state.step === 2 && state.ucIndex > 0) state.ucIndex--;
+		else {
+			state.step--;
+			if (state.step === 2) state.ucIndex = Math.max(0, chosenActors().length - 1);
+		}
+	}
+	function canContinue() {
+		if (state.step === 0) return state.what.trim().length > 0;
+		if (state.step === 1) return chosenActors().length > 0;
+		return true;
+	}
 
 	// toTop only when moving between steps - ticking or adding an item re-renders
 	// the same step and must leave the scroll position alone.
@@ -203,15 +219,21 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 		var scroll = stage.scrollTop;
 		document.getElementById('steps').innerHTML = STEPS.map(function (s, i) {
 			var cls = i === state.step ? 'active' : (i < state.step ? 'done' : '');
-			return '<div class="step ' + cls + '"><span class="num">' + (i < state.step ? '&#10003;' : (i + 1)) + '</span>' + s + '</div>';
+			var n = chosenActors().length;
+			var label = i === 2 && state.step === 2 && n > 0 ? s + ' ' + (state.ucIndex + 1) + '/' + n : s;
+			return '<div class="step ' + cls + '"><span class="num">' + (i < state.step ? '&#10003;' : (i + 1)) + '</span>' + label + '</div>';
 		}).join('');
 		stage.innerHTML = RENDER[state.step]();
 		stage.scrollTop = toTop ? 0 : scroll;
 		var last = state.step === STEPS.length - 1;
+		var actors = chosenActors();
+		var perActor = state.step === 2 && actors.length > 0;
+		var nextLabel = perActor && state.ucIndex < actors.length - 1 ? 'Next: ' + esc(actors[state.ucIndex + 1].name) : 'Continue';
 		var primary = last
 			? (state.created ? '<a class="btn primary" href="kratai-action://finish-setup">Open project</a>' : '<button class="btn primary" data-action="create">Create my spec</button>')
-			: '<button class="btn primary" data-action="next"' + (canContinue() ? '' : ' disabled') + '>Continue</button>';
-		document.getElementById('nav').innerHTML = '<span class="where">Step ' + (state.step + 1) + ' of ' + STEPS.length + '</span><div class="right">' +
+			: '<button class="btn primary" data-action="next"' + (canContinue() ? '' : ' disabled') + '>' + nextLabel + '</button>';
+		var where = 'Step ' + (state.step + 1) + ' of ' + STEPS.length + (perActor ? ' - ' + esc(actors[state.ucIndex].name) + ' (' + (state.ucIndex + 1) + ' of ' + actors.length + ')' : '');
+		document.getElementById('nav').innerHTML = '<span class="where">' + where + '</span><div class="right">' +
 			(state.step > 0 && !state.created ? '<button class="btn" data-action="back">Back</button>' : '') + primary + '</div>';
 	}
 
@@ -221,8 +243,8 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 		if (!t) return;
 		var a = t.getAttribute('data-action');
 		var stage = document.getElementById('stage');
-		if (a === 'next') { state.step++; render(true); }
-		else if (a === 'back') { state.step--; render(true); }
+		if (a === 'next') { goNext(); render(true); }
+		else if (a === 'back') { goBack(); render(true); }
 		else if (a === 'create') { state.created = true; render(false); stage.scrollTop = stage.scrollHeight; }
 		else if (a === 'add-actor') {
 			var v = document.getElementById('add-actor').value.trim();
