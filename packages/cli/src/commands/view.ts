@@ -10,7 +10,7 @@ import { buildKnowledgeGraphData } from '../knowledgeGraphData.js';
 import { generateKnowledgeGraphHTML } from '../knowledgeGraphView.js';
 import { buildStackLayerData } from '../stackLayerData.js';
 import { generateStackLayerHTML } from '../stackLayerView.js';
-import { loadCachedUseCaseDiagramData, saveCachedUseCaseDiagramData, buildUseCaseExtractionSummary, UseCaseDiagramData } from '../useCaseDiagramData.js';
+import { loadCachedUseCaseDiagramData, saveCachedUseCaseDiagramData, hasCachedUseCaseDiagramData, buildUseCaseExtractionSummary, UseCaseDiagramData } from '../useCaseDiagramData.js';
 import { generateUseCaseDiagramHTML, generateUseCaseDiagramEmptyHTML } from '../useCaseDiagramView.js';
 import { loadCachedDataModelData, saveCachedDataModelData, buildDataModelExtractionSummary, DataModelData } from '../dataModelData.js';
 import { generateDataModelHTML, generateDataModelEmptyHTML } from '../dataModelView.js';
@@ -422,8 +422,14 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// finishing it) only lasts as long as this server does - reopening a project
 	// that still has no spec shows it again.
 	let newProjectDismissed = false;
+	// The last drafted details, kept so a retry after a failed save (disk
+	// permissions, say) does not pay for a second AI draft of the same choices.
+	let lastDraft: { key: string; details: SpecDetails } | undefined;
 	function wizardApplies(): boolean {
-		return !!options.newProjectAi && !newProjectDismissed && diagramData.classes.length === 0 && !useCaseData && getAuthStatus().signedIn;
+		return !!options.newProjectAi && !newProjectDismissed && diagramData.classes.length === 0 && !useCaseData && getAuthStatus().signedIn
+			// A spec file that exists but could not be read (permissions, bad JSON)
+			// leaves useCaseData empty - the wizard must not offer to overwrite it.
+			&& !hasCachedUseCaseDiagramData(workspacePath);
 	}
 	function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
 		return new Promise((resolve, reject) => {
@@ -720,23 +726,29 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			(async () => {
 				try {
 					if (!options.newProjectAi) throw new Error('The new-project wizard is only available in the kratai desktop app.');
+					if (useCaseData || hasCachedUseCaseDiagramData(workspacePath)) throw new Error('This folder already has a spec, so kratai will not overwrite it.');
 					const input = await readJsonBody(req);
 					const choices = parseWizardChoices(input, diagramName);
 					// Checked here too (not just in buildProjectSpec) so a hopeless request
 					// never costs an AI call.
 					if (!choices.actors.some(a => (choices.useCases[a.name] ?? []).length > 0)) throw new Error('Choose at least one actor and one use case.');
-					const details = await options.newProjectAi('draft', input) as SpecDetails;
+					const key = JSON.stringify(input);
+					const details = lastDraft?.key === key ? lastDraft.details : await options.newProjectAi('draft', input) as SpecDetails;
+					lastDraft = { key, details };
 					const spec = buildProjectSpec(choices, details, diagramName);
+					// Saved before the in-memory copies are set, so a failed write leaves
+					// nothing half-created and "Try again" is allowed to run again.
+					saveCachedUseCaseDiagramData(workspacePath, spec.useCaseData);
+					saveCachedDataModelData(workspacePath, spec.dataModelData);
 					useCaseData = spec.useCaseData;
 					dataModelData = spec.dataModelData;
-					saveCachedUseCaseDiagramData(workspacePath, useCaseData);
-					saveCachedDataModelData(workspacePath, dataModelData);
 					// Recorded like a real chat turn so the model knows what the user
 					// chose when they come back to change it, and the panel opens on
 					// "here is the initial design" rather than an empty log.
 					const outcome = describeWizardOutcome(choices, spec);
 					chatHistory = [...chatHistory, { role: 'user', text: outcome.user }, { role: 'assistant', text: outcome.assistant }];
 					saveCachedChatHistory(workspacePath, chatHistory);
+					lastDraft = undefined;
 					sendJson(res, 200, { ok: true });
 				} catch (error) {
 					sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
