@@ -60,13 +60,21 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 	.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--accent) 60%, transparent); }
 	.btn.primary:hover:not(:disabled) { color: #fff; opacity: 0.92; }
 	.btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
-	.opt { display: flex; gap: 12px; align-items: flex-start; padding: 11px 14px; border: 1px solid var(--border); border-radius: 11px; margin-bottom: 7px; cursor: pointer; }
-	.opt:hover { border-color: var(--accent); }
-	.opt.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
-	.opt input { margin-top: 3px; accent-color: var(--accent); }
-	.opt .t { font-size: 14px; font-weight: 650; }
-	.opt .d { font-size: 12.5px; color: var(--text-dim); margin-top: 2px; line-height: 1.45; }
-	.opt .cat { margin-left: auto; padding-left: 12px; font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-faint); white-space: nowrap; }
+	/* Choices are cards in two columns - click anywhere on one to select it. A
+	   selected card gets a bold ring, a tinted fill, a glow and a check badge so
+	   the choice is unmistakable even in a long list. */
+	.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+	.opt { position: relative; display: flex; flex-direction: column; justify-content: center; min-height: 62px; padding: 13px 40px 13px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); cursor: pointer; user-select: none; outline: none; transition: border-color 0.12s, background 0.12s, box-shadow 0.12s, transform 0.12s; }
+	.opt:hover { border-color: var(--accent); transform: translateY(-1px); }
+	.opt:active { transform: scale(0.985); }
+	.opt:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+	.opt.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, var(--surface)); box-shadow: 0 0 0 1.5px var(--accent), 0 10px 26px -12px color-mix(in srgb, var(--accent) 70%, transparent); }
+	.opt .tick { position: absolute; top: 10px; right: 10px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; background: var(--accent); opacity: 0; transform: scale(0.4); transition: opacity 0.12s, transform 0.18s cubic-bezier(0.3, 1.6, 0.5, 1); }
+	.opt.on .tick { opacity: 1; transform: scale(1); }
+	.opt .t { font-size: 14px; font-weight: 650; line-height: 1.35; }
+	.opt .d { font-size: 12.5px; color: var(--text-dim); margin-top: 3px; line-height: 1.45; }
+	.opt .cat { margin-bottom: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); }
+	.opt.on .cat { color: var(--accent); }
 	#stage h2 .count { margin-left: 10px; font-size: 11.5px; font-weight: 600; color: var(--text-faint); }
 	.empty { padding: 14px; border: 1px dashed var(--border); border-radius: 10px; color: var(--text-faint); font-size: 13px; }
 	.loading { padding: 18px 0 8px; }
@@ -156,10 +164,11 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 	function chosenNfrs() { ensureNfrs(); return state.nfrs.filter(function (n) { return n.on; }); }
 
 	function opt(kind, idx, on, title, desc, cat) {
-		return '<label class="opt' + (on ? ' on' : '') + '"><input type="checkbox" data-kind="' + kind + '" data-idx="' + idx + '"' + (on ? ' checked' : '') + '>' +
-			'<span><div class="t">' + esc(title) + '</div>' + (desc ? '<div class="d">' + esc(desc) + '</div>' : '') + '</span>' +
-			(cat ? '<span class="cat">' + esc(cat) + '</span>' : '') + '</label>';
+		return '<div class="opt' + (on ? ' on' : '') + '" role="checkbox" aria-checked="' + (on ? 'true' : 'false') + '" tabindex="0" data-kind="' + kind + '" data-idx="' + idx + '">' +
+			'<span class="tick">&#10003;</span>' + (cat ? '<div class="cat">' + esc(cat) + '</div>' : '') +
+			'<div class="t">' + esc(title) + '</div>' + (desc ? '<div class="d">' + esc(desc) + '</div>' : '') + '</div>';
 	}
+	function grid(html) { return '<div class="grid">' + html + '</div>'; }
 
 	function stepOverview() {
 		return '<h2>Tell us about your project</h2><p class="sub">A few sentences is enough - this is what the AI uses to suggest everything that follows.</p>' +
@@ -171,7 +180,7 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 		ensureActors();
 		return '<h2>Who will use it?</h2><p class="sub">An actor is a kind of person (or system) that interacts with your app. <span class="tag">Suggested from your description</span> - tick the ones that fit, or add your own.</p>' +
 			'<div class="addrow"><input type="text" id="add-actor" placeholder="Add your own, e.g. Landlord"><button class="btn" data-action="add-actor">Add</button></div>' +
-			state.actors.map(function (a, i) { return opt('actor', i, a.on, a.name, a.desc || 'Added by you'); }).join('');
+			grid(state.actors.map(function (a, i) { return opt('actor', i, a.on, a.name, a.desc || 'Added by you'); }).join(''));
 	}
 	// One actor per screen (state.ucIndex), so each actor gets its own full
 	// attention instead of a long list of everyone's use cases.
@@ -184,13 +193,13 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 		return '<h2>What can ' + esc(actor.name) + ' do?<span class="count">' + picked + ' selected</span></h2>' +
 			'<p class="sub">' + (actor.desc ? esc(actor.desc) + '. ' : '') + 'A use case is one thing this actor does, named with a verb (for example "Log in"). <span class="tag">Suggested</span> - keep the ones you need and add the rest.</p>' +
 			'<div class="addrow"><input type="text" data-add-uc="' + state.ucIndex + '" placeholder="Add a use case for ' + esc(actor.name) + '"><button class="btn" data-action="add-uc" data-idx="' + state.ucIndex + '">Add</button></div>' +
-			list.map(function (u, i) { return opt('uc', state.ucIndex + ':' + i, u.on, u.name, '', ''); }).join('');
+			grid(list.map(function (u, i) { return opt('uc', state.ucIndex + ':' + i, u.on, u.name, '', ''); }).join(''));
 	}
 	function stepNfrs() {
 		ensureNfrs();
 		return '<h2>What qualities matter?</h2><p class="sub">Non-functional requirements describe how well the system must work, not what it does. <span class="tag">Suggested</span> - grouped the way FURPS+ organises them.</p>' +
 			'<div class="addrow"><input type="text" id="add-nfr" placeholder="Add your own, e.g. Works offline"><button class="btn" data-action="add-nfr">Add</button></div>' +
-			state.nfrs.map(function (n, i) { return opt('nfr', i, n.on, n.name, n.desc, n.cat); }).join('');
+			grid(state.nfrs.map(function (n, i) { return opt('nfr', i, n.on, n.name, n.desc, n.cat); }).join(''));
 	}
 	function stepReview() {
 		var actors = chosenActors();
@@ -320,15 +329,30 @@ export function getNewProjectHTML(workspaceName: string, logoDataUrl: string): s
 			if (name) { ensureUseCases(chosenActors()[idx]).push({ name: name, on: true }); render(false); }
 		}
 	});
-	card.addEventListener('change', function (e) {
-		var el = e.target;
-		if (!el.matches || !el.matches('input[type="checkbox"]')) return;
+	// Flips a card's selection in place (no re-render, so the pop animation plays
+	// and focus stays put), then refreshes whatever depends on the choice.
+	function toggleOpt(el) {
 		var kind = el.getAttribute('data-kind'), idx = el.getAttribute('data-idx');
-		if (kind === 'actor') state.actors[+idx].on = el.checked;
-		else if (kind === 'nfr') state.nfrs[+idx].on = el.checked;
-		else if (kind === 'uc') { var p = idx.split(':'); ensureUseCases(chosenActors()[+p[0]])[+p[1]].on = el.checked; }
-		var label = el.closest('.opt'); if (label) label.classList.toggle('on', el.checked);
-		if (kind === 'uc') render(false);
+		var item;
+		if (kind === 'actor') item = state.actors[+idx];
+		else if (kind === 'nfr') item = state.nfrs[+idx];
+		else { var p = idx.split(':'); item = ensureUseCases(chosenActors()[+p[0]])[+p[1]]; }
+		item.on = !item.on;
+		el.classList.toggle('on', item.on);
+		el.setAttribute('aria-checked', item.on ? 'true' : 'false');
+		if (kind === 'uc') {
+			var c = document.querySelector('#stage h2 .count');
+			if (c) c.textContent = ensureUseCases(chosenActors()[+idx.split(':')[0]]).filter(function (u) { return u.on; }).length + ' selected';
+		}
+		var next = document.querySelector('[data-action="next"]');
+		if (next) next.disabled = !canContinue();
+	}
+	card.addEventListener('click', function (e) {
+		var o = e.target.closest ? e.target.closest('.opt') : null;
+		if (o) toggleOpt(o);
+	});
+	card.addEventListener('keydown', function (e) {
+		if ((e.key === ' ' || e.key === 'Enter') && e.target.classList && e.target.classList.contains('opt')) { e.preventDefault(); toggleOpt(e.target); }
 	});
 	card.addEventListener('input', function (e) {
 		if (e.target.id === 'what') { state.what = e.target.value; var b = document.querySelector('[data-action="next"]'); if (b) b.disabled = !canContinue(); }
