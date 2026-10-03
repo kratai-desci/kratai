@@ -4,6 +4,8 @@
 
 kratai is an AI-native, visual toolkit for Spec-Driven Development (SDD) — it defines use cases, roles, and a data model for a new project, or generates them from your existing code.
 
+![A developer at a two-monitor desk — code on one screen, kratai's generated spec and Use Case Model on the other](demo/banner.jpg)
+
 ![kratai Use Case Model — actors, use cases, and the generated spec document](https://kratai.com/screenshots/hero-usecase.webp)
 
 ---
