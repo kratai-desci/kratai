@@ -83,15 +83,6 @@ export interface UseCaseDiagramData {
 	// UseCaseModelOutput below.
 	preparedBy?: string;
 	clientName?: string;
-	// Project context alongside `overview` (the "what is it" blurb) -
-	// `background` is why the project started and the problem it solves,
-	// `goal` is what success looks like. Same reasoning as preparedBy/
-	// clientName above: only a human knows this, code can't say why a
-	// project exists, so extraction never fills them and they sit outside
-	// UseCaseModelOutput. Both optional so a small project can leave them
-	// empty - an empty one is simply not rendered.
-	background?: string;
-	goal?: string;
 }
 
 /** What the model is asked to produce - workspaceName/systemName are added
