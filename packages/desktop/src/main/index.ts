@@ -190,9 +190,18 @@ async function showWelcomeScreen(): Promise<void> {
 // Only ever reachable already signed in - app.whenReady() and
 // handleDeepLink's post-sign-in branch are the only callers, and both only
 // call this once getAuthStatus().signedIn is true.
+// Set only by an explicit Sign out, so the next sign-in lands on the welcome
+// card (Recent is one click away) instead of straight back in the last project -
+// it may be someone else signing in, and a sign-out should read as a reset. An
+// expired session or a signed-out launch does not set it: those resume where
+// the user was. In memory on purpose, so a relaunch behaves normally.
+let showWelcomeAfterSignIn = false;
+
 async function proceedPastSignIn(): Promise<void> {
 	const [mostRecent] = listRecentWorkspaces();
-	if (mostRecent) {
+	const forceWelcome = showWelcomeAfterSignIn;
+	showWelcomeAfterSignIn = false;
+	if (mostRecent && !forceWelcome) {
 		await openWorkspace(mostRecent);
 	} else {
 		await showWelcomeScreen();
@@ -255,7 +264,7 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 			getAuthStatus,
 			// Back to the gate as soon as the response has gone out: the shell would
 			// otherwise sit in an open project with no account.
-			signOut: () => { signOut(); setTimeout(() => showSignInGate(), 0); },
+			signOut: () => { signOut(); showWelcomeAfterSignIn = true; setTimeout(() => showSignInGate(), 0); },
 			generateUseCaseDiagram,
 			generateDataModel,
 			chat: chatStep,
