@@ -33,8 +33,20 @@ function updateSrsMetadata(input: Record<string, unknown>, useCaseData: UseCaseD
 // what the validators touch, so they're preserved by spreading the
 // validated result back onto `current` rather than replacing it wholesale.
 
-function updateUseCaseModel(input: Record<string, unknown>, useCaseData: UseCaseDiagramData | undefined): SpecToolResult {
-	if (!useCaseData) return { output: 'No Use Case Model exists yet - generate one first before editing it.' };
+function updateUseCaseModel(input: Record<string, unknown>, useCaseData: UseCaseDiagramData | undefined, workspaceName?: string): SpecToolResult {
+	if (!useCaseData) {
+		// Nothing to edit yet: build the first one from what was provided, run
+		// through the same validator (which still requires at least one actor
+		// and one use case) - how a project with no code gets a Use Case Model,
+		// since there's nothing for generate_use_case_model to extract from.
+		if (!workspaceName) return { output: 'No Use Case Model exists yet - generate one first before editing it.' };
+		try {
+			const validated = validateUseCaseModelOutput(input);
+			return { output: 'Use Case Model created.', updatedUseCaseData: { workspaceName, systemName: workspaceName, ...validated } };
+		} catch (error) {
+			return { output: `Could not create the Use Case Model: ${error instanceof Error ? error.message : String(error)}` };
+		}
+	}
 	try {
 		const merged = { ...useCaseData, ...input };
 		const validated = validateUseCaseModelOutput(merged);
@@ -44,8 +56,16 @@ function updateUseCaseModel(input: Record<string, unknown>, useCaseData: UseCase
 	}
 }
 
-function updateDataModel(input: Record<string, unknown>, dataModelData: DataModelData | undefined): SpecToolResult {
-	if (!dataModelData) return { output: 'No Data Model exists yet - generate one first before editing it.' };
+function updateDataModel(input: Record<string, unknown>, dataModelData: DataModelData | undefined, workspaceName?: string): SpecToolResult {
+	if (!dataModelData) {
+		if (!workspaceName) return { output: 'No Data Model exists yet - generate one first before editing it.' };
+		try {
+			const validated = validateDataModelOutput(input);
+			return { output: 'Data Model created.', updatedDataModelData: { workspaceName, ...validated } };
+		} catch (error) {
+			return { output: `Could not create the Data Model: ${error instanceof Error ? error.message : String(error)}` };
+		}
+	}
 	try {
 		const merged = { ...dataModelData, ...input };
 		const validated = validateDataModelOutput(merged);
@@ -63,6 +83,9 @@ function updateDataModel(input: Record<string, unknown>, dataModelData: DataMode
 // against an existing model here, not just in the tool description, since
 // a model can call a tool the prompt told it not to.
 export interface SpecToolGenerators {
+	// Needed only to create a model that doesn't exist yet (a project with no
+	// code) - an existing one already carries its own name.
+	workspaceName?: string;
 	generateUseCaseModel?: () => Promise<UseCaseDiagramData>;
 	generateDataModel?: () => Promise<DataModelData>;
 }
@@ -111,9 +134,9 @@ export async function executeSpecTool(
 		case 'update_srs_metadata':
 			return updateSrsMetadata(input, useCaseData);
 		case 'update_use_case_model':
-			return updateUseCaseModel(input, useCaseData);
+			return updateUseCaseModel(input, useCaseData, generators.workspaceName);
 		case 'update_data_model':
-			return updateDataModel(input, dataModelData);
+			return updateDataModel(input, dataModelData, generators.workspaceName);
 		case 'generate_use_case_model':
 			return generateUseCaseModelTool(useCaseData, generators.generateUseCaseModel);
 		case 'generate_data_model':

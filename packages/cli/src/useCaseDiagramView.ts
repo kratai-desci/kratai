@@ -578,7 +578,7 @@ ${DIAGRAM_SVG_STYLE}
  * button that POSTs to /api/use-case-diagram/generate directly, same-
  * origin, no parent needed).
  */
-export function generateUseCaseDiagramEmptyHTML(signedIn: boolean): string {
+export function generateUseCaseDiagramEmptyHTML(signedIn: boolean, hasCode = true): string {
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -633,9 +633,11 @@ export function generateUseCaseDiagramEmptyHTML(signedIn: boolean): string {
 </head>
 <body>
 	<div id="card">
-		${signedIn
-			? `<p>No use case diagram generated yet.</p><button id="action">Generate</button>`
-			: `<p>Sign in to generate a use case diagram from this codebase.</p><button id="action">Sign In</button>`}
+		${!signedIn
+			? `<p>Sign in to generate a use case diagram from this codebase.</p><button id="action">Sign In</button>`
+			: !hasCode
+				? `<p>No code yet. Describe your project to chat and it will draft the use cases for you.</p>`
+				: `<p>No use case diagram generated yet.</p><button id="action">Generate</button>`}
 		<div id="error"></div>
 	</div>
 <script>
@@ -643,6 +645,7 @@ export function generateUseCaseDiagramEmptyHTML(signedIn: boolean): string {
 	'use strict';
 	var signedIn = ${JSON.stringify(signedIn)};
 	var btn = document.getElementById('action');
+	if (!btn) return;
 	var errEl = document.getElementById('error');
 
 	btn.addEventListener('click', function () {

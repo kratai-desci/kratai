@@ -444,7 +444,7 @@ ${DATA_MODEL_SVG_STYLE}
  * the same sign-in/generate action generateUseCaseDiagramEmptyHTML does,
  * just styled as a document rather than a diagram card.
  */
-export function generateSrsEmptyHTML(signedIn: boolean): string {
+export function generateSrsEmptyHTML(signedIn: boolean, hasCode = true): string {
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -469,9 +469,11 @@ ${DOC_STYLE}
 <body>
 	<div id="doc">
 		<div class="kicker">Software Requirements Specification</div>
-		${signedIn
-			? `<p>Generate the Use Case Model first - this document is built from it.</p><button id="action">Generate</button>`
-			: `<p>Sign in to generate a Use Case Model, which this document is built from.</p><button id="action">Sign In</button>`}
+		${!signedIn
+			? `<p>Sign in to generate a Use Case Model, which this document is built from.</p><button id="action">Sign In</button>`
+			: !hasCode
+				? `<p>No code yet. Describe your project to chat and it will draft the Use Case Model this document is built from.</p>`
+				: `<p>Generate the Use Case Model first - this document is built from it.</p><button id="action">Generate</button>`}
 		<div id="error"></div>
 	</div>
 <script>
@@ -479,6 +481,7 @@ ${DOC_STYLE}
 	'use strict';
 	var signedIn = ${JSON.stringify(signedIn)};
 	var btn = document.getElementById('action');
+	if (!btn) return;
 	var errEl = document.getElementById('error');
 
 	btn.addEventListener('click', function () {

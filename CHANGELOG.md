@@ -2,6 +2,15 @@
 
 All notable changes to kratai will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Start a project from scratch.** Opening an empty folder now works instead
+  of failing with "No files found to parse". With no code there is nothing to
+  generate from, so the Spec screens point you to chat: describe your project
+  and it drafts the use cases and data model from what you say, creating them
+  on first use. Projects with code behave exactly as before.
+
 ## [3.0.0] - 2026-09-29
 
 kratai is no longer just an architecture-diagram tool — it's a spec-driven

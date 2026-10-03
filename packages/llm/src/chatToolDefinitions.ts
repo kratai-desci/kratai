@@ -105,7 +105,7 @@ export const CHAT_TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: 'update_use_case_model',
-		description: 'Edit the Use Case Model. Only include the top-level field(s) you want to change - an omitted field is left as-is. IMPORTANT: "actors", "useCases", "associations", "relations", and "nfrs" each REPLACE the entire current list, not merge into it - to add one actor, pass every existing actor from the summary above plus the new one, not just the new one alone. Existing ids must be reused exactly (as given in the summary) to keep an item the same; a new item needs a new unique kebab-case id. The edit is rejected if it would leave zero actors or zero use cases.',
+		description: 'Edit the Use Case Model. Only include the top-level field(s) you want to change - an omitted field is left as-is. IMPORTANT: "actors", "useCases", "associations", "relations", and "nfrs" each REPLACE the entire current list, not merge into it - to add one actor, pass every existing actor from the summary above plus the new one, not just the new one alone. Existing ids must be reused exactly (as given in the summary) to keep an item the same; a new item needs a new unique kebab-case id. The edit is rejected if it would leave zero actors or zero use cases. If no Use Case Model exists yet, this CREATES it from what you pass - that is how a project with no code gets one (include at least one actor and one use case, with associations linking them).',
 		inputSchema: {
 			type: 'object',
 			properties: {

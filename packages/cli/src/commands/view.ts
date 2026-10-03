@@ -106,6 +106,8 @@ export interface ViewOptions {
 	confirmGenerate?: (info: { workspaceName: string; missing: string[]; classCount: number; folderCount: number }) => Promise<boolean>;
 }
 
+const NO_CODE_MESSAGE = 'No code yet - describe your project to chat and it will draft the spec from what you tell it.';
+
 export async function runView(options: ViewOptions): Promise<http.Server> {
 	const workspacePath = path.resolve(options.path);
 
@@ -143,9 +145,6 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		}
 	}
 
-	if (diagramData.classes.length === 0) {
-		throw new Error('No classes found - check your folder/extension filters.');
-	}
 
 	let { nodes, edges } = DiagramGeneratorService.generateReactFlowData(diagramData);
 	let folderCount = FolderStructureBuilder.countFolders(FolderStructureBuilder.build(nodes));
@@ -173,8 +172,12 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// checklist is reported once up front (before anything starts) so the
 	// desktop app can show the whole plan, not just "generating..." with no
 	// sense of how much is left.
-	const wantsUseCase = getAuthStatus().signedIn && !useCaseData && !!generateUseCaseDiagramHook;
-	const wantsDataModel = getAuthStatus().signedIn && !dataModelData && !!generateDataModelHook;
+	// No code means nothing to extract from - generating would just invent a
+	// spec - so a code-less project skips this and is drafted through chat
+	// instead (see NO_CODE_MESSAGE).
+	const hasCode = diagramData.classes.length > 0;
+	const wantsUseCase = hasCode && getAuthStatus().signedIn && !useCaseData && !!generateUseCaseDiagramHook;
+	const wantsDataModel = hasCode && getAuthStatus().signedIn && !dataModelData && !!generateDataModelHook;
 	// Specifications (the SRS doc) isn't its own generation step - it's
 	// derived for free from these two (see srsDocView.ts) - but it's listed
 	// first here since it's what the user actually cares about ending up
@@ -298,11 +301,18 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 				}
 				if (SPEC_TOOL_NAMES.has(call.name)) {
 					const result = await executeSpecTool(call.name, call.input, useCaseData, dataModelData, {
+						workspaceName: diagramName,
 						generateUseCaseModel: generateUseCaseDiagramHook
-							? () => generateUseCaseDiagramHook(buildUseCaseExtractionSummary(diagramData, diagramName), diagramName)
+							? () => {
+								if (diagramData.classes.length === 0) throw new Error(NO_CODE_MESSAGE);
+								return generateUseCaseDiagramHook(buildUseCaseExtractionSummary(diagramData, diagramName), diagramName);
+							}
 							: undefined,
 						generateDataModel: generateDataModelHook
-							? () => generateDataModelHook(buildDataModelExtractionSummary(diagramData, diagramName), diagramName)
+							? () => {
+								if (diagramData.classes.length === 0) throw new Error(NO_CODE_MESSAGE);
+								return generateDataModelHook(buildDataModelExtractionSummary(diagramData, diagramName), diagramName);
+							}
 							: undefined
 					});
 					if (result.updatedUseCaseData) {
@@ -419,13 +429,13 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// "sign in / generate" empty-state card.
 	function renderUseCaseDiagram(): string {
 		if (useCaseData) return generateUseCaseDiagramHTML(useCaseData);
-		return generateUseCaseDiagramEmptyHTML(getAuthStatus().signedIn);
+		return generateUseCaseDiagramEmptyHTML(getAuthStatus().signedIn, diagramData.classes.length > 0);
 	}
 	// Real data or the real "sign in / generate" empty-state card - same
 	// pattern as renderUseCaseDiagram.
 	function renderDataModel(): string {
 		if (dataModelData) return generateDataModelHTML(dataModelData);
-		return generateDataModelEmptyHTML(getAuthStatus().signedIn);
+		return generateDataModelEmptyHTML(getAuthStatus().signedIn, diagramData.classes.length > 0);
 	}
 	function renderDiffScorecard(): string {
 		return generateDiffScorecardHTML(buildDiffScorecard(diagramData, diagramName, useCaseData, dataModelData));
@@ -435,7 +445,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// until that's been generated for real.
 	function renderRequirementsDoc(): string {
 		if (useCaseData) return generateSrsDocHTML(useCaseData, dataModelData);
-		return generateSrsEmptyHTML(getAuthStatus().signedIn);
+		return generateSrsEmptyHTML(getAuthStatus().signedIn, diagramData.classes.length > 0);
 	}
 
 	// Re-runs the expensive parse (the refresh button's whole job) and
@@ -456,10 +466,6 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			} catch (error) {
 				console.warn(`Skipping git diff highlighting: ${error instanceof Error ? error.message : error}`);
 			}
-		}
-
-		if (diagramData.classes.length === 0) {
-			throw new Error('No classes found - check your folder/extension filters.');
 		}
 
 		({ nodes, edges } = DiagramGeneratorService.generateReactFlowData(diagramData));
@@ -550,6 +556,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			(async () => {
 				try {
 					if (!generateUseCaseDiagramHook) throw new Error('Generation is only available in the kratai desktop app.');
+					if (diagramData.classes.length === 0) throw new Error(NO_CODE_MESSAGE);
 					// Not the full markdown export - see buildUseCaseExtractionSummary's
 					// doc comment for why (measured ~15,700 input tokens/call on a
 					// 110-class repo otherwise, almost all irrelevant implementation
@@ -579,6 +586,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			(async () => {
 				try {
 					if (!generateDataModelHook) throw new Error('Generation is only available in the kratai desktop app.');
+					if (diagramData.classes.length === 0) throw new Error(NO_CODE_MESSAGE);
 					// Built fresh from the current diagramData, not cached, so a
 					// /api/refresh in between always reflects the latest code -
 					// same reasoning as the use case model's own summary.

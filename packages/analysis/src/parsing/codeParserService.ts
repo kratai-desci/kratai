@@ -21,10 +21,9 @@ export class CodeParserService {
 		// Get files to parse - all filtering handled by WorkspaceScanner
 		const files = WorkspaceScanner.getFilesToParse(workspacePath, resolvedConfig);
 
-		if (files.length === 0) {
-			throw new Error('No files found to parse. Check your configuration.');
-		}
-
+		// An empty workspace is a valid starting point (a project with no code
+		// yet), not a misconfiguration - the loops below simply produce an
+		// empty result and the views show their empty states.
 		for (const file of files) {
 			let fileClasses: ClassInfo[];
 			try {

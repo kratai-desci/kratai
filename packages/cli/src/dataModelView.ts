@@ -359,7 +359,7 @@ ${DATA_MODEL_SVG_STYLE}
  * generateUseCaseDiagramEmptyHTML's shape (useCaseDiagramView.ts),
  * pointed at the data model's own generate route.
  */
-export function generateDataModelEmptyHTML(signedIn: boolean): string {
+export function generateDataModelEmptyHTML(signedIn: boolean, hasCode = true): string {
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -414,9 +414,11 @@ export function generateDataModelEmptyHTML(signedIn: boolean): string {
 </head>
 <body>
 	<div id="card">
-		${signedIn
-			? `<p>No data model generated yet.</p><button id="action">Generate</button>`
-			: `<p>Sign in to generate a data model from this codebase.</p><button id="action">Sign In</button>`}
+		${!signedIn
+			? `<p>Sign in to generate a data model from this codebase.</p><button id="action">Sign In</button>`
+			: !hasCode
+				? `<p>No code yet. Describe your project to chat and it will draft the data model for you.</p>`
+				: `<p>No data model generated yet.</p><button id="action">Generate</button>`}
 		<div id="error"></div>
 	</div>
 <script>
@@ -424,6 +426,7 @@ export function generateDataModelEmptyHTML(signedIn: boolean): string {
 	'use strict';
 	var signedIn = ${JSON.stringify(signedIn)};
 	var btn = document.getElementById('action');
+	if (!btn) return;
 	var errEl = document.getElementById('error');
 
 	btn.addEventListener('click', function () {

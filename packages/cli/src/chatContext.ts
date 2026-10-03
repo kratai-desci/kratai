@@ -88,5 +88,8 @@ export function buildChatSummary(
 	useCaseData: UseCaseDiagramData | undefined,
 	dataModelData: DataModelData | undefined
 ): string {
-	return buildUseCaseExtractionSummary(diagramData, workspaceName) + specSection(useCaseData, dataModelData);
+	const noCode = diagramData.classes.length === 0
+		? '\n\nNOTE: This workspace has NO CODE yet - there is nothing to read or extract from. The user is starting from scratch.\n'
+		: '';
+	return buildUseCaseExtractionSummary(diagramData, workspaceName) + noCode + specSection(useCaseData, dataModelData);
 }
