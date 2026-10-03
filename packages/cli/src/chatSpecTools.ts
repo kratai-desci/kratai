@@ -1,4 +1,4 @@
-import { UseCaseDiagramData, DataModelData, validateUseCaseModelOutput, validateDataModelOutput } from '@kratai-desci/llm';
+import { UseCaseDiagramData, DataModelData, ContextSection, CONTEXT_SECTIONS, applyContextUpdate, validateUseCaseModelOutput, validateDataModelOutput } from '@kratai-desci/llm';
 
 export interface SpecToolResult {
 	output: string;
@@ -18,16 +18,35 @@ function updateSrsMetadata(input: Record<string, unknown>, useCaseData: UseCaseD
 		updated.clientName = input.clientName;
 		changed.push(`client: "${input.clientName}"`);
 	}
-	for (const field of ['background', 'goal'] as const) {
-		const value = input[field];
-		if (typeof value !== 'string') continue;
-		const trimmed = value.trim();
-		if (trimmed) updated[field] = trimmed;
-		else delete updated[field];
-		changed.push(trimmed ? `${field}: "${trimmed}"` : `${field}: cleared`);
-	}
 	if (changed.length === 0) return { output: 'No fields provided to update.' };
 	return { output: `Updated ${changed.join(', ')}.`, updatedUseCaseData: updated };
+}
+
+function toSections(raw: unknown): ContextSection[] {
+	if (!Array.isArray(raw)) return [];
+	return raw.filter((v): v is ContextSection => CONTEXT_SECTIONS.includes(v as ContextSection));
+}
+
+function updateProjectContext(input: Record<string, unknown>, useCaseData: UseCaseDiagramData | undefined): SpecToolResult {
+	if (!useCaseData) return { output: 'No Use Case Model exists yet - generate one first before editing the project context.' };
+	const text = (key: string) => (typeof input[key] === 'string' ? (input[key] as string) : undefined);
+	const notRelevant = toSections(input.notRelevant);
+	const relevant = toSections(input.relevant);
+	const update = {
+		overview: text('overview'), background: text('background'), goal: text('goal'), outOfScope: text('outOfScope'),
+		...(notRelevant.length > 0 ? { notRelevant } : {}),
+		...(relevant.length > 0 ? { relevant } : {})
+	};
+	const changed: string[] = [];
+	(['overview', 'background', 'goal', 'outOfScope'] as const).forEach(field => {
+		const value = update[field];
+		if (value === undefined) return;
+		changed.push(value.trim() ? `${field}: "${value.trim()}"` : `${field}: cleared`);
+	});
+	notRelevant.forEach(section => changed.push(`${section}: marked not relevant`));
+	relevant.forEach(section => changed.push(`${section}: back to unanswered`));
+	if (changed.length === 0) return { output: 'No fields provided to update.' };
+	return { output: `Updated ${changed.join(', ')}.`, updatedUseCaseData: applyContextUpdate(useCaseData, update) };
 }
 
 // Patch semantics: `{ ...current, ...input }` overlays only the top-level
@@ -118,6 +137,8 @@ export async function executeSpecTool(
 	switch (name) {
 		case 'update_srs_metadata':
 			return updateSrsMetadata(input, useCaseData);
+		case 'update_project_context':
+			return updateProjectContext(input, useCaseData);
 		case 'update_use_case_model':
 			return updateUseCaseModel(input, useCaseData);
 		case 'update_data_model':

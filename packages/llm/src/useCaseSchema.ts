@@ -1,3 +1,6 @@
+/** The Overview card rows that hold human-supplied context and can be marked not relevant. */
+export type ContextSection = 'background' | 'goal' | 'outOfScope';
+
 export interface UseCaseActor {
 	id: string;
 	name: string;
@@ -83,15 +86,20 @@ export interface UseCaseDiagramData {
 	// UseCaseModelOutput below.
 	preparedBy?: string;
 	clientName?: string;
-	// Project context alongside `overview` (the "what is it" blurb) -
-	// `background` is why the project started and the problem it solves,
-	// `goal` is what success looks like. Same reasoning as preparedBy/
-	// clientName above: only a human knows this, code can't say why a
-	// project exists, so extraction never fills them and they sit outside
-	// UseCaseModelOutput. Both optional so a small project can leave them
-	// empty - an empty one is simply not rendered.
+	// The Overview card's other rows (`overview` above is its "Summary" row:
+	// what the system is and who it's for - nothing about why or goals).
+	// `background` is why the project exists and the problem it solves,
+	// `goal` is what success looks like, `outOfScope` is what it deliberately
+	// won't do. Only a human knows these - code can't say why a project
+	// exists - so extraction never fills them; they come from the chat
+	// interview (see projectContext.ts and chatAboutArchitecture.ts) or
+	// in-place edits. Each is optional, and a row can also be explicitly
+	// marked not relevant (e.g. a hobby project has no business background),
+	// which is distinct from simply not answered yet.
 	background?: string;
 	goal?: string;
+	outOfScope?: string;
+	contextNotRelevant?: ContextSection[];
 }
 
 /** What the model is asked to produce - workspaceName/systemName are added

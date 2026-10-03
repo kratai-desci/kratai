@@ -13,3 +13,4 @@ export * from './dataModelSchema.js';
 export * from './dataModelExtraction.js';
 export * from './chatToolDefinitions.js';
 export * from './chatAboutArchitecture.js';
+export * from './projectContext.js';

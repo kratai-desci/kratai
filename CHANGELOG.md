@@ -5,11 +5,17 @@ All notable changes to kratai will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- **Project context in the Spec** — optional Background (why the project
-  started and the problem it solves) and Goal (what success looks like)
-  sections, written by you or via chat, alongside the generated Overview.
-  An empty one is left out of the exported PDF, so a small project can skip
-  them entirely.
+- **One Overview card with a guided interview** — the Spec's Overview is now a
+  single card with four rows: Summary (what it is and who it's for), Background
+  (why it exists and the problem it solves), Goal, and Out of scope. Right after
+  a spec is generated, chat asks about the open rows one short question at a
+  time and writes your answers up in clean prose. Each row can be marked "not
+  relevant" (a hobby project has no client), which is different from "not
+  answered yet". Rows that are empty or not relevant are left out of the PDF.
+
+### Changed
+- The generated Summary now describes only what the system is and who it's for;
+  it no longer doubles as a goal statement.
 
 ## [3.0.0] - 2026-09-29
 

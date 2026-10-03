@@ -94,14 +94,27 @@ export const CHAT_TOOL_DEFINITIONS: ToolDefinition[] = [
 	},
 	{
 		name: 'update_srs_metadata',
-		description: 'Edit the Spec document\'s header metadata and project context. Only include the field(s) you want to change - an omitted field is left as-is; an empty string clears a field. background and goal are things only the user knows (code cannot say why a project exists), so only write them from what the user actually told you - never infer or invent them.',
+		description: 'Edit the Spec document\'s header metadata. Only include the field(s) you want to change - an omitted field is left as-is.',
 		inputSchema: {
 			type: 'object',
 			properties: {
 				preparedBy: { type: 'string', description: 'Name of the person or company preparing the document' },
-				clientName: { type: 'string', description: 'Name of the client this document is for (optional)' },
-				background: { type: 'string', description: 'Why the project started and the problem it solves, in the user\'s own terms (optional)' },
-				goal: { type: 'string', description: 'What the project is trying to achieve - what success looks like (optional)' }
+				clientName: { type: 'string', description: 'Name of the client this document is for (optional)' }
+			}
+		}
+	},
+	{
+		name: 'update_project_context',
+		description: 'Edit the Spec\'s Overview card rows. Only include what you want to change - an omitted field is left as-is; an empty string clears a row back to unanswered. background, goal and outOfScope are things only the user knows (code cannot say why a project exists or what it deliberately skips): write them ONLY from what the user actually told you, as clean concise prose, never inferring or inventing motives, goals or numbers. If the user says a row does not apply to their project, list it in notRelevant instead of writing anything.',
+		inputSchema: {
+			type: 'object',
+			properties: {
+				overview: { type: 'string', description: 'Summary row: what the system is and who it is for, 1-2 sentences. Not why it exists and not its goals.' },
+				background: { type: 'string', description: 'Why the project exists and the problem it solves. Not a description of the solution.' },
+				goal: { type: 'string', description: 'What success looks like. Outcomes, not a feature list.' },
+				outOfScope: { type: 'string', description: 'What the project deliberately will not do.' },
+				notRelevant: { type: 'array', items: { type: 'string', enum: ['background', 'goal', 'outOfScope'] }, description: 'Rows the user said do not apply to this project' },
+				relevant: { type: 'array', items: { type: 'string', enum: ['background', 'goal', 'outOfScope'] }, description: 'Rows previously marked not relevant that the user now wants back' }
 			}
 		}
 	},
@@ -111,7 +124,7 @@ export const CHAT_TOOL_DEFINITIONS: ToolDefinition[] = [
 		inputSchema: {
 			type: 'object',
 			properties: {
-				overview: { type: 'string', description: '1-2 sentence project-goal blurb' },
+				overview: { type: 'string', description: '1-2 sentences: what the system is and who it is for - no history and no goals (use update_project_context for those)' },
 				narrative: { type: 'string', description: 'Role-by-role plain-language explanation of who the actors are and what they do' },
 				actors: {
 					type: 'array',
@@ -273,6 +286,6 @@ export const FILE_TOOL_NAMES = new Set(['read_file', 'list_directory']);
  * functions that persist them.
  */
 export const SPEC_TOOL_NAMES = new Set([
-	'update_srs_metadata', 'update_use_case_model', 'update_data_model',
+	'update_srs_metadata', 'update_project_context', 'update_use_case_model', 'update_data_model',
 	'generate_use_case_model', 'generate_data_model'
 ]);
