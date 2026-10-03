@@ -7,7 +7,7 @@ function escapeXml(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-const DOC_STYLE = `
+export const DOC_STYLE = `
 	:root {
 		--bg: #EEF2FA; --surface: #FFFFFF; --text: #17203A; --text-dim: #5C6785; --text-faint: #94A0BE;
 		--border: #DCE3F2; --accent: #3459E0; --accent-2: #14A6B8;
@@ -33,7 +33,7 @@ const DOC_STYLE = `
 	}
 `;
 
-const THEME_SYNC_SCRIPT = `<script>
+export const THEME_SYNC_SCRIPT = `<script>
 	try {
 		var krataiTheme = localStorage.getItem('kratai-theme');
 		if (krataiTheme) document.documentElement.setAttribute('data-theme', krataiTheme);
@@ -455,57 +455,6 @@ ${DATA_MODEL_SVG_STYLE}
  * the same sign-in/generate action generateUseCaseDiagramEmptyHTML does,
  * just styled as a document rather than a diagram card.
  */
-/**
- * What a project with no code sees in place of the spec until chat has
- * drafted a Use Case Model: the same sections the real document has, empty
- * and dimmed, so the structure is visible before there's any content. Display
- * only - no actions; chat is how it gets filled in, and the view refreshes
- * into the real document (generateSrsDocHTML) once a Use Case Model exists.
- */
-export function generateSrsSkeletonHTML(workspaceName: string): string {
-	const sections: { title: string; intro?: string; note: string; numbered: boolean }[] = [
-		{ title: 'Overview', note: "A short summary of what the system is and who it's for.", numbered: false },
-		{ ...SECTION.diagram, note: 'Drawn once actors and use cases have been described.', numbered: true },
-		{ ...SECTION.actors, note: 'Each actor, their role, and the use cases they take part in.', numbered: true },
-		{ ...SECTION.useCases, note: 'One entry per use case: its goal, preconditions, main flow and postconditions.', numbered: true },
-		{ ...SECTION.nfrs, note: 'Qualities the whole system must have, such as speed, security and reliability.', numbered: true },
-		{ ...SECTION.dataModel, note: 'The things the system keeps track of, and how they relate.', numbered: true }
-	];
-	let n = 0;
-	return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${escapeXml(workspaceName)} - Software Requirements Specification</title>
-${THEME_SYNC_SCRIPT}
-<style>
-${DOC_STYLE}
-	#doc { max-width: 760px; margin: 0 auto; padding: 40px 28px 60px; }
-	.kicker { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); font-weight: 700; }
-	h1 { margin: 10px 0 0; font-size: 34px; }
-	.skeleton-lead { color: var(--text-dim); font-size: 13.5px; line-height: 1.6; margin: 12px 0 8px; }
-	.section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 26px; margin-top: 16px; opacity: 0.75; }
-	.section h2 { margin: 0 0 8px; font-size: 14px; }
-	.section-intro { color: var(--text-faint); font-style: italic; font-size: 12px; margin: 0 0 10px; }
-	.skeleton-note { margin: 0; padding: 12px 14px; border: 1px dashed var(--border); border-radius: 8px; color: var(--text-faint); font-size: 12.5px; line-height: 1.5; }
-</style>
-</head>
-<body>
-	<div id="doc">
-		<div class="kicker">Software Requirements Specification</div>
-		<h1>${escapeXml(workspaceName)}</h1>
-		<p class="skeleton-lead">This is the structure your spec will fill in. Describe your project in chat to start.</p>
-		${sections.map(s => `<div class="section">
-			<h2>${s.numbered ? `${++n}. ` : ''}${s.title}</h2>
-			${s.intro ? `<p class="section-intro">${s.intro}</p>` : ''}
-			<p class="skeleton-note">${s.note}</p>
-		</div>`).join('\n')}
-	</div>
-</body>
-</html>`;
-}
-
 export function generateSrsEmptyHTML(signedIn: boolean): string {
 	return `<!DOCTYPE html>
 <html lang="en">

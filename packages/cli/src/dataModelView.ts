@@ -417,7 +417,7 @@ export function generateDataModelEmptyHTML(signedIn: boolean, hasCode = true): s
 		${!signedIn
 			? `<p>Sign in to generate a data model from this codebase.</p><button id="action">Sign In</button>`
 			: !hasCode
-				? `<p>No code yet. Describe your project to chat and it will draft the data model for you.</p>`
+				? `<p>No code yet. Start from the Spec view and it will guide you through drafting your project.</p>`
 				: `<p>No data model generated yet.</p><button id="action">Generate</button>`}
 		<div id="error"></div>
 	</div>

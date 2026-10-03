@@ -16,7 +16,8 @@ import { loadCachedDataModelData, saveCachedDataModelData, buildDataModelExtract
 import { generateDataModelHTML, generateDataModelEmptyHTML } from '../dataModelView.js';
 import { buildDiffScorecard } from '../diffScorecardData.js';
 import { generateDiffScorecardHTML } from '../diffScorecardView.js';
-import { generateSrsDocHTML, generateSrsEmptyHTML, generateSrsSkeletonHTML } from '../srsDocView.js';
+import { generateSrsDocHTML, generateSrsEmptyHTML } from '../srsDocView.js';
+import { generateNewProjectWizardHTML } from '../newProjectWizardView.js';
 import { executeChatTool } from '../chatTools.js';
 import { executeSpecTool } from '../chatSpecTools.js';
 import { executeFileTool } from '../fileTools.js';
@@ -446,9 +447,10 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	function renderRequirementsDoc(): string {
 		if (useCaseData) return generateSrsDocHTML(useCaseData, dataModelData);
 		const signedIn = getAuthStatus().signedIn;
-		// No code means there's nothing for Generate to read, so show the
-		// document's empty structure and let chat fill it in instead.
-		if (signedIn && diagramData.classes.length === 0) return generateSrsSkeletonHTML(diagramName);
+		// No code means there's nothing for Generate to read, so a blank
+		// project is walked through a guided first-draft flow instead (UI
+		// preview only for now - see newProjectWizardView.ts).
+		if (signedIn && diagramData.classes.length === 0) return generateNewProjectWizardHTML(diagramName);
 		return generateSrsEmptyHTML(signedIn);
 	}
 
