@@ -6,7 +6,7 @@
 // kratai-action:// URL that index.ts's will-navigate interceptor catches
 // and turns into a real action - no preload script needed, consistent with
 // how the rest of the app stays same-origin-fetch-only.
-const BRAND_STYLE = `
+export const BRAND_STYLE = `
 	:root {
 		--bg: #EEF2FA; --surface: #FFFFFF; --text: #17203A; --text-dim: #5C6785;
 		--border: #DCE3F2; --accent: #3459E0; --ok: #1FA37C; --warn: #C87A17;

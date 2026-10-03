@@ -43,7 +43,7 @@ export interface ShellStats {
 // only - it is drawn in the page but never added to chatHistory, which is what
 // gets sent to the AI (some providers reject a conversation that begins with an
 // assistant turn, and there's nothing for the model to have "said" here anyway).
-const NO_CODE_OPENER = 'Start with the form on the left: tell me about your project, choose who uses it and what they do, and I\'ll draft your spec. Once the first draft is ready, we can refine any part of it together here.';
+const NO_CODE_OPENER = 'Tell me about your project: what is it, who will use it, and what problem does it solve? A few sentences is enough, and I\'ll draft the use cases from your answer.';
 
 export function generateShellHTML(
 	workspaceName: string,
@@ -383,7 +383,7 @@ export function generateShellHTML(
 		<div id="chat-panel">
 			<div id="chat-log"></div>
 			<div id="chat-input-row">
-				<input id="chat-input" type="text" placeholder="${noCode ? 'Ask me anything about your project...' : 'Ask about this architecture...'}">
+				<input id="chat-input" type="text" placeholder="${noCode ? 'Describe your project...' : 'Ask about this architecture...'}">
 				<button id="chat-send" type="button">Send</button>
 			</div>
 		</div>

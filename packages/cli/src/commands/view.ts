@@ -17,7 +17,6 @@ import { generateDataModelHTML, generateDataModelEmptyHTML } from '../dataModelV
 import { buildDiffScorecard } from '../diffScorecardData.js';
 import { generateDiffScorecardHTML } from '../diffScorecardView.js';
 import { generateSrsDocHTML, generateSrsEmptyHTML } from '../srsDocView.js';
-import { generateNewProjectWizardHTML } from '../newProjectWizardView.js';
 import { executeChatTool } from '../chatTools.js';
 import { executeSpecTool } from '../chatSpecTools.js';
 import { executeFileTool } from '../fileTools.js';
@@ -105,6 +104,12 @@ export interface ViewOptions {
 	// is an informed choice every time there's something to generate, not a
 	// standing preference.
 	confirmGenerate?: (info: { workspaceName: string; missing: string[]; classCount: number; folderCount: number }) => Promise<boolean>;
+	// Called once, before the project view opens, for a signed-in project that
+	// has no code and no spec yet - there's nothing to generate from, so the
+	// desktop app uses this to walk the user through a guided first draft in
+	// its own full-window screen (same pattern as confirmGenerate above). The
+	// view opens whenever it resolves, however the user left it.
+	setupNewProject?: (info: { workspaceName: string }) => Promise<void>;
 }
 
 const NO_CODE_MESSAGE = 'No code yet - describe your project to chat and it will draft the spec from what you tell it.';
@@ -177,6 +182,9 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// spec - so a code-less project skips this and is drafted through chat
 	// instead (see NO_CODE_MESSAGE).
 	const hasCode = diagramData.classes.length > 0;
+	if (!hasCode && !useCaseData && getAuthStatus().signedIn && options.setupNewProject) {
+		await options.setupNewProject({ workspaceName: diagramName });
+	}
 	const wantsUseCase = hasCode && getAuthStatus().signedIn && !useCaseData && !!generateUseCaseDiagramHook;
 	const wantsDataModel = hasCode && getAuthStatus().signedIn && !dataModelData && !!generateDataModelHook;
 	// Specifications (the SRS doc) isn't its own generation step - it's
@@ -446,12 +454,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// until that's been generated for real.
 	function renderRequirementsDoc(): string {
 		if (useCaseData) return generateSrsDocHTML(useCaseData, dataModelData);
-		const signedIn = getAuthStatus().signedIn;
-		// No code means there's nothing for Generate to read, so a blank
-		// project is walked through a guided first-draft flow instead (UI
-		// preview only for now - see newProjectWizardView.ts).
-		if (signedIn && diagramData.classes.length === 0) return generateNewProjectWizardHTML(diagramName);
-		return generateSrsEmptyHTML(signedIn);
+		return generateSrsEmptyHTML(getAuthStatus().signedIn, diagramData.classes.length > 0);
 	}
 
 	// Re-runs the expensive parse (the refresh button's whole job) and

@@ -636,7 +636,7 @@ export function generateUseCaseDiagramEmptyHTML(signedIn: boolean, hasCode = tru
 		${!signedIn
 			? `<p>Sign in to generate a use case diagram from this codebase.</p><button id="action">Sign In</button>`
 			: !hasCode
-				? `<p>No code yet. Start from the Spec view and it will guide you through drafting your use cases.</p>`
+				? `<p>No code yet. Describe your project to chat and it will draft the use cases for you.</p>`
 				: `<p>No use case diagram generated yet.</p><button id="action">Generate</button>`}
 		<div id="error"></div>
 	</div>

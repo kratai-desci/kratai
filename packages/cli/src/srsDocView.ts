@@ -7,7 +7,7 @@ function escapeXml(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-export const DOC_STYLE = `
+const DOC_STYLE = `
 	:root {
 		--bg: #EEF2FA; --surface: #FFFFFF; --text: #17203A; --text-dim: #5C6785; --text-faint: #94A0BE;
 		--border: #DCE3F2; --accent: #3459E0; --accent-2: #14A6B8;
@@ -33,7 +33,7 @@ export const DOC_STYLE = `
 	}
 `;
 
-export const THEME_SYNC_SCRIPT = `<script>
+const THEME_SYNC_SCRIPT = `<script>
 	try {
 		var krataiTheme = localStorage.getItem('kratai-theme');
 		if (krataiTheme) document.documentElement.setAttribute('data-theme', krataiTheme);
@@ -455,7 +455,7 @@ ${DATA_MODEL_SVG_STYLE}
  * the same sign-in/generate action generateUseCaseDiagramEmptyHTML does,
  * just styled as a document rather than a diagram card.
  */
-export function generateSrsEmptyHTML(signedIn: boolean): string {
+export function generateSrsEmptyHTML(signedIn: boolean, hasCode = true): string {
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -480,9 +480,11 @@ ${DOC_STYLE}
 <body>
 	<div id="doc">
 		<div class="kicker">Software Requirements Specification</div>
-		${signedIn
-			? `<p>Generate the Use Case Model first - this document is built from it.</p><button id="action">Generate</button>`
-			: `<p>Sign in to generate a Use Case Model, which this document is built from.</p><button id="action">Sign In</button>`}
+		${!signedIn
+			? `<p>Sign in to generate a Use Case Model, which this document is built from.</p><button id="action">Sign In</button>`
+			: !hasCode
+				? `<p>No code yet. Describe your project to chat and it will draft the Use Case Model this document is built from.</p>`
+				: `<p>Generate the Use Case Model first - this document is built from it.</p><button id="action">Generate</button>`}
 		<div id="error"></div>
 	</div>
 <script>
