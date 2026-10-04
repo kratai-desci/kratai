@@ -1,8 +1,21 @@
 import { DiagramData } from '@kratai/analysis';
 import { UseCaseDiagramData, DataModelData } from '@kratai-desci/llm';
 import { buildUseCaseExtractionSummary } from './useCaseDiagramData.js';
+import { visibleSpec } from './progressData.js';
 
-function specSection(useCaseData: UseCaseDiagramData | undefined, dataModelData: DataModelData | undefined): string {
+// Status/priority are shown to the model as read-only context: they are set by the user on
+// the Progress page, and the update tools cannot change them.
+function progressTag(item: { status?: string; priority?: string }): string {
+	const parts: string[] = [];
+	if (item.status && item.status !== 'open') parts.push(item.status.replace('-', ' '));
+	if (item.priority) parts.push(`${item.priority} priority`);
+	return parts.length ? ` [${parts.join(', ')}]` : '';
+}
+
+function specSection(fullUseCaseData: UseCaseDiagramData | undefined, dataModelData: DataModelData | undefined): string {
+	// Items the AI removed that are waiting on the user's decision are not part of the spec
+	// the model sees (see visibleSpec) - it must not try to re-add or "fix" them.
+	const useCaseData = fullUseCaseData ? visibleSpec(fullUseCaseData) : undefined;
 	// Always rendered, even when both are missing - an early return here
 	// used to leave this whole section out of the summary in that case,
 	// which meant the model had no explicit signal that nothing exists yet
@@ -11,6 +24,7 @@ function specSection(useCaseData: UseCaseDiagramData | undefined, dataModelData:
 	const lines: string[] = ['', '## Spec (current data - you can read AND edit this via tools)'];
 
 	if (useCaseData) {
+		lines.push('', 'Progress: use cases and requirements may carry a [status, priority] tag. Those are set by the user on the Progress page and are read-only for you - the update tools cannot change them. Editing an item that is in progress or done flags it "edited by AI" for the user to review, and removing one asks the user to confirm (it is kept, marked "removed by AI", until they decide), so only do either when the user clearly asked.');
 		lines.push('', `Project name: ${useCaseData.systemName || useCaseData.workspaceName}`, `Prepared by: ${useCaseData.preparedBy || '(not set)'}`, `Client: ${useCaseData.clientName || '(not set)'}`);
 		lines.push('', '### Use Case Model');
 		if (useCaseData.overview) lines.push(`Overview: ${useCaseData.overview}`);
@@ -29,13 +43,13 @@ function specSection(useCaseData: UseCaseDiagramData | undefined, dataModelData:
 		(useCaseData.nfrs || []).forEach(n => {
 			if (n.useCaseId === null) return;
 			const list = nfrsByUseCase.get(n.useCaseId) || [];
-			list.push(`${n.name}: ${n.text}`);
+			list.push(`${n.name}${progressTag(n)}: ${n.text}`);
 			nfrsByUseCase.set(n.useCaseId, list);
 		});
 		lines.push('', 'Use cases:');
 		useCaseData.useCases.forEach(u => {
 			const nfrs = nfrsByUseCase.get(u.id) || [];
-			lines.push(`- ${u.id} "${u.name.replace(/\n/g, ' ')}"${u.description ? `: ${u.description}` : ''}${nfrs.length ? ` - NFRs: ${nfrs.join('; ')}` : ''}`);
+			lines.push(`- ${u.id} "${u.name.replace(/\n/g, ' ')}"${progressTag(u)}${u.description ? `: ${u.description}` : ''}${nfrs.length ? ` - NFRs: ${nfrs.join('; ')}` : ''}`);
 		});
 
 		if (useCaseData.relations.length > 0) {
@@ -46,7 +60,7 @@ function specSection(useCaseData: UseCaseDiagramData | undefined, dataModelData:
 		const projectNfrs = (useCaseData.nfrs || []).filter(n => n.useCaseId === null);
 		if (projectNfrs.length > 0) {
 			lines.push('', 'Project-wide NFRs:');
-			projectNfrs.forEach(n => lines.push(`- ${n.id} "${n.name}": ${n.text}`));
+			projectNfrs.forEach(n => lines.push(`- ${n.id} "${n.name}"${progressTag(n)}: ${n.text}`));
 		}
 	} else {
 		lines.push('', '### Use Case Model', 'Not generated yet - call generate_use_case_model if the user asks for one, not update_use_case_model.');

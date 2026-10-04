@@ -1,4 +1,5 @@
 import { UseCaseDiagramData, DataModelData, validateUseCaseModelOutput, validateDataModelOutput } from '@kratai-desci/llm';
+import { reconcileAiEdit } from './progressData.js';
 
 export interface SpecToolResult {
 	output: string;
@@ -54,7 +55,19 @@ function updateUseCaseModel(input: Record<string, unknown>, useCaseData: UseCase
 	try {
 		const merged = { ...useCaseData, ...input };
 		const validated = validateUseCaseModelOutput(merged);
-		return { output: 'Use Case Model updated.', updatedUseCaseData: { ...useCaseData, ...validated } };
+		// The validator drops status/priority/closedBy (people set those, never the model), so
+		// they are put back by id here - and an edit or removal of an item that has progress is
+		// flagged for the user instead of silently applied (see progressData.ts).
+		const reconciled = reconcileAiEdit(useCaseData, {
+			actors: validated.actors, useCases: validated.useCases, associations: validated.associations,
+			relations: validated.relations, nfrs: validated.nfrs ?? []
+		});
+		const updated: UseCaseDiagramData = {
+			...useCaseData, ...validated,
+			useCases: reconciled.useCases, associations: reconciled.associations, relations: reconciled.relations
+		};
+		if (reconciled.nfrs.length > 0) updated.nfrs = reconciled.nfrs; else delete updated.nfrs;
+		return { output: ['Use Case Model updated.', ...reconciled.notes].join(' '), updatedUseCaseData: updated };
 	} catch (error) {
 		return { output: `Could not update the Use Case Model: ${error instanceof Error ? error.message : String(error)}` };
 	}

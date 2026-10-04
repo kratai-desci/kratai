@@ -423,11 +423,11 @@ export function generateShellHTML(
 		// applyAiUiActions) but stay out of the manual picker for now.
 		var VIEW_OPTIONS = [
 			['srs', 'Spec'], ['usecase', 'Use Case Model'], ['data', 'Data Model'],
-			['class', 'Class Diagram'], ['scorecard', 'Code Review']
+			['class', 'Class Diagram'], ['progress', 'Progress']
 		];
 		var SRC_BY_MODE = {
 			graph: '/knowledge-graph', class: '/class-diagram', stack: '/stack-layer',
-			usecase: '/use-case-diagram', data: '/data-model', scorecard: '/diff-scorecard',
+			usecase: '/use-case-diagram', data: '/data-model', progress: '/progress',
 			srs: '/srs-preview'
 		};
 

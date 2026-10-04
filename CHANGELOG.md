@@ -5,6 +5,16 @@ All notable changes to kratai will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Progress view (replaces Code Review).** Every use case and requirement in one
+  table with a status (Open, In progress, Done), an optional priority (Low, Medium,
+  High) and, once Done, who closed it. An overview strip shows how much is done, and
+  the table can be sorted by any column (click several to chain them) without changing
+  the spec's order or numbers. "Download progress report" saves a client-ready PDF in
+  the order you see on screen. A Done item hides its priority and brings it back if
+  reopened. The AI can read status and priority but never change them: its edits keep
+  them, editing an item that is in progress or done flags it "Edited by AI" until you
+  acknowledge it, and removing one keeps it - crossed out, hidden from the Spec - until
+  you restore it or delete it for good.
 - **Start a project from scratch.** Opening an empty folder now works instead
   of failing with "No files found to parse". With no code there is nothing to
   generate from, so the Spec screens point you to chat: describe your project

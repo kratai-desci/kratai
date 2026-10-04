@@ -14,8 +14,9 @@ import { loadCachedUseCaseDiagramData, saveCachedUseCaseDiagramData, hasCachedUs
 import { generateUseCaseDiagramHTML, generateUseCaseDiagramEmptyHTML } from '../useCaseDiagramView.js';
 import { loadCachedDataModelData, saveCachedDataModelData, buildDataModelExtractionSummary, DataModelData } from '../dataModelData.js';
 import { generateDataModelHTML, generateDataModelEmptyHTML } from '../dataModelView.js';
-import { buildDiffScorecard } from '../diffScorecardData.js';
-import { generateDiffScorecardHTML } from '../diffScorecardView.js';
+import { generateProgressHTML } from '../progressView.js';
+import { generateProgressReportHTML } from '../progressReportView.js';
+import { visibleSpec, buildProgressRows, applyProgressAction, userNameFromEmail, type ProgressAction } from '../progressData.js';
 import { generateSrsDocHTML, generateSrsEmptyHTML } from '../srsDocView.js';
 import { executeChatTool } from '../chatTools.js';
 import { executeSpecTool } from '../chatSpecTools.js';
@@ -85,6 +86,8 @@ export interface ViewOptions {
 	// /srs-preview page, so this stays a plain HTTP hook like the others
 	// rather than needing any native bridge of its own.
 	exportRequirementsPdf?: () => Promise<{ ok: boolean; path?: string; error?: string }>;
+	// Same idea for the Progress page's report (loads /progress-report).
+	exportProgressPdf?: () => Promise<{ ok: boolean; path?: string; error?: string }>;
 	// Also desktop-owned (packages/desktop/src/main/balanceProxy.ts) - reads
 	// the signed-in user's remaining AI credit from kratai-web, plus the
 	// signup-credit baseline the shell's meter renders "how full" against.
@@ -141,6 +144,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	const generateDataModelHook = options.generateDataModel;
 	const chatHook = options.chat;
 	const exportRequirementsPdfHook = options.exportRequirementsPdf;
+	const exportProgressPdfHook = options.exportProgressPdf;
 	const onProgressHook = options.onProgress || (() => {});
 	const getBalanceHook = options.getBalance || (async () => null);
 	const confirmGenerateHook = options.confirmGenerate || (async () => false);
@@ -475,7 +479,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// description/nfrs - see useCaseExtraction.ts's prompt) or the real
 	// "sign in / generate" empty-state card.
 	function renderUseCaseDiagram(): string {
-		if (useCaseData) return generateUseCaseDiagramHTML(useCaseData);
+		if (useCaseData) return generateUseCaseDiagramHTML(visibleSpec(useCaseData));
 		return generateUseCaseDiagramEmptyHTML(getAuthStatus().signedIn, diagramData.classes.length > 0);
 	}
 	// Real data or the real "sign in / generate" empty-state card - same
@@ -484,14 +488,32 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		if (dataModelData) return generateDataModelHTML(dataModelData);
 		return generateDataModelEmptyHTML(getAuthStatus().signedIn, diagramData.classes.length > 0);
 	}
-	function renderDiffScorecard(): string {
-		return generateDiffScorecardHTML(buildDiffScorecard(diagramData, diagramName, useCaseData, dataModelData));
+	// The Progress page and its client report. The report prints in the order the user had on
+	// screen when they pressed the button (see POST /api/progress/export-pdf).
+	let progressReportOrder: string[] = [];
+	function renderProgress(): string {
+		return generateProgressHTML(useCaseData?.systemName || diagramName, useCaseData ? buildProgressRows(useCaseData) : []);
+	}
+	function renderProgressReport(): string {
+		const all = useCaseData ? buildProgressRows(useCaseData) : [];
+		const live = all.filter(r => !r.removedByAi);
+		const byRef = new Map(live.map(r => [`${r.type}:${r.id}`, r]));
+		const ordered = progressReportOrder.map(ref => byRef.get(ref)).filter((r): r is NonNullable<typeof r> => !!r);
+		const missing = live.filter(r => !progressReportOrder.includes(`${r.type}:${r.id}`));
+		return generateProgressReportHTML({
+			projectName: useCaseData?.systemName || diagramName,
+			preparedBy: useCaseData?.preparedBy,
+			clientName: useCaseData?.clientName,
+			asOf: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+			rows: [...ordered, ...missing],
+			allRows: all
+		});
 	}
 	// Real data only, same pattern as renderUseCaseDiagram() - this doc is
 	// built entirely from the Use Case Model, so it has nothing to show
 	// until that's been generated for real.
 	function renderRequirementsDoc(): string {
-		if (useCaseData) return generateSrsDocHTML(useCaseData, dataModelData);
+		if (useCaseData) return generateSrsDocHTML(visibleSpec(useCaseData), dataModelData);
 		return generateSrsEmptyHTML(getAuthStatus().signedIn, diagramData.classes.length > 0);
 	}
 
@@ -664,6 +686,34 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			});
 			return;
 		}
+		if (req.method === 'POST' && req.url === '/api/progress') {
+			(async () => {
+				try {
+					if (!useCaseData) throw new Error('There is no spec to track yet.');
+					const input = await readJsonBody(req) as ProgressAction;
+					const result = applyProgressAction(useCaseData, input, userNameFromEmail(getAuthStatus().email));
+					if (!result.ok) throw new Error(result.error);
+					saveCachedUseCaseDiagramData(workspacePath, useCaseData);
+					sendJson(res, 200, { ok: true, rows: buildProgressRows(useCaseData) });
+				} catch (error) {
+					sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
+				}
+			})();
+			return;
+		}
+		if (req.method === 'POST' && req.url === '/api/progress/export-pdf') {
+			(async () => {
+				try {
+					if (!exportProgressPdfHook) throw new Error('PDF export is only available in the kratai desktop app.');
+					const { order } = await readJsonBody(req) as { order?: unknown };
+					progressReportOrder = Array.isArray(order) ? order.filter((x): x is string => typeof x === 'string') : [];
+					sendJson(res, 200, await exportProgressPdfHook());
+				} catch (error) {
+					sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
+				}
+			})();
+			return;
+		}
 		if (req.method === 'POST' && req.url === '/api/requirements/export-pdf') {
 			(async () => {
 				try {
@@ -776,7 +826,8 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			: req.url === '/stack-layer' ? renderStackLayer()
 			: req.url === '/use-case-diagram' ? renderUseCaseDiagram()
 			: req.url === '/data-model' ? renderDataModel()
-			: req.url === '/diff-scorecard' ? renderDiffScorecard()
+			: req.url === '/progress' ? renderProgress()
+			: req.url === '/progress-report' ? renderProgressReport()
 			: req.url === '/srs-preview' ? renderRequirementsDoc()
 			: req.url === '/new-project' ? (wizardApplies() ? generateNewProjectHTML(diagramName, options.logoDataUrl ?? '') : undefined)
 			: renderShell();

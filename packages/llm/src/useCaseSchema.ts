@@ -10,7 +10,28 @@ export interface UseCaseActor {
 	description?: string;
 }
 
-export interface UseCaseItem {
+/**
+ * Progress tracking for a use case or requirement (the Progress view). All of
+ * it is set by people, never by the AI: the validators below deliberately
+ * drop these fields from anything a model produces, and the chat tools put
+ * them back from the existing item by id (see @kratai/cli's progressData.ts).
+ * A missing status means "open"; a missing priority means none.
+ */
+export type ProgressStatus = 'open' | 'in-progress' | 'done';
+export type ProgressPriority = 'low' | 'medium' | 'high';
+export interface ProgressFields {
+	status?: ProgressStatus;
+	priority?: ProgressPriority;
+	/** Who marked it Done (a username), set automatically with the status. */
+	closedBy?: string;
+	/** The AI changed an item that had progress; cleared when the user acknowledges. */
+	editedByAi?: boolean;
+	/** The AI removed an item that had progress. It stays (hidden everywhere
+	 * but the Progress view) until the user restores it or deletes it for good. */
+	removedByAi?: boolean;
+}
+
+export interface UseCaseItem extends ProgressFields {
 	id: string;
 	name: string;
 	// Shown in the click-to-open detail popup (see useCaseDiagramView.ts) -
@@ -49,7 +70,7 @@ export interface UseCaseRelation {
  * `useCaseId: null`, to the project as a whole. `name` is the short,
  * at-a-glance label shown on the pill/chip; `text` is the full detail
  * shown once clicked (see useCaseDiagramView.ts's detail popup). */
-export interface UseCaseNFR {
+export interface UseCaseNFR extends ProgressFields {
 	id: string;
 	useCaseId: string | null;
 	name: string;
