@@ -10,6 +10,7 @@ import { chatStep } from './chatProxy.js';
 import { getBalanceCents } from './balanceProxy.js';
 import { getWelcomeHTML, getSignInHTML, getLoadingHTML, getGeneratePromptHTML } from './welcomeScreen.js';
 import { runNewProjectStep } from './newProjectProxy.js';
+import { checkForUpdate } from './updateCheck.js';
 import { exportRequirementsPdf } from './pdfExport.js';
 
 const PROTOCOL = 'kratai';
@@ -271,6 +272,7 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 			getBalance: getBalanceCents,
 			newProjectAi: (step, input) => runNewProjectStep(step, input, path.basename(workspacePath)),
 			logoDataUrl,
+			checkForUpdate,
 			confirmGenerate: async info => {
 				didAutoGenerate = await promptGenerateChoice(info);
 				return didAutoGenerate;

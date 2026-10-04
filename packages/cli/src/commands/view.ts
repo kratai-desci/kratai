@@ -112,6 +112,10 @@ export interface ViewOptions {
 	// billing). Its presence is also what enables the wizard - a project with no
 	// code, no spec and a signed-in user is sent to it instead of the shell.
 	newProjectAi?: (step: NewProjectStep, input: unknown) => Promise<unknown>;
+	// The desktop app's "is there a newer release?" check. Resolves to the
+	// newer version and the one running, or null when up to date, offline or
+	// unknown. The shell shows a dismissible bar for it.
+	checkForUpdate?: () => Promise<{ version: string; current: string } | null>;
 	// The app icon as a data URI, for the wizard's header (the view server has no
 	// asset route of its own).
 	logoDataUrl?: string;
@@ -586,6 +590,12 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			signOutHook();
 			res.writeHead(200, { 'Content-Type': 'application/json' });
 			res.end(JSON.stringify({ ok: true }));
+			return;
+		}
+		if (req.method === 'GET' && req.url === '/api/update-info') {
+			(options.checkForUpdate ? options.checkForUpdate() : Promise.resolve(null))
+				.catch(() => null)
+				.then(update => sendJson(res, 200, { update }));
 			return;
 		}
 		if (req.method === 'GET' && req.url === '/api/balance') {

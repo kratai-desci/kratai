@@ -97,6 +97,15 @@ export function generateShellHTML(
 		background: var(--bg); color: var(--text);
 		display: flex; flex-direction: column; overflow: hidden;
 	}
+	/* Shown only when the desktop app reports a newer release (see checkUpdate). */
+	#update-bar {
+		display: none; flex-shrink: 0; align-items: center; justify-content: center; gap: 12px;
+		padding: 7px 16px; font-size: 12.5px; color: var(--text);
+		background: color-mix(in srgb, var(--accent) 14%, var(--surface)); border-bottom: 1px solid var(--border);
+	}
+	#update-bar button { font: inherit; cursor: pointer; }
+	#update-bar .update-go { border: none; background: var(--accent); color: #fff; font-weight: 600; font-size: 12px; padding: 4px 12px; border-radius: 6px; }
+	#update-bar .update-dismiss { border: none; background: none; color: var(--text-dim); font-size: 16px; line-height: 1; padding: 0 4px; }
 	#topbar {
 		flex-shrink: 0;
 		display: flex; align-items: center; justify-content: space-between;
@@ -345,6 +354,7 @@ export function generateShellHTML(
 </style>
 </head>
 <body>
+	<div id="update-bar"><span id="update-text"></span><button class="update-go" id="update-go">Download</button><button class="update-dismiss" id="update-dismiss" title="Dismiss" aria-label="Dismiss">&times;</button></div>
 	<div id="topbar">
 		<div>
 			<h1>${workspaceName}</h1><span id="beta-badge" title="kratai is in beta - expect rough edges">Beta</span>
@@ -743,6 +753,27 @@ export function generateShellHTML(
 			accountMenu.style.display = 'none';
 			accountMenuOpen = false;
 		}
+
+		// Asks the desktop app whether a newer release exists (it checks kratai.com
+		// quietly; offline or no hook just means no bar). A dismissed version stays
+		// dismissed, but the next release shows the bar again.
+		function checkUpdate() {
+			fetch('/api/update-info').then(function (res) { return res.json(); }).then(function (data) {
+				var update = data && data.update;
+				if (!update || !update.version) return;
+				var seen = '';
+				try { seen = localStorage.getItem('kratai-dismissed-update') || ''; } catch (e) { /* storage unavailable */ }
+				if (seen === update.version) return;
+				document.getElementById('update-text').textContent = 'kratai ' + update.version + ' is available (you have ' + update.current + ').';
+				document.getElementById('update-bar').style.display = 'flex';
+				document.getElementById('update-go').addEventListener('click', function () { window.location.href = 'kratai-action://open-dashboard'; });
+				document.getElementById('update-dismiss').addEventListener('click', function () {
+					try { localStorage.setItem('kratai-dismissed-update', update.version); } catch (e) { /* storage unavailable */ }
+					document.getElementById('update-bar').style.display = 'none';
+				});
+			}).catch(function () { /* no update info - stay quiet */ });
+		}
+		checkUpdate();
 
 		function refreshBalance() {
 			if (!AUTH_STATUS.signedIn) { balanceBar.style.display = 'none'; return; }
