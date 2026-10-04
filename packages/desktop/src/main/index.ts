@@ -1,6 +1,6 @@
 import type { Server } from 'http';
 import * as path from 'path';
-import { app, BrowserWindow, Menu, dialog, nativeImage, shell } from 'electron';
+import { app, BrowserWindow, Menu, dialog, nativeImage, shell, type MenuItemConstructorOptions } from 'electron';
 import { runView } from '@kratai/cli';
 import { addRecentWorkspace, listRecentWorkspaces } from './workspaceStore.js';
 import { getLayout, saveLayout } from './layoutStore.js';
@@ -10,7 +10,7 @@ import { chatStep } from './chatProxy.js';
 import { getBalanceCents } from './balanceProxy.js';
 import { getWelcomeHTML, getSignInHTML, getLoadingHTML, getGeneratePromptHTML } from './welcomeScreen.js';
 import { runNewProjectStep } from './newProjectProxy.js';
-import { checkForUpdate } from './updateCheck.js';
+import { checkForUpdate, checkForUpdatesFromMenu, showAbout } from './updateCheck.js';
 import { exportRequirementsPdf } from './pdfExport.js';
 
 const PROTOCOL = 'kratai';
@@ -311,22 +311,29 @@ async function promptForWorkspace(): Promise<void> {
 }
 
 function buildMenu(): void {
+	const isMac = process.platform === 'darwin';
+	const aboutItem: MenuItemConstructorOptions = isMac ? { role: 'about' } : { label: 'About kratai', click: () => void showAbout() };
+	const updateItem: MenuItemConstructorOptions = { label: 'Check for Updates...', click: () => void checkForUpdatesFromMenu() };
 	Menu.setApplicationMenu(Menu.buildFromTemplate([
+		// macOS: the first menu is the application menu (named after the app).
+		...(isMac ? [{ label: app.name, submenu: [aboutItem, updateItem, { type: 'separator' }, { role: 'quit' }] } as MenuItemConstructorOptions] : []),
 		{
 			label: 'File',
 			submenu: [
 				{ label: 'Open Folder...', accelerator: 'CmdOrCtrl+O', click: () => void promptForWorkspace() },
-				{ type: 'separator' },
-				{ role: 'quit' }
+				...(isMac ? [] : [{ type: 'separator' } as MenuItemConstructorOptions, { role: 'quit' } as MenuItemConstructorOptions])
 			]
 		},
+		// Without an Edit menu, Cmd+C / Cmd+V / Cmd+A do nothing in text fields on macOS.
+		{ role: 'editMenu' },
 		{
 			label: 'View',
 			submenu: [
 				{ role: 'reload' },
 				{ role: 'toggleDevTools' }
 			]
-		}
+		},
+		...(isMac ? [] : [{ label: 'Help', submenu: [aboutItem, updateItem] } as MenuItemConstructorOptions])
 	]));
 }
 
