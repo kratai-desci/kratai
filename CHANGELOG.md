@@ -10,7 +10,10 @@ All notable changes to kratai will be documented in this file.
   High) and, once Done, who closed it. An overview strip shows how much is done, and
   the table can be sorted by any column (click several to chain them) without changing
   the spec's order or numbers. "Download progress report" saves a client-ready PDF in
-  the order you see on screen. A Done item hides its priority and brings it back if
+  the same format as the SRS (cover page with "About this document", running header,
+  page numbers): the overview, the use case model and diagram, the progress table in
+  the order you see on screen, each use case in detail with its status, and the
+  project-wide requirements. A Done item hides its priority and brings it back if
   reopened. The AI can read status and priority but never change them: its edits keep
   them, editing an item that is in progress or done flags it "Edited by AI" until you
   acknowledge it, and removing one keeps it - crossed out, hidden from the Spec - until

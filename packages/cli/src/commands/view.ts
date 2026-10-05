@@ -495,18 +495,17 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		return generateProgressHTML(useCaseData?.systemName || diagramName, useCaseData ? buildProgressRows(useCaseData) : []);
 	}
 	function renderProgressReport(): string {
-		const all = useCaseData ? buildProgressRows(useCaseData) : [];
+		if (!useCaseData) return '<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px">There is nothing to report yet.</body></html>';
+		const all = buildProgressRows(useCaseData);
 		const live = all.filter(r => !r.removedByAi);
 		const byRef = new Map(live.map(r => [`${r.type}:${r.id}`, r]));
 		const ordered = progressReportOrder.map(ref => byRef.get(ref)).filter((r): r is NonNullable<typeof r> => !!r);
 		const missing = live.filter(r => !progressReportOrder.includes(`${r.type}:${r.id}`));
 		return generateProgressReportHTML({
-			projectName: useCaseData?.systemName || diagramName,
-			preparedBy: useCaseData?.preparedBy,
-			clientName: useCaseData?.clientName,
-			asOf: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+			spec: visibleSpec(useCaseData),
 			rows: [...ordered, ...missing],
-			allRows: all
+			allRows: all,
+			asOf: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 		});
 	}
 	// Real data only, same pattern as renderUseCaseDiagram() - this doc is

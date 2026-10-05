@@ -56,131 +56,10 @@ const SECTION = {
 	dataModel: { title: 'Data model', intro: "This section describes the system's core data entities and how they relate to one another." }
 };
 
-const ABOUT_DOC_TEXT = "This Software Requirements Specification (SRS) describes what this system does, who uses it, and how its parts fit together - its actors and use cases, its data model, and the non-functional requirements it must satisfy. It's meant to give anyone unfamiliar with the codebase a clear, shared reference for what the system is and does, independent of implementation detail.";
-
-
-/**
- * Software Requirements Specification - a formatted document assembled
- * from real Use Case Model data (see useCaseExtraction.ts's prompt),
- * including the same diagram image the Use Case Model view draws
- * (buildUseCaseDiagramSvg, shared so it looks identical in both places).
- * dataModelData is optional and real too (dataModelExtraction.ts) -
- * its section only appears when there's actually something in it, same
- * skip-empty-sections rule as Overview/Project-wide NFRs below.
- */
-export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelData?: DataModelData): string {
-	const { svg: diagramSvg } = buildUseCaseDiagramSvg(useCaseData);
-
-	const projectNfrs = (useCaseData.nfrs || []).filter(n => n.useCaseId === null);
-	const nfrsByUseCase: Record<string, UseCaseNFR[]> = {};
-	(useCaseData.nfrs || []).forEach(n => {
-		if (n.useCaseId === null) return;
-		(nfrsByUseCase[n.useCaseId] = nfrsByUseCase[n.useCaseId] || []).push(n);
-	});
-	// Numbered globally across ALL nfrs (project-wide + use-case-scoped) in
-	// declaration order - the same scheme useCaseDiagramView.ts's popups
-	// use, so "NFR-3" means the same thing in both views.
-	const nfrNumberById: Record<string, number> = {};
-	(useCaseData.nfrs || []).forEach((n, i) => { nfrNumberById[n.id] = i + 1; });
-
-	function useCasesForActor(actorId: string): string[] {
-		return useCaseData.associations
-			.filter(a => a.actorId === actorId)
-			.map(a => useCaseData.useCases.find(u => u.id === a.useCaseId)?.name.replace(/\n/g, ' ') || '')
-			.filter(Boolean);
-	}
-
-	// A section only appears if it has something to say - Overview and
-	// Project-wide NFRs are both genuinely optional data (unlike Actors/Use
-	// Cases, which real generation can't produce empty - see
-	// useCaseSchema.ts's validateUseCaseModelOutput). Numbered by array
-	// position rather than a fixed "5." etc, so skipping one never leaves a
-	// gap in the numbering.
-	const sections: { title: string; body: string }[] = [];
-	// Overview moved to the cover page (below, alongside ABOUT_DOC_TEXT) -
-	// it's project-specific framing, not a requirement, so it doesn't
-	// belong numbered alongside Use Case Diagram/Data model/etc.
-	sections.push({
-		title: SECTION.diagram.title,
-		body: `<p class="section-intro">${SECTION.diagram.intro}</p>` +
-			(useCaseData.narrative ? `<p>${escapeXml(useCaseData.narrative)}</p>` : '') +
-			`<figure class="diagram-wrap">${diagramSvg}<figcaption>Figure 1: Use Case Diagram</figcaption></figure>`
-	});
-	sections.push({
-		title: SECTION.actors.title,
-		body: `<p class="section-intro">${SECTION.actors.intro}</p>
-			<table>
-			<tr><th>Actor</th><th>Role</th><th>Description</th><th>Use cases</th></tr>
-			${useCaseData.actors.map(a => `<tr>
-				<td>${escapeXml(a.name.replace(/\n/g, ' '))}</td>
-				<td>${escapeXml(a.role || '—')}</td>
-				<td>${escapeXml(a.description || '—')}</td>
-				<td>${escapeXml(useCasesForActor(a.id).join(', ') || '—')}</td>
-			</tr>`).join('\n')}
-		</table>`
-	});
-	sections.push({
-		title: SECTION.useCases.title,
-		body: `<p class="section-intro">${SECTION.useCases.intro}</p>` +
-			useCaseData.useCases.map((u, i) => {
-			const nfrs = nfrsByUseCase[u.id] || [];
-			// goal/preconditions/mainFlow/postconditions are the "fully
-			// dressed" detail chat fills in afterward (see
-			// chatAboutArchitecture.ts) - absent for a use case that's only
-			// ever been through the one-shot Generate flow, which is why
-			// every one of these is conditional rather than always rendered.
-			const detailBlock = (label: string, items: string[] | undefined, ordered: boolean) => {
-				if (!items || items.length === 0) return '';
-				const tag = ordered ? 'ol' : 'ul';
-				return `<div class="uc-detail"><span class="uc-detail-label">${label}</span><${tag}>${items.map(i => `<li>${escapeXml(i)}</li>`).join('')}</${tag}></div>`;
-			};
-			return `<div class="use-case-item">
-				<h3>UC-${i + 1}: ${escapeXml(u.name.replace(/\n/g, ' '))}</h3>
-				<p>${escapeXml(u.description || 'No description captured yet.')}</p>
-				${u.goal ? `<p class="uc-goal"><strong>Goal:</strong> ${escapeXml(u.goal)}</p>` : ''}
-				${detailBlock('Preconditions', u.preconditions, false)}
-				${detailBlock('Main flow', u.mainFlow, true)}
-				${detailBlock('Postconditions', u.postconditions, false)}
-				${nfrs.length > 0 ? `<ul class="use-case-nfrs">${nfrs.map(n => `<li><span class="nfr-id">NFR-${nfrNumberById[n.id]}</span><strong>${escapeXml(n.name)}:</strong> ${escapeXml(n.text)}</li>`).join('\n')}</ul>` : ''}
-			</div>`;
-		}).join('\n')
-	});
-	if (projectNfrs.length > 0) {
-		sections.push({
-			title: SECTION.nfrs.title,
-			body: `<p class="section-intro">${SECTION.nfrs.intro}</p>` +
-				`<ul>${projectNfrs.map(n => `<li><span class="nfr-id">NFR-${nfrNumberById[n.id]}</span><strong>${escapeXml(n.name)}:</strong> ${escapeXml(n.text)}</li>`).join('\n')}</ul>`
-		});
-	}
-	if (dataModelData && dataModelData.entities.length > 0) {
-		const { svg: dataModelSvg } = buildDataModelSvg(dataModelData);
-		const entityName = (id: string) => dataModelData.entities.find(e => e.id === id)?.name || id;
-		sections.push({
-			title: SECTION.dataModel.title,
-			body: `<p class="section-intro">${SECTION.dataModel.intro}</p>` +
-				(dataModelData.narrative ? `<p>${escapeXml(dataModelData.narrative)}</p>` : '') +
-				`<figure class="diagram-wrap">${dataModelSvg}<figcaption>Figure 2: Data Model Entity-Relationship Diagram</figcaption></figure>` +
-				dataModelData.entities.map(e => `<div class="entity-block">
-				<h3>${escapeXml(e.name)}</h3>
-				<table>
-					<tr><th>Attribute</th><th>Type</th><th>Key</th></tr>
-					${e.attributes.map(attr => `<tr><td class="mono">${escapeXml(attr.name)}</td><td class="mono">${escapeXml(attr.type)}</td><td>${attr.isPK ? 'PK' : attr.isFK ? 'FK' : ''}</td></tr>`).join('\n')}
-				</table>
-			</div>`).join('\n') + (dataModelData.relationships.length > 0
-				? `<ul>${dataModelData.relationships.map(r => `<li>${escapeXml(entityName(r.fromId))} &rarr; ${escapeXml(entityName(r.toId))} (${escapeXml(r.kind)}${r.label ? ` - ${escapeXml(r.label)}` : ''})</li>`).join('\n')}</ul>`
-				: '')
-		});
-	}
-
-	return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${escapeXml(useCaseData.systemName || useCaseData.workspaceName)} - Software Requirements Specification</title>
-${THEME_SYNC_SCRIPT}
-<style>
-${DOC_STYLE}
+/** The stylesheet shared by the SRS and the progress report: cover page, numbered sections, tables,
+ * use case items, diagram sizing and the print rules (page 1 is cover-only, each numbered section
+ * after the first starts a new page, atomic blocks never split). */
+export const SRS_PAGE_CSS = `${DOC_STYLE}
 	#doc { max-width: 760px; margin: 0 auto; padding: 48px 28px 60px; }
 	#doc-header { margin-bottom: 8px; }
 	/* Sized for a standalone title page (page 1 is cover-only, forced by
@@ -363,7 +242,161 @@ ${DATA_MODEL_SVG_STYLE}
 			   .section comment above), just that the heading is never
 			   orphaned from all of its content. */
 		.section h2 { break-after: avoid; page-break-after: avoid; }
+	}`;
+
+export { SECTION as DOC_SECTION };
+
+/** NFRs numbered globally across ALL of them (project-wide + use-case-scoped) in declaration order -
+ * the same scheme useCaseDiagramView.ts's popups use, so "NFR-3" means the same thing everywhere. */
+export function numberNfrs(useCaseData: UseCaseDiagramData) {
+	const projectNfrs = (useCaseData.nfrs || []).filter(n => n.useCaseId === null);
+	const nfrsByUseCase: Record<string, UseCaseNFR[]> = {};
+	(useCaseData.nfrs || []).forEach(n => {
+		if (n.useCaseId === null) return;
+		(nfrsByUseCase[n.useCaseId] = nfrsByUseCase[n.useCaseId] || []).push(n);
+	});
+	const nfrNumberById: Record<string, number> = {};
+	(useCaseData.nfrs || []).forEach((n, i) => { nfrNumberById[n.id] = i + 1; });
+	return { projectNfrs, nfrsByUseCase, nfrNumberById };
+}
+export type NfrNumbering = ReturnType<typeof numberNfrs>;
+
+/** "Use Case Diagram" section body: the intro, the model's narrative, and the diagram figure. */
+export function useCaseModelBody(useCaseData: UseCaseDiagramData, diagramSvg: string): string {
+	return `<p class="section-intro">${SECTION.diagram.intro}</p>` +
+		(useCaseData.narrative ? `<p>${escapeXml(useCaseData.narrative)}</p>` : '') +
+		`<figure class="diagram-wrap">${diagramSvg}<figcaption>Figure 1: Use Case Diagram</figcaption></figure>`;
+}
+
+/** "Use cases" section body: one block per use case. `headExtra` adds markup after a use case's
+ * title (the progress report puts its status there); the SRS passes nothing. */
+export function useCaseItemsBody(useCaseData: UseCaseDiagramData, nfrInfo: NfrNumbering, headExtra?: (u: UseCaseDiagramData['useCases'][number]) => string): string {
+	const { nfrsByUseCase, nfrNumberById } = nfrInfo;
+	return `<p class="section-intro">${SECTION.useCases.intro}</p>` +
+		useCaseData.useCases.map((u, i) => {
+			const nfrs = nfrsByUseCase[u.id] || [];
+			// goal/preconditions/mainFlow/postconditions are the "fully
+			// dressed" detail chat fills in afterward (see
+			// chatAboutArchitecture.ts) - absent for a use case that's only
+			// ever been through the one-shot Generate flow, which is why
+			// every one of these is conditional rather than always rendered.
+			const detailBlock = (label: string, items: string[] | undefined, ordered: boolean) => {
+				if (!items || items.length === 0) return '';
+				const tag = ordered ? 'ol' : 'ul';
+				return `<div class="uc-detail"><span class="uc-detail-label">${label}</span><${tag}>${items.map(i => `<li>${escapeXml(i)}</li>`).join('')}</${tag}></div>`;
+			};
+			return `<div class="use-case-item">
+				<h3>UC-${i + 1}: ${escapeXml(u.name.replace(/\n/g, ' '))}${headExtra ? headExtra(u) : ''}</h3>
+				<p>${escapeXml(u.description || 'No description captured yet.')}</p>
+				${u.goal ? `<p class="uc-goal"><strong>Goal:</strong> ${escapeXml(u.goal)}</p>` : ''}
+				${detailBlock('Preconditions', u.preconditions, false)}
+				${detailBlock('Main flow', u.mainFlow, true)}
+				${detailBlock('Postconditions', u.postconditions, false)}
+				${nfrs.length > 0 ? `<ul class="use-case-nfrs">${nfrs.map(n => `<li><span class="nfr-id">NFR-${nfrNumberById[n.id]}</span><strong>${escapeXml(n.name)}:</strong> ${escapeXml(n.text)}</li>`).join('\n')}</ul>` : ''}
+			</div>`;
+		}).join('\n');
+}
+
+/** "Project-wide non-functional requirements" section body. */
+export function projectNfrBody(nfrInfo: NfrNumbering): string {
+	return `<p class="section-intro">${SECTION.nfrs.intro}</p>` +
+		`<ul>${nfrInfo.projectNfrs.map(n => `<li><span class="nfr-id">NFR-${nfrInfo.nfrNumberById[n.id]}</span><strong>${escapeXml(n.name)}:</strong> ${escapeXml(n.text)}</li>`).join('\n')}</ul>`;
+}
+
+/** Escaping shared with the other documents built on this stylesheet. */
+export { escapeXml as escapeDocText };
+
+const ABOUT_DOC_TEXT = "This Software Requirements Specification (SRS) describes what this system does, who uses it, and how its parts fit together - its actors and use cases, its data model, and the non-functional requirements it must satisfy. It's meant to give anyone unfamiliar with the codebase a clear, shared reference for what the system is and does, independent of implementation detail.";
+
+
+/**
+ * Software Requirements Specification - a formatted document assembled
+ * from real Use Case Model data (see useCaseExtraction.ts's prompt),
+ * including the same diagram image the Use Case Model view draws
+ * (buildUseCaseDiagramSvg, shared so it looks identical in both places).
+ * dataModelData is optional and real too (dataModelExtraction.ts) -
+ * its section only appears when there's actually something in it, same
+ * skip-empty-sections rule as Overview/Project-wide NFRs below.
+ */
+export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelData?: DataModelData): string {
+	const { svg: diagramSvg } = buildUseCaseDiagramSvg(useCaseData);
+
+	const nfrInfo = numberNfrs(useCaseData);
+	const { projectNfrs } = nfrInfo;
+
+	function useCasesForActor(actorId: string): string[] {
+		return useCaseData.associations
+			.filter(a => a.actorId === actorId)
+			.map(a => useCaseData.useCases.find(u => u.id === a.useCaseId)?.name.replace(/\n/g, ' ') || '')
+			.filter(Boolean);
 	}
+
+	// A section only appears if it has something to say - Overview and
+	// Project-wide NFRs are both genuinely optional data (unlike Actors/Use
+	// Cases, which real generation can't produce empty - see
+	// useCaseSchema.ts's validateUseCaseModelOutput). Numbered by array
+	// position rather than a fixed "5." etc, so skipping one never leaves a
+	// gap in the numbering.
+	const sections: { title: string; body: string }[] = [];
+	// Overview moved to the cover page (below, alongside ABOUT_DOC_TEXT) -
+	// it's project-specific framing, not a requirement, so it doesn't
+	// belong numbered alongside Use Case Diagram/Data model/etc.
+	sections.push({
+		title: SECTION.diagram.title,
+		body: useCaseModelBody(useCaseData, diagramSvg)
+	});
+	sections.push({
+		title: SECTION.actors.title,
+		body: `<p class="section-intro">${SECTION.actors.intro}</p>
+			<table>
+			<tr><th>Actor</th><th>Role</th><th>Description</th><th>Use cases</th></tr>
+			${useCaseData.actors.map(a => `<tr>
+				<td>${escapeXml(a.name.replace(/\n/g, ' '))}</td>
+				<td>${escapeXml(a.role || '—')}</td>
+				<td>${escapeXml(a.description || '—')}</td>
+				<td>${escapeXml(useCasesForActor(a.id).join(', ') || '—')}</td>
+			</tr>`).join('\n')}
+		</table>`
+	});
+	sections.push({
+		title: SECTION.useCases.title,
+		body: useCaseItemsBody(useCaseData, nfrInfo)
+	});
+	if (projectNfrs.length > 0) {
+		sections.push({
+			title: SECTION.nfrs.title,
+			body: projectNfrBody(nfrInfo)
+		});
+	}
+	if (dataModelData && dataModelData.entities.length > 0) {
+		const { svg: dataModelSvg } = buildDataModelSvg(dataModelData);
+		const entityName = (id: string) => dataModelData.entities.find(e => e.id === id)?.name || id;
+		sections.push({
+			title: SECTION.dataModel.title,
+			body: `<p class="section-intro">${SECTION.dataModel.intro}</p>` +
+				(dataModelData.narrative ? `<p>${escapeXml(dataModelData.narrative)}</p>` : '') +
+				`<figure class="diagram-wrap">${dataModelSvg}<figcaption>Figure 2: Data Model Entity-Relationship Diagram</figcaption></figure>` +
+				dataModelData.entities.map(e => `<div class="entity-block">
+				<h3>${escapeXml(e.name)}</h3>
+				<table>
+					<tr><th>Attribute</th><th>Type</th><th>Key</th></tr>
+					${e.attributes.map(attr => `<tr><td class="mono">${escapeXml(attr.name)}</td><td class="mono">${escapeXml(attr.type)}</td><td>${attr.isPK ? 'PK' : attr.isFK ? 'FK' : ''}</td></tr>`).join('\n')}
+				</table>
+			</div>`).join('\n') + (dataModelData.relationships.length > 0
+				? `<ul>${dataModelData.relationships.map(r => `<li>${escapeXml(entityName(r.fromId))} &rarr; ${escapeXml(entityName(r.toId))} (${escapeXml(r.kind)}${r.label ? ` - ${escapeXml(r.label)}` : ''})</li>`).join('\n')}</ul>`
+				: '')
+		});
+	}
+
+	return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeXml(useCaseData.systemName || useCaseData.workspaceName)} - Software Requirements Specification</title>
+${THEME_SYNC_SCRIPT}
+<style>
+${SRS_PAGE_CSS}
 </style>
 </head>
 <body>
