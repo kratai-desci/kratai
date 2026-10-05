@@ -402,7 +402,7 @@ ${SRS_PAGE_CSS}
 <body>
 	<div id="pdf-download">
 		<span id="pdf-status"></span>
-		<button id="pdf-btn">Download PDF</button>
+		<button id="pdf-btn">Download SRS (PDF)</button>
 	</div>
 	<div id="doc">
 		<div id="doc-header">
@@ -473,7 +473,7 @@ ${SRS_PAGE_CSS}
 			})
 			.finally(function () {
 				pdfBtn.disabled = false;
-				pdfBtn.textContent = 'Download PDF';
+				pdfBtn.textContent = 'Download SRS (PDF)';
 			});
 	});
 })();

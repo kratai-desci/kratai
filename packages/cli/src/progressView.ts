@@ -61,7 +61,7 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 	#header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
 	#header h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
 	#header .sub { font-size: 12.5px; color: var(--text-dim); }
-	/* Same button, same place and same status line as the SRS document's "Download PDF". */
+	/* Same button, same place and same status line as the SRS document's. */
 	#pdf-download {
 		position: fixed; top: 18px; right: 22px; z-index: 10;
 		display: flex; align-items: center; gap: 8px;
@@ -167,7 +167,7 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 		</div>
 		<div id="pdf-download">
 			<span id="pdf-status"></span>
-			<button id="pdf-btn">Download PDF</button>
+			<button id="pdf-btn">Download Progress (PDF)</button>
 		</div>
 		<div id="empty" style="display:none">There is nothing to track yet.<br>Once your Spec has use cases and requirements, they are listed here so you can follow their progress.</div>
 		<div id="overview"></div>
@@ -382,7 +382,7 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 				if (result.ok && result.path) status.textContent = 'Saved ' + result.path;
 			})
 			.catch(function (err) { status.textContent = err.message || String(err); status.classList.add('error'); })
-			.finally(function () { btn.disabled = false; btn.textContent = 'Download PDF'; });
+			.finally(function () { btn.disabled = false; btn.textContent = 'Download Progress (PDF)'; });
 	}
 
 	computeSandwich();
