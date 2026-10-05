@@ -78,7 +78,7 @@ export interface UseCaseDiagramSvg {
  * generateUseCaseDiagramHTML (interactive) and srsDocView.ts's Requirements
  * doc (static image) so the diagram is drawn identically in both places.
  */
-export function buildUseCaseDiagramSvg(data: UseCaseDiagramData): UseCaseDiagramSvg {
+export function buildUseCaseDiagramSvg(data: UseCaseDiagramData, numbers?: Record<string, number>): UseCaseDiagramSvg {
 	const leftActors = data.actors.filter(a => a.side === 'left');
 	const rightActors = data.actors.filter(a => a.side === 'right');
 	const rows = Math.max(1, Math.ceil(data.useCases.length / UC_COLS));
@@ -154,7 +154,7 @@ export function buildUseCaseDiagramSvg(data: UseCaseDiagramData): UseCaseDiagram
 		const nfrBadge = nfrs.length > 0
 			? `<g class="nfr-badge" transform="translate(${UC_RX - 10},${-UC_RY + 6})"><title>${escapeXml(nfrs.map(n => n.name).join(', '))}</title><circle r="9"/><text>${nfrs.length}</text></g>`
 			: '';
-		const numberBadge = `<g class="uc-number" transform="translate(${-UC_RX + 10},${-UC_RY + 6})"><circle r="9"/><text>${index + 1}</text></g>`;
+		const numberBadge = `<g class="uc-number" transform="translate(${-UC_RX + 10},${-UC_RY + 6})"><circle r="9"/><text>${numbers?.[uc.id] ?? index + 1}</text></g>`;
 		return `<g class="usecase" data-id="${uc.id}" transform="translate(${p.x},${p.y})">
 			<ellipse class="uc-shape" cx="0" cy="0" rx="${UC_RX}" ry="${UC_RY}"/>
 			${numberBadge}
@@ -231,6 +231,30 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData): string {
 	data.associations.forEach(assoc => link(assoc.actorId, assoc.useCaseId));
 	data.relations.forEach(rel => link(rel.fromId, rel.toId));
 	const adjacencyJSON = JSON.stringify(adjacency);
+
+	// One ready-made diagram per actor: that actor, the use cases it takes
+	// part in (keeping their numbers from the full diagram), the relations
+	// between those, and the project-wide NFRs. Built here, like the full
+	// diagram, so the page just swaps one SVG for another - no layout code
+	// in the browser.
+	const globalNumbers: Record<string, number> = {};
+	data.useCases.forEach((u, i) => { globalNumbers[u.id] = i + 1; });
+	const actorViews: Record<string, { svg: string; count: number }> = {};
+	data.actors.forEach(a => {
+		const own = data.associations.filter(x => x.actorId === a.id);
+		const ids = new Set(own.map(x => x.useCaseId));
+		const sub: UseCaseDiagramData = {
+			...data,
+			actors: [a],
+			useCases: data.useCases.filter(u => ids.has(u.id)),
+			associations: own,
+			relations: data.relations.filter(r => ids.has(r.fromId) && ids.has(r.toId)),
+			nfrs: (data.nfrs || []).filter(n => n.useCaseId === null || ids.has(n.useCaseId))
+		};
+		actorViews[a.id] = { svg: buildUseCaseDiagramSvg(sub, globalNumbers).svg, count: sub.useCases.length };
+	});
+	// Safe to put inside a <script> block: no literal "<" survives.
+	const actorViewsJSON = JSON.stringify(actorViews).replace(/</g, '\\u003c');
 
 	const nfrsByUseCase: Record<string, UseCaseNFR[]> = {};
 	(data.nfrs || []).forEach(nfr => {
@@ -322,17 +346,24 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData): string {
 	html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
 	body { background: var(--bg); color: var(--text); font-family: ui-sans-serif, -apple-system, 'Segoe UI', system-ui, sans-serif; }
 
+	/* #stage is the fixed, scrollable frame; #diagram-world inside it is what
+	   zoom resizes (same split as the class diagram: resizing the frame itself
+	   would just shrink the visible area instead of revealing more). The
+	   world's size is a percentage of the frame, set from the zoom level;
+	   margin:auto keeps it centered when smaller and scrollable when larger. */
 	#stage {
-		position: absolute; inset: 0; padding: 56px 24px 40px;
+		position: absolute; inset: 0; padding: 56px 24px 40px; overflow: auto; display: flex;
 		background-image: radial-gradient(var(--dot) 1px, transparent 1px);
 		background-size: 22px 22px;
 	}
-	#stage svg { display: block; width: 100%; height: 100%; }
+	#diagram-world { width: 100%; height: 100%; flex: none; margin: auto; }
+	#diagram-world svg { display: block; width: 100%; height: 100%; }
 
 	#header {
 		position: absolute; top: 0; left: 0; right: 0; padding: 14px 20px;
 		display: flex; align-items: baseline; gap: 10px; pointer-events: none; z-index: 5;
 	}
+	#header { flex-wrap: wrap; row-gap: 6px; }
 	#header h1 { margin: 0; font-size: 15px; font-weight: 650; }
 	#header .sub { font-size: 12.5px; color: var(--text-dim); font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
 
@@ -364,6 +395,35 @@ ${DIAGRAM_SVG_STYLE}
 		margin-left: 10px; font-family: inherit;
 	}
 	#overview-btn:hover { border-color: var(--accent); color: var(--accent); }
+	#actor-filter {
+		border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim);
+		font-size: 11px; font-weight: 650; padding: 4px 8px; border-radius: 100px; cursor: pointer;
+		margin-left: 10px; font-family: inherit; max-width: 220px;
+	}
+	#actor-filter:hover, #actor-filter.on { border-color: var(--accent); color: var(--accent); }
+	#actor-reset {
+		border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim);
+		font-size: 11px; font-weight: 650; padding: 4px 10px; border-radius: 100px; cursor: pointer;
+		font-family: inherit;
+	}
+	#actor-reset[hidden] { display: none; }
+	#actor-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+	/* Same control stack as the class diagram's zoom buttons. */
+	#zoomctl {
+		position: fixed; right: 20px; top: 84px; z-index: 900;
+		display: flex; flex-direction: column; gap: 6px;
+	}
+	#zoomctl button {
+		width: 30px; height: 30px; border-radius: 8px;
+		border: 1px solid var(--border);
+		background: var(--surface);
+		background: color-mix(in srgb, var(--surface) 90%, transparent);
+		color: var(--text); font-size: 15px; cursor: pointer;
+		backdrop-filter: blur(10px);
+		display: flex; align-items: center; justify-content: center;
+	}
+	#zoomctl button:hover { border-color: var(--accent); color: var(--accent); }
 
 	/* ---- click-to-open detail popup: actors, use cases, and project-wide
 	   NFRs all open the same modal shape rather than cramming everything
@@ -405,11 +465,20 @@ ${DIAGRAM_SVG_STYLE}
 </head>
 <body>
 	<div id="stage">
-		${diagramSvg}
+		<div id="diagram-world">${diagramSvg}</div>
+	</div>
+	<div id="zoomctl">
+		<button id="zoom-in" type="button" title="Zoom in">+</button>
+		<button id="zoom-out" type="button" title="Zoom out">&minus;</button>
 	</div>
 	<div id="header">
 		<h1>${escapeXml(data.workspaceName)}</h1>
-		<span class="sub">${data.actors.length} actors &bull; ${data.useCases.length} use cases</span>
+		<span class="sub" id="count-sub">${data.actors.length} actors &bull; ${data.useCases.length} use cases</span>
+		${data.actors.length > 1 ? `<select id="actor-filter" aria-label="Show use cases for one actor" style="pointer-events:auto;">
+			<option value="">All actors</option>
+			${data.actors.map(a => `<option value="${escapeXml(a.id)}">${escapeXml(a.name.replace(/\n/g, ' '))}</option>`).join('')}
+		</select>
+		<button id="actor-reset" type="button" style="pointer-events:auto;" hidden>Reset</button>` : ''}
 		${data.narrative ? `<button id="overview-btn" type="button" style="pointer-events:auto;">Overview</button>` : ''}
 	</div>
 	<div id="hint">click an actor, use case, or NFR for detail &bull; hover to trace connections</div>
@@ -430,6 +499,7 @@ ${DIAGRAM_SVG_STYLE}
 <script>
 (function () {
 	'use strict';
+	var world = document.getElementById('diagram-world');
 	var svg = document.getElementById('uc-svg');
 	var adjacency = ${adjacencyJSON};
 	// True while the detail popup covers the diagram - hover events on the
@@ -438,8 +508,6 @@ ${DIAGRAM_SVG_STYLE}
 	// an explicit switch rather than trusting mouseenter/mouseleave to
 	// stay in sync with what's actually visible.
 	var modalOpen = false;
-
-	svg.querySelectorAll('.actor, .usecase').forEach(function (el) { el.classList.add('node'); });
 
 	function idsToHighlight(id) {
 		var set = {};
@@ -539,13 +607,6 @@ ${DIAGRAM_SVG_STYLE}
 		if (chip) openNfrDetail(chip.getAttribute('data-nfr-chip'));
 	});
 
-	svg.querySelectorAll('.nfr-pill').forEach(function (el) {
-		el.addEventListener('click', function (e) {
-			e.stopPropagation();
-			openNfrDetail(el.getAttribute('data-nfr-id'));
-		});
-	});
-
 	var overviewBtn = document.getElementById('overview-btn');
 	if (overviewBtn) {
 		overviewBtn.addEventListener('click', function () {
@@ -557,15 +618,67 @@ ${DIAGRAM_SVG_STYLE}
 	// popup - kept as two separate, non-competing interactions rather than
 	// also pinning a persistent highlight on click, which used to fight
 	// with the popup opening at the same time (both firing off one click).
-	svg.querySelectorAll('.node').forEach(function (el) {
-		el.addEventListener('mouseenter', function () { if (!modalOpen) applyHighlight(el.getAttribute('data-id')); });
-		el.addEventListener('mouseleave', function () { if (!modalOpen) applyHighlight(null); });
-		el.addEventListener('click', function () {
-			var id = el.getAttribute('data-id');
-			if (el.classList.contains('usecase')) openUseCaseDetail(id);
-			else openActorDetail(id);
+	// Runs once for the full diagram and again every time an actor's diagram
+	// is swapped in, since the new <svg> has fresh elements to wire up.
+	function bindDiagram() {
+		svg = document.getElementById('uc-svg');
+		svg.querySelectorAll('.actor, .usecase').forEach(function (el) { el.classList.add('node'); });
+		svg.querySelectorAll('.nfr-pill').forEach(function (el) {
+			el.addEventListener('click', function (e) {
+				e.stopPropagation();
+				openNfrDetail(el.getAttribute('data-nfr-id'));
+			});
 		});
+		svg.querySelectorAll('.node').forEach(function (el) {
+			el.addEventListener('mouseenter', function () { if (!modalOpen) applyHighlight(el.getAttribute('data-id')); });
+			el.addEventListener('mouseleave', function () { if (!modalOpen) applyHighlight(null); });
+			el.addEventListener('click', function () {
+				var id = el.getAttribute('data-id');
+				if (el.classList.contains('usecase')) openUseCaseDetail(id);
+				else openActorDetail(id);
+			});
+		});
+	}
+	bindDiagram();
+
+	// ---- zoom: same steps and limits as the class diagram. ----
+	var currentZoom = 1;
+	function applyZoom() {
+		world.style.width = (currentZoom * 100) + '%';
+		world.style.height = (currentZoom * 100) + '%';
+	}
+	document.getElementById('zoom-in').addEventListener('click', function () {
+		currentZoom = Math.min(currentZoom + 0.2, 3);
+		applyZoom();
 	});
+	document.getElementById('zoom-out').addEventListener('click', function () {
+		currentZoom = Math.max(currentZoom - 0.2, 0.3);
+		applyZoom();
+	});
+
+	// ---- pick one actor: swap in that actor's own diagram. Reset (or "All
+	// actors") puts the full one back. ----
+	var FULL_SVG = world.innerHTML;
+	var FULL_COUNT = document.getElementById('count-sub').innerHTML;
+	var ACTOR_VIEWS = ${actorViewsJSON};
+	var actorFilter = document.getElementById('actor-filter');
+	var actorReset = document.getElementById('actor-reset');
+	function showActor(id) {
+		var view = id ? ACTOR_VIEWS[id] : null;
+		applyHighlight(null);
+		world.innerHTML = view ? view.svg : FULL_SVG;
+		document.getElementById('count-sub').innerHTML = view
+			? view.count + ' use case' + (view.count === 1 ? '' : 's') + ' for this actor'
+			: FULL_COUNT;
+		if (actorFilter) { actorFilter.value = view ? id : ''; actorFilter.classList.toggle('on', !!view); }
+		if (actorReset) actorReset.hidden = !view;
+		currentZoom = 1;
+		applyZoom();
+		document.getElementById('stage').scrollTo(0, 0);
+		bindDiagram();
+	}
+	if (actorFilter) actorFilter.addEventListener('change', function () { showActor(actorFilter.value); });
+	if (actorReset) actorReset.addEventListener('click', function () { showActor(''); });
 })();
 </script>
 </body>
