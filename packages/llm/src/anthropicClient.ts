@@ -21,7 +21,7 @@ export class AnthropicClient implements LlmClient {
 	constructor(
 		private readonly apiKey: string,
 		private readonly model: string = 'claude-sonnet-5',
-		private readonly maxTokens: number = 4096
+		private readonly maxTokens: number = 8192
 	) {}
 
 	async complete(prompt: string): Promise<LlmCompletion> {

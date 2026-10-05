@@ -729,6 +729,9 @@ export function generateShellHTML(
 			// startSignIn above, the balance display lives in the shell, not
 			// in whichever iframe just triggered the spend.
 			if (e.data.command === 'balanceChanged') refreshBalance();
+			// A view's "Add detail with AI" button: put a ready-made request in the chat box
+			// (opening the chat if it is closed) for the user to read and send themselves.
+			if (e.data.command === 'prefillChat' && typeof e.data.text === 'string') prefillChat(e.data.text);
 		});
 
 		// ---- account: sign in with a kratai-web account for hosted AI
@@ -1178,6 +1181,16 @@ export function generateShellHTML(
 					input.disabled = false;
 					input.focus();
 				});
+		}
+
+		function prefillChat(text) {
+			var panel = document.getElementById('chat-panel');
+			if (panel.classList.contains('collapsed')) document.getElementById('chat-toggle').click();
+			var input = document.getElementById('chat-input');
+			input.value = text;
+			growChatInput();
+			input.focus();
+			input.setSelectionRange(input.value.length, input.value.length);
 		}
 
 		document.getElementById('chat-send').addEventListener('click', sendChatMessage);

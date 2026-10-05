@@ -133,6 +133,7 @@ export function buildUseCaseDiagramSvg(data: UseCaseDiagramData, numbers?: Recor
 	function renderActor(a: UseCaseActor): string {
 		const p = actorPos[a.id];
 		return `<g class="actor" data-id="${a.id}" transform="translate(${p.x},${p.y})">
+			<rect class="actor-hit" x="-64" y="-58" width="128" height="150"/>
 			<circle class="actor-shape" cx="0" cy="-38" r="13"/>
 			<line class="actor-shape" x1="0" y1="-25" x2="0" y2="16"/>
 			<line class="actor-shape" x1="-19" y1="-8" x2="19" y2="-8"/>
@@ -375,6 +376,8 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData): string {
 ${DIAGRAM_SVG_STYLE}
 	.uc-shape { transition: stroke-width 0.12s; }
 	.actor, .usecase { cursor: pointer; }
+	/* Invisible, so the whole figure + name is clickable, not just the thin stick-person lines. */
+	.actor-hit { fill: transparent; stroke: none; pointer-events: all; }
 	.actor:hover .actor-shape, .usecase:hover .uc-shape { stroke: var(--accent); }
 
 	/* Set on #stage svg while a node is hovered/focused - dims everything
@@ -395,19 +398,13 @@ ${DIAGRAM_SVG_STYLE}
 		margin-left: 10px; font-family: inherit;
 	}
 	#overview-btn:hover { border-color: var(--accent); color: var(--accent); }
-	#actor-filter {
-		border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim);
-		font-size: 11px; font-weight: 650; padding: 4px 8px; border-radius: 100px; cursor: pointer;
-		margin-left: 10px; font-family: inherit; max-width: 220px;
-	}
-	#actor-filter:hover, #actor-filter.on { border-color: var(--accent); color: var(--accent); }
 	#actor-reset {
-		border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim);
+		border: 1px solid var(--accent); background: var(--surface-2); color: var(--accent);
 		font-size: 11px; font-weight: 650; padding: 4px 10px; border-radius: 100px; cursor: pointer;
-		font-family: inherit;
+		margin-left: 10px; font-family: inherit;
 	}
 	#actor-reset[hidden] { display: none; }
-	#actor-reset:hover { border-color: var(--accent); color: var(--accent); }
+	#actor-reset:hover { background: var(--accent); color: #fff; }
 
 	/* Same control stack as the class diagram's zoom buttons. */
 	#zoomctl {
@@ -461,6 +458,13 @@ ${DIAGRAM_SVG_STYLE}
 		border-radius: 100px; cursor: pointer; transition: background 0.12s, color 0.12s;
 	}
 	.nfr-chip:hover { background: var(--accent-2); color: #fff; }
+	.add-detail-btn {
+		border: 1px solid var(--accent); background: none; color: var(--accent);
+		font-size: 12px; font-weight: 650; font-family: inherit; padding: 6px 14px;
+		border-radius: 100px; cursor: pointer; transition: background 0.12s, color 0.12s;
+	}
+	.add-detail-btn:hover { background: var(--accent); color: #fff; }
+	.add-detail-note { margin: 8px 0 0 !important; font-size: 11.5px !important; color: var(--text-faint) !important; }
 </style>
 </head>
 <body>
@@ -474,14 +478,10 @@ ${DIAGRAM_SVG_STYLE}
 	<div id="header">
 		<h1>${escapeXml(data.workspaceName)}</h1>
 		<span class="sub" id="count-sub">${data.actors.length} actors &bull; ${data.useCases.length} use cases</span>
-		${data.actors.length > 1 ? `<select id="actor-filter" aria-label="Show use cases for one actor" style="pointer-events:auto;">
-			<option value="">All actors</option>
-			${data.actors.map(a => `<option value="${escapeXml(a.id)}">${escapeXml(a.name.replace(/\n/g, ' '))}</option>`).join('')}
-		</select>
-		<button id="actor-reset" type="button" style="pointer-events:auto;" hidden>Reset</button>` : ''}
 		${data.narrative ? `<button id="overview-btn" type="button" style="pointer-events:auto;">Overview</button>` : ''}
+		${data.actors.length > 1 ? `<button id="actor-reset" type="button" style="pointer-events:auto;" hidden>Reset</button>` : ''}
 	</div>
-	<div id="hint">click an actor, use case, or NFR for detail &bull; hover to trace connections</div>
+	<div id="hint">click an actor to see only its use cases &bull; click a use case or NFR for detail &bull; hover to trace connections</div>
 
 	<div id="detail-overlay">
 		<div id="detail-modal" role="dialog" aria-modal="true">
@@ -565,7 +565,11 @@ ${DIAGRAM_SVG_STYLE}
 	}
 	detailOverlay.addEventListener('click', function (e) { if (e.target === detailOverlay) closeDetail(); });
 	document.getElementById('detail-close').addEventListener('click', closeDetail);
-	document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDetail(); });
+	document.addEventListener('keydown', function (e) {
+		if (e.key !== 'Escape') return;
+		if (modalOpen) closeDetail();
+		else if (focusedActor) showActor('');
+	});
 
 	// The list numbers its own steps, so a "1." the model wrote into the text would show twice.
 	function stripStep(s) { return String(s).replace(/^\\s*(?:step\\s+)?\\(?\\d{1,3}[.)\\]:-]\\s+/i, '') || String(s); }
@@ -584,6 +588,10 @@ ${DIAGRAM_SVG_STYLE}
 		html += detailList('Main flow', uc.mainFlow, true);
 		html += detailList('Postconditions', uc.postconditions, false);
 		if (uc.nfrs.length) html += '<div class="detail-section"><h3>Non-functional requirements</h3><div class="nfr-chips">' + uc.nfrs.map(function (n) { return '<button type="button" class="nfr-chip" data-nfr-chip="' + n.id + '">' + escapeHtml(n.name) + '</button>'; }).join('') + '</div></div>';
+		// A brief use case (no steps yet): offer to have the AI write the full
+		// version. The button only fills the chat box (see the shell's
+		// 'prefillChat' handler); the user reads and sends it.
+		if (!uc.goal && !uc.mainFlow.length) html += '<div class="detail-section"><button type="button" class="add-detail-btn" data-add-detail="' + escapeHtml(uc.id) + '">Add detail with AI</button><p class="add-detail-note">This use case is still brief. This fills the chat with a request to write its goal, steps and conditions.</p></div>';
 		openDetail('USE CASE UC-' + uc.number, uc.name, html);
 	}
 	function openActorDetail(id) {
@@ -605,6 +613,16 @@ ${DIAGRAM_SVG_STYLE}
 	detailBody.addEventListener('click', function (e) {
 		var chip = e.target.closest('[data-nfr-chip]');
 		if (chip) openNfrDetail(chip.getAttribute('data-nfr-chip'));
+		var add = e.target.closest('[data-add-detail]');
+		if (add) {
+			var target = UC_DETAILS.filter(function (u) { return u.id === add.getAttribute('data-add-detail'); })[0];
+			if (!target) return;
+			closeDetail();
+			window.parent.postMessage({
+				command: 'prefillChat',
+				text: 'Add detail to the use case "' + target.name + '" (UC-' + target.number + '): its goal, preconditions, main flow and postconditions. Check the real code behind it first where there is any.'
+			}, '*');
+		}
 	});
 
 	var overviewBtn = document.getElementById('overview-btn');
@@ -635,6 +653,9 @@ ${DIAGRAM_SVG_STYLE}
 			el.addEventListener('click', function () {
 				var id = el.getAttribute('data-id');
 				if (el.classList.contains('usecase')) openUseCaseDetail(id);
+				// Clicking an actor narrows the diagram to its use cases; once
+				// narrowed, clicking that actor again reads about it instead.
+				else if (!focusedActor && ACTOR_VIEWS[id]) showActor(id);
 				else openActorDetail(id);
 			});
 		});
@@ -661,23 +682,25 @@ ${DIAGRAM_SVG_STYLE}
 	var FULL_SVG = world.innerHTML;
 	var FULL_COUNT = document.getElementById('count-sub').innerHTML;
 	var ACTOR_VIEWS = ${actorViewsJSON};
-	var actorFilter = document.getElementById('actor-filter');
 	var actorReset = document.getElementById('actor-reset');
+	var HINT = document.getElementById('hint');
+	var FULL_HINT = HINT.innerHTML;
+	var focusedActor = '';
 	function showActor(id) {
 		var view = id ? ACTOR_VIEWS[id] : null;
+		focusedActor = view ? id : '';
 		applyHighlight(null);
 		world.innerHTML = view ? view.svg : FULL_SVG;
 		document.getElementById('count-sub').innerHTML = view
-			? view.count + ' use case' + (view.count === 1 ? '' : 's') + ' for this actor'
+			? view.count + ' use case' + (view.count === 1 ? '' : 's') + ' for ' + ACTOR_DETAILS.filter(function (a) { return a.id === id; })[0].name
 			: FULL_COUNT;
-		if (actorFilter) { actorFilter.value = view ? id : ''; actorFilter.classList.toggle('on', !!view); }
+		HINT.innerHTML = view ? 'click the actor for detail &bull; click a use case or NFR for detail &bull; Reset (or Esc) shows everything' : FULL_HINT;
 		if (actorReset) actorReset.hidden = !view;
 		currentZoom = 1;
 		applyZoom();
 		document.getElementById('stage').scrollTo(0, 0);
 		bindDiagram();
 	}
-	if (actorFilter) actorFilter.addEventListener('change', function () { showActor(actorFilter.value); });
 	if (actorReset) actorReset.addEventListener('click', function () { showActor(''); });
 })();
 </script>

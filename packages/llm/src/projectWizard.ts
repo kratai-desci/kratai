@@ -57,7 +57,16 @@ export interface SpecDetails {
 	narrative?: string;
 	/** Keyed by lower-cased use case name (the same use case can sit under several actors). */
 	useCaseDescriptions: Record<string, string>;
+	/** Full detail for the few key use cases only, keyed like useCaseDescriptions; the rest stay brief. */
+	useCaseDetails: Record<string, UseCaseDetail>;
 	dataModel: DataModelOutput;
+}
+
+export interface UseCaseDetail {
+	goal?: string;
+	preconditions?: string[];
+	mainFlow?: string[];
+	postconditions?: string[];
 }
 
 const MAX_TEXT = 600;
@@ -237,6 +246,7 @@ Write:
 - "overview": 1-2 sentences saying what the system is and who it is for. Say nothing about why it was built or what it aims to achieve.
 - "narrative": a short plain-language paragraph for a reader who knows nothing about this project, explaining who the actors are and what each is there to do. One or two sentences per actor, not a list of every use case.
 - "useCaseDescriptions": one sentence for each use case saying what the actor achieves, using the exact actor and use case names above.
+- "useCaseDetails": full detail for ONLY the key use cases - the ones with the highest business value, the highest risk, or the most complexity - at most 5 (fewer when there are few use cases). Leave every other use case out of this list; they stay brief. For each key one give: "goal" (one sentence: what the actor wants to achieve), "preconditions" (what must be true before it starts, 1-3 short items), "mainFlow" (the normal path as 3-8 short steps alternating actor and system, in plain behavior-level language with NO step numbers and no buttons, screens or layout) and "postconditions" (what is true afterwards, 1-3 short items). Use the exact use case name above. This is a first draft from the description alone, so keep to what the use case clearly implies and do not invent extra features.
 - "dataModel": the data the system must remember to support these use cases - entities, their attributes and the relationships between them. This is a design proposal derived from the use cases, so keep it modest and grounded: 3 to 8 entities, each with an "id" attribute as primary key and only attributes the use cases clearly need; relationships only where the use cases imply them ("kind" is "one-to-many" for a typical reference, "many-to-many" for a join, "one-to-one" only when clearly unique on both sides; "label" is a short verb phrase). Include "narrative" (2-4 sentences explaining why the entities connect, not restating the schema) only when there is at least one relationship.
 
 Respond with ONLY a JSON object, no prose, no markdown code fences:
@@ -244,6 +254,7 @@ Respond with ONLY a JSON object, no prose, no markdown code fences:
   "overview": "string",
   "narrative": "string",
   "useCaseDescriptions": [{ "actor": "string", "useCase": "string", "description": "string" }],
+  "useCaseDetails": [{ "useCase": "string", "goal": "string", "preconditions": ["string"], "mainFlow": ["string"], "postconditions": ["string"] }],
   "dataModel": {
     "entities": [{ "id": "string, unique, kebab-case", "name": "Display Name", "attributes": [{ "name": "string", "type": "string", "isPK": true, "isFK": true }] }],
     "relationships": [{ "fromId": "entity id", "toId": "entity id", "kind": "one-to-one" | "one-to-many" | "many-to-many", "label": "short verb phrase" }],
@@ -262,11 +273,30 @@ export function validateSpecDetails(raw: unknown): SpecDetails {
 		const description = asText(e.description, 280);
 		if (name && description && !useCaseDescriptions[name.toLowerCase()]) useCaseDescriptions[name.toLowerCase()] = description;
 	}
+	const useCaseDetails: Record<string, UseCaseDetail> = {};
+	for (const entry of Array.isArray(obj.useCaseDetails) ? obj.useCaseDetails : []) {
+		if (typeof entry !== 'object' || entry === null) continue;
+		const e = entry as Record<string, unknown>;
+		const name = asText(e.useCase, 100);
+		if (!name || useCaseDetails[name.toLowerCase()]) continue;
+		const list = (v: unknown, max: number): string[] | undefined => {
+			if (!Array.isArray(v)) return undefined;
+			const items = v.flatMap(x => { const t = asText(x, 240); return t ? [t] : []; }).slice(0, max);
+			return items.length ? items : undefined;
+		};
+		const goal = asText(e.goal, 280);
+		const preconditions = list(e.preconditions, 6);
+		const mainFlow = list(e.mainFlow, 12);
+		const postconditions = list(e.postconditions, 6);
+		// All-or-nothing on the flow: a use case with no steps is not "detailed".
+		if (!mainFlow) continue;
+		useCaseDetails[name.toLowerCase()] = { ...(goal ? { goal } : {}), ...(preconditions ? { preconditions } : {}), mainFlow, ...(postconditions ? { postconditions } : {}) };
+	}
 	// A bad data model shouldn't sink the whole draft - the use case model is the
 	// part the user chose, and an empty data model is a valid, editable start.
 	let dataModel: DataModelOutput = { entities: [], relationships: [] };
 	try { dataModel = validateDataModelOutput(obj.dataModel); } catch { /* keep the empty one */ }
-	return { overview: asText(obj.overview), narrative: asText(obj.narrative, 1200), useCaseDescriptions, dataModel };
+	return { overview: asText(obj.overview), narrative: asText(obj.narrative, 1200), useCaseDescriptions, useCaseDetails, dataModel };
 }
 
 export async function draftSpecDetails(client: LlmClient, choices: WizardChoices): Promise<WizardResult<SpecDetails>> {
@@ -313,7 +343,8 @@ export function buildProjectSpec(choices: WizardChoices, details: SpecDetails, w
 			let useCase = useCaseByName.get(key);
 			if (!useCase) {
 				const description = asText(details.useCaseDescriptions?.[key], 280);
-				useCase = { id: uniqueId(slug(name), useCaseIds), name: name.trim(), ...(description ? { description } : {}) };
+				const detail = details.useCaseDetails?.[key];
+				useCase = { id: uniqueId(slug(name), useCaseIds), name: name.trim(), ...(description ? { description } : {}), ...(detail ?? {}) };
 				useCaseByName.set(key, useCase);
 				useCases.push(useCase);
 			}
