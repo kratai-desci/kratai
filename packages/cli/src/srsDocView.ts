@@ -1,5 +1,5 @@
 import { UseCaseDiagramData, UseCaseNFR } from './useCaseDiagramData.js';
-import { buildUseCaseDiagramSvg, buildNfrTagsHtml, DIAGRAM_SVG_STYLE } from './useCaseDiagramView.js';
+import { buildDocumentDiagram, DOC_DIAGRAM_STYLE } from './docDiagramView.js';
 import { stripStepNumber } from '@kratai-desci/llm';
 import { DataModelData } from './dataModelData.js';
 import { buildDataModelSvg, DATA_MODEL_SVG_STYLE } from './dataModelView.js';
@@ -149,7 +149,7 @@ export const SRS_PAGE_CSS = `${DOC_STYLE}
 	.entity-block:last-of-type { margin-bottom: 0; }
 	.entity-block h3 { margin: 0 0 6px; font-size: 13px; }
 	.mono { font-family: ui-monospace, monospace; color: var(--text-faint); font-size: 11px; }
-${DIAGRAM_SVG_STYLE}
+${DOC_DIAGRAM_STYLE}
 ${DATA_MODEL_SVG_STYLE}
 
 	#pdf-download {
@@ -323,7 +323,7 @@ const ABOUT_DOC_TEXT = "This Software Requirements Specification (SRS) describes
  * skip-empty-sections rule as Overview/Project-wide NFRs below.
  */
 export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelData?: DataModelData): string {
-	const { svg: diagramSvg } = buildUseCaseDiagramSvg(useCaseData);
+	const diagram = buildDocumentDiagram(useCaseData);
 
 	const nfrInfo = numberNfrs(useCaseData);
 	const { projectNfrs } = nfrInfo;
@@ -347,7 +347,7 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 	// belong numbered alongside Use Case Diagram/Data model/etc.
 	sections.push({
 		title: SECTION.diagram.title,
-		body: useCaseModelBody(useCaseData, diagramSvg, buildNfrTagsHtml(useCaseData))
+		body: useCaseModelBody(useCaseData, diagram.svg, diagram.nfrTagsHtml)
 	});
 	sections.push({
 		title: SECTION.actors.title,
