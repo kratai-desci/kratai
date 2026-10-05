@@ -464,7 +464,6 @@ ${DIAGRAM_SVG_STYLE}
 		border-radius: 100px; cursor: pointer; transition: background 0.12s, color 0.12s;
 	}
 	.add-detail-btn:hover { background: var(--accent); color: #fff; }
-	.add-detail-note { margin: 8px 0 0 !important; font-size: 11.5px !important; color: var(--text-faint) !important; }
 </style>
 </head>
 <body>
@@ -591,7 +590,7 @@ ${DIAGRAM_SVG_STYLE}
 		// A brief use case (no steps yet): offer to have the AI write the full
 		// version. The button only fills the chat box (see the shell's
 		// 'prefillChat' handler); the user reads and sends it.
-		if (!uc.goal && !uc.mainFlow.length) html += '<div class="detail-section"><button type="button" class="add-detail-btn" data-add-detail="' + escapeHtml(uc.id) + '">Add detail with AI</button><p class="add-detail-note">This use case is still brief. This fills the chat with a request to write its goal, steps and conditions.</p></div>';
+		if (!uc.goal && !uc.mainFlow.length) html += '<div class="detail-section"><button type="button" class="add-detail-btn" data-add-detail="' + escapeHtml(uc.id) + '">Add detail with AI</button></div>';
 		openDetail('USE CASE UC-' + uc.number, uc.name, html);
 	}
 	function openActorDetail(id) {

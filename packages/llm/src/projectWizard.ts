@@ -1,6 +1,6 @@
 import { LlmClient, LlmError, LlmUsage } from './llmClient.js';
 import { parseJson } from './useCaseExtraction.js';
-import { UseCaseDiagramData, UseCaseActor, UseCaseItem, UseCaseNFR, validateUseCaseModelOutput } from './useCaseSchema.js';
+import { UseCaseDiagramData, UseCaseActor, UseCaseItem, UseCaseNFR, validateUseCaseModelOutput, NFR_TESTABLE_RULE } from './useCaseSchema.js';
 import { DataModelData, DataModelOutput, validateDataModelOutput } from './dataModelSchema.js';
 
 /**
@@ -194,7 +194,7 @@ ${actors.map(a => `- ${a.name}: ${(useCases[a.name] ?? []).join('; ') || '(none)
 
 Rules:
 - 5 to 8 requirements, organised by the FURPS+ categories: ${NFR_CATEGORIES.join(', ')}. Cover at least four different categories.
-- "name" is a short label (2-3 words). "description" is one concrete sentence that could be checked later - give a measurable target only where the project reasonably implies one, otherwise state a clear condition.
+- "name" is a short label (2-3 words). "description" is one sentence. ${NFR_TESTABLE_RULE}
 - Only suggest what fits THIS project. Skip a category rather than pad it with something generic.
 - Set "recommended" to true for the 3 or 4 that matter most for this project, false for the rest.
 
@@ -213,7 +213,7 @@ export function validateRequirementSuggestions(raw: unknown): WizardRequirement[
 		if (typeof entry !== 'object' || entry === null) return [];
 		const e = entry as Record<string, unknown>;
 		const name = asText(e.name, 60);
-		const description = asText(e.description, 240);
+		const description = asText(e.description, 320);
 		if (!name || !description) return [];
 		return [{ name, description, category: categoryOf(e.category), recommended: e.recommended === true }];
 	})).slice(0, 10);
@@ -400,7 +400,7 @@ export function parseWizardChoices(raw: unknown, workspaceName: string): WizardC
 		if (typeof entry !== 'object' || entry === null) return [];
 		const e = entry as Record<string, unknown>;
 		const name = asText(e.name, 60);
-		const description = asText(e.description, 240);
+		const description = asText(e.description, 320);
 		const wanted = typeof e.category === 'string' ? e.category.trim().toLowerCase() : '';
 		return name && description ? [{ name, description, category: NFR_CATEGORIES.find(c => c.toLowerCase() === wanted) ?? 'Constraints' }] : [];
 	}));

@@ -172,6 +172,13 @@ function parseActors(raw: unknown): UseCaseActor[] {
  * model wrote would print twice ("1. 1. Administrator enters..."). Only that prefix is removed:
  * "3 items are shown" and "2.5 seconds pass" keep their numbers.
  */
+/**
+ * What a non-functional requirement's text must be like, worded once and used by every
+ * prompt that writes one (generation, wizard, chat). The point: when the project team
+ * delivers it, someone must be able to write "pass" or "fail" next to it.
+ */
+export const NFR_TESTABLE_RULE = 'Each requirement\'s text must be CHECKABLE: a person must be able to test it and write "pass" or "fail". Write it as either (a) a measure with a threshold and the condition it applies under ("Search results appear within 2 seconds for a catalog of 10,000 books") or (b) a plain yes/no condition ("Every payment amount is stored in whole cents, never as a rounded decimal"). Never a theme or an adjective ("must be fast", "secure", "easy to use", "scalable"). A threshold is the client\'s decision, so when you have to choose a number, pick a realistic one and end the sentence with "(proposed)" so the client knows to confirm it; leave "(proposed)" off anything that is not a guess. If you cannot make a requirement checkable, leave it out - a few checkable requirements are worth more than many vague ones.';
+
 export function stripStepNumber(step: string): string {
 	const stripped = step.replace(/^\s*(?:step\s+)?\(?\d{1,3}[.)\]:-]\s+/i, '').trim();
 	return stripped || step.trim();

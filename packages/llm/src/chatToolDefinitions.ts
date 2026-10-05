@@ -175,7 +175,7 @@ export const CHAT_TOOL_DEFINITIONS: ToolDefinition[] = [
 							id: { type: 'string' },
 							useCaseId: { type: 'string', description: 'A use case id above, to scope this NFR to one capability. Omit this key entirely for a project-wide NFR - do not pass an empty string or null.' },
 							name: { type: 'string' },
-							text: { type: 'string' }
+							text: { type: 'string', description: 'One checkable sentence: a measure with a threshold and the condition it applies under, or a plain yes/no condition - never a theme like "must be fast". When you must pick a threshold yourself, end the sentence with "(proposed)".' }
 						},
 						required: ['id', 'name', 'text']
 					}
