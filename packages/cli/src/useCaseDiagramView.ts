@@ -5,15 +5,6 @@ const COL_GAP = 260, ROW_GAP = 116, UC_TOP = 150, UC_COLS = 2;
 const ACTOR_GAP_Y = 150, ACTOR_TOP = 130;
 const BOUNDARY_PAD_X = 90, BOUNDARY_PAD_TOP = 60, BOUNDARY_PAD_BOTTOM = 70;
 const ACTOR_RAIL = 260;
-const NFR_PILL_H = 30, NFR_PILL_GAP = 12, NFR_PILL_PAD_X = 16, NFR_ROW_TOP_GAP = 54, NFR_ROW_BOTTOM_MARGIN = 34;
-
-// Rough per-character width for the pill's monospace-ish 10.5px label -
-// there's no canvas/DOM text measurement available server-side, so pills
-// are sized by character count rather than actual rendered width. Good
-// enough for a short glance-able name; not meant to be pixel-exact.
-function nfrPillWidth(name: string): number {
-	return Math.max(64, Math.round(name.length * 6.4) + NFR_PILL_PAD_X * 2);
-}
 
 interface Point { x: number; y: number; }
 
@@ -59,9 +50,12 @@ export const DIAGRAM_SVG_STYLE = `
 	.nfr-badge text { fill: #fff; font-size: 9.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
 	.uc-number circle { fill: var(--surface); stroke: var(--uc-stroke); stroke-width: 1.5; }
 	.uc-number text { fill: var(--uc-stroke); font-size: 9.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
-	.nfr-pill rect { fill: var(--surface); stroke: var(--accent-2); stroke-width: 1.5; }
-	.nfr-pill text { fill: var(--accent-2); font-size: 10.5px; font-weight: 650; }
-	.nfr-row-label { fill: var(--text-faint); font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-anchor: middle; }
+	/* The project-wide NFRs are plain HTML under the diagram (see buildNfrTagsHtml), not part of the
+	   SVG: a row of any number of tags wraps instead of being clipped at the diagram's edges. */
+	.nfr-block { margin: 18px 0 0; text-align: center; }
+	.nfr-block-label { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; color: var(--text-faint); margin-bottom: 8px; }
+	.nfr-tags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+	.nfr-tag { border: 1.5px solid var(--accent-2); border-radius: 999px; background: var(--surface); color: var(--accent-2); font-size: 11.5px; font-weight: 650; padding: 5px 14px; font-family: inherit; line-height: 1.3; }
 `;
 
 export interface UseCaseDiagramSvg {
@@ -88,22 +82,7 @@ export function buildUseCaseDiagramSvg(data: UseCaseDiagramData): UseCaseDiagram
 	const boundaryTop = 0;
 	const boundaryHeight = BOUNDARY_PAD_TOP + UC_TOP + (rows - 1) * ROW_GAP + UC_RY + BOUNDARY_PAD_BOTTOM;
 
-	// Project-wide NFRs render as their own row of clickable pills below the
-	// boundary (see renderNfrPill) rather than a sidebar list - the canvas
-	// has to grow to fit them. Each pill is sized to its own name (not a
-	// fixed width), so x-positions are accumulated left to right rather
-	// than evenly spaced.
-	const projectNfrs = (data.nfrs || []).filter(n => n.useCaseId === null);
-	const nfrPillWidths = projectNfrs.map(n => nfrPillWidth(n.name));
-	const nfrRowWidth = nfrPillWidths.reduce((a, b) => a + b, 0) + Math.max(0, projectNfrs.length - 1) * NFR_PILL_GAP;
-	const nfrRowY = boundaryTop + boundaryHeight + NFR_ROW_TOP_GAP;
-	const nfrRowStartX = boundaryLeft + boundaryWidth / 2 - nfrRowWidth / 2;
-	const nfrPillX: number[] = [];
-	{
-		let accX = nfrRowStartX;
-		projectNfrs.forEach((_, i) => { nfrPillX[i] = accX; accX += nfrPillWidths[i] + NFR_PILL_GAP; });
-	}
-	const contentBottom = projectNfrs.length > 0 ? nfrRowY + NFR_PILL_H + NFR_ROW_BOTTOM_MARGIN : boundaryTop + boundaryHeight;
+	const contentBottom = boundaryTop + boundaryHeight;
 
 	const actorCount = Math.max(leftActors.length, rightActors.length, 1);
 	const canvasHeight = Math.max(contentBottom, boundaryTop + ACTOR_TOP + (actorCount - 1) * ACTOR_GAP_Y + 90) + 40;
@@ -163,15 +142,6 @@ export function buildUseCaseDiagramSvg(data: UseCaseDiagramData): UseCaseDiagram
 		</g>`;
 	}
 
-	function renderNfrPill(nfr: UseCaseNFR, index: number): string {
-		const x = nfrPillX[index];
-		const w = nfrPillWidths[index];
-		return `<g class="nfr-pill" data-nfr-id="${nfr.id}" transform="translate(${x},${nfrRowY})">
-			<rect width="${w}" height="${NFR_PILL_H}" rx="15"/>
-			<text x="${w / 2}" y="${NFR_PILL_H / 2}" text-anchor="middle" dominant-baseline="central">${escapeXml(nfr.name)}</text>
-		</g>`;
-	}
-
 	const associationEdges = data.associations.map((assoc, i) => {
 		const a = actorPos[assoc.actorId];
 		const uc = ucPos[assoc.useCaseId];
@@ -205,11 +175,23 @@ export function buildUseCaseDiagramSvg(data: UseCaseDiagramData): UseCaseDiagram
 		${relationEdges.join('\n')}
 		${data.actors.map(renderActor).join('\n')}
 		${data.useCases.map((uc, i) => renderUseCase(uc, i)).join('\n')}
-		${projectNfrs.length > 0 ? `<text class="nfr-row-label" x="${boundaryLeft + boundaryWidth / 2}" y="${nfrRowY - 14}">PROJECT-WIDE NFRs</text>` : ''}
-		${projectNfrs.map((n, i) => renderNfrPill(n, i)).join('\n')}
 	</svg>`;
 
 	return { svg, width: canvasWidth, height: canvasHeight };
+}
+
+/**
+ * The project-wide NFRs as a wrapping row of tags under the diagram, kept out of the SVG so any
+ * number of them fits (the old in-SVG row was one line wider than the canvas and got clipped at
+ * both edges). `interactive` makes them buttons for the Use Case Model page, where clicking one
+ * opens its detail; the SRS and the progress report print them as plain labels.
+ */
+export function buildNfrTagsHtml(data: UseCaseDiagramData, interactive = false): string {
+	const projectNfrs = (data.nfrs || []).filter(n => n.useCaseId === null);
+	if (projectNfrs.length === 0) return '';
+	const tag = interactive ? 'button type="button"' : 'span';
+	const close = interactive ? 'button' : 'span';
+	return `<div class="nfr-block"><div class="nfr-block-label">PROJECT-WIDE NFRs</div><div class="nfr-tags">${projectNfrs.map(n => `<${tag} class="nfr-tag" data-nfr-id="${escapeXml(n.id)}">${escapeXml(n.name)}</${close}>`).join('')}</div></div>`;
 }
 
 /**
@@ -219,6 +201,7 @@ export function buildUseCaseDiagramSvg(data: UseCaseDiagramData): UseCaseDiagram
  */
 export function generateUseCaseDiagramHTML(data: UseCaseDiagramData): string {
 	const { svg: diagramSvg } = buildUseCaseDiagramSvg(data);
+	const nfrTags = buildNfrTagsHtml(data, true);
 
 	// Adjacency only needs which ids connect to which - no layout/position
 	// data required, so it's computed directly from the raw associations/
@@ -327,7 +310,9 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData): string {
 		background-image: radial-gradient(var(--dot) 1px, transparent 1px);
 		background-size: 22px 22px;
 	}
-	#stage svg { display: block; width: 100%; height: 100%; }
+	#stage { display: flex; flex-direction: column; }
+	#stage svg { display: block; width: 100%; flex: 1 1 0; min-height: 0; }
+	#stage .nfr-block { flex: none; margin-top: 10px; }
 
 	#header {
 		position: absolute; top: 0; left: 0; right: 0; padding: 14px 20px;
@@ -354,9 +339,8 @@ ${DIAGRAM_SVG_STYLE}
 	svg.highlighting .node.hi .uc-shape, svg.highlighting .node.hi .actor-shape { stroke: var(--accent); }
 	svg.highlighting .edge.hi .assoc-edge, svg.highlighting .edge.hi .rel-line { stroke: var(--accent); }
 
-	.nfr-pill { cursor: pointer; }
-	.nfr-pill:hover rect { fill: var(--accent-2); }
-	.nfr-pill:hover text { fill: #fff; }
+	.nfr-tag { cursor: pointer; }
+	.nfr-tag:hover { background: var(--accent-2); color: #fff; }
 
 	#overview-btn {
 		border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim);
@@ -406,6 +390,7 @@ ${DIAGRAM_SVG_STYLE}
 <body>
 	<div id="stage">
 		${diagramSvg}
+		${nfrTags}
 	</div>
 	<div id="header">
 		<h1>${escapeXml(data.workspaceName)}</h1>
@@ -499,10 +484,12 @@ ${DIAGRAM_SVG_STYLE}
 	document.getElementById('detail-close').addEventListener('click', closeDetail);
 	document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDetail(); });
 
+	// The list numbers its own steps, so a "1." the model wrote into the text would show twice.
+	function stripStep(s) { return String(s).replace(/^\\s*(?:step\\s+)?\\(?\\d{1,3}[.)\\]:-]\\s+/i, '') || String(s); }
 	function detailList(label, items, ordered) {
 		if (!items.length) return '';
 		var tag = ordered ? 'ol' : 'ul';
-		return '<div class="detail-section"><h3>' + escapeHtml(label) + '</h3><' + tag + '>' + items.map(function (i) { return '<li>' + escapeHtml(i) + '</li>'; }).join('') + '</' + tag + '></div>';
+		return '<div class="detail-section"><h3>' + escapeHtml(label) + '</h3><' + tag + '>' + items.map(function (i) { return '<li>' + escapeHtml(ordered ? stripStep(i) : i) + '</li>'; }).join('') + '</' + tag + '></div>';
 	}
 	function openUseCaseDetail(id) {
 		var uc = UC_DETAILS.filter(function (u) { return u.id === id; })[0];
@@ -537,7 +524,7 @@ ${DIAGRAM_SVG_STYLE}
 		if (chip) openNfrDetail(chip.getAttribute('data-nfr-chip'));
 	});
 
-	svg.querySelectorAll('.nfr-pill').forEach(function (el) {
+	document.querySelectorAll('.nfr-tag').forEach(function (el) {
 		el.addEventListener('click', function (e) {
 			e.stopPropagation();
 			openNfrDetail(el.getAttribute('data-nfr-id'));

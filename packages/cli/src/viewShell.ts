@@ -276,6 +276,8 @@ export function generateShellHTML(
 	.chat-msg.error .speaker { color: #D6455B; }
 	.chat-msg.error .line { color: #D6455B; }
 	.chat-msg .line { color: var(--text); }
+	/* What you typed keeps its line breaks (Shift+Enter). */
+	.chat-msg.user .line { white-space: pre-wrap; }
 
 	/* Minimal markdown rendering for AI replies (bold/code/headers/lists/hr)
 	   - headers are deliberately NOT sized up like real page headings, just
@@ -311,16 +313,17 @@ export function generateShellHTML(
 		0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
 		30% { opacity: 1; transform: translateY(-2px); }
 	}
-	#chat-input-row { flex-shrink: 0; display: flex; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--border); }
+	#chat-input-row { flex-shrink: 0; display: flex; align-items: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--border); }
 	#chat-input {
-		flex: 1; border: 1px solid var(--border); border-radius: 100px;
+		flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 20px;
 		background: var(--surface-2); color: var(--text);
-		font-size: 13px; font-family: inherit; padding: 9px 16px; outline: none;
+		font-size: 13px; line-height: 1.45; font-family: inherit; padding: 9px 16px; outline: none;
+		display: block; resize: none; overflow-y: auto; max-height: 150px;
 	}
 	#chat-input:focus { border-color: var(--accent); }
 	#chat-send {
 		border: none; background: var(--accent); color: #fff; font-weight: 650;
-		font-size: 12.5px; padding: 0 18px; border-radius: 100px; cursor: pointer; flex-shrink: 0;
+		font-size: 12.5px; padding: 0 18px; border-radius: 100px; cursor: pointer; flex-shrink: 0; height: 37px;
 	}
 	#chat-send:disabled { opacity: 0.5; cursor: default; }
 
@@ -395,7 +398,7 @@ export function generateShellHTML(
 		<div id="chat-panel">
 			<div id="chat-log"></div>
 			<div id="chat-input-row">
-				<input id="chat-input" type="text" placeholder="${chatMode === 'blank' ? 'Describe your project...' : chatMode === 'draft' ? 'Ask me to change anything in your spec...' : 'Ask about this architecture...'}">
+				<textarea id="chat-input" rows="1" placeholder="${chatMode === 'blank' ? 'Describe your project...' : chatMode === 'draft' ? 'Ask me to change anything in your spec...' : 'Ask about this architecture...'}"></textarea>
 				<button id="chat-send" type="button">Send</button>
 			</div>
 		</div>
@@ -1141,6 +1144,7 @@ export function generateShellHTML(
 			appendChatMessage('user', text);
 			chatHistory.push({ role: 'user', text: text });
 			input.value = '';
+			growChatInput();
 			document.getElementById('chat-send').disabled = true;
 			input.disabled = true;
 			// A tool-call loop server-side (view.ts) can mean several real
@@ -1177,8 +1181,23 @@ export function generateShellHTML(
 		}
 
 		document.getElementById('chat-send').addEventListener('click', sendChatMessage);
+		// A box that grows with what you type (up to its max height). Enter sends; Shift+Enter adds a
+		// line. While an input method (Thai, Japanese, Chinese...) is composing, Enter confirms the
+		// characters and must not send, so composing keystrokes are ignored here.
+		function growChatInput() {
+			var box = document.getElementById('chat-input');
+			// Empty: back to the one-line default (a long placeholder wrapping in a narrow dock would
+			// otherwise inflate the measured height).
+			if (!box.value) { box.style.height = ''; return; }
+			box.style.height = 'auto';
+			box.style.height = Math.min(box.scrollHeight + 2, 150) + 'px';
+		}
+		document.getElementById('chat-input').addEventListener('input', growChatInput);
 		document.getElementById('chat-input').addEventListener('keydown', function (e) {
-			if (e.key === 'Enter') sendChatMessage();
+			if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
+				e.preventDefault();
+				sendChatMessage();
+			}
 		});
 	</script>
 </body>

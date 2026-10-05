@@ -1,5 +1,6 @@
 import { UseCaseDiagramData, UseCaseNFR } from './useCaseDiagramData.js';
-import { buildUseCaseDiagramSvg, DIAGRAM_SVG_STYLE } from './useCaseDiagramView.js';
+import { buildUseCaseDiagramSvg, buildNfrTagsHtml, DIAGRAM_SVG_STYLE } from './useCaseDiagramView.js';
+import { stripStepNumber } from '@kratai-desci/llm';
 import { DataModelData } from './dataModelData.js';
 import { buildDataModelSvg, DATA_MODEL_SVG_STYLE } from './dataModelView.js';
 
@@ -173,6 +174,9 @@ ${DATA_MODEL_SVG_STYLE}
 		:root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
 			--bg: #ffffff; --surface: #ffffff; --text: #111111; --text-dim: #333333; --text-faint: #666666;
 			--border: #cccccc; --accent: #17203A; --accent-2: #17203A;
+			/* The diagram's own colours too: without these, a dark app theme left the use case ellipses
+			   dark navy under black labels in the exported PDF. */
+			--surface-2: #f4f7fd; --uc-fill: #ffffff; --uc-stroke: #3459E0; --actor-stroke: #5C6785; --boundary-stroke: #B9C4E0;
 		}
 		#pdf-download { display: none; }
 		.meta-value { border-bottom: none; }
@@ -220,7 +224,7 @@ ${DATA_MODEL_SVG_STYLE}
 		   atomic pieces (one use case, one table row, and now one diagram -
 		   safe only because it's height-capped above - from splitting. */
 		.section { border: none; box-shadow: none; }
-		.use-case-item, tr, .diagram-wrap, .entity-block { break-inside: avoid; }
+		.use-case-item, tr, .diagram-wrap, .entity-block, .nfr-block { break-inside: avoid; }
 		/* Every section from "2. Actors & roles" on always starts a fresh
 		   page - a simpler, more predictable rule than packing as much as
 		   fits and hoping the orphan/widow rules below catch whatever's
@@ -262,10 +266,10 @@ export function numberNfrs(useCaseData: UseCaseDiagramData) {
 export type NfrNumbering = ReturnType<typeof numberNfrs>;
 
 /** "Use Case Diagram" section body: the intro, the model's narrative, and the diagram figure. */
-export function useCaseModelBody(useCaseData: UseCaseDiagramData, diagramSvg: string): string {
+export function useCaseModelBody(useCaseData: UseCaseDiagramData, diagramSvg: string, nfrTags = ''): string {
 	return `<p class="section-intro">${SECTION.diagram.intro}</p>` +
 		(useCaseData.narrative ? `<p>${escapeXml(useCaseData.narrative)}</p>` : '') +
-		`<figure class="diagram-wrap">${diagramSvg}<figcaption>Figure 1: Use Case Diagram</figcaption></figure>`;
+		`<figure class="diagram-wrap">${diagramSvg}<figcaption>Figure 1: Use Case Diagram</figcaption></figure>` + nfrTags;
 }
 
 /** "Use cases" section body: one block per use case. `headExtra` adds markup after a use case's
@@ -283,7 +287,7 @@ export function useCaseItemsBody(useCaseData: UseCaseDiagramData, nfrInfo: NfrNu
 			const detailBlock = (label: string, items: string[] | undefined, ordered: boolean) => {
 				if (!items || items.length === 0) return '';
 				const tag = ordered ? 'ol' : 'ul';
-				return `<div class="uc-detail"><span class="uc-detail-label">${label}</span><${tag}>${items.map(i => `<li>${escapeXml(i)}</li>`).join('')}</${tag}></div>`;
+				return `<div class="uc-detail"><span class="uc-detail-label">${label}</span><${tag}>${items.map(i => `<li>${escapeXml(ordered ? stripStepNumber(i) : i)}</li>`).join('')}</${tag}></div>`;
 			};
 			return `<div class="use-case-item">
 				<h3>UC-${i + 1}: ${escapeXml(u.name.replace(/\n/g, ' '))}${headExtra ? headExtra(u) : ''}</h3>
@@ -343,7 +347,7 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 	// belong numbered alongside Use Case Diagram/Data model/etc.
 	sections.push({
 		title: SECTION.diagram.title,
-		body: useCaseModelBody(useCaseData, diagramSvg)
+		body: useCaseModelBody(useCaseData, diagramSvg, buildNfrTagsHtml(useCaseData))
 	});
 	sections.push({
 		title: SECTION.actors.title,

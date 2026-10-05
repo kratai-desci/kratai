@@ -1,6 +1,6 @@
 import type { UseCaseDiagramData } from './useCaseDiagramData.js';
 import type { ProgressRow } from './progressData.js';
-import { buildUseCaseDiagramSvg } from './useCaseDiagramView.js';
+import { buildUseCaseDiagramSvg, buildNfrTagsHtml } from './useCaseDiagramView.js';
 import { SRS_PAGE_CSS, DOC_SECTION, numberNfrs, useCaseModelBody, useCaseItemsBody, projectNfrBody, escapeDocText as esc } from './srsDocView.js';
 
 const STATUS_LABEL: Record<string, string> = { 'open': 'Open', 'in-progress': 'In progress', 'done': 'Done' };
@@ -107,7 +107,7 @@ export function generateProgressReportHTML(opts: ProgressReportOptions): string 
 	};
 
 	const sections: { title: string; body: string }[] = [
-		{ title: 'Use Case Model', body: useCaseModelBody(spec, diagramSvg) },
+		{ title: 'Use Case Model', body: useCaseModelBody(spec, diagramSvg, buildNfrTagsHtml(spec)) },
 		{ title: 'Progress', body: progressBody },
 		{ title: DOC_SECTION.useCases.title, body: useCaseItemsBody(spec, nfrInfo, statusTag) }
 	];

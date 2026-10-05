@@ -167,6 +167,16 @@ function parseActors(raw: unknown): UseCaseActor[] {
 	return result;
 }
 
+/**
+ * The documents number main-flow steps themselves, so a leading "1." / "2)" / "Step 3:" the
+ * model wrote would print twice ("1. 1. Administrator enters..."). Only that prefix is removed:
+ * "3 items are shown" and "2.5 seconds pass" keep their numbers.
+ */
+export function stripStepNumber(step: string): string {
+	const stripped = step.replace(/^\s*(?:step\s+)?\(?\d{1,3}[.)\]:-]\s+/i, '').trim();
+	return stripped || step.trim();
+}
+
 // Used for preconditions/mainFlow/postconditions - each a list of short
 // strings. Non-string entries are dropped rather than failing the whole
 // use case, same defensive posture as everything else in this file.
@@ -191,7 +201,7 @@ function parseUseCases(raw: unknown): UseCaseItem[] {
 		if (typeof e.goal === 'string' && e.goal) uc.goal = e.goal;
 		const preconditions = parseStringList(e.preconditions);
 		if (preconditions) uc.preconditions = preconditions;
-		const mainFlow = parseStringList(e.mainFlow);
+		const mainFlow = parseStringList(e.mainFlow)?.map(stripStepNumber);
 		if (mainFlow) uc.mainFlow = mainFlow;
 		const postconditions = parseStringList(e.postconditions);
 		if (postconditions) uc.postconditions = postconditions;
