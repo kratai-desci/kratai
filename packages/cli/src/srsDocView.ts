@@ -265,11 +265,11 @@ export function numberNfrs(useCaseData: UseCaseDiagramData) {
 }
 export type NfrNumbering = ReturnType<typeof numberNfrs>;
 
-/** "Use Case Diagram" section body: the intro, the model's narrative, and the diagram figure. */
+/** "Use Case Diagram" section body: the intro, the model's narrative, and the figure - the diagram, then the project-wide NFR tags, then the caption (so "Figure 1" labels the whole of it). */
 export function useCaseModelBody(useCaseData: UseCaseDiagramData, diagramSvg: string, nfrTags = ''): string {
 	return `<p class="section-intro">${SECTION.diagram.intro}</p>` +
 		(useCaseData.narrative ? `<p>${escapeXml(useCaseData.narrative)}</p>` : '') +
-		`<figure class="diagram-wrap">${diagramSvg}<figcaption>Figure 1: Use Case Diagram</figcaption></figure>` + nfrTags;
+		`<figure class="diagram-wrap">${diagramSvg}${nfrTags}<figcaption>Figure 1: Use Case Diagram</figcaption></figure>`;
 }
 
 /** "Use cases" section body: one block per use case. `headExtra` adds markup after a use case's
