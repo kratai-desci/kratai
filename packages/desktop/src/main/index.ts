@@ -281,8 +281,8 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 			// port isn't known until runView resolves below, hence the `!` -
 			// by the time this actually gets called (a button click, well
 			// after this promise settles), currentServer is set.
-			exportRequirementsPdf: () => exportRequirementsPdf(resolvedPort(currentServer!), path.basename(workspacePath)),
-			exportProgressPdf: () => exportProgressPdf(resolvedPort(currentServer!), path.basename(workspacePath))
+			exportRequirementsPdf: info => exportRequirementsPdf(resolvedPort(currentServer!), info.projectName),
+			exportProgressPdf: info => exportProgressPdf(resolvedPort(currentServer!), info.projectName)
 		});
 	} catch (error) {
 		dialog.showErrorBox('Could not open workspace', error instanceof Error ? error.message : String(error));

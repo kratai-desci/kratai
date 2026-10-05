@@ -85,9 +85,11 @@ export interface ViewOptions {
 	// Electron's own webContents.printToPDF() against this same server's
 	// /srs-preview page, so this stays a plain HTTP hook like the others
 	// rather than needing any native bridge of its own.
-	exportRequirementsPdf?: () => Promise<{ ok: boolean; path?: string; error?: string }>;
+	// Both PDF hooks get the project's name (the spec's own name, the folder's only as a fallback) for
+	// the running header and the suggested file name.
+	exportRequirementsPdf?: (info: { projectName: string }) => Promise<{ ok: boolean; path?: string; error?: string }>;
 	// Same idea for the Progress page's report (loads /progress-report).
-	exportProgressPdf?: () => Promise<{ ok: boolean; path?: string; error?: string }>;
+	exportProgressPdf?: (info: { projectName: string }) => Promise<{ ok: boolean; path?: string; error?: string }>;
 	// Also desktop-owned (packages/desktop/src/main/balanceProxy.ts) - reads
 	// the signed-in user's remaining AI credit from kratai-web, plus the
 	// signup-credit baseline the shell's meter renders "how full" against.
@@ -706,7 +708,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 					if (!exportProgressPdfHook) throw new Error('PDF export is only available in the kratai desktop app.');
 					const { order } = await readJsonBody(req) as { order?: unknown };
 					progressReportOrder = Array.isArray(order) ? order.filter((x): x is string => typeof x === 'string') : [];
-					sendJson(res, 200, await exportProgressPdfHook());
+					sendJson(res, 200, await exportProgressPdfHook({ projectName: useCaseData?.systemName || diagramName }));
 				} catch (error) {
 					sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
 				}
@@ -717,7 +719,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			(async () => {
 				try {
 					if (!exportRequirementsPdfHook) throw new Error('PDF export is only available in the kratai desktop app.');
-					const result = await exportRequirementsPdfHook();
+					const result = await exportRequirementsPdfHook({ projectName: useCaseData?.systemName || diagramName });
 					res.writeHead(200, { 'Content-Type': 'application/json' });
 					res.end(JSON.stringify(result));
 				} catch (error) {

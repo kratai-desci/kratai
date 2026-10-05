@@ -6,7 +6,7 @@ import { SRS_PAGE_CSS, DOC_SECTION, numberNfrs, useCaseModelBody, useCaseItemsBo
 const STATUS_LABEL: Record<string, string> = { 'open': 'Open', 'in-progress': 'In progress', 'done': 'Done' };
 const PRIO_LABEL: Record<string, string> = { low: 'Low', medium: 'Medium', high: 'High' };
 
-const ABOUT_REPORT_TEXT = "This progress report shows how far the project has come against its requirements as of the date above. It lists every use case and non-functional requirement with its current status and priority, and then describes each use case in detail. Status is kept up to date by the project team.";
+const ABOUT_REPORT_TEXT = "This progress report shows how far the project has come against its requirements as of the date on the cover. It lists every use case and non-functional requirement with its current status and priority, and then describes each use case in detail. Status is kept up to date by the project team.";
 
 // Only what the report adds on top of the SRS stylesheet: the progress summary, the table's status
 // marks and the status tag next to a use case's title. Status is always written in words, with a
@@ -128,10 +128,9 @@ ${REPORT_CSS}
 	<div id="doc">
 		<div id="doc-header">
 			<div class="cover-top">
-				<div class="kicker">Progress report</div>
+				<div class="kicker">Progress report - ${esc(opts.asOf)}</div>
 				<h1>${esc(title)}</h1>
 				<div class="doc-meta">
-					<div class="meta-field"><span class="meta-label">As of</span><span class="meta-value">${esc(opts.asOf)}</span></div>
 					${spec.preparedBy ? `<div class="meta-field"><span class="meta-label">Prepared by</span><span class="meta-value">${esc(spec.preparedBy)}</span></div>` : ''}
 					${spec.clientName ? `<div class="meta-field"><span class="meta-label">Client</span><span class="meta-value">${esc(spec.clientName)}</span></div>` : ''}
 				</div>

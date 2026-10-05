@@ -61,13 +61,19 @@ interface PdfDocument {
 	fileSuffix: string;
 }
 
-export function exportRequirementsPdf(port: number, workspaceName: string): Promise<PdfExportResult> {
-	return exportPdf(port, workspaceName, { urlPath: '/srs-preview', docType: 'Software Requirements Specification', saveTitle: 'Save Requirements PDF', fileSuffix: 'requirements' });
+export function exportRequirementsPdf(port: number, projectName: string): Promise<PdfExportResult> {
+	return exportPdf(port, projectName, { urlPath: '/srs-preview', docType: 'Software Requirements Specification', saveTitle: 'Save Requirements PDF', fileSuffix: 'requirements' });
 }
 
 /** The client progress report (the Progress view's "Download progress report" button). */
-export function exportProgressPdf(port: number, workspaceName: string): Promise<PdfExportResult> {
-	return exportPdf(port, workspaceName, { urlPath: '/progress-report', docType: 'Progress report', saveTitle: 'Save Progress Report PDF', fileSuffix: 'progress-report' });
+export function exportProgressPdf(port: number, projectName: string): Promise<PdfExportResult> {
+	return exportPdf(port, projectName, { urlPath: '/progress-report', docType: 'Progress report', saveTitle: 'Save Progress Report PDF', fileSuffix: 'progress-report' });
+}
+
+// A project name can be anything the user typed ("Horse Tinder: v2?"), so keep it out of the
+// characters a file name cannot hold.
+function safeFileName(name: string): string {
+	return name.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'project';
 }
 
 async function exportPdf(port: number, workspaceName: string, doc: PdfDocument): Promise<PdfExportResult> {
@@ -133,7 +139,7 @@ async function exportPdf(port: number, workspaceName: string, doc: PdfDocument):
 
 		const result = await dialog.showSaveDialog({
 			title: doc.saveTitle,
-			defaultPath: `${workspaceName}-${doc.fileSuffix}.pdf`,
+			defaultPath: `${safeFileName(workspaceName)}-${doc.fileSuffix}.pdf`,
 			filters: [{ name: 'PDF', extensions: ['pdf'] }]
 		});
 		if (result.canceled || !result.filePath) return { ok: false };
