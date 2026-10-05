@@ -61,11 +61,19 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 	#header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
 	#header h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
 	#header .sub { font-size: 12.5px; color: var(--text-dim); }
-	#pdf-btn {
-		margin-left: auto; border: 1px solid var(--accent); background: var(--accent); color: #fff;
-		border-radius: 9px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+	/* Same button, same place and same status line as the SRS document's "Download PDF". */
+	#pdf-download {
+		position: fixed; top: 18px; right: 22px; z-index: 10;
+		display: flex; align-items: center; gap: 8px;
 	}
-	#pdf-btn:hover { opacity: 0.92; }
+	#pdf-download button {
+		border: none; background: var(--accent); color: #fff; font-weight: 650;
+		font-size: 12.5px; padding: 8px 16px; border-radius: 8px; cursor: pointer;
+		display: flex; align-items: center; gap: 6px;
+	}
+	#pdf-download button:disabled { opacity: 0.6; cursor: wait; }
+	#pdf-status { font-size: 12px; color: var(--text-dim); max-width: 220px; text-align: right; }
+	#pdf-status.error { color: #D6455B; }
 
 	/* ---- overview ---- */
 	#overview { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
@@ -156,7 +164,10 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 		<div id="header">
 			<h1>Progress</h1>
 			<span class="sub">${escapeXml(workspaceName)}</span>
-			<button id="pdf-btn">Download progress report (PDF)</button>
+		</div>
+		<div id="pdf-download">
+			<span id="pdf-status"></span>
+			<button id="pdf-btn">Download PDF</button>
 		</div>
 		<div id="empty" style="display:none">There is nothing to track yet.<br>Once your Spec has use cases and requirements, they are listed here so you can follow their progress.</div>
 		<div id="overview"></div>
@@ -311,7 +322,7 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 	function renderAll() {
 		var empty = ROWS.length === 0;
 		document.getElementById('empty').style.display = empty ? 'block' : 'none';
-		document.getElementById('pdf-btn').style.display = empty ? 'none' : '';
+		document.getElementById('pdf-download').style.display = empty ? 'none' : 'flex';
 		document.getElementById('footnote').style.display = empty ? 'none' : '';
 		if (empty) { document.getElementById('overview').innerHTML = ''; document.getElementById('sec-req').innerHTML = ''; return; }
 		overview(); section();
@@ -359,17 +370,19 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 	// The report follows what is on screen: same sort, removed items left out.
 	function exportPdf() {
 		var btn = document.getElementById('pdf-btn');
+		var status = document.getElementById('pdf-status');
 		btn.disabled = true; btn.textContent = 'Generating...';
+		status.textContent = ''; status.classList.remove('error');
 		var order = sortedRows().filter(function (r) { return !r.removedByAi; }).map(refOf);
 		fetch('/api/progress/export-pdf', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order: order }) })
 			.then(function (r) { return r.json(); })
 			.then(function (result) {
 				if (!result.ok && result.error) throw new Error(result.error);
 				// ok with no path means the save dialog was cancelled - nothing to say.
-				if (result.ok && result.path) toast('Saved ' + result.path);
+				if (result.ok && result.path) status.textContent = 'Saved ' + result.path;
 			})
-			.catch(function (err) { toast(err.message || String(err)); })
-			.finally(function () { btn.disabled = false; btn.textContent = 'Download progress report (PDF)'; });
+			.catch(function (err) { status.textContent = err.message || String(err); status.classList.add('error'); })
+			.finally(function () { btn.disabled = false; btn.textContent = 'Download PDF'; });
 	}
 
 	computeSandwich();
