@@ -234,24 +234,24 @@ export function generateShellHTML(
 	   under the diagrams. Resizes by width via #chat-resizer, same drag
 	   pattern as #h-resizer. */
 	#chat-toggle.active { border-color: var(--accent); color: var(--accent); }
+	/* The dock stays on the right at every window width, resizable by dragging
+	   #chat-resizer. min/max-width keep it usable: a width saved on a big monitor
+	   can never take more than 60% of a small laptop's window (the inline width
+	   from the saved layout is capped by max-width). */
 	#chat-panel {
-		flex-shrink: 0; width: 320px;
+		flex-shrink: 0; width: 320px; min-width: 220px; max-width: 60vw;
 		border-left: 1px solid var(--border); background: var(--surface);
 		display: flex; flex-direction: column; overflow: hidden;
 	}
 	#chat-panel.collapsed { display: none; }
-	/* Below the same breakpoint the view pickers themselves collapse to a
-	   single panel (WIDE_QUERY, 1440px - see the JS below), a fixed-width
-	   side dock has nowhere to go, so it becomes a bottom sheet overlay
-	   instead of a flex sibling - taken out of layout flow entirely
-	   (position: fixed) so #view-container gets the full narrow viewport
-	   whether the dock is open or not. Manual resize is wide-only; a fixed
-	   default height reads fine as an overlay sheet. */
-	@media (max-width: 1439.98px) {
+	/* Only on a genuinely tiny window (a phone-sized or half-snapped one) is there no room
+	   for a side dock next to the view, so it becomes a sheet that slides over the right
+	   edge instead of a flex sibling - still on the right, still closable with the toggle. */
+	@media (max-width: 720px) {
 		#chat-panel {
-			position: fixed; inset: auto 0 0 0; height: 46vh; width: auto !important;
-			border-left: none; border-top: 1px solid var(--border); z-index: 50;
-			box-shadow: 0 -8px 24px rgba(0,0,0,0.18);
+			position: fixed; top: 0; right: 0; bottom: 0; z-index: 50;
+			width: min(88vw, 380px) !important; max-width: none;
+			box-shadow: -8px 0 24px rgba(0,0,0,0.18);
 		}
 		#chat-resizer { display: none !important; }
 	}
