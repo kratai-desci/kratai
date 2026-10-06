@@ -64,6 +64,9 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 	label.field { display: block; margin-bottom: 15px; }
 	.field .label { display: block; font-size: 12.5px; font-weight: 650; margin-bottom: 6px; }
 	.field .hint { display: block; font-size: 12px; color: var(--text-faint); margin-top: 5px; }
+	.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+	@media (max-width: 520px) { .row2 { grid-template-columns: 1fr; gap: 0; } }
+	.fieldnote { margin: -6px 0 15px; font-size: 12px; color: var(--text-faint); }
 	textarea, input[type="text"] { width: 100%; font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; outline: none; }
 	textarea { min-height: 88px; resize: vertical; line-height: 1.5; }
 	textarea:focus, input[type="text"]:focus { border-color: var(--accent); }
@@ -143,7 +146,7 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 	// actors / nfrs stay null until the AI (or "continue without suggestions")
 	// fills them; useCases is keyed by actor name. Items added by the user carry
 	// mine: true so a regenerated suggestion list does not drop them.
-	var state = { step: 0, ucIndex: 0, name: PROJECT, what: '', who: '', actors: null, actorsSig: null, useCases: {}, nfrs: null, loading: null, creating: null, error: null };
+	var state = { step: 0, ucIndex: 0, name: PROJECT, what: '', who: '', company: '', client: '', actors: null, actorsSig: null, useCases: {}, nfrs: null, loading: null, creating: null, error: null };
 
 	function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 	function chosenActors() { return (state.actors || []).filter(function (a) { return a.on; }); }
@@ -163,6 +166,9 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 	function stepOverview() {
 		return '<h2>Tell us about your project</h2><p class="sub">A few sentences is enough - this is what the AI uses to suggest everything that follows.</p>' +
 			'<label class="field"><span class="label">Project name</span><input type="text" id="name" value="' + esc(state.name) + '"><span class="hint">Used as the title of your spec. You can change it later in chat.</span></label>' +
+			'<div class="row2"><label class="field"><span class="label">Your company</span><input type="text" id="company" value="' + esc(state.company) + '" placeholder="Acme Studio"></label>' +
+			'<label class="field"><span class="label">Client</span><input type="text" id="client" value="' + esc(state.client) + '" placeholder="Pony Club Ltd"></label></div>' +
+			'<p class="hint fieldnote">Optional. They appear on the cover of your spec and progress report as "Prepared by" and "Client".</p>' +
 			'<label class="field"><span class="label">What is it?</span><textarea id="what" placeholder="A web app where housemates share chores and keep track of whose turn it is.">' + esc(state.what) + '</textarea></label>' +
 			'<label class="field"><span class="label">Who will use it, and what problem does it solve?</span><textarea id="who" placeholder="Housemates who keep forgetting whose turn it is, which causes arguments.">' + esc(state.who) + '</textarea><span class="hint">Optional, but it makes the suggestions better.</span></label>';
 	}
@@ -217,7 +223,7 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 	function missingUseCaseActors() { return chosenActors().filter(function (a) { return !state.useCases[a.name]; }); }
 	function actorPayload(list) { return list.map(function (a) { return { name: a.name, description: a.desc, kind: a.kind }; }); }
 	function payload(step) {
-		var body = { name: state.name.trim(), what: state.what.trim(), who: state.who.trim() };
+		var body = { name: state.name.trim(), what: state.what.trim(), who: state.who.trim(), company: state.company.trim(), client: state.client.trim() };
 		if (step === 'use-cases') body.actors = actorPayload(missingUseCaseActors());
 		else if (step !== 'actors') {
 			body.actors = actorPayload(chosenActors());
@@ -425,6 +431,8 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 		if (e.target.id === 'name') state.name = e.target.value;
 		else if (e.target.id === 'what') { state.what = e.target.value; var b = document.querySelector('[data-action="next"]'); if (b) b.disabled = !canContinue(); }
 		else if (e.target.id === 'who') state.who = e.target.value;
+		else if (e.target.id === 'company') state.company = e.target.value;
+		else if (e.target.id === 'client') state.client = e.target.value;
 	});
 	card.addEventListener('keydown', function (e) {
 		if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;

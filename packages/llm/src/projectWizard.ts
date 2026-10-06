@@ -21,6 +21,10 @@ export interface WizardProject {
 	name: string;
 	what: string;
 	who?: string;
+	/** Who is preparing the spec (shown as "Prepared by" on the documents); not sent to the AI. */
+	company?: string;
+	/** Who it is for (shown as "Client" on the documents); not sent to the AI. */
+	client?: string;
 }
 
 export interface WizardActor {
@@ -365,7 +369,7 @@ export function buildProjectSpec(choices: WizardChoices, details: SpecDetails, w
 	let dataModel: DataModelOutput = { entities: [], relationships: [] };
 	try { dataModel = validateDataModelOutput(details.dataModel); } catch { /* an empty data model is a valid start */ }
 	return {
-		useCaseData: { workspaceName, systemName: project.name, ...output },
+		useCaseData: { workspaceName, systemName: project.name, ...(project.company ? { preparedBy: project.company } : {}), ...(project.client ? { clientName: project.client } : {}), ...output },
 		dataModelData: { workspaceName, ...dataModel }
 	};
 }
@@ -381,7 +385,12 @@ export function parseWizardChoices(raw: unknown, workspaceName: string): WizardC
 	const obj = asObject(raw, 'wizard input');
 	const what = asText(obj.what, 2000);
 	if (!what) throw new LlmError('Describe your project first.');
-	const project: WizardProject = { name: asText(obj.name, 80) ?? workspaceName, what, ...(asText(obj.who, 2000) ? { who: asText(obj.who, 2000) } : {}) };
+	const project: WizardProject = {
+		name: asText(obj.name, 80) ?? workspaceName, what,
+		...(asText(obj.who, 2000) ? { who: asText(obj.who, 2000) } : {}),
+		...(asText(obj.company, 120) ? { company: asText(obj.company, 120) } : {}),
+		...(asText(obj.client, 120) ? { client: asText(obj.client, 120) } : {})
+	};
 	const actors = dedupeByName((Array.isArray(obj.actors) ? obj.actors : []).flatMap((entry): WizardActor[] => {
 		if (typeof entry !== 'object' || entry === null) return [];
 		const e = entry as Record<string, unknown>;
