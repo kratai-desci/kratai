@@ -77,7 +77,7 @@ Only at the moment it's generated. From there you're free to edit it via chat an
 <summary><strong>What does the $30 credit cover?</strong></summary>
 <br>
 
-It's AI credit to use inside the desktop app — chat, spec generation, and detail-fill all draw from it. That's what's available during the beta; billing for usage beyond that is still being worked out.
+It's AI credit to use inside the desktop app — chat, spec generation, and detail-fill all draw from it. That's what's available for now; billing for usage beyond that is still being worked out.
 </details>
 
 <details>

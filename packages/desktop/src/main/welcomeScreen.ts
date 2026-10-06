@@ -62,11 +62,6 @@ export function getWelcomeHTML(recentWorkspaces: string[], logoDataUrl: string):
 	}
 	.heading-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; }
 	.heading-row h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
-	#beta-badge {
-		font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
-		color: var(--accent); border: 1px solid var(--accent); border-radius: 100px;
-		padding: 2px 8px; font-family: ui-monospace, monospace;
-	}
 	#card p { color: var(--text-dim); font-size: 13.5px; line-height: 1.6; margin: 0 0 28px; }
 	.cta {
 		display: inline-block; border: none; background: var(--accent); color: #fff; font-weight: 650;
@@ -92,7 +87,7 @@ export function getWelcomeHTML(recentWorkspaces: string[], logoDataUrl: string):
 	<div id="card">
 		<img class="logo" src="${logoDataUrl}" alt="">
 		<div class="heading-row">
-			<h1>Welcome to kratai</h1><span id="beta-badge">Beta</span>
+			<h1>Welcome to kratai</h1>
 		</div>
 		<p>A spec-driven IDE: keep your use cases, data model, and design docs in sync with the code as it changes.</p>
 		<a class="cta" href="kratai-action://pick-folder">Select a folder to get started</a>
@@ -133,11 +128,6 @@ export function getSignInHTML(logoDataUrl: string, errorMessage?: string): strin
 	}
 	.heading-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 28px; }
 	.heading-row h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
-	#beta-badge {
-		font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
-		color: var(--accent); border: 1px solid var(--accent); border-radius: 100px;
-		padding: 2px 8px; font-family: ui-monospace, monospace;
-	}
 	.cta {
 		display: inline-block; border: none; background: var(--accent); color: #fff; font-weight: 650;
 		font-size: 13.5px; padding: 12px 24px; border-radius: 10px; cursor: pointer; text-decoration: none;
@@ -150,7 +140,7 @@ export function getSignInHTML(logoDataUrl: string, errorMessage?: string): strin
 	<div id="card">
 		<img class="logo" src="${logoDataUrl}" alt="">
 		<div class="heading-row">
-			<h1>Welcome to kratai</h1><span id="beta-badge">Beta</span>
+			<h1>Welcome to kratai</h1>
 		</div>
 		<a class="cta" href="kratai-action://sign-in">Sign in to continue</a>
 		${error}
