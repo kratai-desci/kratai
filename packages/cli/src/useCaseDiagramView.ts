@@ -288,7 +288,6 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData): string {
 	const actorDetails = data.actors.map(a => ({
 		id: a.id,
 		name: a.name.replace(/\n/g, ' '),
-		role: a.role || '',
 		description: a.description || '',
 		useCases: data.associations.filter(x => x.actorId === a.id)
 			.map(x => data.useCases.find(u => u.id === x.useCaseId)?.name.replace(/\n/g, ' ') || '').filter(Boolean)
@@ -598,7 +597,7 @@ ${DIAGRAM_SVG_STYLE}
 		if (!a) return;
 		var html = a.description ? '<p class="detail-desc">' + escapeHtml(a.description) + '</p>' : '<p class="detail-desc">No description yet.</p>';
 		if (a.useCases.length) html += '<div class="detail-section"><h3>Involved in</h3><p>' + escapeHtml(a.useCases.join(', ')) + '</p></div>';
-		openDetail(a.role ? 'ACTOR \\u00b7 ' + a.role.toUpperCase() : 'ACTOR', a.name, html);
+		openDetail('ACTOR', a.name, html);
 	}
 	function openNfrDetail(nfrId) {
 		var n = NFR_DETAILS.filter(function (x) { return x.id === nfrId; })[0];

@@ -51,7 +51,7 @@ const THEME_SYNC_SCRIPT = `<script>
 // document will actually contain.
 const SECTION = {
 	diagram: { title: 'Use Case Diagram', intro: 'This section shows how each actor interacts with the system through its key use cases.' },
-	actors: { title: 'Actors &amp; roles', intro: 'The following actors were identified as participants in the system, along with the use cases each one is involved in.' },
+	actors: { title: 'Actors', intro: 'The following actors were identified as participants in the system.' },
 	useCases: { title: 'Use cases', intro: 'Each use case below describes one capability the system provides, along with any requirements specific to it.' },
 	nfrs: { title: 'Project-wide non-functional requirements', intro: 'The following non-functional requirements apply across the whole system, rather than to any single use case.' },
 	dataModel: { title: 'Data model', intro: "This section describes the system's core data entities and how they relate to one another." }
@@ -115,6 +115,7 @@ export const SRS_PAGE_CSS = `${DOC_STYLE}
 	   .use-case-item p rule above would otherwise win and flatten this
 	   margin back to 0. */
 	.use-case-item p.uc-goal { margin-top: 6px; font-style: italic; color: var(--text-dim); }
+	.use-case-item p.uc-actors { margin-top: 6px; color: var(--text-dim); }
 	.uc-detail { margin-top: 8px; }
 	.uc-detail-label { display: block; font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-faint); margin-bottom: 3px; }
 	.uc-detail ul, .uc-detail ol { margin: 0; padding-left: 18px; color: var(--text-dim); font-size: 12px; line-height: 1.6; }
@@ -225,7 +226,7 @@ ${DATA_MODEL_SVG_STYLE}
 		   safe only because it's height-capped above - from splitting. */
 		.section { border: none; box-shadow: none; }
 		.use-case-item, tr, .diagram-wrap, .entity-block, .nfr-block { break-inside: avoid; }
-		/* Every section from "2. Actors & roles" on always starts a fresh
+		/* Every section from "2. Actors" on always starts a fresh
 		   page - a simpler, more predictable rule than packing as much as
 		   fits and hoping the orphan/widow rules below catch whatever's
 		   left over. Overview and "1. Use Case Diagram" are deliberately
@@ -279,6 +280,10 @@ export function useCaseItemsBody(useCaseData: UseCaseDiagramData, nfrInfo: NfrNu
 	return `<p class="section-intro">${SECTION.useCases.intro}</p>` +
 		useCaseData.useCases.map((u, i) => {
 			const nfrs = nfrsByUseCase[u.id] || [];
+			const actorNames = (ucId: string) => useCaseData.associations
+				.filter(a => a.useCaseId === ucId)
+				.map(a => useCaseData.actors.find(x => x.id === a.actorId)?.name.replace(/\n/g, ' ') || '')
+				.filter(Boolean).join(', ');
 			// goal/preconditions/mainFlow/postconditions are the "fully
 			// dressed" detail chat fills in afterward (see
 			// chatAboutArchitecture.ts) - absent for a use case that's only
@@ -292,6 +297,7 @@ export function useCaseItemsBody(useCaseData: UseCaseDiagramData, nfrInfo: NfrNu
 			return `<div class="use-case-item">
 				<h3>UC-${i + 1}: ${escapeXml(u.name.replace(/\n/g, ' '))}${headExtra ? headExtra(u) : ''}</h3>
 				<p>${escapeXml(u.description || 'No description captured yet.')}</p>
+				${actorNames(u.id) ? `<p class="uc-actors"><strong>Actors:</strong> ${escapeXml(actorNames(u.id))}</p>` : ''}
 				${u.goal ? `<p class="uc-goal"><strong>Goal:</strong> ${escapeXml(u.goal)}</p>` : ''}
 				${detailBlock('Preconditions', u.preconditions, false)}
 				${detailBlock('Main flow', u.mainFlow, true)}
@@ -328,13 +334,6 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 	const nfrInfo = numberNfrs(useCaseData);
 	const { projectNfrs } = nfrInfo;
 
-	function useCasesForActor(actorId: string): string[] {
-		return useCaseData.associations
-			.filter(a => a.actorId === actorId)
-			.map(a => useCaseData.useCases.find(u => u.id === a.useCaseId)?.name.replace(/\n/g, ' ') || '')
-			.filter(Boolean);
-	}
-
 	// A section only appears if it has something to say - Overview and
 	// Project-wide NFRs are both genuinely optional data (unlike Actors/Use
 	// Cases, which real generation can't produce empty - see
@@ -353,12 +352,10 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 		title: SECTION.actors.title,
 		body: `<p class="section-intro">${SECTION.actors.intro}</p>
 			<table>
-			<tr><th>Actor</th><th>Role</th><th>Description</th><th>Use cases</th></tr>
+			<tr><th>Actor</th><th>Description</th></tr>
 			${useCaseData.actors.map(a => `<tr>
 				<td>${escapeXml(a.name.replace(/\n/g, ' '))}</td>
-				<td>${escapeXml(a.role || '—')}</td>
 				<td>${escapeXml(a.description || '—')}</td>
-				<td>${escapeXml(useCasesForActor(a.id).join(', ') || '—')}</td>
 			</tr>`).join('\n')}
 		</table>`
 	});

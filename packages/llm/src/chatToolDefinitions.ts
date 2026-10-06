@@ -121,7 +121,6 @@ export const CHAT_TOOL_DEFINITIONS: ToolDefinition[] = [
 							id: { type: 'string' },
 							name: { type: 'string' },
 							side: { type: 'string', enum: ['left', 'right'] },
-							role: { type: 'string' },
 							description: { type: 'string' }
 						},
 						required: ['id', 'name']

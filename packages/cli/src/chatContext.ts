@@ -36,7 +36,7 @@ function specSection(fullUseCaseData: UseCaseDiagramData | undefined, dataModelD
 				.filter(x => x.actorId === a.id)
 				.map(x => useCaseData.useCases.find(u => u.id === x.useCaseId)?.name.replace(/\n/g, ' ') || '')
 				.filter(Boolean);
-			lines.push(`- ${a.id} "${a.name.replace(/\n/g, ' ')}"${a.role ? ` (role: ${a.role})` : ''}${a.description ? `: ${a.description}` : ''}${useCases.length ? ` - use cases: ${useCases.join(', ')}` : ''}`);
+			lines.push(`- ${a.id} "${a.name.replace(/\n/g, ' ')}"${a.description ? `: ${a.description}` : ''}${useCases.length ? ` - use cases: ${useCases.join(', ')}` : ''}`);
 		});
 
 		const nfrsByUseCase = new Map<string, string[]>();

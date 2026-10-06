@@ -107,7 +107,7 @@ Rules:
 - 3 to 6 actors, most important first.
 - Each actor is a role, not a named person ("Housemate", not "Alex"). Short singular names.
 - Include an outside system (payments, email, a third-party API) ONLY if the description clearly implies one.
-- "description" is one short sentence on what that actor does or why they use the system.
+- "description" is one short sentence on the GOAL of that actor: what they want to achieve with the system (e.g. "Wants to book and pay for lessons without calling the club").
 - "kind" is "person" for a human role and "system" for an outside system.
 - Base everything on the description. Do not invent features it doesn't suggest.
 
