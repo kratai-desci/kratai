@@ -1,4 +1,6 @@
 import type { Server } from 'http';
+import { execFileSync } from 'node:child_process';
+import * as fs from 'node:fs';
 import * as path from 'path';
 import { app, BrowserWindow, Menu, dialog, nativeImage, shell, type MenuItemConstructorOptions } from 'electron';
 import { runView } from '@kratai/cli';
@@ -79,6 +81,39 @@ function handleDeepLink(url: string): void {
 
 function findDeepLinkArg(argv: string[]): string | undefined {
 	return argv.find(arg => arg.startsWith(`${PROTOCOL}://`));
+}
+
+function quoteDesktopExecArg(value: string): string {
+	return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/`/g, '\\`').replace(/\$/g, '\\$').replace(/%/g, '%%')}"`;
+}
+
+function registerLinuxDevelopmentProtocol(): void {
+	const desktopFileName = 'kratai-dev.desktop';
+	const mimeType = `x-scheme-handler/${PROTOCOL}`;
+	const applicationsDirectory = path.join(
+		process.env.XDG_DATA_HOME || path.join(app.getPath('home'), '.local', 'share'),
+		'applications'
+	);
+	const desktopFilePath = path.join(applicationsDirectory, desktopFileName);
+
+	try {
+		fs.mkdirSync(applicationsDirectory, { recursive: true });
+		fs.writeFileSync(desktopFilePath, [
+			'[Desktop Entry]',
+			'Type=Application',
+			'Name=Kratai Desktop (Development)',
+			`Exec=${quoteDesktopExecArg(process.execPath)} ${quoteDesktopExecArg(app.getAppPath())} %u`,
+			'Terminal=false',
+			'NoDisplay=true',
+			`MimeType=${mimeType};`,
+			''
+		].join('\n'), { mode: 0o644 });
+		execFileSync('update-desktop-database', [applicationsDirectory], { stdio: 'ignore' });
+		execFileSync('xdg-mime', ['default', desktopFileName, mimeType], { stdio: 'ignore' });
+		console.info(`[kratai] Registered ${PROTOCOL}:// links for this development build.`);
+	} catch (error) {
+		console.error(`[kratai] Could not register ${PROTOCOL}:// links for this development build.`, error);
+	}
 }
 
 // macOS delivers deep links via this event, potentially before whenReady()
@@ -341,22 +376,23 @@ function buildMenu(): void {
 setSessionExpiredHandler(() => showSignInGate('Your session expired. Please sign in again.'));
 
 app.whenReady().then(async () => {
+	// Calling app.quit() before ready does not cancel this promise.
+	if (!gotSingleInstanceLock) return;
+
 	// BrowserWindow's `icon` option only affects Windows/Linux taskbars -
 	// macOS reads the Dock icon separately, and only app.dock exists there.
 	if (process.platform === 'darwin') {
 		app.dock?.setIcon(icon);
 	}
 
-	// Registers the OS-level handler for kratai:// links. electron-builder's
-	// `protocols` config (package.json) also registers this at install time
-	// (Info.plist / Windows registry) - more reliable than only doing it
-	// here, but this call is cheap and idempotent, so it stays as a repair
-	// path for whichever platform/packaging combination needs it. Dev mode
-	// (unpackaged `electron .`) needs the executable + script path spelled
-	// out explicitly, or it registers the bare Electron binary instead of
-	// this app.
+	// electron-builder's `protocols` config registers kratai:// for packaged
+	// builds. Linux dev launches have no installed .desktop entry, so create a
+	// user-level one before opening the browser sign-in flow. Other unpackaged
+	// platforms need the executable and app path spelled out explicitly.
 	if (app.isPackaged) {
 		app.setAsDefaultProtocolClient(PROTOCOL);
+	} else if (process.platform === 'linux') {
+		registerLinuxDevelopmentProtocol();
 	} else if (process.argv[1]) {
 		app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [path.resolve(process.argv[1])]);
 	}

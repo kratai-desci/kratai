@@ -106,8 +106,20 @@ Sign in with a free kratai.com account (comes with $30 in AI credit) and downloa
 git clone https://github.com/kratai-desci/kratai.git
 cd kratai
 npm install
-npm run dev --workspace=packages/desktop
+npm run dev
 ```
+
+This builds the workspaces and starts the desktop app. To use Bun for installation and script execution, run:
+
+```bash
+bun install --no-save
+bun run build
+bun run dev
+```
+
+The Bun scripts call npm internally, so Node.js and npm must also be installed. The root `trustedDependencies` list allows Bun to run Electron's installer, which downloads the app runtime. `package-lock.json` remains the canonical lockfile; `bun install --no-save` avoids writing a Bun lockfile.
+
+To run the desktop workspace's own development script directly, use `npm run dev --workspace=@kratai/desktop`.
 
 ---
 

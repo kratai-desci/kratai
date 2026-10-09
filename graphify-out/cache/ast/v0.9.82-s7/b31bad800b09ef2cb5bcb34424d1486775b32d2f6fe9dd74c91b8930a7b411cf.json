@@ -1,0 +1,1 @@
+{"nodes": [{"id": "$graphify-root$_packages_analysis_src_test_unit_languages_php_fixtures_empty_php", "label": "empty.php", "file_type": "code", "source_file": "packages/analysis/src/test/unit/languages/php/fixtures/empty.php", "source_location": "L1"}], "edges": [], "raw_calls": []}
