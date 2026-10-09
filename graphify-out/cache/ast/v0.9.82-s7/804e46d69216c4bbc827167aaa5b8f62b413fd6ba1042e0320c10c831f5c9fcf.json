@@ -1,1 +1,0 @@
-{"nodes": [{"id": "$graphify-root$_packages_analysis_src_test_unit_languages_java_fixtures_invalid_java", "label": "Invalid.java", "file_type": "code", "source_file": "packages/analysis/src/test/unit/languages/java/fixtures/Invalid.java", "source_location": "L1"}], "edges": [], "raw_calls": [], "parse_errors": {"first_error_line": 6, "multiline_error": true}}
