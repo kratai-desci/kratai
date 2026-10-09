@@ -14,3 +14,9 @@ config.json
 kratai.local.json
 kratai.chat.json
 benchmarks/.uv-cache/
+
+*.map
+*.md
+graphify/
+*.xml
+
