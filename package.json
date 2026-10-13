@@ -9,8 +9,13 @@
   "workspaces": [
     "packages/*"
   ],
+  "trustedDependencies": [
+    "electron",
+    "esbuild"
+  ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "node scripts/run-npm.cjs run build --workspaces --if-present",
+    "dev": "node scripts/run-npm.cjs run build --workspaces --if-present && node scripts/run-npm.cjs run start --workspace=@kratai/desktop",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present"
   },
@@ -19,5 +24,9 @@
     "eslint": "^9.39.3",
     "typescript-eslint": "^8.56.1",
     "esbuild": "^0.24.0"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true,
+    "esbuild@0.24.2": true
   }
 }
