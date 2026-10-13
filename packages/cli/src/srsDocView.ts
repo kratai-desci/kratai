@@ -1,5 +1,5 @@
 import { UseCaseDiagramData, UseCaseNFR } from './useCaseDiagramData.js';
-import { buildDocumentDiagram, DOC_DIAGRAM_STYLE } from './docDiagramView.js';
+import { buildDocumentDiagrams, DOC_DIAGRAM_STYLE, type DocumentDiagrams } from './docDiagramView.js';
 import { stripStepNumber } from '@kratai-desci/llm';
 import { DataModelData } from './dataModelData.js';
 import { buildDataModelSvg, DATA_MODEL_SVG_STYLE } from './dataModelView.js';
@@ -50,7 +50,12 @@ const THEME_SYNC_SCRIPT = `<script>
 // the empty-project skeleton below so the skeleton can't drift from what the
 // document will actually contain.
 const SECTION = {
-	diagram: { title: 'Use Case Diagram', intro: 'This section shows how each actor interacts with the system through its key use cases.' },
+	diagram: {
+		title: 'Use Case Diagram',
+		titlePerActor: 'Use Case Diagrams',
+		intro: 'This section shows how each actor interacts with the system through its key use cases.',
+		introPerActor: 'Each figure below shows one actor and the use cases it takes part in. Use case numbers match the Use cases section. A dashed outline marks a related use case that belongs to another actor.'
+	},
 	actors: { title: 'Actors', intro: 'The following actors were identified as participants in the system.' },
 	useCases: { title: 'Use cases', intro: 'Each use case below describes one capability the system provides, along with any requirements specific to it.' },
 	nfrs: { title: 'Project-wide non-functional requirements', intro: 'The following non-functional requirements apply across the whole system, rather than to any single use case.' },
@@ -85,7 +90,7 @@ export const SRS_PAGE_CSS = `${DOC_STYLE}
 	.cover-label { font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); margin-bottom: 4px; }
 	.cover-block p { color: var(--text-dim); font-size: 12.5px; line-height: 1.6; margin: 0; }
 	.section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px 26px; margin-top: 18px; }
-	/* Overview and "1. Use Case Diagram" are the only two sections that
+	/* Overview and the first numbered section are the only two sections that
 	   ever share a page (see .section-new-page below), so this is the one
 	   section-to-section gap actually worth tightening - every other pair
 	   starts on a fresh page, where the gap above it is moot. */
@@ -143,6 +148,17 @@ export const SRS_PAGE_CSS = `${DOC_STYLE}
 	   just strand a whole page mostly blank again otherwise (see that
 	   rule's own comment). */
 	.diagram-wrap svg { display: block; max-width: 100%; max-height: 400px; width: auto; height: auto; margin: 0 auto; }
+	/* The use case figures are sized by the page instead (100vh is one printed page's height): the
+	   section's padding, heading, intro, caption and requirement tags take roughly 275px. A single diagram gets nearly a
+	   whole page; with one figure per actor, a small actor shares a page with another and a big one
+	   gets a page to itself. */
+	.diagram-wrap.uc-figure-full svg { max-height: calc(100vh - 275px); }
+	.diagram-wrap.uc-figure-half svg { max-height: calc((100vh - 330px) / 2); }
+	.diagram-wrap.uc-figure-tall svg { max-height: calc(100vh - 260px); }
+	/* A single diagram that must share its page with the Overview (the progress report, which has no
+	   Actors section before it): the Overview, narrative and heading take about another 190px. */
+	.diagram-wrap.uc-figure-shared svg { max-height: calc(100vh - 465px); }
+	.uc-figure + .uc-figure { margin-top: 22px; }
 	.diagram-wrap figcaption {
 		margin-top: 10px; text-align: center; font-size: 11.5px; font-style: italic; color: var(--text-faint);
 	}
@@ -225,11 +241,11 @@ ${DATA_MODEL_SVG_STYLE}
 		   atomic pieces (one use case, one table row, and now one diagram -
 		   safe only because it's height-capped above - from splitting. */
 		.section { border: none; box-shadow: none; }
-		.use-case-item, tr, .diagram-wrap, .entity-block, .nfr-block { break-inside: avoid; }
+		.use-case-item, tr, .diagram-wrap, .entity-block, .nfr-block, .section-keep { break-inside: avoid; }
 		/* Every section from "2. Actors" on always starts a fresh
 		   page - a simpler, more predictable rule than packing as much as
 		   fits and hoping the orphan/widow rules below catch whatever's
-		   left over. Overview and "1. Use Case Diagram" are deliberately
+		   left over. Overview and the first numbered section are deliberately
 		   excluded (no .section-new-page class - see sections.map below) so
 		   they keep sharing page 2. Accepts trailing whitespace on a page
 		   whose section just doesn't fill it (e.g. Project-wide NFRs with
@@ -247,6 +263,9 @@ ${DATA_MODEL_SVG_STYLE}
 			   .section comment above), just that the heading is never
 			   orphaned from all of its content. */
 		.section h2 { break-after: avoid; page-break-after: avoid; }
+		/* Same for the intro line under a heading: if the figure after it does not fit, the heading and
+		   intro move with it instead of being left alone at the bottom of the previous page. */
+		.section p.section-intro { break-after: avoid; page-break-after: avoid; }
 	}`;
 
 export { SECTION as DOC_SECTION };
@@ -267,10 +286,28 @@ export function numberNfrs(useCaseData: UseCaseDiagramData) {
 export type NfrNumbering = ReturnType<typeof numberNfrs>;
 
 /** "Use Case Diagram" section body: the intro, the model's narrative, and the figure - the diagram, then the project-wide NFR tags, then the caption (so "Figure 1" labels the whole of it). */
-export function useCaseModelBody(useCaseData: UseCaseDiagramData, diagramSvg: string, nfrTags = ''): string {
-	return `<p class="section-intro">${SECTION.diagram.intro}</p>` +
-		(useCaseData.narrative ? `<p>${escapeXml(useCaseData.narrative)}</p>` : '') +
-		`<figure class="diagram-wrap">${diagramSvg}${nfrTags}<figcaption>Figure 1: Use Case Diagram</figcaption></figure>`;
+/** Which page-size class a figure gets: a whole page for a single diagram or a big actor, half a page for a small one. */
+function figureClass(diagrams: DocumentDiagrams, useCaseCount: number, sharesPage = false): string {
+	if (diagrams.mode === 'single') return sharesPage ? 'uc-figure-shared' : 'uc-figure-full';
+	return useCaseCount > 8 ? 'uc-figure-tall' : 'uc-figure-half';
+}
+
+/** "Use Case Diagram" section body. `sharesPageWithOverview` is for the progress report, which has no
+ * Actors section before this one: the system narrative then stays here, and a single diagram is sized
+ * to leave room for the Overview above it. The SRS puts the narrative with the actors instead.
+ */
+export function useCaseModelBody(useCaseData: UseCaseDiagramData, diagrams: DocumentDiagrams, sharesPageWithOverview = false): string {
+	const intro = diagrams.mode === 'single' ? SECTION.diagram.intro : SECTION.diagram.introPerActor;
+	const head = `<p class="section-intro">${intro}</p>` +
+		(sharesPageWithOverview && useCaseData.narrative ? `<p>${escapeXml(useCaseData.narrative)}</p>` : '');
+	if (diagrams.mode === 'single') {
+		const f = diagrams.figures[0];
+		// Caption after the project-wide requirement tags, as in every document.
+		return head + `<figure class="diagram-wrap uc-figure ${figureClass(diagrams, f.useCaseCount, sharesPageWithOverview)}">${f.svg}${diagrams.nfrTagsHtml}<figcaption>Figure 1: ${f.caption}</figcaption></figure>`;
+	}
+	return head +
+		diagrams.figures.map((f, i) => `<figure class="diagram-wrap uc-figure ${figureClass(diagrams, f.useCaseCount)}">${f.svg}<figcaption>Figure ${i + 1}: ${escapeXml(f.caption)}</figcaption></figure>`).join('') +
+		diagrams.nfrTagsHtml;
 }
 
 /** "Use cases" section body: one block per use case. `headExtra` adds markup after a use case's
@@ -329,7 +366,7 @@ const ABOUT_DOC_TEXT = "This Software Requirements Specification (SRS) describes
  * skip-empty-sections rule as Overview/Project-wide NFRs below.
  */
 export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelData?: DataModelData): string {
-	const diagram = buildDocumentDiagram(useCaseData);
+	const diagrams = buildDocumentDiagrams(useCaseData);
 
 	const nfrInfo = numberNfrs(useCaseData);
 	const { projectNfrs } = nfrInfo;
@@ -344,20 +381,23 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 	// Overview moved to the cover page (below, alongside ABOUT_DOC_TEXT) -
 	// it's project-specific framing, not a requirement, so it doesn't
 	// belong numbered alongside Use Case Diagram/Data model/etc.
-	sections.push({
-		title: SECTION.diagram.title,
-		body: useCaseModelBody(useCaseData, diagram.svg, diagram.nfrTagsHtml)
-	});
+	// Actors come first: a reader meets who they are before seeing what each one does in the diagram(s).
+	// The system narrative ("who uses this and what for") is about exactly that, so it sits here.
 	sections.push({
 		title: SECTION.actors.title,
-		body: `<p class="section-intro">${SECTION.actors.intro}</p>
-			<table>
+		body: `<p class="section-intro">${SECTION.actors.intro}</p>` +
+			(useCaseData.narrative ? `<p>${escapeXml(useCaseData.narrative)}</p>` : '') +
+			`<table>
 			<tr><th>Actor</th><th>Description</th></tr>
 			${useCaseData.actors.map(a => `<tr>
 				<td>${escapeXml(a.name.replace(/\n/g, ' '))}</td>
 				<td>${escapeXml(a.description || '—')}</td>
 			</tr>`).join('\n')}
 		</table>`
+	});
+	sections.push({
+		title: diagrams.mode === 'single' ? SECTION.diagram.title : SECTION.diagram.titlePerActor,
+		body: useCaseModelBody(useCaseData, diagrams)
 	});
 	sections.push({
 		title: SECTION.useCases.title,
@@ -376,7 +416,7 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 			title: SECTION.dataModel.title,
 			body: `<p class="section-intro">${SECTION.dataModel.intro}</p>` +
 				(dataModelData.narrative ? `<p>${escapeXml(dataModelData.narrative)}</p>` : '') +
-				`<figure class="diagram-wrap">${dataModelSvg}<figcaption>Figure 2: Data Model Entity-Relationship Diagram</figcaption></figure>` +
+				`<figure class="diagram-wrap">${dataModelSvg}<figcaption>Figure ${diagrams.figures.length + 1}: Data Model Entity-Relationship Diagram</figcaption></figure>` +
 				dataModelData.entities.map(e => `<div class="entity-block">
 				<h3>${escapeXml(e.name)}</h3>
 				<table>

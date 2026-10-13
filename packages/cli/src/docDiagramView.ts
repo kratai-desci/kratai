@@ -11,10 +11,18 @@ import { UseCaseDiagramData, UseCaseActor, UseCaseItem, UseCaseNFR } from './use
  */
 
 const UC_RX = 95, UC_RY = 38;
-const COL_GAP = 260, ROW_GAP = 116, UC_TOP = 150, UC_COLS = 2;
+// Tighter than the on-screen page's layout (useCaseDiagramView.ts): a printed page is short and fixed, so
+// vertical room is what limits how big the text can be. Less blank space above the first row, between
+// rows and beside the actors lets the same diagram print about a third larger.
+const COL_GAP = 260, ROW_GAP = 100, UC_TOP = 70, UC_COLS = 2;
 const ACTOR_GAP_Y = 150, ACTOR_TOP = 130;
 const BOUNDARY_PAD_X = 90, BOUNDARY_PAD_TOP = 60, BOUNDARY_PAD_BOTTOM = 70;
-const ACTOR_RAIL = 260;
+const ACTOR_RAIL = 200;
+
+/** Most use cases a figure shows before the document switches to one figure per actor (and the most
+ * one actor's figure shows before it is split into parts). Chosen from real student requirement
+ * documents: up to about 18 use cases a full page keeps the labels readable (about 6.5pt). */
+export const DOC_SINGLE_DIAGRAM_MAX = 18;
 
 interface Point { x: number; y: number; }
 
@@ -27,6 +35,20 @@ function ellipseIntersect(cx: number, cy: number, rx: number, ry: number, px: nu
 
 function escapeXml(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Breaks a long name into lines of at most `max` characters at spaces (a very long single word stays whole). */
+function wrapLabel(text: string, max = 24): string {
+	const out: string[] = [];
+	for (const paragraph of text.split('\n')) {
+		let line = '';
+		for (const word of paragraph.split(/\s+/).filter(Boolean)) {
+			if (line && (line + ' ' + word).length > max) { out.push(line); line = word; }
+			else line = line ? line + ' ' + word : word;
+		}
+		out.push(line);
+	}
+	return out.join('\n');
 }
 
 function multilineText(text: string, x: number, extraAttrs = ''): string {
@@ -55,6 +77,9 @@ export const DOC_DIAGRAM_STYLE = `
 	.nfr-badge text { fill: #fff; font-size: 9.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
 	.uc-number circle { fill: var(--surface); stroke: var(--uc-stroke); stroke-width: 1.5; }
 	.uc-number text { fill: var(--uc-stroke); font-size: 9.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+	/* A use case that belongs to another actor but is linked to one in this figure (include/extend). */
+	.usecase.related .uc-shape { stroke-dasharray: 5 3; stroke: var(--text-faint); }
+	.usecase.related .uc-label { fill: var(--text-dim); }
 	/* The project-wide NFRs are plain HTML under the diagram (see buildNfrTagsHtml), not part of the
 	   SVG: a row of any number of tags wraps instead of being clipped at the diagram's edges. */
 	.nfr-block { margin: 18px 0 0; text-align: center; }
@@ -63,7 +88,14 @@ export const DOC_DIAGRAM_STYLE = `
 	.nfr-tag { border: 1.5px solid var(--accent-2); border-radius: 999px; background: var(--surface); color: var(--accent-2); font-size: 11.5px; font-weight: 650; padding: 5px 14px; font-family: inherit; line-height: 1.3; }
 `;
 
-function buildSvg(data: UseCaseDiagramData): { svg: string; width: number; height: number } {
+interface SvgOptions {
+	/** Use case id -> the number it has in the whole spec (a per-actor figure shows only some of them). */
+	numbers?: Record<string, number>;
+	/** Use cases drawn as "related" (dashed): linked to a use case in this figure but not this actor's own. */
+	relatedIds?: Set<string>;
+}
+
+function buildSvg(data: UseCaseDiagramData, opts: SvgOptions = {}): { svg: string; width: number; height: number } {
 	const leftActors = data.actors.filter(a => a.side === 'left');
 	const rightActors = data.actors.filter(a => a.side === 'right');
 	const rows = Math.max(1, Math.ceil(data.useCases.length / UC_COLS));
@@ -124,12 +156,12 @@ function buildSvg(data: UseCaseDiagramData): { svg: string; width: number; heigh
 		const nfrBadge = nfrs.length > 0
 			? `<g class="nfr-badge" transform="translate(${UC_RX - 10},${-UC_RY + 6})"><title>${escapeXml(nfrs.map(n => n.name).join(', '))}</title><circle r="9"/><text>${nfrs.length}</text></g>`
 			: '';
-		const numberBadge = `<g class="uc-number" transform="translate(${-UC_RX + 10},${-UC_RY + 6})"><circle r="9"/><text>${index + 1}</text></g>`;
-		return `<g class="usecase" transform="translate(${p.x},${p.y})">
+		const numberBadge = `<g class="uc-number" transform="translate(${-UC_RX + 10},${-UC_RY + 6})"><circle r="9"/><text>${opts.numbers?.[uc.id] ?? index + 1}</text></g>`;
+		return `<g class="usecase${opts.relatedIds?.has(uc.id) ? ' related' : ''}" transform="translate(${p.x},${p.y})">
 			<ellipse class="uc-shape" cx="0" cy="0" rx="${UC_RX}" ry="${UC_RY}"/>
 			${numberBadge}
 			${nfrBadge}
-			${multilineText(uc.name, 0, 'class="uc-label" y="0" dominant-baseline="middle"')}
+			${multilineText(wrapLabel(uc.name), 0, 'class="uc-label" y="0" dominant-baseline="middle"')}
 		</g>`;
 	}
 
@@ -180,13 +212,71 @@ function buildNfrTagsHtml(data: UseCaseDiagramData): string {
 	return `<div class="nfr-block"><div class="nfr-block-label">PROJECT-WIDE NFRs</div><div class="nfr-tags">${projectNfrs.map(n => `<span class="nfr-tag">${escapeXml(n.name)}</span>`).join('')}</div></div>`;
 }
 
-export interface DocumentDiagram {
-	/** The diagram itself: actors, use cases and how they connect. */
+export interface DiagramFigure {
 	svg: string;
-	/** The project-wide requirements, as a separate block to place under the figure ('' if none). */
+	/** Caption text without the "Figure n:" prefix. */
+	caption: string;
+	/** Use cases drawn in the figure (own and related), to size it on the page. */
+	useCaseCount: number;
+}
+
+export interface DocumentDiagrams {
+	/** 'single': one diagram of the whole system; 'per-actor': one figure per actor (or part of one). */
+	mode: 'single' | 'per-actor';
+	figures: DiagramFigure[];
+	/** The project-wide requirements, as a separate block to place under the figures ('' if none). */
 	nfrTagsHtml: string;
 }
 
-export function buildDocumentDiagram(data: UseCaseDiagramData): DocumentDiagram {
-	return { svg: buildSvg(data).svg, nfrTagsHtml: buildNfrTagsHtml(data) };
+/**
+ * The use case diagram(s) for a document. Up to DOC_SINGLE_DIAGRAM_MAX use cases: one diagram of the whole
+ * system. More than that, the single diagram would print too small to read, so each actor gets its own
+ * figure: that actor, its use cases (numbered as in the whole spec) and the use cases of other actors it
+ * is linked to by include/extend, drawn dashed so no link points at nothing. An actor with more than
+ * DOC_SINGLE_DIAGRAM_MAX use cases is split into evenly sized parts.
+ */
+export function buildDocumentDiagrams(data: UseCaseDiagramData): DocumentDiagrams {
+	const nfrTagsHtml = buildNfrTagsHtml(data);
+	if (data.useCases.length <= DOC_SINGLE_DIAGRAM_MAX) {
+		return { mode: 'single', nfrTagsHtml, figures: [{ svg: buildSvg(data).svg, caption: 'Use Case Diagram', useCaseCount: data.useCases.length }] };
+	}
+
+	const numbers: Record<string, number> = {};
+	data.useCases.forEach((u, i) => { numbers[u.id] = i + 1; });
+	const figures: DiagramFigure[] = [];
+
+	for (const actor of data.actors) {
+		const ownIds = new Set(data.associations.filter(a => a.actorId === actor.id).map(a => a.useCaseId));
+		const own = data.useCases.filter(u => ownIds.has(u.id));
+		if (own.length === 0) continue;
+
+		const parts = Math.ceil(own.length / DOC_SINGLE_DIAGRAM_MAX);
+		const size = Math.ceil(own.length / parts);
+		for (let part = 0; part < parts; part++) {
+			const chunk = own.slice(part * size, (part + 1) * size);
+			const chunkIds = new Set(chunk.map(u => u.id));
+			const relatedIds = new Set<string>();
+			data.relations.forEach(r => {
+				if (chunkIds.has(r.fromId) && !chunkIds.has(r.toId)) relatedIds.add(r.toId);
+				if (chunkIds.has(r.toId) && !chunkIds.has(r.fromId)) relatedIds.add(r.fromId);
+			});
+			const related = data.useCases.filter(u => relatedIds.has(u.id));
+			const shownIds = new Set([...chunkIds, ...relatedIds]);
+			const sub: UseCaseDiagramData = {
+				...data,
+				actors: [actor],
+				useCases: [...chunk, ...related],
+				associations: data.associations.filter(a => a.actorId === actor.id && chunkIds.has(a.useCaseId)),
+				relations: data.relations.filter(r => shownIds.has(r.fromId) && shownIds.has(r.toId) && (chunkIds.has(r.fromId) || chunkIds.has(r.toId))),
+				nfrs: (data.nfrs || []).filter(n => n.useCaseId !== null && shownIds.has(n.useCaseId))
+			};
+			const name = actor.name.replace(/\n/g, ' ');
+			figures.push({
+				svg: buildSvg(sub, { numbers, relatedIds }).svg,
+				caption: `Use cases for ${name}${parts > 1 ? ` (part ${part + 1} of ${parts})` : ''}${related.length > 0 ? ' (dashed: related use cases)' : ''}`,
+				useCaseCount: chunk.length + related.length
+			});
+		}
+	}
+	return { mode: 'per-actor', nfrTagsHtml, figures };
 }
