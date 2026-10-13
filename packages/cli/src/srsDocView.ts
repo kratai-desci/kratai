@@ -155,9 +155,6 @@ export const SRS_PAGE_CSS = `${DOC_STYLE}
 	.diagram-wrap.uc-figure-full svg { max-height: calc(100vh - 275px); }
 	.diagram-wrap.uc-figure-half svg { max-height: calc((100vh - 330px) / 2); }
 	.diagram-wrap.uc-figure-tall svg { max-height: calc(100vh - 260px); }
-	/* A single diagram that must share its page with the Overview (the progress report, which has no
-	   Actors section before it): the Overview, narrative and heading take about another 190px. */
-	.diagram-wrap.uc-figure-shared svg { max-height: calc(100vh - 465px); }
 	.uc-figure + .uc-figure { margin-top: 22px; }
 	.diagram-wrap figcaption {
 		margin-top: 10px; text-align: center; font-size: 11.5px; font-style: italic; color: var(--text-faint);
@@ -241,7 +238,7 @@ ${DATA_MODEL_SVG_STYLE}
 		   atomic pieces (one use case, one table row, and now one diagram -
 		   safe only because it's height-capped above - from splitting. */
 		.section { border: none; box-shadow: none; }
-		.use-case-item, tr, .diagram-wrap, .entity-block, .nfr-block, .section-keep { break-inside: avoid; }
+		.use-case-item, tr, .diagram-wrap, .entity-block, .nfr-block { break-inside: avoid; }
 		/* Every section from "2. Actors" on always starts a fresh
 		   page - a simpler, more predictable rule than packing as much as
 		   fits and hoping the orphan/widow rules below catch whatever's
@@ -286,24 +283,34 @@ export function numberNfrs(useCaseData: UseCaseDiagramData) {
 export type NfrNumbering = ReturnType<typeof numberNfrs>;
 
 /** "Use Case Diagram" section body: the intro, the model's narrative, and the figure - the diagram, then the project-wide NFR tags, then the caption (so "Figure 1" labels the whole of it). */
+/** "Actors" section body: the system narrative ("who uses this and what for") and the actor table. Shared
+ * by the SRS and the progress report, which both put it before the use case diagram(s). */
+export function actorsBody(useCaseData: UseCaseDiagramData): string {
+	return `<p class="section-intro">${SECTION.actors.intro}</p>` +
+		(useCaseData.narrative ? `<p>${escapeXml(useCaseData.narrative)}</p>` : '') +
+		`<table>
+		<tr><th>Actor</th><th>Description</th></tr>
+		${useCaseData.actors.map(a => `<tr>
+			<td>${escapeXml(a.name.replace(/\n/g, ' '))}</td>
+			<td>${escapeXml(a.description || '—')}</td>
+		</tr>`).join('\n')}
+	</table>`;
+}
+
 /** Which page-size class a figure gets: a whole page for a single diagram or a big actor, half a page for a small one. */
-function figureClass(diagrams: DocumentDiagrams, useCaseCount: number, sharesPage = false): string {
-	if (diagrams.mode === 'single') return sharesPage ? 'uc-figure-shared' : 'uc-figure-full';
+function figureClass(diagrams: DocumentDiagrams, useCaseCount: number): string {
+	if (diagrams.mode === 'single') return 'uc-figure-full';
 	return useCaseCount > 8 ? 'uc-figure-tall' : 'uc-figure-half';
 }
 
-/** "Use Case Diagram" section body. `sharesPageWithOverview` is for the progress report, which has no
- * Actors section before this one: the system narrative then stays here, and a single diagram is sized
- * to leave room for the Overview above it. The SRS puts the narrative with the actors instead.
- */
-export function useCaseModelBody(useCaseData: UseCaseDiagramData, diagrams: DocumentDiagrams, sharesPageWithOverview = false): string {
+/** "Use Case Diagram" section body: the figure(s) and, for a per-actor set, the requirement tags once after the last. */
+export function useCaseModelBody(diagrams: DocumentDiagrams): string {
 	const intro = diagrams.mode === 'single' ? SECTION.diagram.intro : SECTION.diagram.introPerActor;
-	const head = `<p class="section-intro">${intro}</p>` +
-		(sharesPageWithOverview && useCaseData.narrative ? `<p>${escapeXml(useCaseData.narrative)}</p>` : '');
+	const head = `<p class="section-intro">${intro}</p>`;
 	if (diagrams.mode === 'single') {
 		const f = diagrams.figures[0];
 		// Caption after the project-wide requirement tags, as in every document.
-		return head + `<figure class="diagram-wrap uc-figure ${figureClass(diagrams, f.useCaseCount, sharesPageWithOverview)}">${f.svg}${diagrams.nfrTagsHtml}<figcaption>Figure 1: ${f.caption}</figcaption></figure>`;
+		return head + `<figure class="diagram-wrap uc-figure ${figureClass(diagrams, f.useCaseCount)}">${f.svg}${diagrams.nfrTagsHtml}<figcaption>Figure 1: ${f.caption}</figcaption></figure>`;
 	}
 	return head +
 		diagrams.figures.map((f, i) => `<figure class="diagram-wrap uc-figure ${figureClass(diagrams, f.useCaseCount)}">${f.svg}<figcaption>Figure ${i + 1}: ${escapeXml(f.caption)}</figcaption></figure>`).join('') +
@@ -382,22 +389,10 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 	// it's project-specific framing, not a requirement, so it doesn't
 	// belong numbered alongside Use Case Diagram/Data model/etc.
 	// Actors come first: a reader meets who they are before seeing what each one does in the diagram(s).
-	// The system narrative ("who uses this and what for") is about exactly that, so it sits here.
-	sections.push({
-		title: SECTION.actors.title,
-		body: `<p class="section-intro">${SECTION.actors.intro}</p>` +
-			(useCaseData.narrative ? `<p>${escapeXml(useCaseData.narrative)}</p>` : '') +
-			`<table>
-			<tr><th>Actor</th><th>Description</th></tr>
-			${useCaseData.actors.map(a => `<tr>
-				<td>${escapeXml(a.name.replace(/\n/g, ' '))}</td>
-				<td>${escapeXml(a.description || '—')}</td>
-			</tr>`).join('\n')}
-		</table>`
-	});
+	sections.push({ title: SECTION.actors.title, body: actorsBody(useCaseData) });
 	sections.push({
 		title: diagrams.mode === 'single' ? SECTION.diagram.title : SECTION.diagram.titlePerActor,
-		body: useCaseModelBody(useCaseData, diagrams)
+		body: useCaseModelBody(diagrams)
 	});
 	sections.push({
 		title: SECTION.useCases.title,

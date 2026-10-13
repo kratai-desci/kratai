@@ -1,7 +1,7 @@
 import type { UseCaseDiagramData } from './useCaseDiagramData.js';
 import type { ProgressRow } from './progressData.js';
 import { buildDocumentDiagrams } from './docDiagramView.js';
-import { SRS_PAGE_CSS, DOC_SECTION, numberNfrs, useCaseModelBody, useCaseItemsBody, projectNfrBody, escapeDocText as esc } from './srsDocView.js';
+import { SRS_PAGE_CSS, DOC_SECTION, numberNfrs, actorsBody, useCaseModelBody, useCaseItemsBody, projectNfrBody, escapeDocText as esc } from './srsDocView.js';
 
 const STATUS_LABEL: Record<string, string> = { 'open': 'Open', 'in-progress': 'In progress', 'done': 'Done' };
 const PRIO_LABEL: Record<string, string> = { low: 'Low', medium: 'Medium', high: 'High' };
@@ -47,9 +47,9 @@ export interface ProgressReportOptions {
  * The client-facing progress report, printed to PDF by the desktop app with the same two-pass
  * printing as the SRS (cover page without the running header, then header + "Page X of Y").
  * Built from the SRS document's own stylesheet and section builders, so the two read as one
- * family: cover page with "About this document", the project Overview, the use case model with
- * its diagram, the progress table (in the order the user had on screen), each use case in
- * detail with its status, and the project-wide non-functional requirements. No actors section.
+ * family: cover page with "About this document", the project Overview, the actors, the use case
+ * diagram(s), the progress table (in the order the user had on screen), each use case in
+ * detail with its status, and the project-wide non-functional requirements.
  * Nothing internal appears (no "edited by AI" notes, no priority or closer inside the details).
  */
 export function generateProgressReportHTML(opts: ProgressReportOptions): string {
@@ -107,7 +107,8 @@ export function generateProgressReportHTML(opts: ProgressReportOptions): string 
 	};
 
 	const sections: { title: string; body: string }[] = [
-		{ title: 'Use Case Model', body: useCaseModelBody(spec, diagrams, true) },
+		{ title: DOC_SECTION.actors.title, body: actorsBody(spec) },
+		{ title: diagrams.mode === 'single' ? DOC_SECTION.diagram.title : DOC_SECTION.diagram.titlePerActor, body: useCaseModelBody(diagrams) },
 		{ title: 'Progress', body: progressBody },
 		{ title: DOC_SECTION.useCases.title, body: useCaseItemsBody(spec, nfrInfo, statusTag) }
 	];
@@ -146,7 +147,7 @@ ${REPORT_CSS}
 			<p>${esc(spec.overview)}</p>
 		</div>` : ''}
 
-		${sections.map((s, i) => `<div class="section${i > 0 ? ' section-new-page' : ' section-keep'}">
+		${sections.map((s, i) => `<div class="section${i > 0 ? ' section-new-page' : ''}">
 			<h2>${i + 1}. ${s.title}</h2>
 			${s.body}
 		</div>`).join('\n')}
