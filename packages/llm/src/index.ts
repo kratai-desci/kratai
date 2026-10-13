@@ -14,3 +14,6 @@ export * from './dataModelExtraction.js';
 export * from './chatToolDefinitions.js';
 export * from './chatAboutArchitecture.js';
 export * from './projectWizard.js';
+export * from './mockupSchema.js';
+export * from './mockupKit.js';
+export * from './mockupGeneration.js';
