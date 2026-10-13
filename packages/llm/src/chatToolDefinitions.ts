@@ -59,8 +59,8 @@ export const CHAT_TOOL_DEFINITIONS: ToolDefinition[] = [
 			properties: {
 				view: {
 					type: 'string',
-					enum: ['graph', 'class', 'stack', 'usecase', 'data', 'srs'],
-					description: '"graph" = 3D Knowledge Graph, "class" = Class Diagram, "stack" = 3D Stack Layer, "usecase" = Use Case Model, "data" = Data Model, "srs" = the Spec document'
+					enum: ['graph', 'class', 'stack', 'usecase', 'data', 'srs', 'mockups'],
+					description: '"graph" = 3D Knowledge Graph, "class" = Class Diagram, "stack" = 3D Stack Layer, "usecase" = Use Case Model, "data" = Data Model, "srs" = the Spec document, "mockups" = the draft screens (Mockups view)'
 				}
 			},
 			required: ['view']
@@ -232,6 +232,17 @@ export const CHAT_TOOL_DEFINITIONS: ToolDefinition[] = [
 		}
 	},
 	{
+		name: 'create_mockup',
+		description: 'Design ONE draft screen (a mockup) of the product, from use cases of the spec, and save it in the Mockups view. Call it only when the user asks for a mockup, a wireframe or a screen. It spends the user\'s AI credit and takes about 30 seconds, so make at most two calls in one reply, and only for screens the user asked for. A mockup can serve several use cases and a use case can need several mockups: pass the use case ids the screen is for, and describe the screen in "instruction" (for example "the checkout page"). The mockup is designed in the project\'s shared look from the spec, the data model and the earlier mockups, so do not describe colours or styles.',
+		inputSchema: {
+			type: 'object',
+			properties: {
+				useCaseIds: { type: 'array', items: { type: 'string' }, description: 'Ids of the use cases (from the summary above) this screen serves.' },
+				instruction: { type: 'string', description: 'What the screen should show, in plain words.' }
+			}
+		}
+	},
+	{
 		name: 'generate_use_case_model',
 		description: 'Create a brand-new Use Case Model from scratch, extracted directly from the actual codebase - not from anything in this conversation. Only call this when none exists yet (the summary above will say so) and the user actually asked for one (e.g. "write up a spec", "generate a use case model") - never speculatively. Costs a real AI call, same as clicking Generate in the UI. If one already exists, use update_use_case_model to edit it instead - calling this again would be rejected. Takes no input.',
 		inputSchema: { type: 'object', properties: {} }
@@ -272,5 +283,5 @@ export const FILE_TOOL_NAMES = new Set(['read_file', 'list_directory']);
  */
 export const SPEC_TOOL_NAMES = new Set([
 	'update_srs_metadata', 'update_use_case_model', 'update_data_model',
-	'generate_use_case_model', 'generate_data_model'
+	'generate_use_case_model', 'generate_data_model', 'create_mockup'
 ]);

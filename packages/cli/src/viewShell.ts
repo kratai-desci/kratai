@@ -420,12 +420,12 @@ export function generateShellHTML(
 		// applyAiUiActions) but stay out of the manual picker for now.
 		var VIEW_OPTIONS = [
 			['srs', 'Spec'], ['usecase', 'Use Case Model'], ['data', 'Data Model'],
-			['class', 'Class Diagram'], ['progress', 'Progress']
+			['mockups', 'Mockups'], ['class', 'Class Diagram'], ['progress', 'Progress']
 		];
 		var SRC_BY_MODE = {
 			graph: '/knowledge-graph', class: '/class-diagram', stack: '/stack-layer',
 			usecase: '/use-case-diagram', data: '/data-model', progress: '/progress',
-			srs: '/srs-preview'
+			srs: '/srs-preview', mockups: '/mockups'
 		};
 
 		// 1440px sits above a typical embedded/paneled browser (e.g. Claude
@@ -726,6 +726,10 @@ export function generateShellHTML(
 			// A view's "Add detail with AI" button: put a ready-made request in the chat box
 			// (opening the chat if it is closed) for the user to read and send themselves.
 			if (e.data.command === 'prefillChat' && typeof e.data.text === 'string') prefillChat(e.data.text);
+			// A use case's "Create mockup" / a mockup chip: switch to the Mockups view (with that use case
+			// ticked in the Add dialog, or that mockup open in the viewer).
+			if (e.data.command === 'createMockup' && typeof e.data.useCaseId === 'string') showMockups('?uc=' + encodeURIComponent(e.data.useCaseId));
+			if (e.data.command === 'openMockups') showMockups(typeof e.data.mockupId === 'string' ? '?open=' + encodeURIComponent(e.data.mockupId) : '');
 		});
 
 		// ---- account: sign in with a kratai-web account for hosted AI
@@ -1175,6 +1179,13 @@ export function generateShellHTML(
 					input.disabled = false;
 					input.focus();
 				});
+		}
+
+		function showMockups(query) {
+			if (isWide()) { rightMode = 'mockups'; } else { narrowMode = 'mockups'; }
+			applyMode(); renderPickers(); saveLayout();
+			// applyMode only reloads a frame whose mode changed, so set the address (with the deep link) directly.
+			document.getElementById(isWide() ? 'frame-b' : 'frame-a').src = SRC_BY_MODE.mockups + (query || '');
 		}
 
 		function prefillChat(text) {

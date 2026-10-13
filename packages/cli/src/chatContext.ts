@@ -100,10 +100,14 @@ export function buildChatSummary(
 	diagramData: DiagramData,
 	workspaceName: string,
 	useCaseData: UseCaseDiagramData | undefined,
-	dataModelData: DataModelData | undefined
+	dataModelData: DataModelData | undefined,
+	mockups: { title: string; useCaseIds: string[] }[] = []
 ): string {
 	const noCode = diagramData.classes.length === 0
 		? '\n\nNOTE: This workspace has NO CODE yet - there is nothing to read or extract from. The user is starting from scratch.\n'
 		: '';
-	return buildUseCaseExtractionSummary(diagramData, workspaceName) + noCode + specSection(useCaseData, dataModelData);
+	const mockupLines = mockups.length > 0
+		? '\n\n### Mockups (draft screens, in the Mockups view)\n' + mockups.map((m, i) => `- Mockup ${i + 1} "${m.title}"${m.useCaseIds.length ? ` - serves: ${m.useCaseIds.join(', ')}` : ''}`).join('\n')
+		: '';
+	return buildUseCaseExtractionSummary(diagramData, workspaceName) + noCode + specSection(useCaseData, dataModelData) + mockupLines;
 }

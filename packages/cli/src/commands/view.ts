@@ -27,6 +27,11 @@ import { UI_ACTION_TOOL_NAMES, SPEC_TOOL_NAMES, FILE_TOOL_NAMES } from '@kratai-
 import type { ConversationMessage, ChatStepResult, NewProjectStep, SpecDetails } from '@kratai-desci/llm';
 import { NEW_PROJECT_STEPS, parseWizardChoices, buildProjectSpec, describeWizardOutcome } from '@kratai-desci/llm';
 import { generateNewProjectHTML } from '../newProjectView.js';
+import { generateMockupsHTML } from '../mockupsView.js';
+import { loadMockupData, saveMockupData, emptyMockupData, nextMockupId, writeMockupPage, rebuildMockupPages, readMockupFile, deleteMockupFiles, mockupImagePath, updateMockupTheme, isMockupId, MOCKUP_DIR } from '../mockupData.js';
+import type { MockupData, MockupItem } from '../mockupData.js';
+import type { MockupContext, MockupGenerateInput, MockupGenerateResult } from '@kratai-desci/llm';
+import { normalizeHexColor } from '@kratai-desci/llm';
 
 export interface AuthStatus {
 	signedIn: boolean;
@@ -117,6 +122,12 @@ export interface ViewOptions {
 	// billing). Its presence is also what enables the wizard - a project with no
 	// code, no spec and a signed-in user is sent to it instead of the shell.
 	newProjectAi?: (step: NewProjectStep, input: unknown) => Promise<unknown>;
+	// Designs one mockup screen: the desktop app relays to kratai-web (packages/desktop/src/main/mockupProxy.ts),
+	// which holds the model key and does the billing, the same way Generate and chat do.
+	generateMockup?: (input: MockupGenerateInput) => Promise<MockupGenerateResult>;
+	// Takes a picture of a mockup page (the desktop app loads `url` in a hidden window and writes a PNG to
+	// `outFile`) - the PDF documents embed that picture. Best effort: resolves false when it could not.
+	captureMockupImage?: (info: { url: string; outFile: string }) => Promise<boolean>;
 	// The desktop app's "is there a newer release?" check. Resolves to the
 	// newer version and the one running, or null when up to date, offline or
 	// unknown. The shell shows a dismissible bar for it.
@@ -144,6 +155,8 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	const signOutHook = options.signOut || (() => {});
 	const generateUseCaseDiagramHook = options.generateUseCaseDiagram;
 	const generateDataModelHook = options.generateDataModel;
+	const generateMockupHook = options.generateMockup;
+	const captureMockupImageHook = options.captureMockupImage;
 	const chatHook = options.chat;
 	const exportRequirementsPdfHook = options.exportRequirementsPdf;
 	const exportProgressPdfHook = options.exportProgressPdf;
@@ -175,6 +188,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// reused across requests/reparse, not regenerated on every reparse.
 	let useCaseData: UseCaseDiagramData | undefined = loadCachedUseCaseDiagramData(workspacePath);
 	let dataModelData: DataModelData | undefined = loadCachedDataModelData(workspacePath);
+	let mockupData: MockupData | undefined = loadMockupData(workspacePath, diagramName);
 	// Display history only (user/assistant text turns) - never the
 	// intermediate tool-call/tool-result messages a single /api/chat
 	// request builds up internally (see that handler's own `conversation`
@@ -299,7 +313,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	 */
 	async function runChatLoop(initialMessages: ConversationMessage[]): Promise<{ reply: string; uiActions: Array<{ type: string } & Record<string, unknown>> }> {
 		if (!chatHook) throw new Error('Chat is only available in the kratai desktop app.');
-		let summary = buildChatSummary(diagramData, diagramName, useCaseData, dataModelData);
+		let summary = buildChatSummary(diagramData, diagramName, useCaseData, dataModelData, mockupSummaries());
 		const conversation: ConversationMessage[] = [...initialMessages];
 		const uiActions: Array<{ type: string } & Record<string, unknown>> = [];
 		const MAX_TOOL_ITERATIONS = 20;
@@ -334,8 +348,14 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 								if (diagramData.classes.length === 0) throw new Error(NO_CODE_MESSAGE);
 								return generateDataModelHook(buildDataModelExtractionSummary(diagramData, diagramName), diagramName);
 							}
-							: undefined
+							: undefined,
+						createMockup: generateMockupHook ? request => inMockupQueue(() => createMockup(request.useCaseIds, request.instruction ?? '')) : undefined
 					});
+					if (call.name === 'create_mockup') {
+						// The new mockup shows in the Mockups view, on the use case's popup and in the Spec.
+						uiActions.push({ type: 'refresh_view', view: 'mockups' }, { type: 'refresh_view', view: 'usecase' }, { type: 'refresh_view', view: 'srs' });
+						specChanged = true;
+					}
 					if (result.updatedUseCaseData) {
 						useCaseData = result.updatedUseCaseData;
 						saveCachedUseCaseDiagramData(workspacePath, useCaseData);
@@ -358,7 +378,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 				toolResults.push({ toolCallId: call.id, output: executeChatTool(call.name, call.input, diagramData) });
 			}
 			conversation.push({ role: 'user', toolResults });
-			if (specChanged) summary = buildChatSummary(diagramData, diagramName, useCaseData, dataModelData);
+			if (specChanged) summary = buildChatSummary(diagramData, diagramName, useCaseData, dataModelData, mockupSummaries());
 		}
 		// Ran out of tool budget. A follow-up call with allowTools:false
 		// looked like the obvious fix, but testing showed Gemini doesn't
@@ -481,7 +501,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	// description/nfrs - see useCaseExtraction.ts's prompt) or the real
 	// "sign in / generate" empty-state card.
 	function renderUseCaseDiagram(): string {
-		if (useCaseData) return generateUseCaseDiagramHTML(visibleSpec(useCaseData));
+		if (useCaseData) return generateUseCaseDiagramHTML(visibleSpec(useCaseData), mockupSummaries());
 		return generateUseCaseDiagramEmptyHTML(getAuthStatus().signedIn, diagramData.classes.length > 0);
 	}
 	// Real data or the real "sign in / generate" empty-state card - same
@@ -510,11 +530,95 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			asOf: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 		});
 	}
+	// ---- Mockups ----
+	// What the pages that mention mockups (the use case popup, the SRS) are told about them.
+	function mockupSummaries() {
+		return (mockupData?.mockups ?? []).map(m => ({ id: m.id, title: m.title, useCaseIds: m.useCaseIds, hasImage: !!m.image && fs.existsSync(mockupImagePath(workspacePath, m.id)) }));
+	}
+	function renderMockups(): string {
+		const spec = useCaseData ? visibleSpec(useCaseData) : undefined;
+		const blocked = !spec ? 'no-spec' : !generateMockupHook ? 'no-ai' : !getAuthStatus().signedIn ? 'signin' : '';
+		const actorsOf = (ucId: string) => (spec?.associations ?? []).filter(a => a.useCaseId === ucId).map(a => spec!.actors.find(x => x.id === a.actorId)?.name.replace(/\n/g, ' ')).filter((n): n is string => !!n);
+		const theme = mockupData?.theme ?? emptyMockupData(diagramName, spec?.systemName || diagramName).theme;
+		return generateMockupsHTML({
+			systemName: spec?.systemName || diagramName,
+			blocked,
+			useCases: (spec?.useCases ?? []).map((u, i) => ({ id: u.id, number: i + 1, name: u.name.replace(/\n/g, ' '), actors: actorsOf(u.id), detailed: !!(u.mainFlow && u.mainFlow.length) })),
+			mockups: (mockupData?.mockups ?? []).map(m => ({ id: m.id, title: m.title, description: m.description ?? '', useCaseIds: m.useCaseIds, createdAt: m.createdAt })),
+			theme
+		});
+	}
+	function buildMockupContext(spec: UseCaseDiagramData): MockupContext {
+		return {
+			systemName: spec.systemName || diagramName,
+			overview: spec.overview,
+			actors: spec.actors,
+			useCases: spec.useCases,
+			associations: spec.associations,
+			nfrs: spec.nfrs ?? [],
+			entities: dataModelData?.entities ?? [],
+			sampleData: mockupData?.sampleData,
+			existingMockups: (mockupData?.mockups ?? []).map(m => ({ id: m.id, title: m.title, useCaseIds: m.useCaseIds }))
+		};
+	}
+	// One mockup request at a time: each one reads and then rewrites the shared list, the shared sample data and
+	// the shared menus, so two at once could clash on an id or lose one of them.
+	let lastHost = 'localhost';
+	let mockupQueue: Promise<unknown> = Promise.resolve();
+	function inMockupQueue<T>(job: () => Promise<T>): Promise<T> {
+		const run = mockupQueue.then(job, job);
+		mockupQueue = run.catch(() => undefined);
+		return run;
+	}
+	// Designs, saves and pictures one mockup. The caller holds the queue (inMockupQueue). Used by the Add dialog's route
+	// and by the chat's create_mockup tool.
+	async function createMockup(rawUseCaseIds: string[], rawInstruction: string): Promise<{ id: string; title: string; number: number; item: MockupItem }> {
+		if (!generateMockupHook) throw new Error('Mockups can only be designed in the kratai desktop app.');
+		if (!useCaseData) throw new Error('Create the use cases first: a mockup is designed from them.');
+		const spec = visibleSpec(useCaseData);
+		const useCaseIds = rawUseCaseIds.filter(id => spec.useCases.some(u => u.id === id)).slice(0, 20);
+		const instruction = rawInstruction.trim().slice(0, 600);
+		if (useCaseIds.length === 0 && !instruction) throw new Error('Choose at least one use case, or describe the screen.');
+
+		const data = mockupData ?? emptyMockupData(diagramName, spec.systemName || diagramName);
+		const result = await generateMockupHook({
+			context: buildMockupContext(spec),
+			request: { useCaseIds, ...(instruction ? { instruction } : {}) },
+			theme: data.theme
+		});
+
+		// The actor whose screen it is: the model's pick, else the only actor of the first use case.
+		const ownersOfFirst = spec.associations.filter(a => a.useCaseId === useCaseIds[0]).map(a => a.actorId);
+		const actorId = result.screen.actorId ?? (ownersOfFirst.length === 1 ? ownersOfFirst[0] : undefined);
+		const id = nextMockupId(data.mockups);
+		const item: MockupItem = {
+			id, title: result.screen.title, ...(result.screen.description ? { description: result.screen.description } : {}),
+			useCaseIds, ...(actorId ? { actorId } : {}), file: `${MOCKUP_DIR}/${id}.html`, createdAt: new Date().toISOString()
+		};
+		const next: MockupData = { ...data, ...(result.sampleData ? { sampleData: result.sampleData } : {}), mockups: [...data.mockups, item] };
+		writeMockupPage(workspacePath, spec, next, item, result.screen.bodyHtml);
+		// The new mockup is something the others' menus can now link to.
+		rebuildMockupPages(workspacePath, spec, next);
+		mockupData = next;
+		await captureMockups(lastHost, [item]);
+		saveMockupData(workspacePath, next);
+		return { id, title: item.title, number: next.mockups.length, item };
+	}
+	// Retakes the picture of one mockup (or all of them). Best effort - a missing picture only means the PDF
+	// documents skip that mockup.
+	async function captureMockups(host: string, items: MockupItem[]): Promise<void> {
+		if (!captureMockupImageHook || !mockupData) return;
+		for (const m of items) {
+			const ok = await captureMockupImageHook({ url: `http://${host}/mockups/${m.id}.html`, outFile: mockupImagePath(workspacePath, m.id) }).catch(() => false);
+			if (ok) m.image = `${MOCKUP_DIR}/${m.id}.png`; else delete m.image;
+		}
+	}
+
 	// Real data only, same pattern as renderUseCaseDiagram() - this doc is
 	// built entirely from the Use Case Model, so it has nothing to show
 	// until that's been generated for real.
 	function renderRequirementsDoc(): string {
-		if (useCaseData) return generateSrsDocHTML(visibleSpec(useCaseData), dataModelData);
+		if (useCaseData) return generateSrsDocHTML(visibleSpec(useCaseData), dataModelData, mockupSummaries());
 		return generateSrsEmptyHTML(getAuthStatus().signedIn, diagramData.classes.length > 0);
 	}
 
@@ -820,6 +924,76 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		if (req.method === 'POST' && req.url === '/api/new-project/skip') {
 			newProjectDismissed = true;
 			sendJson(res, 200, { ok: true });
+			return;
+		}
+		// ---- Mockups ----
+		const urlPath = (req.url || '').split('?')[0];
+		if (req.headers.host) lastHost = req.headers.host;
+		if (req.method === 'GET' && /^\/mockups\/[a-z0-9-]+\.(html|png)$/.test(urlPath)) {
+			const [, id, kind] = /^\/mockups\/([a-z0-9-]+)\.(html|png)$/.exec(urlPath)!;
+			const file = readMockupFile(workspacePath, id, kind as 'html' | 'png');
+			if (!file) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('No such mockup.'); return; }
+			res.writeHead(200, {
+				'Content-Type': kind === 'png' ? 'image/png' : 'text/html; charset=utf-8',
+				'X-Content-Type-Options': 'nosniff',
+				// A mockup is inert whatever it holds: no scripts, no network, no frames (the page also carries this itself).
+				...(kind === 'html' ? { 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; base-uri 'none'; form-action 'none'" } : {})
+			});
+			res.end(file);
+			return;
+		}
+		if (req.method === 'POST' && urlPath === '/api/mockups/generate') {
+			(async () => {
+				try {
+					await inMockupQueue(async () => {
+						const body = await readJsonBody(req) as { useCaseIds?: unknown; instruction?: unknown };
+						const useCaseIds = (Array.isArray(body.useCaseIds) ? body.useCaseIds : []).filter((id): id is string => typeof id === 'string');
+						const instruction = typeof body.instruction === 'string' ? body.instruction : '';
+						const made = await createMockup(useCaseIds, instruction);
+						sendJson(res, 200, { ok: true, mockup: made.item });
+					});
+				} catch (error) {
+					sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
+				}
+			})();
+			return;
+		}
+		if (req.method === 'POST' && urlPath === '/api/mockups/delete') {
+			handleJsonPost<{ id?: unknown }>(req, res, payload => {
+				if (!mockupData || !isMockupId(payload.id) || !mockupData.mockups.some(m => m.id === payload.id)) throw new Error('That mockup no longer exists.');
+				const id = payload.id;
+				deleteMockupFiles(workspacePath, id);
+				mockupData = { ...mockupData, mockups: mockupData.mockups.filter(m => m.id !== id) };
+				if (useCaseData) rebuildMockupPages(workspacePath, visibleSpec(useCaseData), mockupData);
+				saveMockupData(workspacePath, mockupData);
+			});
+			return;
+		}
+		if (req.method === 'POST' && urlPath === '/api/mockups/theme') {
+			(async () => {
+				try {
+					await inMockupQueue(async () => {
+						if (!mockupData || !useCaseData) throw new Error('There are no mockups yet.');
+						const body = await readJsonBody(req) as { appName?: unknown; primary?: unknown; mode?: unknown };
+						mockupData = updateMockupTheme(mockupData, {
+							...(typeof body.appName === 'string' && body.appName.trim() ? { appName: body.appName.trim().slice(0, 60) } : {}),
+							...(typeof body.primary === 'string' ? { primary: normalizeHexColor(body.primary, mockupData.theme.primary) } : {}),
+							...(body.mode === 'dark' || body.mode === 'light' ? { mode: body.mode } : {})
+						});
+						rebuildMockupPages(workspacePath, visibleSpec(useCaseData), mockupData);
+						await captureMockups(lastHost, mockupData.mockups);
+						saveMockupData(workspacePath, mockupData);
+						sendJson(res, 200, { ok: true });
+					});
+				} catch (error) {
+					sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
+				}
+			})();
+			return;
+		}
+		if (req.method === 'GET' && urlPath === '/mockups') {
+			res.writeHead(200, { 'Content-Type': 'text/html' });
+			res.end(renderMockups());
 			return;
 		}
 		const html = req.url === '/class-diagram' ? renderClassDiagram()
