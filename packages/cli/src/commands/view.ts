@@ -25,8 +25,9 @@ import { buildChatSummary } from '../chatContext.js';
 import { loadCachedChatHistory, saveCachedChatHistory } from '../chatHistoryData.js';
 import { UI_ACTION_TOOL_NAMES, SPEC_TOOL_NAMES, FILE_TOOL_NAMES } from '@kratai-desci/llm';
 import type { ConversationMessage, ChatStepResult, NewProjectStep, SpecDetails } from '@kratai-desci/llm';
-import { NEW_PROJECT_STEPS, parseWizardChoices, buildProjectSpec, describeWizardOutcome } from '@kratai-desci/llm';
+import { NEW_PROJECT_STEPS, parseWizardChoices, buildProjectSpec, describeWizardOutcome, MAX_DOCUMENT_CHARS } from '@kratai-desci/llm';
 import { generateNewProjectHTML } from '../newProjectView.js';
+import { extractDocumentText, DocumentError } from '../documentText.js';
 
 export interface AuthStatus {
 	signedIn: boolean;
@@ -441,10 +442,13 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			// leaves useCaseData empty - the wizard must not offer to overwrite it.
 			&& !hasCachedUseCaseDiagramData(workspacePath);
 	}
-	function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
+	function readJsonBody(req: http.IncomingMessage, maxBytes = 5_000_000): Promise<unknown> {
 		return new Promise((resolve, reject) => {
 			let body = '';
-			req.on('data', chunk => { body += chunk; });
+			req.on('data', chunk => {
+				body += chunk;
+				if (body.length > maxBytes) { reject(new Error('That request is too large.')); req.destroy(); }
+			});
 			req.on('end', () => { try { resolve(JSON.parse(body || '{}')); } catch (error) { reject(error); } });
 			req.on('error', reject);
 		});
@@ -779,6 +783,23 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 					sendJson(res, 200, { ok: true, data: await options.newProjectAi(step as NewProjectStep, input) });
 				} catch (error) {
 					sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
+				}
+			})();
+			return;
+		}
+		// A document the user adds in the wizard: read to plain text here, on their computer. Only the text is
+		// ever sent on (by the wizard's AI steps), and only when they continue.
+		if (req.method === 'POST' && req.url === '/api/new-project/document') {
+			(async () => {
+				try {
+					if (!wizardApplies()) throw new Error('Documents can only be added while setting up a new project.');
+					const body = (await readJsonBody(req, 40_000_000)) as { name?: unknown; data?: unknown };
+					const name = typeof body.name === 'string' ? body.name.slice(0, 200) : '';
+					const bytes = Buffer.from(typeof body.data === 'string' ? body.data : '', 'base64');
+					const text = (await extractDocumentText(name, bytes)).slice(0, MAX_DOCUMENT_CHARS);
+					sendJson(res, 200, { ok: true, text });
+				} catch (error) {
+					sendJson(res, 400, { ok: false, error: error instanceof DocumentError || error instanceof Error ? error.message : 'Could not read that file.' });
 				}
 			})();
 			return;

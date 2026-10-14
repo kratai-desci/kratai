@@ -62,11 +62,23 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 	#stage h2 { margin: 4px 0 4px; font-size: 18px; }
 	#stage .sub { margin: 0 0 16px; color: var(--text-dim); font-size: 13.5px; line-height: 1.55; }
 	label.field { display: block; margin-bottom: 15px; }
+	div.field { margin-bottom: 15px; }
 	.field .label { display: block; font-size: 12.5px; font-weight: 650; margin-bottom: 6px; }
 	.field .hint { display: block; font-size: 12px; color: var(--text-faint); margin-top: 5px; }
 	.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 	@media (max-width: 520px) { .row2 { grid-template-columns: 1fr; gap: 0; } }
 	.fieldnote { margin: -6px 0 15px; font-size: 12px; color: var(--text-faint); }
+	.dropzone { border: 1.5px dashed var(--border); border-radius: 10px; padding: 14px; text-align: center; color: var(--text-dim); font-size: 13px; background: var(--surface); }
+	.dropzone.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+	.dropzone .btn { padding: 5px 12px; font-size: 12.5px; margin-left: 6px; }
+	.doclist { margin: 8px 0 0; padding: 0; list-style: none; }
+	.doclist li { display: flex; align-items: center; gap: 10px; font-size: 12.5px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; background: var(--surface); }
+	.doclist .dn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.doclist .dc { color: var(--text-faint); white-space: nowrap; }
+	.doclist button { border: none; background: none; color: var(--text-faint); font-size: 16px; cursor: pointer; line-height: 1; }
+	.doclist button:hover { color: var(--accent); }
+	.docwarn { color: #C87A17; font-size: 12.5px; margin-top: 6px; }
+	.docerr { color: #D6455B; font-size: 12.5px; margin-top: 6px; }
 	textarea, input[type="text"] { width: 100%; font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; outline: none; }
 	textarea { min-height: 88px; resize: vertical; line-height: 1.5; }
 	textarea:focus, input[type="text"]:focus { border-color: var(--accent); }
@@ -146,7 +158,7 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 	// actors / nfrs stay null until the AI (or "continue without suggestions")
 	// fills them; useCases is keyed by actor name. Items added by the user carry
 	// mine: true so a regenerated suggestion list does not drop them.
-	var state = { step: 0, ucIndex: 0, name: PROJECT, what: '', who: '', company: '', client: '', actors: null, actorsSig: null, useCases: {}, nfrs: null, loading: null, creating: null, error: null };
+	var state = { step: 0, ucIndex: 0, name: PROJECT, what: '', who: '', company: '', client: '', docs: [], docsBusy: 0, docsError: '', actors: null, actorsSig: null, useCases: {}, nfrs: null, loading: null, creating: null, error: null };
 
 	function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 	function chosenActors() { return (state.actors || []).filter(function (a) { return a.on; }); }
@@ -163,13 +175,58 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 	}
 	function grid(html) { return '<div class="grid">' + html + '</div>'; }
 
+	// ---- Documents the user adds: read on this computer (see /api/new-project/document), only the text is sent on ----
+	var MAX_DOC_CHARS = 100000;
+	function docBlock(d) { return '=== ' + d.name + ' ===\\n' + d.text; }
+	function docsRaw() { return state.docs.map(docBlock).join('\\n\\n'); }
+	function docsText() { return docsRaw().slice(0, MAX_DOC_CHARS); }
+	function docsSig() { return state.docs.map(function (d) { return d.name + ':' + d.text.length; }).join(','); }
+	function fmt(n) { return String(n).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ','); }
+	function docsField() {
+		var total = docsRaw().length;
+		var list = state.docs.length ? '<ul class="doclist">' + state.docs.map(function (d, i) {
+			return '<li><span class="dn">' + esc(d.name) + '</span><span class="dc">' + fmt(d.text.length) + ' characters</span><button type="button" data-action="remove-doc" data-idx="' + i + '" title="Remove">&times;</button></li>';
+		}).join('') + '</ul>' : '';
+		return '<div class="field"><span class="label">Documents <span style="font-weight:400;color:var(--text-faint)">(optional)</span></span>' +
+			'<div class="dropzone" id="docs-drop">' + (state.docsBusy ? 'Reading ' + state.docsBusy + ' file' + (state.docsBusy === 1 ? '' : 's') + '&hellip;' : 'Drop your requirements, user stories or notes here, or <button type="button" class="btn" data-action="pick-docs">Choose files</button>') +
+			'<input type="file" id="docs-input" multiple accept=".pdf,.docx,.md,.markdown,.txt" style="display:none"></div>' + list +
+			(total > MAX_DOC_CHARS ? '<div class="docwarn">Only the first ' + fmt(MAX_DOC_CHARS) + ' characters will be used; the last ' + fmt(total - MAX_DOC_CHARS) + ' are left out.</div>' : '') +
+			(state.docsError ? '<div class="docerr">' + esc(state.docsError) + '</div>' : '') +
+			'<span class="hint">PDF, Word (.docx), Markdown or plain text, up to ' + fmt(MAX_DOC_CHARS) + ' characters in total. Files are read on your computer; the text is then sent through kratai.com to the AI to suggest your actors, use cases and requirements, and uses AI credit.</span></div>';
+	}
+	function addDocFiles(files) {
+		var list = Array.prototype.slice.call(files || []);
+		if (!list.length) return;
+		state.docsError = '';
+		state.docsBusy += list.length;
+		render(false);
+		list.forEach(function (file) {
+			new Promise(function (resolve, reject) {
+				var r = new FileReader();
+				r.onload = function () { resolve(String(r.result).split(',')[1] || ''); };
+				r.onerror = function () { reject(new Error('Could not read ' + file.name + '.')); };
+				r.readAsDataURL(file);
+			}).then(function (b64) {
+				return api('/api/new-project/document', { name: file.name, data: b64 });
+			}).then(function (j) {
+				if (!state.docs.some(function (d) { return d.name === file.name && d.text.length === j.text.length; })) state.docs.push({ name: file.name, text: j.text });
+			}).catch(function (e) {
+				state.docsError = file.name + ': ' + e.message;
+			}).then(function () {
+				state.docsBusy--;
+				if (state.step === 0 && !state.loading && !state.creating && !state.error) render(false);
+			});
+		});
+	}
+
 	function stepOverview() {
 		return '<h2>Tell us about your project</h2><p class="sub">A few sentences is enough - this is what the AI uses to suggest everything that follows.</p>' +
 			'<label class="field"><span class="label">Project name</span><input type="text" id="name" value="' + esc(state.name) + '"><span class="hint">Used as the title of your spec. You can change it later in chat.</span></label>' +
 			'<div class="row2"><label class="field"><span class="label">Your company</span><input type="text" id="company" value="' + esc(state.company) + '" placeholder="Acme Studio"></label>' +
 			'<label class="field"><span class="label">Client</span><input type="text" id="client" value="' + esc(state.client) + '" placeholder="Pony Club Ltd"></label></div>' +
 			'<p class="hint fieldnote">Optional. They appear on the cover of your spec and progress report as "Prepared by" and "Client".</p>' +
-			'<label class="field"><span class="label">What is it?</span><textarea id="what" placeholder="A web app where housemates share chores and keep track of whose turn it is.">' + esc(state.what) + '</textarea></label>' +
+			docsField() +
+			'<label class="field"><span class="label">What is it?' + (state.docs.length ? ' <span style="font-weight:400;color:var(--text-faint)">(optional with documents)</span>' : '') + '</span><textarea id="what" placeholder="A web app where housemates share chores and keep track of whose turn it is.">' + esc(state.what) + '</textarea></label>' +
 			'<label class="field"><span class="label">Who will use it, and what problem does it solve?</span><textarea id="who" placeholder="Housemates who keep forgetting whose turn it is, which causes arguments.">' + esc(state.who) + '</textarea><span class="hint">Optional, but it makes the suggestions better.</span></label>';
 	}
 	function stepActors() {
@@ -199,7 +256,8 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 	function stepReview() {
 		var actors = chosenActors();
 		var html = '<div class="review"><h2>Review</h2><p class="sub">This is what the first draft of your spec will be built from.</p>';
-		html += '<h3>Overview</h3><p>' + esc(state.what) + '</p>' + (state.who ? '<p>' + esc(state.who) + '</p>' : '');
+		html += '<h3>Overview</h3>' + (state.what.trim() ? '<p>' + esc(state.what) + '</p>' : '') + (state.who ? '<p>' + esc(state.who) + '</p>' : '');
+		if (state.docs.length) html += '<p class="fieldnote" style="margin:0 0 10px">Based on your documents: ' + state.docs.map(function (d) { return esc(d.name); }).join(', ') + '</p>';
 		html += '<h3>Actors and use cases</h3>';
 		actors.forEach(function (a) {
 			var ucs = chosenUcs(a);
@@ -224,6 +282,7 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 	function actorPayload(list) { return list.map(function (a) { return { name: a.name, description: a.desc, kind: a.kind }; }); }
 	function payload(step) {
 		var body = { name: state.name.trim(), what: state.what.trim(), who: state.who.trim(), company: state.company.trim(), client: state.client.trim() };
+		if (state.docs.length) body.documents = docsText();
 		if (step === 'use-cases') body.actors = actorPayload(missingUseCaseActors());
 		else if (step !== 'actors') {
 			body.actors = actorPayload(chosenActors());
@@ -233,7 +292,7 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 		}
 		return body;
 	}
-	function actorsSig() { return state.name.trim() + '|' + state.what.trim() + '|' + state.who.trim(); }
+	function actorsSig() { return state.name.trim() + '|' + state.what.trim() + '|' + state.who.trim() + '|' + docsSig(); }
 
 	// What each step shows while the AI works on it.
 	var LOADING = {
@@ -342,7 +401,7 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 		}
 	}
 	function canContinue() {
-		if (state.step === 0) return state.what.trim().length > 0;
+		if (state.step === 0) return state.what.trim().length > 0 || (state.docs.length > 0 && state.docsBusy === 0);
 		if (state.step === 1) return chosenActors().length > 0;
 		if (state.step === 2) return state.ucIndex < chosenActors().length - 1 || totalUcs() > 0;
 		return true;
@@ -387,6 +446,8 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 		if (a === 'next') { if (goNext()) enter(); else render(true); }
 		else if (a === 'back') { goBack(); render(true); }
 		else if (a === 'create') create();
+		else if (a === 'pick-docs') { var inp = document.getElementById('docs-input'); if (inp) inp.click(); }
+		else if (a === 'remove-doc') { state.docs.splice(+t.getAttribute('data-idx'), 1); render(false); }
 		else if (a === 'retry') state.error.retry();
 		else if (a === 'skip-suggestions') state.error.skip();
 		else if (a === 'skip') { api('/api/new-project/skip', {}).then(function () { location.href = '/'; }, function () { location.href = '/'; }); }
@@ -426,6 +487,21 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 	});
 	card.addEventListener('keydown', function (e) {
 		if ((e.key === ' ' || e.key === 'Enter') && e.target.classList && e.target.classList.contains('opt')) { e.preventDefault(); toggleOpt(e.target); }
+	});
+	card.addEventListener('change', function (e) {
+		if (e.target.id === 'docs-input') { addDocFiles(e.target.files); }
+	});
+	card.addEventListener('dragover', function (e) {
+		var z = e.target.closest ? e.target.closest('#docs-drop') : null;
+		if (z) { e.preventDefault(); z.classList.add('over'); }
+	});
+	card.addEventListener('dragleave', function (e) {
+		var z = e.target.closest ? e.target.closest('#docs-drop') : null;
+		if (z) z.classList.remove('over');
+	});
+	card.addEventListener('drop', function (e) {
+		var z = e.target.closest ? e.target.closest('#docs-drop') : null;
+		if (z) { e.preventDefault(); z.classList.remove('over'); addDocFiles(e.dataTransfer && e.dataTransfer.files); }
 	});
 	card.addEventListener('input', function (e) {
 		if (e.target.id === 'name') state.name = e.target.value;

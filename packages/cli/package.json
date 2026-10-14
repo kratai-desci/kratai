@@ -28,9 +28,10 @@
     "start": "node ./out/cli.mjs"
   },
   "dependencies": {
+    "@kratai-desci/llm": "*",
     "@kratai/analysis": "*",
     "@kratai/diagram-view": "*",
-    "@kratai-desci/llm": "*"
+    "unpdf": "^1.8.1"
   },
   "devDependencies": {
     "@types/node": "22.x",
