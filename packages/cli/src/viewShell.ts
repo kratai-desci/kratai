@@ -456,9 +456,16 @@ export function generateShellHTML(
 				})
 			}).catch(function () {});
 		}
-		var leftMode = storedLayout.leftMode || 'srs';
-		var rightMode = storedLayout.rightMode || 'class';
-		var narrowMode = storedLayout.narrowMode || 'srs';
+		// A saved view that no longer exists (one removed in a later release) must not be used: its frame address
+		// would be nonsense, and the server answers an unknown address with this whole page, nesting the app
+		// inside itself. Anything unknown falls back to the default.
+		function knownMode(mode, fallback, allowNone) {
+			if (allowNone && mode === 'none') return mode;
+			return typeof mode === 'string' && Object.prototype.hasOwnProperty.call(SRC_BY_MODE, mode) ? mode : fallback;
+		}
+		var leftMode = knownMode(storedLayout.leftMode, 'srs', true);
+		var rightMode = knownMode(storedLayout.rightMode, 'class', true);
+		var narrowMode = knownMode(storedLayout.narrowMode, 'srs', false);
 		// What each generic frame is currently showing - drives which
 		// content-specific fixups (see applyFrameFixups) apply on load, and
 		// which frames a folder-config-changed message should reload.
@@ -472,6 +479,7 @@ export function generateShellHTML(
 		// (which call applyMode on every breakpoint crossing) don't reload an
 		// iframe that's already showing the right thing.
 		function setFrameMode(frameId, mode) {
+			if (!Object.prototype.hasOwnProperty.call(SRC_BY_MODE, mode)) return;
 			if (frameKind[frameId] === mode) return;
 			frameKind[frameId] = mode;
 			document.getElementById(frameId).src = SRC_BY_MODE[mode];
