@@ -59,7 +59,6 @@ const SECTION = {
 	actors: { title: 'Actors', intro: 'The following actors were identified as participants in the system.' },
 	useCases: { title: 'Use cases', intro: 'Each use case below describes one capability the system provides, along with any requirements specific to it.' },
 	nfrs: { title: 'Project-wide non-functional requirements', intro: 'The following non-functional requirements apply across the whole system, rather than to any single use case.' },
-	mockups: { title: 'Mockups', intro: 'Draft screens of the product, designed from the use cases and the data model above. They show what the product is meant to do, not its final design.' },
 	dataModel: { title: 'Data model', intro: "This section describes the system's core data entities and how they relate to one another." }
 };
 
@@ -157,8 +156,6 @@ export const SRS_PAGE_CSS = `${DOC_STYLE}
 	.diagram-wrap.uc-figure-half svg { max-height: calc((100vh - 330px) / 2); }
 	.diagram-wrap.uc-figure-tall svg { max-height: calc(100vh - 260px); }
 	.uc-figure + .uc-figure { margin-top: 22px; }
-	.mockup-figure + .mockup-figure { margin-top: 22px; }
-	.mockup-figure img { display: block; width: auto; max-width: 100%; max-height: calc((100vh - 330px) / 2); margin: 0 auto; border: 1px solid var(--border); border-radius: 6px; }
 	.diagram-wrap figcaption {
 		margin-top: 10px; text-align: center; font-size: 11.5px; font-style: italic; color: var(--text-faint);
 	}
@@ -375,9 +372,7 @@ const ABOUT_DOC_TEXT = "This Software Requirements Specification (SRS) describes
  * its section only appears when there's actually something in it, same
  * skip-empty-sections rule as Overview/Project-wide NFRs below.
  */
-export interface SrsMockup { id: string; title: string; useCaseIds: string[]; hasImage: boolean; }
-
-export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelData?: DataModelData, mockups: SrsMockup[] = []): string {
+export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelData?: DataModelData): string {
 	const diagrams = buildDocumentDiagrams(useCaseData);
 
 	const nfrInfo = numberNfrs(useCaseData);
@@ -426,22 +421,6 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 			</div>`).join('\n') + (dataModelData.relationships.length > 0
 				? `<ul>${dataModelData.relationships.map(r => `<li>${escapeXml(entityName(r.fromId))} &rarr; ${escapeXml(entityName(r.toId))} (${escapeXml(r.kind)}${r.label ? ` - ${escapeXml(r.label)}` : ''})</li>`).join('\n')}</ul>`
 				: '')
-		});
-	}
-
-	// Mockups: the draft screens, as the pictures taken when each was made. A mockup with no picture
-	// (it could not be captured) is left out of the document rather than shown as a gap.
-	const printable = mockups.map((m, i) => ({ m, number: i + 1 })).filter(x => x.m.hasImage);
-	if (printable.length > 0) {
-		const ucLabel = (id: string) => { const i = useCaseData.useCases.findIndex(u => u.id === id); return i === -1 ? '' : `UC-${i + 1}`; };
-		const firstFigure = diagrams.figures.length + (dataModelData && dataModelData.entities.length > 0 ? 1 : 0) + 1;
-		sections.push({
-			title: SECTION.mockups.title,
-			body: `<p class="section-intro">${SECTION.mockups.intro}</p>` +
-				printable.map((x, i) => {
-					const serves = x.m.useCaseIds.map(ucLabel).filter(Boolean).join(', ');
-					return `<figure class="diagram-wrap mockup-figure"><img src="/mockups/${escapeXml(x.m.id)}.png" alt="${escapeXml(x.m.title)}"><figcaption>Figure ${firstFigure + i}: Mockup ${x.number}: ${escapeXml(x.m.title)}${serves ? ` (${serves})` : ''}</figcaption></figure>`;
-				}).join('')
 		});
 	}
 

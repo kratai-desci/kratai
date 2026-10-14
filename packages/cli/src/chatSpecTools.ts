@@ -105,22 +105,6 @@ export interface SpecToolGenerators {
 	workspaceName?: string;
 	generateUseCaseModel?: () => Promise<UseCaseDiagramData>;
 	generateDataModel?: () => Promise<DataModelData>;
-	// Designs and saves one mockup (see view.ts's createMockup); resolves to what the model is told about it.
-	createMockup?: (request: { useCaseIds: string[]; instruction?: string }) => Promise<{ id: string; title: string; number: number }>;
-}
-
-async function createMockupTool(input: Record<string, unknown>, useCaseData: UseCaseDiagramData | undefined, create: SpecToolGenerators['createMockup']): Promise<SpecToolResult> {
-	if (!useCaseData) return { output: 'No Use Case Model exists yet - create the use cases first; a mockup is designed from them.' };
-	if (!create) return { output: 'Mockups can only be designed in the kratai desktop app.' };
-	const useCaseIds = (Array.isArray(input.useCaseIds) ? input.useCaseIds : []).filter((id): id is string => typeof id === 'string' && useCaseData.useCases.some(u => u.id === id));
-	const instruction = typeof input.instruction === 'string' ? input.instruction.trim() : '';
-	if (useCaseIds.length === 0 && !instruction) return { output: 'Pass the ids of the use cases this screen serves, or describe the screen in "instruction".' };
-	try {
-		const made = await create({ useCaseIds, ...(instruction ? { instruction } : {}) });
-		return { output: `Created Mockup ${made.number}, "${made.title}", in the Mockups view. Tell the user it is there; do not describe its contents in detail.` };
-	} catch (error) {
-		return { output: `Could not design the mockup: ${error instanceof Error ? error.message : String(error)}` };
-	}
 }
 
 async function generateUseCaseModelTool(useCaseData: UseCaseDiagramData | undefined, generate: SpecToolGenerators['generateUseCaseModel']): Promise<SpecToolResult> {
@@ -174,8 +158,6 @@ export async function executeSpecTool(
 			return generateUseCaseModelTool(useCaseData, generators.generateUseCaseModel);
 		case 'generate_data_model':
 			return generateDataModelTool(dataModelData, generators.generateDataModel);
-		case 'create_mockup':
-			return createMockupTool(input, useCaseData, generators.createMockup);
 		default:
 			return { output: `Unknown tool: ${name}` };
 	}

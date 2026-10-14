@@ -6,7 +6,6 @@ import { addRecentWorkspace, listRecentWorkspaces } from './workspaceStore.js';
 import { getLayout, saveLayout } from './layoutStore.js';
 import { startSignIn, handleAuthCallback, getAuthStatus, signOut, setSessionExpiredHandler, KRATAI_WEB_URL } from './auth.js';
 import { generateUseCaseDiagram, generateDataModel } from './generateProxy.js';
-import { generateMockup, captureMockupImage } from './mockupProxy.js';
 import { chatStep } from './chatProxy.js';
 import { getBalanceCents } from './balanceProxy.js';
 import { getWelcomeHTML, getSignInHTML, getLoadingHTML, getGeneratePromptHTML } from './welcomeScreen.js';
@@ -269,8 +268,6 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 			signOut: () => { signOut(); showWelcomeAfterSignIn = true; setTimeout(() => showSignInGate(), 0); },
 			generateUseCaseDiagram,
 			generateDataModel,
-			generateMockup,
-			captureMockupImage,
 			chat: chatStep,
 			getBalance: getBalanceCents,
 			newProjectAi: (step, input) => runNewProjectStep(step, input, path.basename(workspacePath)),

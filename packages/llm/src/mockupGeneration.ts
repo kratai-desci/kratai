@@ -4,7 +4,7 @@ import type { UseCaseActor, UseCaseItem, UseCaseNFR } from './useCaseSchema.js';
 import type { DataEntity } from './dataModelSchema.js';
 import { parseJson } from './useCaseExtraction.js';
 import { MOCKUP_KIT_REFERENCE } from './mockupKit.js';
-import { validateSampleData, normalizeHexColor, type MockupTheme, type SampleData } from './mockupSchema.js';
+import { validateSampleData, type MockupTheme, type SampleData } from './mockupSchema.js';
 
 /** Everything the model needs to know about the project - the same for every mockup, so screens agree. */
 export interface MockupContext {
@@ -203,96 +203,4 @@ Respond with ONLY a JSON object, no prose, no code fences: { "<Entity name>": [ 
 export async function generateSampleData(client: LlmClient, ctx: MockupContext): Promise<{ data: SampleData; usage: LlmUsage; model: string }> {
 	const completion = await client.complete(buildSampleDataPrompt(ctx));
 	return { data: validateSampleData(parseJson(completion.text)), usage: completion.usage, model: completion.model };
-}
-
-// ---------------------------------------------------------------------------
-// The request that travels desktop app -> kratai-web, and its answer
-// ---------------------------------------------------------------------------
-
-export interface MockupGenerateInput {
-	context: MockupContext;
-	request: MockupRequest;
-	theme: MockupTheme;
-}
-
-export interface MockupGenerateResult {
-	screen: MockupScreen;
-	/** Present when the project had no sample data yet and this call made it. */
-	sampleData?: SampleData;
-}
-
-const text = (v: unknown, max: number): string | undefined => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : undefined);
-const list = <T>(v: unknown, max: number, each: (x: unknown) => T | undefined): T[] =>
-	(Array.isArray(v) ? v : []).slice(0, max).map(each).filter((x): x is T => x !== undefined);
-const strings = (v: unknown, max: number, len: number): string[] | undefined => {
-	const out = list(v, max, x => text(x, len));
-	return out.length ? out : undefined;
-};
-const obj = (v: unknown): Record<string, unknown> | undefined => (typeof v === 'object' && v !== null && !Array.isArray(v) ? v as Record<string, unknown> : undefined);
-
-/** The body of a generate call is untrusted JSON from a client: rebuild it with every size capped. */
-export function parseMockupGenerateInput(raw: unknown): MockupGenerateInput {
-	const root = obj(raw);
-	const c = obj(root?.context);
-	const r = obj(root?.request);
-	const t = obj(root?.theme);
-	if (!c || !r) throw new LlmError('Missing context or request.');
-
-	const actors = list(c.actors, 30, (x): UseCaseActor | undefined => {
-		const a = obj(x); const id = text(a?.id, 80); const name = text(a?.name, 80);
-		return id && name ? { id, name, side: 'left', ...(text(a?.description, 300) ? { description: text(a?.description, 300) } : {}) } : undefined;
-	});
-	const useCases = list(c.useCases, 120, (x): UseCaseItem | undefined => {
-		const u = obj(x); const id = text(u?.id, 80); const name = text(u?.name, 120);
-		if (!id || !name) return undefined;
-		const item: UseCaseItem = { id, name };
-		const d = text(u?.description, 400); if (d) item.description = d;
-		const g = text(u?.goal, 300); if (g) item.goal = g;
-		const pre = strings(u?.preconditions, 12, 240); if (pre) item.preconditions = pre;
-		const flow = strings(u?.mainFlow, 20, 240); if (flow) item.mainFlow = flow;
-		const post = strings(u?.postconditions, 12, 240); if (post) item.postconditions = post;
-		return item;
-	});
-	if (useCases.length === 0) throw new LlmError('The project has no use cases to design from.');
-	const associations = list(c.associations, 600, x => {
-		const a = obj(x); const actorId = text(a?.actorId, 80); const useCaseId = text(a?.useCaseId, 80);
-		return actorId && useCaseId ? { actorId, useCaseId } : undefined;
-	});
-	const nfrs = list(c.nfrs, 120, (x): UseCaseNFR | undefined => {
-		const n = obj(x); const id = text(n?.id, 80); const name = text(n?.name, 120); const body = text(n?.text, 400);
-		if (!id || !name || !body) return undefined;
-		return { id, name, text: body, useCaseId: text(n?.useCaseId, 80) ?? null };
-	});
-	const entities = list(c.entities, 60, (x): DataEntity | undefined => {
-		const e = obj(x); const id = text(e?.id, 80); const name = text(e?.name, 80);
-		if (!id || !name) return undefined;
-		const attributes = list(e?.attributes, 40, a => {
-			const at = obj(a); const an = text(at?.name, 60);
-			return an ? { name: an, type: text(at?.type, 30) ?? 'string', ...(at?.isPK === true ? { isPK: true } : {}), ...(at?.isFK === true ? { isFK: true } : {}) } : undefined;
-		});
-		return { id, name, attributes };
-	});
-	let sampleData: SampleData | undefined;
-	try { sampleData = c.sampleData ? validateSampleData(c.sampleData) : undefined; } catch { sampleData = undefined; }
-	const existingMockups = list(c.existingMockups, 60, x => {
-		const m = obj(x); const id = text(m?.id, 41); const title = text(m?.title, 120);
-		return id && title ? { id, title, useCaseIds: strings(m?.useCaseIds, 60, 80) ?? [] } : undefined;
-	});
-
-	const useCaseIds = (strings(r.useCaseIds, 20, 80) ?? []).filter(id => useCases.some(u => u.id === id));
-	const instruction = text(r.instruction, 600);
-	if (useCaseIds.length === 0 && !instruction) throw new LlmError('Choose at least one use case or describe the screen.');
-
-	return {
-		context: {
-			systemName: text(c.systemName, 120) ?? 'The product', ...(text(c.overview, 600) ? { overview: text(c.overview, 600) } : {}),
-			actors, useCases, associations, nfrs, entities, ...(sampleData ? { sampleData } : {}), existingMockups
-		},
-		request: { useCaseIds, ...(instruction ? { instruction } : {}), ...(text(r.actorId, 80) ? { actorId: text(r.actorId, 80) } : {}) },
-		theme: {
-			appName: text(t?.appName, 60) ?? text(c.systemName, 60) ?? 'App',
-			primary: normalizeHexColor(t?.primary),
-			mode: t?.mode === 'dark' ? 'dark' : 'light'
-		}
-	};
 }

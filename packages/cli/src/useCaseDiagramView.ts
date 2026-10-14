@@ -218,7 +218,7 @@ export function buildUseCaseDiagramSvg(data: UseCaseDiagramData, numbers?: Recor
  * buildUseCaseDiagramSvg above) plus hover-to-trace, click-to-open detail
  * popups, and the header/actions chrome.
  */
-export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, mockups: { id: string; title: string; useCaseIds: string[] }[] = []): string {
+export function generateUseCaseDiagramHTML(data: UseCaseDiagramData): string {
 	const { svg: diagramSvg } = buildUseCaseDiagramSvg(data);
 
 	// Adjacency only needs which ids connect to which - no layout/position
@@ -283,9 +283,7 @@ export function generateUseCaseDiagramHTML(data: UseCaseDiagramData, mockups: { 
 			.map(a => data.actors.find(x => x.id === a.actorId)?.name.replace(/\n/g, ' ') || '').filter(Boolean),
 		// {id, name} only - clicking a chip opens its own full detail via
 		// NFR_DETAILS/openNfrDetail rather than dumping text inline here.
-		nfrs: (nfrsByUseCase[uc.id] || []).map(n => ({ id: n.id, name: n.name })),
-		// Mockups (screens) that serve this use case - see mockupsView.ts.
-		mockups: mockups.filter(m => m.useCaseIds.includes(uc.id)).map(m => ({ id: m.id, title: m.title }))
+		nfrs: (nfrsByUseCase[uc.id] || []).map(n => ({ id: n.id, name: n.name }))
 	}));
 	const actorDetails = data.actors.map(a => ({
 		id: a.id,
@@ -536,7 +534,7 @@ ${DIAGRAM_SVG_STYLE}
 	// ---- detail popup: click an actor, use case, or project-wide NFR pill
 	// to read about it in the middle of the screen instead of a permanent
 	// sidebar (see the CSS comment on #detail-overlay). ----
-	var UC_DETAILS = ${JSON.stringify(ucDetails).replace(/</g, '\\u003c')};
+	var UC_DETAILS = ${JSON.stringify(ucDetails)};
 	var ACTOR_DETAILS = ${JSON.stringify(actorDetails)};
 	var NFR_DETAILS = ${JSON.stringify(nfrDetails)};
 
@@ -592,11 +590,6 @@ ${DIAGRAM_SVG_STYLE}
 		// version. The button only fills the chat box (see the shell's
 		// 'prefillChat' handler); the user reads and sends it.
 		if (!uc.goal && !uc.mainFlow.length) html += '<div class="detail-section"><button type="button" class="add-detail-btn" data-add-detail="' + escapeHtml(uc.id) + '">Add detail with AI</button></div>';
-		// Mockups: the screens that serve this use case, and a way to design another. Both hand over to the
-		// shell, which switches to the Mockups view.
-		html += '<div class="detail-section"><h3>Mockups</h3>' +
-			(uc.mockups.length ? '<div class="nfr-chips" style="margin-bottom:10px">' + uc.mockups.map(function (m) { return '<button type="button" class="nfr-chip" data-open-mockup="' + escapeHtml(m.id) + '">' + escapeHtml(m.title) + '</button>'; }).join('') + '</div>' : '') +
-			'<button type="button" class="add-detail-btn" data-create-mockup="' + escapeHtml(uc.id) + '">Create mockup</button></div>';
 		openDetail('USE CASE UC-' + uc.number, uc.name, html);
 	}
 	function openActorDetail(id) {
@@ -618,10 +611,6 @@ ${DIAGRAM_SVG_STYLE}
 	detailBody.addEventListener('click', function (e) {
 		var chip = e.target.closest('[data-nfr-chip]');
 		if (chip) openNfrDetail(chip.getAttribute('data-nfr-chip'));
-		var openMock = e.target.closest('[data-open-mockup]');
-		if (openMock) { closeDetail(); window.parent.postMessage({ command: 'openMockups', mockupId: openMock.getAttribute('data-open-mockup') }, '*'); return; }
-		var createMock = e.target.closest('[data-create-mockup]');
-		if (createMock) { closeDetail(); window.parent.postMessage({ command: 'createMockup', useCaseId: createMock.getAttribute('data-create-mockup') }, '*'); return; }
 		var add = e.target.closest('[data-add-detail]');
 		if (add) {
 			var target = UC_DETAILS.filter(function (u) { return u.id === add.getAttribute('data-add-detail'); })[0];
