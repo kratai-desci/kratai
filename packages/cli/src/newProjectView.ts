@@ -158,7 +158,7 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 	// actors / nfrs stay null until the AI (or "continue without suggestions")
 	// fills them; useCases is keyed by actor name. Items added by the user carry
 	// mine: true so a regenerated suggestion list does not drop them.
-	var state = { step: 0, ucIndex: 0, name: PROJECT, what: '', who: '', company: '', client: '', docs: [], docsBusy: 0, docsError: '', actors: null, actorsSig: null, useCases: {}, nfrs: null, loading: null, creating: null, error: null };
+	var state = { step: 0, ucIndex: 0, name: PROJECT, what: '', who: '', company: '', client: '', docs: [], docsBusy: 0, docsError: '', stage: 'start', actors: null, actorsSig: null, useCases: {}, nfrs: null, loading: null, creating: null, error: null };
 
 	function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 	function chosenActors() { return (state.actors || []).filter(function (a) { return a.on; }); }
@@ -219,13 +219,52 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 		});
 	}
 
+	// ---- The first screen: start from documents, or skip to the wizard ----
+	function startView() {
+		return '<h2>Start from your documents</h2><p class="sub">Upload any requirements, user stories or notes you already have, and kratai writes your first spec from them. No documents? Skip, and describe your project instead.</p>' +
+			docsField() +
+			'<label class="field"><span class="label">Project name</span><input type="text" id="name" value="' + esc(state.name) + '"></label>' +
+			'<div class="row2"><label class="field"><span class="label">Your company <span style="font-weight:400;color:var(--text-faint)">(optional)</span></span><input type="text" id="company" value="' + esc(state.company) + '" placeholder="Acme Studio"></label>' +
+			'<label class="field"><span class="label">Client <span style="font-weight:400;color:var(--text-faint)">(optional)</span></span><input type="text" id="client" value="' + esc(state.client) + '" placeholder="Pony Club Ltd"></label></div>';
+	}
+	// Runs the wizard's own steps one after another on the documents, taking everything they find, then builds the spec.
+	function autoGenerate() {
+		state.error = null;
+		state.loading = { title: 'Reading your documents', sub: 'Finding the people and systems involved.' };
+		render(true);
+		api('/api/new-project/ai', { step: 'actors', input: payload('actors') }).then(function (res) {
+			var list = Array.isArray(res.data) ? res.data : [];
+			state.actors = list.map(function (a) { return { name: a.name, desc: a.description || '', kind: a.kind === 'system' ? 'system' : 'person', on: true }; });
+			state.actorsSig = actorsSig();
+			state.useCases = {};
+			state.loading = { title: 'Drafting use cases', sub: 'Working out what each of them does.' };
+			render(true);
+			return api('/api/new-project/ai', { step: 'use-cases', input: payload('use-cases') });
+		}).then(function (res) {
+			var byActor = res.data && typeof res.data === 'object' ? res.data : {};
+			chosenActors().forEach(function (a) {
+				state.useCases[a.name] = (Array.isArray(byActor[a.name]) ? byActor[a.name] : []).map(function (n) { return { name: n, on: true }; });
+			});
+			state.loading = { title: 'Collecting requirements', sub: 'Gathering the quality requirements your documents state.' };
+			render(true);
+			return api('/api/new-project/ai', { step: 'requirements', input: payload('requirements') });
+		}).then(function (res) {
+			state.nfrs = (Array.isArray(res.data) ? res.data : []).map(function (r) { return { name: r.name, desc: r.description, cat: r.category, on: true }; });
+			state.loading = null;
+			if (totalUcs() === 0) throw new Error('No use cases could be found in those documents.');
+			state.step = 4;
+			create();
+		}).catch(function (err) {
+			fail(err, autoGenerate, function () { state.stage = 'wizard'; state.step = 0; state.error = null; state.loading = null; render(true); }, 'Use the wizard instead');
+		});
+	}
+
 	function stepOverview() {
 		return '<h2>Tell us about your project</h2><p class="sub">A few sentences is enough - this is what the AI uses to suggest everything that follows.</p>' +
 			'<label class="field"><span class="label">Project name</span><input type="text" id="name" value="' + esc(state.name) + '"><span class="hint">Used as the title of your spec. You can change it later in chat.</span></label>' +
 			'<div class="row2"><label class="field"><span class="label">Your company</span><input type="text" id="company" value="' + esc(state.company) + '" placeholder="Acme Studio"></label>' +
 			'<label class="field"><span class="label">Client</span><input type="text" id="client" value="' + esc(state.client) + '" placeholder="Pony Club Ltd"></label></div>' +
 			'<p class="hint fieldnote">Optional. They appear on the cover of your spec and progress report as "Prepared by" and "Client".</p>' +
-			docsField() +
 			'<label class="field"><span class="label">What is it?' + (state.docs.length ? ' <span style="font-weight:400;color:var(--text-faint)">(optional with documents)</span>' : '') + '</span><textarea id="what" placeholder="A web app where housemates share chores and keep track of whose turn it is.">' + esc(state.what) + '</textarea></label>' +
 			'<label class="field"><span class="label">Who will use it, and what problem does it solve?</span><textarea id="who" placeholder="Housemates who keep forgetting whose turn it is, which causes arguments.">' + esc(state.who) + '</textarea><span class="hint">Optional, but it makes the suggestions better.</span></label>';
 	}
@@ -321,9 +360,9 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 		else if (step === 'use-cases') missingUseCaseActors().forEach(function (a) { state.useCases[a.name] = []; });
 		else if (step === 'requirements') state.nfrs = state.nfrs || [];
 	}
-	function fail(err, retry, skip) {
+	function fail(err, retry, skip, skipLabel) {
 		state.loading = null; state.creating = null;
-		state.error = { message: err && err.message ? err.message : 'Something went wrong.', retry: retry, skip: skip };
+		state.error = { message: err && err.message ? err.message : 'Something went wrong.', retry: retry, skip: skip, skipLabel: skipLabel };
 		render(true);
 	}
 	function generate(step) {
@@ -381,7 +420,7 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 	function errorView() {
 		return '<h2>That did not work</h2><div class="problem">' + esc(state.error.message) + '</div><div class="actions">' +
 			'<button class="btn primary" data-action="retry">Try again</button>' +
-			(state.error.skip ? '<button class="btn" data-action="skip-suggestions">Continue without suggestions</button>' : '') + '</div>';
+			(state.error.skip ? '<button class="btn" data-action="skip-suggestions">' + esc(state.error.skipLabel || 'Continue without suggestions') + '</button>' : '') + '</div>';
 	}
 
 	// The use cases step covers one actor per screen, so Continue/Back move
@@ -412,14 +451,15 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 	function render(toTop) {
 		var stage = document.getElementById('stage');
 		var scroll = stage.scrollTop;
-		document.getElementById('steps').innerHTML = STEPS.map(function (s, i) {
+		var atStart = state.stage === 'start';
+		document.getElementById('steps').innerHTML = atStart ? '' : STEPS.map(function (s, i) {
 			var cls = i === state.step ? 'active' : (i < state.step ? 'done' : '');
 			var n = chosenActors().length;
 			var label = i === 2 && state.step === 2 && n > 0 ? s + ' ' + (state.ucIndex + 1) + '/' + n : s;
 			return '<div class="step ' + cls + '"><span class="num">' + (i < state.step ? '&#10003;' : (i + 1)) + '</span>' + label + '</div>';
 		}).join('');
 		var busy = !!(state.loading || state.creating);
-		stage.innerHTML = busy ? loadingView() : (state.error ? errorView() : RENDER[state.step]());
+		stage.innerHTML = busy ? loadingView() : (state.error ? errorView() : (atStart ? startView() : RENDER[state.step]()));
 		stage.scrollTop = toTop ? 0 : scroll;
 		var last = state.step === STEPS.length - 1;
 		var actors = chosenActors();
@@ -429,6 +469,12 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 			? '<button class="btn primary" data-action="create"' + (busy || totalUcs() === 0 ? ' disabled' : '') + '>Create my spec</button>'
 			: '<button class="btn primary" data-action="next"' + (canContinue() && !busy ? '' : ' disabled') + '>' + nextLabel + '</button>');
 		var where = 'Step ' + (state.step + 1) + ' of ' + STEPS.length + (perActor ? ' - ' + esc(actors[state.ucIndex].name) + ' (' + (state.ucIndex + 1) + ' of ' + actors.length + ')' : '');
+		if (atStart) {
+			document.getElementById('nav').innerHTML = '<span class="where"></span><div class="right">' +
+				(busy || state.error ? '' : '<button class="btn" data-action="start-skip">No documents - describe it instead</button>' +
+					'<button class="btn primary" data-action="auto"' + (state.docs.length > 0 && state.docsBusy === 0 ? '' : ' disabled') + '>Generate my spec</button>') + '</div>';
+			return;
+		}
 		document.getElementById('nav').innerHTML = '<span class="where">' + where + '</span><div class="right">' +
 			(state.step > 0 ? '<button class="btn" data-action="back"' + (busy ? ' disabled' : '') + '>Back</button>' : '') + primary + '</div>';
 	}
@@ -446,6 +492,8 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 		if (a === 'next') { if (goNext()) enter(); else render(true); }
 		else if (a === 'back') { goBack(); render(true); }
 		else if (a === 'create') create();
+		else if (a === 'auto') autoGenerate();
+		else if (a === 'start-skip') { state.stage = 'wizard'; state.step = 0; render(true); }
 		else if (a === 'pick-docs') { var inp = document.getElementById('docs-input'); if (inp) inp.click(); }
 		else if (a === 'remove-doc') { state.docs.splice(+t.getAttribute('data-idx'), 1); render(false); }
 		else if (a === 'retry') state.error.retry();
