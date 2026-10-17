@@ -167,7 +167,7 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 		</div>
 		<div id="pdf-download">
 			<span id="pdf-status"></span>
-			<button id="pdf-btn">Download Progress (PDF)</button>
+			<button id="download-btn">Download Progress</button>
 		</div>
 		<div id="empty" style="display:none">There is nothing to track yet.<br>Once your Spec has use cases and requirements, they are listed here so you can follow their progress.</div>
 		<div id="overview"></div>
@@ -357,7 +357,7 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 			var z = typeAndId(pg.getAttribute('data-purge')); var row = findRow(pg.getAttribute('data-purge'));
 			if (window.confirm('Delete "' + (row ? row.name : 'this item') + '" for good? This cannot be undone.')) act({ action: 'purge', type: z.type, id: z.id });
 		}
-		else if (t.closest('#pdf-btn')) exportPdf();
+		else if (t.closest('#download-btn')) exportReport();
 	});
 	document.addEventListener('change', function (e) {
 		var el = e.target; if (!el.getAttribute || !el.getAttribute('data-field')) return;
@@ -368,13 +368,13 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 	});
 
 	// The report follows what is on screen: same sort, removed items left out.
-	function exportPdf() {
-		var btn = document.getElementById('pdf-btn');
+	function exportReport() {
+		var btn = document.getElementById('download-btn');
 		var status = document.getElementById('pdf-status');
 		btn.disabled = true; btn.textContent = 'Generating...';
 		status.textContent = ''; status.classList.remove('error');
 		var order = sortedRows().filter(function (r) { return !r.removedByAi; }).map(refOf);
-		fetch('/api/progress/export-pdf', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order: order }) })
+		fetch('/api/progress/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order: order }) })
 			.then(function (r) { return r.json(); })
 			.then(function (result) {
 				if (!result.ok && result.error) throw new Error(result.error);
@@ -382,7 +382,7 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 				if (result.ok && result.path) status.textContent = 'Saved ' + result.path;
 			})
 			.catch(function (err) { status.textContent = err.message || String(err); status.classList.add('error'); })
-			.finally(function () { btn.disabled = false; btn.textContent = 'Download Progress (PDF)'; });
+			.finally(function () { btn.disabled = false; btn.textContent = 'Download Progress'; });
 	}
 
 	computeSandwich();

@@ -11,7 +11,7 @@ import { getBalanceCents } from './balanceProxy.js';
 import { getWelcomeHTML, getSignInHTML, getLoadingHTML, getGeneratePromptHTML } from './welcomeScreen.js';
 import { runNewProjectStep } from './newProjectProxy.js';
 import { checkForUpdate, checkForUpdatesFromMenu, showAbout } from './updateCheck.js';
-import { exportRequirementsPdf, exportProgressPdf } from './pdfExport.js';
+import { exportRequirements, exportProgress } from './documentExport.js';
 
 const PROTOCOL = 'kratai';
 
@@ -281,8 +281,8 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 			// port isn't known until runView resolves below, hence the `!` -
 			// by the time this actually gets called (a button click, well
 			// after this promise settles), currentServer is set.
-			exportRequirementsPdf: info => exportRequirementsPdf(resolvedPort(currentServer!), info.projectName),
-			exportProgressPdf: info => exportProgressPdf(resolvedPort(currentServer!), info.projectName)
+			exportRequirements: info => exportRequirements(resolvedPort(currentServer!), info.projectName),
+			exportProgress: info => exportProgress(resolvedPort(currentServer!), info.projectName)
 		});
 	} catch (error) {
 		dialog.showErrorBox('Could not open workspace', error instanceof Error ? error.message : String(error));

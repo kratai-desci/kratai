@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { BrowserWindow, dialog } from 'electron';
+import { BrowserWindow } from 'electron';
 import { PDFDocument } from 'pdf-lib';
 
 export interface PdfExportResult {
@@ -55,28 +55,26 @@ async function mergePdfs(buffers: Buffer[]): Promise<Buffer> {
 interface PdfDocument {
 	/** The standalone page on the view server to print. */
 	urlPath: string;
-	/** Printed in the running header from page 2 on, and as the save dialog's document name. */
+	/** Printed in the running header from page 2 on. */
 	docType: string;
-	saveTitle: string;
-	fileSuffix: string;
 }
 
-export function exportRequirementsPdf(port: number, projectName: string): Promise<PdfExportResult> {
-	return exportPdf(port, projectName, { urlPath: '/srs-preview', docType: 'Software Requirements Specification', saveTitle: 'Save Requirements PDF', fileSuffix: 'requirements' });
+export function renderRequirementsPdf(port: number, projectName: string): Promise<Buffer> {
+	return renderPdf(port, projectName, { urlPath: '/srs-preview', docType: 'Software Requirements Specification' });
 }
 
-/** The client progress report (the Progress view's "Download progress report" button). */
-export function exportProgressPdf(port: number, projectName: string): Promise<PdfExportResult> {
-	return exportPdf(port, projectName, { urlPath: '/progress-report', docType: 'Progress report', saveTitle: 'Save Progress Report PDF', fileSuffix: 'progress-report' });
+/** The client progress report (the Progress view's "Download Progress" button). */
+export function renderProgressPdf(port: number, projectName: string): Promise<Buffer> {
+	return renderPdf(port, projectName, { urlPath: '/progress-report', docType: 'Progress report' });
 }
 
 // A project name can be anything the user typed ("Horse Tinder: v2?"), so keep it out of the
 // characters a file name cannot hold.
-function safeFileName(name: string): string {
+export function safeFileName(name: string): string {
 	return name.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'project';
 }
 
-async function exportPdf(port: number, workspaceName: string, doc: PdfDocument): Promise<PdfExportResult> {
+async function renderPdf(port: number, workspaceName: string, doc: PdfDocument): Promise<Buffer> {
 	const win = new BrowserWindow({
 		show: false,
 		webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
@@ -140,17 +138,7 @@ async function exportPdf(port: number, workspaceName: string, doc: PdfDocument):
 			});
 		}
 
-		const result = await dialog.showSaveDialog({
-			title: doc.saveTitle,
-			defaultPath: `${safeFileName(workspaceName)}-${doc.fileSuffix}.pdf`,
-			filters: [{ name: 'PDF', extensions: ['pdf'] }]
-		});
-		if (result.canceled || !result.filePath) return { ok: false };
-
-		await fs.writeFile(result.filePath, pdfBuffer);
-		return { ok: true, path: path.basename(result.filePath) };
-	} catch (error) {
-		return { ok: false, error: error instanceof Error ? error.message : String(error) };
+		return pdfBuffer;
 	} finally {
 		if (!win.isDestroyed()) win.destroy();
 	}

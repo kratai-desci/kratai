@@ -82,15 +82,14 @@ export interface ViewOptions {
 	// done:true. kratai-web never runs this loop itself for the same
 	// reason it never executes tools itself.
 	chat?: (messages: ConversationMessage[], workspaceName: string, summary: string) => Promise<ChatStepResult>;
-	// Desktop-owned (packages/desktop/src/main/pdfExport.ts) - builds on
-	// Electron's own webContents.printToPDF() against this same server's
-	// /srs-preview page, so this stays a plain HTTP hook like the others
-	// rather than needing any native bridge of its own.
-	// Both PDF hooks get the project's name (the spec's own name, the folder's only as a fallback) for
-	// the running header and the suggested file name.
-	exportRequirementsPdf?: (info: { projectName: string }) => Promise<{ ok: boolean; path?: string; error?: string }>;
-	// Same idea for the Progress page's report (loads /progress-report).
-	exportProgressPdf?: (info: { projectName: string }) => Promise<{ ok: boolean; path?: string; error?: string }>;
+	// Desktop-owned (packages/desktop/src/main/documentExport.ts): asks where to save and in which
+	// format (Word or PDF), then builds the file from this same server's /srs-preview or
+	// /progress-report page, so these stay plain HTTP hooks like the others rather than needing
+	// any native bridge of their own. Both get the project's name (the spec's own name, the
+	// folder's only as a fallback) for the running header and the suggested file name.
+	exportRequirements?: (info: { projectName: string }) => Promise<{ ok: boolean; path?: string; error?: string }>;
+	// Same idea for the Progress page's report.
+	exportProgress?: (info: { projectName: string }) => Promise<{ ok: boolean; path?: string; error?: string }>;
 	// Also desktop-owned (packages/desktop/src/main/balanceProxy.ts) - reads
 	// the signed-in user's remaining AI credit from kratai-web, plus the
 	// signup-credit baseline the shell's meter renders "how full" against.
@@ -146,8 +145,8 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	const generateUseCaseDiagramHook = options.generateUseCaseDiagram;
 	const generateDataModelHook = options.generateDataModel;
 	const chatHook = options.chat;
-	const exportRequirementsPdfHook = options.exportRequirementsPdf;
-	const exportProgressPdfHook = options.exportProgressPdf;
+	const exportRequirementsHook = options.exportRequirements;
+	const exportProgressHook = options.exportProgress;
 	const onProgressHook = options.onProgress || (() => {});
 	const getBalanceHook = options.getBalance || (async () => null);
 	const confirmGenerateHook = options.confirmGenerate || (async () => false);
@@ -495,7 +494,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		return generateDataModelEmptyHTML(getAuthStatus().signedIn, diagramData.classes.length > 0);
 	}
 	// The Progress page and its client report. The report prints in the order the user had on
-	// screen when they pressed the button (see POST /api/progress/export-pdf).
+	// screen when they pressed the button (see POST /api/progress/export).
 	let progressReportOrder: string[] = [];
 	function renderProgress(): string {
 		return generateProgressHTML(useCaseData?.systemName || diagramName, useCaseData ? buildProgressRows(useCaseData) : []);
@@ -706,29 +705,26 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			})();
 			return;
 		}
-		if (req.method === 'POST' && req.url === '/api/progress/export-pdf') {
+		if (req.method === 'POST' && req.url === '/api/progress/export') {
 			(async () => {
 				try {
-					if (!exportProgressPdfHook) throw new Error('PDF export is only available in the kratai desktop app.');
+					if (!exportProgressHook) throw new Error('Downloading is only available in the kratai desktop app.');
 					const { order } = await readJsonBody(req) as { order?: unknown };
 					progressReportOrder = Array.isArray(order) ? order.filter((x): x is string => typeof x === 'string') : [];
-					sendJson(res, 200, await exportProgressPdfHook({ projectName: useCaseData?.systemName || diagramName }));
+					sendJson(res, 200, await exportProgressHook({ projectName: useCaseData?.systemName || diagramName }));
 				} catch (error) {
 					sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
 				}
 			})();
 			return;
 		}
-		if (req.method === 'POST' && req.url === '/api/requirements/export-pdf') {
+		if (req.method === 'POST' && req.url === '/api/requirements/export') {
 			(async () => {
 				try {
-					if (!exportRequirementsPdfHook) throw new Error('PDF export is only available in the kratai desktop app.');
-					const result = await exportRequirementsPdfHook({ projectName: useCaseData?.systemName || diagramName });
-					res.writeHead(200, { 'Content-Type': 'application/json' });
-					res.end(JSON.stringify(result));
+					if (!exportRequirementsHook) throw new Error('Downloading is only available in the kratai desktop app.');
+					sendJson(res, 200, await exportRequirementsHook({ projectName: useCaseData?.systemName || diagramName }));
 				} catch (error) {
-					res.writeHead(400, { 'Content-Type': 'application/json' });
-					res.end(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+					sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
 				}
 			})();
 			return;

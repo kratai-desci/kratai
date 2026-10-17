@@ -438,7 +438,7 @@ ${SRS_PAGE_CSS}
 <body>
 	<div id="pdf-download">
 		<span id="pdf-status"></span>
-		<button id="pdf-btn">Download SRS (PDF)</button>
+		<button id="download-btn">Download SRS</button>
 	</div>
 	<div id="doc">
 		<div id="doc-header">
@@ -486,14 +486,14 @@ ${SRS_PAGE_CSS}
 		});
 	});
 
-	var pdfBtn = document.getElementById('pdf-btn');
 	var pdfStatus = document.getElementById('pdf-status');
-	pdfBtn.addEventListener('click', function () {
-		pdfBtn.disabled = true;
-		pdfBtn.textContent = 'Generating...';
+	var btn = document.getElementById('download-btn');
+	btn.addEventListener('click', function () {
+		btn.disabled = true;
+		btn.textContent = 'Generating...';
 		pdfStatus.textContent = '';
 		pdfStatus.classList.remove('error');
-		fetch('/api/requirements/export-pdf', { method: 'POST' })
+		fetch('/api/requirements/export', { method: 'POST' })
 			.then(function (r) { return r.json(); })
 			.then(function (result) {
 				if (!result.ok && result.error) throw new Error(result.error);
@@ -508,8 +508,8 @@ ${SRS_PAGE_CSS}
 				pdfStatus.classList.add('error');
 			})
 			.finally(function () {
-				pdfBtn.disabled = false;
-				pdfBtn.textContent = 'Download SRS (PDF)';
+				btn.disabled = false;
+				btn.textContent = 'Download SRS';
 			});
 	});
 })();
