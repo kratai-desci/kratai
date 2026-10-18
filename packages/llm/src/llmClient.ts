@@ -63,6 +63,13 @@ export interface LlmTurn {
 	model: string;
 }
 
+/** A file the model is asked to read: base64 bytes plus the type they are. */
+export interface LlmFile {
+	mimeType: string;
+	/** Base64, no data: prefix. */
+	data: string;
+}
+
 /**
  * Provider-agnostic seam. `complete` is one-shot (use case extraction, no
  * tools, no history). `converse` is multi-turn and tool-capable (the AI
@@ -73,6 +80,9 @@ export interface LlmTurn {
 export interface LlmClient {
 	complete(prompt: string): Promise<LlmCompletion>;
 	converse(messages: ConversationMessage[], systemPrompt?: string, tools?: ToolDefinition[]): Promise<LlmTurn>;
+	/** Reads a PDF or image (a scan, a photo of a page) and answers `instruction` about it - used to turn
+	 * scanned documents into text. Optional: only providers that accept files implement it. */
+	transcribe?(file: LlmFile, instruction: string): Promise<LlmCompletion>;
 }
 
 export class LlmError extends Error {

@@ -27,7 +27,7 @@ import { UI_ACTION_TOOL_NAMES, SPEC_TOOL_NAMES, FILE_TOOL_NAMES } from '@kratai-
 import type { ConversationMessage, ChatStepResult, NewProjectStep, SpecDetails } from '@kratai-desci/llm';
 import { NEW_PROJECT_STEPS, parseWizardChoices, buildProjectSpec, describeWizardOutcome, MAX_DOCUMENT_CHARS } from '@kratai-desci/llm';
 import { generateNewProjectHTML } from '../newProjectView.js';
-import { extractDocumentText, DocumentError } from '../documentText.js';
+import { extractDocument, DocumentError } from '../documentText.js';
 
 export interface AuthStatus {
 	signedIn: boolean;
@@ -117,6 +117,9 @@ export interface ViewOptions {
 	// billing). Its presence is also what enables the wizard - a project with no
 	// code, no spec and a signed-in user is sent to it instead of the shell.
 	newProjectAi?: (step: NewProjectStep, input: unknown) => Promise<unknown>;
+	// Reads a scanned document (an image, or a PDF of page pictures) into text through kratai-web's AI, billed
+	// like any other AI step. Same desktop-owned relay as the wizard's steps.
+	readDocument?: (file: { name: string; mimeType: string; data: string }) => Promise<string>;
 	// The desktop app's "is there a newer release?" check. Resolves to the
 	// newer version and the one running, or null when up to date, offline or
 	// unknown. The shell shows a dismissible bar for it.
@@ -792,8 +795,17 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 					const body = (await readJsonBody(req, 40_000_000)) as { name?: unknown; data?: unknown };
 					const name = typeof body.name === 'string' ? body.name.slice(0, 200) : '';
 					const bytes = Buffer.from(typeof body.data === 'string' ? body.data : '', 'base64');
-					const text = (await extractDocumentText(name, bytes)).slice(0, MAX_DOCUMENT_CHARS);
-					sendJson(res, 200, { ok: true, text });
+					const extracted = await extractDocument(name, bytes);
+					let text: string;
+					if ('scan' in extracted) {
+						// Nothing to read on this computer: the AI reads the pictures. It runs and is billed like any
+						// other AI step, so it needs the desktop app's signed-in connection.
+						if (!options.readDocument) throw new DocumentError('Reading scanned documents is only available in the kratai desktop app.');
+						text = await options.readDocument({ name, mimeType: extracted.scan.mimeType, data: bytes.toString('base64') });
+					} else {
+						text = extracted.text;
+					}
+					sendJson(res, 200, { ok: true, text: text.slice(0, MAX_DOCUMENT_CHARS) });
 				} catch (error) {
 					sendJson(res, 400, { ok: false, error: error instanceof DocumentError || error instanceof Error ? error.message : 'Could not read that file.' });
 				}

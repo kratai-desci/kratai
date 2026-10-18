@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { LlmClient, LlmCompletion, LlmError, ConversationMessage, ToolDefinition, LlmTurn } from './llmClient.js';
+import { LlmClient, LlmCompletion, LlmError, LlmFile, ConversationMessage, ToolDefinition, LlmTurn } from './llmClient.js';
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -17,6 +17,7 @@ export const GEMINI_CHAT_MODEL = 'gemini-3.1-pro-preview';
 
 interface GeminiPart {
 	text?: string;
+	inlineData?: { mimeType: string; data: string };
 	functionCall?: { name: string; args?: Record<string, unknown> };
 	functionResponse?: { name: string; response: { result: string } };
 	/** Required back on a replayed functionCall part - see ToolCall.providerData's
@@ -63,6 +64,36 @@ export class GeminiClient implements LlmClient {
 			}];
 		}
 
+		const data = await this.generate(body);
+		const parts = data.candidates?.[0]?.content?.parts || [];
+		const text = parts.filter(p => p.text).map(p => p.text).join('');
+		const toolCalls = parts
+			.filter(p => p.functionCall)
+			.map(p => ({
+				id: randomUUID(),
+				name: p.functionCall!.name,
+				input: p.functionCall!.args || {},
+				providerData: p.thoughtSignature
+			}));
+
+		if (!text && toolCalls.length === 0) throw new LlmError('Gemini API returned no content.');
+
+		return {
+			text,
+			toolCalls,
+			usage: {
+				inputTokens: data.usageMetadata?.promptTokenCount ?? 0,
+				outputTokens: data.usageMetadata?.candidatesTokenCount ?? 0
+			},
+			model: this.model
+		};
+	}
+
+	/** One generateContent call: the request, and the provider's own errors turned into LlmError. */
+	private async generate(body: Record<string, unknown>): Promise<{
+		candidates?: Array<{ content?: { parts?: GeminiPart[] } }>;
+		usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number };
+	}> {
 		const url = `${API_BASE}/${this.model}:generateContent?key=${encodeURIComponent(this.apiKey)}`;
 		let response: Response;
 		try {
@@ -87,29 +118,23 @@ export class GeminiClient implements LlmClient {
 			throw new LlmError(message);
 		}
 
-		const data = await response.json() as {
-			candidates?: Array<{ content?: { parts?: GeminiPart[] } }>;
-			usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
-		};
-		const parts = data.candidates?.[0]?.content?.parts || [];
-		const text = parts.filter(p => p.text).map(p => p.text).join('');
-		const toolCalls = parts
-			.filter(p => p.functionCall)
-			.map(p => ({
-				id: randomUUID(),
-				name: p.functionCall!.name,
-				input: p.functionCall!.args || {},
-				providerData: p.thoughtSignature
-			}));
+		return await response.json() as Awaited<ReturnType<GeminiClient['generate']>>;
+	}
 
-		if (!text && toolCalls.length === 0) throw new LlmError('Gemini API returned no content.');
-
+	/** Reads a PDF or image and answers `instruction` about it, as plain text. The model's own thinking is billed
+	 * as output, so it is counted here (a long scan would otherwise cost more than it is charged). */
+	async transcribe(file: LlmFile, instruction: string): Promise<LlmCompletion> {
+		const data = await this.generate({
+			contents: [{ role: 'user', parts: [{ inlineData: { mimeType: file.mimeType, data: file.data } }, { text: instruction }] }],
+			generationConfig: { temperature: 0, maxOutputTokens: 65536 }
+		});
+		const text = (data.candidates?.[0]?.content?.parts || []).filter(p => p.text).map(p => p.text).join('');
+		if (!text) throw new LlmError('Gemini API returned no content.');
 		return {
 			text,
-			toolCalls,
 			usage: {
 				inputTokens: data.usageMetadata?.promptTokenCount ?? 0,
-				outputTokens: data.usageMetadata?.candidatesTokenCount ?? 0
+				outputTokens: (data.usageMetadata?.candidatesTokenCount ?? 0) + (data.usageMetadata?.thoughtsTokenCount ?? 0)
 			},
 			model: this.model
 		};

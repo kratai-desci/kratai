@@ -189,10 +189,10 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 		}).join('') + '</ul>' : '';
 		return '<div class="field"><span class="label">Documents <span style="font-weight:400;color:var(--text-faint)">(optional)</span></span>' +
 			'<div class="dropzone" id="docs-drop">' + (state.docsBusy ? 'Reading ' + state.docsBusy + ' file' + (state.docsBusy === 1 ? '' : 's') + '&hellip;' : 'Drop your requirements, user stories or notes here, or <button type="button" class="btn" data-action="pick-docs">Choose files</button>') +
-			'<input type="file" id="docs-input" multiple accept=".pdf,.docx,.md,.markdown,.txt" style="display:none"></div>' + list +
+			'<input type="file" id="docs-input" multiple accept=".pdf,.docx,.md,.markdown,.txt,.png,.jpg,.jpeg,.webp,.heic,.heif" style="display:none"></div>' + list +
 			(total > MAX_DOC_CHARS ? '<div class="docwarn">Only the first ' + fmt(MAX_DOC_CHARS) + ' characters will be used; the last ' + fmt(total - MAX_DOC_CHARS) + ' are left out.</div>' : '') +
 			(state.docsError ? '<div class="docerr">' + esc(state.docsError) + '</div>' : '') +
-			'<span class="hint">PDF, Word (.docx), Markdown or plain text, up to ' + fmt(MAX_DOC_CHARS) + ' characters in total. Files are read on your computer; the text is then sent through kratai.com to the AI to suggest your actors, use cases and requirements, and uses AI credit.</span></div>';
+			'<span class="hint">PDF, Word (.docx), Markdown, plain text, or a picture of a page (PNG, JPG), up to ' + fmt(MAX_DOC_CHARS) + ' characters in total. Text files are read on your computer; the text is then sent through kratai.com to the AI to suggest your actors, use cases and requirements, and uses AI credit. A scanned PDF or a picture is read by the AI itself, which takes up to a minute and uses more credit.</span></div>';
 	}
 	function addDocFiles(files) {
 		var list = Array.prototype.slice.call(files || []);

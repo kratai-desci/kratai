@@ -10,6 +10,7 @@ import { chatStep } from './chatProxy.js';
 import { getBalanceCents } from './balanceProxy.js';
 import { getWelcomeHTML, getSignInHTML, getLoadingHTML, getGeneratePromptHTML } from './welcomeScreen.js';
 import { runNewProjectStep } from './newProjectProxy.js';
+import { readScannedDocument } from './readDocumentProxy.js';
 import { checkForUpdate, checkForUpdatesFromMenu, showAbout } from './updateCheck.js';
 import { exportRequirements, exportProgress } from './documentExport.js';
 
@@ -271,6 +272,7 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 			chat: chatStep,
 			getBalance: getBalanceCents,
 			newProjectAi: (step, input) => runNewProjectStep(step, input, path.basename(workspacePath)),
+			readDocument: readScannedDocument,
 			logoDataUrl,
 			checkForUpdate,
 			confirmGenerate: async info => {
