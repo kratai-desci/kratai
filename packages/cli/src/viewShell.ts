@@ -53,7 +53,10 @@ export function generateShellHTML(
 	initialLayout: Record<string, unknown>,
 	authStatus: { signedIn: boolean; email: string | null },
 	initialChatHistory: { role: 'user' | 'assistant'; text?: string }[] = [],
-	chatMode: 'code' | 'blank' | 'draft' = 'code'
+	chatMode: 'code' | 'blank' | 'draft' = 'code',
+	// A project that was just set up (the wizard, or the automatic first generation) opens on the Spec,
+	// whatever view was last left on screen in some other project - see START_ON_SPEC below.
+	startOnSpec = false
 ): string {
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -412,6 +415,7 @@ export function generateShellHTML(
 		// Rendered into the chat log and used to seed chatHistory below,
 		// rather than always starting empty.
 		var STORED_CHAT_HISTORY = ${JSON.stringify(initialChatHistory)};
+		var START_ON_SPEC = ${JSON.stringify(startOnSpec)};
 		var NO_CODE = ${JSON.stringify(chatMode === 'blank')};
 		var NO_CODE_OPENER = ${JSON.stringify(NO_CODE_OPENER)};
 		// The one flat list every picker draws from - spec-driven views
@@ -938,8 +942,18 @@ export function generateShellHTML(
 			applyTheme();
 		});
 
+		// The saved layout is one setting for every project, so a project set up right after leaving some other
+		// view on screen (Progress, say) would open on that instead of its new Spec. Only the Spec-showing sides
+		// change (the left panel, and the single panel of a narrow window); the right panel and sizes stay as
+		// they were. Saved, so a reload keeps it, and the address is reset so a refresh does not repeat this.
+		if (START_ON_SPEC) {
+			leftMode = 'srs';
+			narrowMode = 'srs';
+			history.replaceState(null, '', '/');
+		}
 		applyMode();
 		renderPickers();
+		if (START_ON_SPEC) saveLayout();
 		window.addEventListener('resize', function () {
 			applyMode();
 			renderPickers();

@@ -401,7 +401,7 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 			clearInterval(timer);
 			state.creating = { done: CREATE_STEPS.length };
 			render(false);
-			setTimeout(function () { location.href = '/'; }, 700);
+			setTimeout(function () { location.href = '/?view=spec'; }, 700);
 		}).catch(function (err) {
 			clearInterval(timer);
 			fail(err, create, null);

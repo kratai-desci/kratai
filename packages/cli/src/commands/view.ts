@@ -421,13 +421,13 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 
 	// Per request, not once at startup: chat history and whether a spec exists
 	// both change while the server runs (the new-project wizard writes both).
-	function renderShell(): string {
+	function renderShell(startOnSpec = false): string {
 		const chatMode = diagramData.classes.length > 0 ? 'code' : useCaseData ? 'draft' : 'blank';
 		return generateShellHTML(diagramName, {
 			classCount: nodes.length,
 			folderCount,
 			edgeCount: edges.length
-		}, getLayout(), getAuthStatus(), chatHistory, chatMode);
+		}, getLayout(), getAuthStatus(), chatHistory, chatMode, startOnSpec);
 	}
 
 	// A project with no code, no spec and a signed-in user is walked through the
@@ -860,7 +860,8 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			: req.url === '/progress-report' ? renderProgressReport()
 			: req.url === '/srs-preview' ? renderRequirementsDoc()
 			: req.url === '/new-project' ? (wizardApplies() ? generateNewProjectHTML(diagramName, options.logoDataUrl ?? '') : undefined)
-			: renderShell();
+			// "/?view=spec" is where a freshly set-up project is sent (see newProjectView.ts and the desktop app).
+			: renderShell(req.url === '/?view=spec');
 		if (html === undefined) {
 			res.writeHead(302, { Location: '/' });
 			res.end();

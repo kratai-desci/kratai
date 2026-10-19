@@ -301,7 +301,8 @@ async function openWorkspace(workspacePath: string): Promise<void> {
 	if (didAutoGenerate) await new Promise(resolve => setTimeout(resolve, 700));
 
 	mainWindow!.setTitle(`kratai - ${workspacePath}`);
-	await mainWindow!.loadURL(url);
+	// A project that was just generated opens on its Spec, not on whatever view was left on screen last.
+	await mainWindow!.loadURL(didAutoGenerate ? `${url}/?view=spec` : url);
 }
 
 async function promptForWorkspace(): Promise<void> {
