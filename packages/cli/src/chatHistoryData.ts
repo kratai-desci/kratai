@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { ConversationMessage } from '@kratai-desci/llm';
+import { keepOutOfGit } from './gitignore.js';
 
 const CACHE_FILE = 'kratai.chat.json';
 
@@ -15,15 +16,16 @@ const MAX_ENTRIES = 40;
  * A personal conversation log, not a team artifact like
  * kratai.usecases.json/kratai.datamodel.json - workspace-local for the same
  * reason those are (see useCaseDiagramData.ts's own doc comment), but never
- * meant to be committed, so callers should keep it out of the target
- * workspace's own version control the same way kratai.local.json is
- * (nothing in this codebase currently automates that - see config.ts's own
- * stale comment about a since-removed init.ts - so this is a manual step
- * for now, not something this file can enforce).
+ * meant to be committed, so it is kept out of the workspace's own version
+ * control automatically (keepOutOfGit adds it to the folder's .gitignore, both
+ * when it is saved and when an existing one is loaded - so a repo that already
+ * has chats gets fixed on its next open). Without that, everyone sharing a repo
+ * would commit - and conflict on - each other's conversations.
  */
 export function loadCachedChatHistory(workspacePath: string): ConversationMessage[] {
 	const filePath = path.join(workspacePath, CACHE_FILE);
 	if (!fs.existsSync(filePath)) return [];
+	keepOutOfGit(workspacePath, CACHE_FILE);
 	try {
 		const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 		return Array.isArray(parsed) ? parsed : [];
@@ -36,4 +38,5 @@ export function loadCachedChatHistory(workspacePath: string): ConversationMessag
 export function saveCachedChatHistory(workspacePath: string, history: ConversationMessage[]): void {
 	const trimmed = history.slice(-MAX_ENTRIES);
 	fs.writeFileSync(path.join(workspacePath, CACHE_FILE), JSON.stringify(trimmed, null, 2) + '\n', 'utf-8');
+	keepOutOfGit(workspacePath, CACHE_FILE);
 }

@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { ConfigService, FolderConfig, KrataiConfig } from '@kratai/analysis';
+import { keepOutOfGit } from './gitignore.js';
 
 export interface ConfigOverrides {
 	folders?: string[];
@@ -13,11 +14,11 @@ export interface ConfigOverrides {
  * `kratai.config.json` at the analyzed path instead - same merge-with-defaults
  * shape, just a different file, since the CLI has no live host to save back to.
  *
- * Layered on top: `kratai.local.json`, a personal, gitignored override (see
- * `init.ts`, which seeds the `.gitignore` entry but never creates the file
- * itself - it only appears once someone actually saves a personal tweak,
- * e.g. hiding a folder in `kratai view` without touching the shared config
- * everyone else sees). Precedence, lowest to highest: smart defaults →
+ * Layered on top: `kratai.local.json`, a personal, gitignored override (it
+ * only appears once someone actually saves a personal tweak, e.g. hiding a
+ * folder in `kratai view` without touching the shared config everyone else
+ * sees; keepOutOfGit adds it to the folder's `.gitignore` when it is written).
+ * Precedence, lowest to highest: smart defaults →
  * kratai.config.json → kratai.local.json → CLI flags for this one run.
  */
 export function loadCliConfig(
@@ -90,6 +91,7 @@ function patchLocalFolders(workspacePath: string, patches: Record<string, Partia
 
 	const nextLocal: Partial<KrataiConfig> = { ...existingLocal, folders };
 	fs.writeFileSync(localConfigPath, JSON.stringify(nextLocal, null, 2) + '\n', 'utf-8');
+	keepOutOfGit(workspacePath, 'kratai.local.json');
 }
 
 /** Persists custom folder order - the "hamburger" drag-reorder in `kratai view`'s stack layer. */
@@ -138,4 +140,5 @@ export function saveFolderPanelOpen(workspacePath: string, open: boolean): void 
 		: {};
 	const nextLocal: Partial<KrataiConfig> = { ...existingLocal, folderPanelOpen: open };
 	fs.writeFileSync(localConfigPath, JSON.stringify(nextLocal, null, 2) + '\n', 'utf-8');
+	keepOutOfGit(workspacePath, 'kratai.local.json');
 }
