@@ -22,7 +22,7 @@
     "watch": "tsc -watch -p ./"
   },
   "dependencies": {
-    "@kratai-desci/llm": "*",
+    "@kratai-desci/llm": "^1.4.0",
     "unpdf": "^1.8.1"
   },
   "devDependencies": {

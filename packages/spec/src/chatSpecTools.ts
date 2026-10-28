@@ -27,6 +27,29 @@ function updateSrsMetadata(input: Record<string, unknown>, useCaseData: UseCaseD
 	return { output: `Updated ${changed.join(', ')}.`, updatedUseCaseData: updated };
 }
 
+// The model is shown each item's name and description, not its detail (a use
+// case's goal and flows, an entity's attributes), so when it resends a list it
+// leaves the detail out. Each item it sends for an existing id is therefore laid
+// over the saved item: a field it omits keeps its saved value, and only one it
+// sends - an empty one included - replaces it. Without this, adding one use case
+// wiped every other use case's goal and main flow.
+function overlayById(saved: unknown, sent: unknown): unknown {
+	if (!Array.isArray(saved) || !Array.isArray(sent)) return sent;
+	const byId = new Map(saved.filter(s => s && typeof s === 'object' && typeof s.id === 'string').map(s => [s.id, s]));
+	return sent.map(item => {
+		const old = item && typeof item === 'object' && typeof item.id === 'string' ? byId.get(item.id) : undefined;
+		return old ? { ...old, ...item } : item;
+	});
+}
+
+function overlayLists(current: object, input: Record<string, unknown>, keys: string[]): Record<string, unknown> {
+	const out: Record<string, unknown> = { ...current, ...input };
+	for (const key of keys) {
+		if (key in input) out[key] = overlayById((current as Record<string, unknown>)[key], input[key]);
+	}
+	return out;
+}
+
 // Patch semantics: `{ ...current, ...input }` overlays only the top-level
 // keys the model actually provided onto the current data, then
 // validateUseCaseModelOutput/validateDataModelOutput - the exact same
@@ -53,7 +76,7 @@ function updateUseCaseModel(input: Record<string, unknown>, useCaseData: UseCase
 		}
 	}
 	try {
-		const merged = { ...useCaseData, ...input };
+		const merged = overlayLists(useCaseData, input, ['actors', 'useCases', 'nfrs']);
 		const validated = validateUseCaseModelOutput(merged);
 		// The validator drops status/priority/closedBy (people set those, never the model), so
 		// they are put back by id here - and an edit or removal of an item that has progress is
@@ -84,7 +107,7 @@ function updateDataModel(input: Record<string, unknown>, dataModelData: DataMode
 		}
 	}
 	try {
-		const merged = { ...dataModelData, ...input };
+		const merged = overlayLists(dataModelData, input, ['entities']);
 		const validated = validateDataModelOutput(merged);
 		return { output: 'Data Model updated.', updatedDataModelData: { ...dataModelData, ...validated } };
 	} catch (error) {
