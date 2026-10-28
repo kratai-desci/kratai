@@ -1,0 +1,31 @@
+{
+  "name": "@kratai-desci/spec",
+  "version": "0.1.0",
+  "description": "Everything about a kratai project's Spec that does not need its code - the views, the progress and AI-edit rules, the chat's spec tools and document reading - shared by the desktop app and the web app.",
+  "license": "MIT",
+  "type": "module",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kratai-desci/kratai.git",
+    "directory": "packages/spec"
+  },
+  "main": "./out/index.js",
+  "types": "./out/index.d.ts",
+  "files": [
+    "out"
+  ],
+  "scripts": {
+    "build": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "@kratai-desci/llm": "*",
+    "unpdf": "^1.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.x"
+  }
+}

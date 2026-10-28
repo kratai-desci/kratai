@@ -5,29 +5,30 @@ import { CodeParserService, DiagramGeneratorService, GitDiffEnricher, FolderStru
 import { ClassDiagramView } from '@kratai/diagram-view';
 import { loadCliConfig, saveFolderExpanded, saveFolderOrder, saveFolderPanelOpen, saveFolderVisibility } from '../config.js';
 import { openFile } from '../openFile.js';
-import { generateShellHTML, ShellStats } from '../viewShell.js';
+import { generateShellHTML, ShellStats } from '@kratai-desci/spec';
 import { buildKnowledgeGraphData } from '../knowledgeGraphData.js';
 import { generateKnowledgeGraphHTML } from '../knowledgeGraphView.js';
 import { buildStackLayerData } from '../stackLayerData.js';
 import { generateStackLayerHTML } from '../stackLayerView.js';
 import { loadCachedUseCaseDiagramData, saveCachedUseCaseDiagramData, hasCachedUseCaseDiagramData, buildUseCaseExtractionSummary, UseCaseDiagramData } from '../useCaseDiagramData.js';
-import { generateUseCaseDiagramHTML, generateUseCaseDiagramEmptyHTML } from '../useCaseDiagramView.js';
+import { generateUseCaseDiagramHTML, generateUseCaseDiagramEmptyHTML } from '@kratai-desci/spec';
 import { loadCachedDataModelData, saveCachedDataModelData, buildDataModelExtractionSummary, DataModelData } from '../dataModelData.js';
-import { generateDataModelHTML, generateDataModelEmptyHTML } from '../dataModelView.js';
-import { generateProgressHTML } from '../progressView.js';
-import { generateProgressReportHTML } from '../progressReportView.js';
-import { visibleSpec, buildProgressRows, applyProgressAction, userNameFromEmail, type ProgressAction } from '../progressData.js';
-import { generateSrsDocHTML, generateSrsEmptyHTML } from '../srsDocView.js';
+import { generateDataModelHTML, generateDataModelEmptyHTML } from '@kratai-desci/spec';
+import { generateProgressHTML } from '@kratai-desci/spec';
+import { generateProgressReportHTML } from '@kratai-desci/spec';
+import { visibleSpec, buildProgressRows, applyProgressAction, userNameFromEmail, type ProgressAction } from '@kratai-desci/spec';
+import { generateSrsDocHTML, generateSrsEmptyHTML } from '@kratai-desci/spec';
 import { executeChatTool } from '../chatTools.js';
-import { executeSpecTool } from '../chatSpecTools.js';
+import { executeSpecTool } from '@kratai-desci/spec';
 import { executeFileTool } from '../fileTools.js';
 import { buildChatSummary } from '../chatContext.js';
 import { loadCachedChatHistory, saveCachedChatHistory } from '../chatHistoryData.js';
 import { UI_ACTION_TOOL_NAMES, SPEC_TOOL_NAMES, FILE_TOOL_NAMES } from '@kratai-desci/llm';
 import type { ConversationMessage, ChatStepResult, NewProjectStep, SpecDetails } from '@kratai-desci/llm';
 import { NEW_PROJECT_STEPS, parseWizardChoices, buildProjectSpec, describeWizardOutcome, MAX_DOCUMENT_CHARS } from '@kratai-desci/llm';
-import { generateNewProjectHTML } from '../newProjectView.js';
-import { extractDocument, DocumentError } from '../documentText.js';
+import { generateNewProjectHTML } from '@kratai-desci/spec';
+import { extractDocument, DocumentError } from '@kratai-desci/spec';
+import { describeToolCall, editsSpec, ChatStoppedError, type ChatEvent, type UiAction } from '@kratai-desci/spec';
 
 export interface AuthStatus {
 	signedIn: boolean;
@@ -81,7 +82,7 @@ export interface ViewOptions {
 	// requested tools, call again with the results appended, repeat until
 	// done:true. kratai-web never runs this loop itself for the same
 	// reason it never executes tools itself.
-	chat?: (messages: ConversationMessage[], workspaceName: string, summary: string) => Promise<ChatStepResult>;
+	chat?: (messages: ConversationMessage[], workspaceName: string, summary: string, signal?: AbortSignal) => Promise<ChatStepResult>;
 	// Desktop-owned (packages/desktop/src/main/documentExport.ts): asks where to save and in which
 	// format (Word or PDF), then builds the file from this same server's /srs-preview or
 	// /progress-report page, so these stay plain HTTP hooks like the others rather than needing
@@ -300,15 +301,35 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 	 * forever. Doesn't touch chatHistory/saveCachedChatHistory itself -
 	 * callers decide whether a given run belongs in the visible transcript.
 	 */
-	async function runChatLoop(initialMessages: ConversationMessage[]): Promise<{ reply: string; uiActions: Array<{ type: string } & Record<string, unknown>> }> {
+	async function runChatLoop(
+		initialMessages: ConversationMessage[],
+		// Only the live chat route passes these: `signal` is the user pressing Stop, `onEvent` is how the page is
+		// told what is happening (see chatActivity.ts). The auto-detail-fill below runs without either.
+		live: { signal?: AbortSignal; onEvent?: (event: ChatEvent) => void } = {}
+	): Promise<{ reply: string; uiActions: UiAction[]; steps: string[] }> {
 		if (!chatHook) throw new Error('Chat is only available in the kratai desktop app.');
 		let summary = buildChatSummary(diagramData, diagramName, useCaseData, dataModelData);
 		const conversation: ConversationMessage[] = [...initialMessages];
-		const uiActions: Array<{ type: string } & Record<string, unknown>> = [];
+		const uiActions: UiAction[] = [];
+		const steps: string[] = [];
+		let uiSent = 0;
+		// Stops between steps, never inside one: a spec edit that has started is allowed to finish, so a stopped
+		// chat never leaves a half-written file.
+		const checkStopped = () => { if (live.signal?.aborted) throw new ChatStoppedError(); };
+		// View changes reach the page as they happen (a refresh after each edit), not all at the end.
+		const sendUi = () => {
+			if (uiActions.length > uiSent) live.onEvent?.({ type: 'ui', actions: uiActions.slice(uiSent) });
+			uiSent = uiActions.length;
+		};
 		const MAX_TOOL_ITERATIONS = 20;
 		for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
-			const step = await chatHook(conversation, diagramName, summary);
-			if (step.done) return { reply: step.reply, uiActions };
+			// Lets a Stop that arrived while the tools above ran (they are synchronous) be seen before the next paid call.
+			await new Promise<void>(resolve => setImmediate(resolve));
+			checkStopped();
+			live.onEvent?.({ type: 'thinking' });
+			const step = await chatHook(conversation, diagramName, summary, live.signal);
+			checkStopped();
+			if (step.done) return { reply: step.reply, uiActions, steps };
 			console.log(`[chat] turn ${i + 1}: ${step.toolCalls.map(c => `${c.name}(${JSON.stringify(c.input)})`).join(', ')}`);
 			conversation.push({ role: 'assistant', text: step.assistantText, toolCalls: step.toolCalls });
 			let specChanged = false;
@@ -318,6 +339,11 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			// dataModelData reassignment below.
 			const toolResults: { toolCallId: string; output: string }[] = [];
 			for (const call of step.toolCalls) {
+				sendUi();
+				checkStopped();
+				const label = describeToolCall(call.name, call.input);
+				steps.push(label);
+				live.onEvent?.({ type: 'tool', label, ...(editsSpec(call.name) ? { editsSpec: true } : {}) });
 				if (UI_ACTION_TOOL_NAMES.has(call.name)) {
 					uiActions.push({ type: call.name, ...call.input });
 					toolResults.push({ toolCallId: call.id, output: 'Shown to the user.' });
@@ -360,6 +386,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 				}
 				toolResults.push({ toolCallId: call.id, output: executeChatTool(call.name, call.input, diagramData) });
 			}
+			sendUi();
 			conversation.push({ role: 'user', toolResults });
 			if (specChanged) summary = buildChatSummary(diagramData, diagramName, useCaseData, dataModelData);
 		}
@@ -383,7 +410,7 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 		// often-vague opening searches.
 		const gathered = Array.from(new Set(allOutputs)).slice(-4).join('\n\n').slice(0, 3000);
 		const reply = `I looked into several parts of the codebase but couldn't settle on a complete answer within my lookup budget. Here's what I found along the way:\n\n${gathered}\n\nTry asking a more specific question (about one particular class, route, or file) for a fuller answer.`;
-		return { reply, uiActions };
+		return { reply, uiActions, steps };
 	}
 
 	// Auto-chained right after a fresh Use Case Model generation (both the
@@ -733,29 +760,37 @@ export async function runView(options: ViewOptions): Promise<http.Server> {
 			return;
 		}
 		if (req.method === 'POST' && req.url === '/api/chat') {
-			(async () => {
-				let body = '';
-				req.on('data', chunk => { body += chunk; });
-				req.on('end', async () => {
-					try {
-						const { messages } = JSON.parse(body) as { messages?: ConversationMessage[] };
-						if (!Array.isArray(messages) || messages.length === 0) throw new Error('Missing messages.');
-						const { reply, uiActions } = await runChatLoop(messages);
-						// messages is the client's own display history (already
-						// includes the just-sent user turn) - only the final reply
-						// needs adding, never the tool-call turns runChatLoop built
-						// up internally for this one request.
-						chatHistory = [...messages, { role: 'assistant', text: reply }];
-						saveCachedChatHistory(workspacePath, chatHistory);
-						res.writeHead(200, { 'Content-Type': 'application/json' });
-						res.end(JSON.stringify({ ok: true, reply, uiActions }));
-						return;
-					} catch (error) {
-						res.writeHead(400, { 'Content-Type': 'application/json' });
-						res.end(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+			// Streamed, one JSON event per line (chatActivity.ts's ChatEvent), so the page can show what the chat
+			// is doing while it works and the user can stop it. Closing the connection IS the stop: the loop sees
+			// the signal and quits before its next model turn or tool call. A model call already under way cannot
+			// be recalled, and spec edits already made stay made.
+			const stop = new AbortController();
+			res.on('close', () => { if (!res.writableFinished) stop.abort(); });
+			let body = '';
+			req.on('data', chunk => { body += chunk; });
+			req.on('end', async () => {
+				const started = Date.now();
+				res.writeHead(200, { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-cache' });
+				const send = (event: ChatEvent) => { if (!res.writableEnded && !res.destroyed) res.write(JSON.stringify(event) + '\n'); };
+				try {
+					const { messages } = JSON.parse(body) as { messages?: ConversationMessage[] };
+					if (!Array.isArray(messages) || messages.length === 0) throw new Error('Missing messages.');
+					const { reply, steps } = await runChatLoop(messages, { signal: stop.signal, onEvent: send });
+					// messages is the client's own display history (already
+					// includes the just-sent user turn) - only the final reply
+					// needs adding, never the tool-call turns runChatLoop built
+					// up internally for this one request.
+					chatHistory = [...messages, { role: 'assistant', text: reply }];
+					saveCachedChatHistory(workspacePath, chatHistory);
+					send({ type: 'done', reply, steps, elapsedMs: Date.now() - started });
+				} catch (error) {
+					// A stopped chat has nobody listening any more, and is not an error.
+					if (!stop.signal.aborted && !(error instanceof ChatStoppedError)) {
+						send({ type: 'error', error: error instanceof Error ? error.message : String(error) });
 					}
-				});
-			})();
+				}
+				if (!res.writableEnded) res.end();
+			});
 			return;
 		}
 		if (req.method === 'POST' && req.url === '/api/refresh') {

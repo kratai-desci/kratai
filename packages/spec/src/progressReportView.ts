@@ -1,4 +1,4 @@
-import type { UseCaseDiagramData } from './useCaseDiagramData.js';
+import type { UseCaseDiagramData } from '@kratai-desci/llm';
 import type { ProgressRow } from './progressData.js';
 import { buildDocumentDiagrams } from './docDiagramView.js';
 import { SRS_PAGE_CSS, DOC_SECTION, numberNfrs, actorsBody, useCaseModelBody, useCaseItemsBody, projectNfrBody, escapeDocText as esc } from './srsDocView.js';

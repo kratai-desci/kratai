@@ -1,4 +1,4 @@
-import { UseCaseDiagramData, UseCaseActor, UseCaseItem, UseCaseNFR } from './useCaseDiagramData.js';
+import { UseCaseDiagramData, UseCaseActor, UseCaseItem, UseCaseNFR } from '@kratai-desci/llm';
 
 const UC_RX = 95, UC_RY = 38;
 const COL_GAP = 260, ROW_GAP = 116, UC_TOP = 150, UC_COLS = 2;
@@ -792,7 +792,7 @@ export function generateUseCaseDiagramEmptyHTML(signedIn: boolean, hasCode = tru
 		btn.disabled = true;
 		btn.textContent = 'Generating...';
 		errEl.style.display = 'none';
-		fetch('/api/use-case-diagram/generate', { method: 'POST' })
+		fetch('api/use-case-diagram/generate', { method: 'POST' })
 			.then(function (r) { return r.json(); })
 			.then(function (result) {
 				if (result.ok) {

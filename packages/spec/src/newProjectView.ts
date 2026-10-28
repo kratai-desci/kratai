@@ -207,7 +207,7 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 				r.onerror = function () { reject(new Error('Could not read ' + file.name + '.')); };
 				r.readAsDataURL(file);
 			}).then(function (b64) {
-				return api('/api/new-project/document', { name: file.name, data: b64 });
+				return api('api/new-project/document', { name: file.name, data: b64 });
 			}).then(function (j) {
 				if (!state.docs.some(function (d) { return d.name === file.name && d.text.length === j.text.length; })) state.docs.push({ name: file.name, text: j.text });
 			}).catch(function (e) {
@@ -232,14 +232,14 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 		state.error = null;
 		state.loading = { title: 'Reading your documents', sub: 'Finding the people and systems involved.' };
 		render(true);
-		api('/api/new-project/ai', { step: 'actors', input: payload('actors') }).then(function (res) {
+		api('api/new-project/ai', { step: 'actors', input: payload('actors') }).then(function (res) {
 			var list = Array.isArray(res.data) ? res.data : [];
 			state.actors = list.map(function (a) { return { name: a.name, desc: a.description || '', kind: a.kind === 'system' ? 'system' : 'person', on: true }; });
 			state.actorsSig = actorsSig();
 			state.useCases = {};
 			state.loading = { title: 'Drafting use cases', sub: 'Working out what each of them does.' };
 			render(true);
-			return api('/api/new-project/ai', { step: 'use-cases', input: payload('use-cases') });
+			return api('api/new-project/ai', { step: 'use-cases', input: payload('use-cases') });
 		}).then(function (res) {
 			var byActor = res.data && typeof res.data === 'object' ? res.data : {};
 			chosenActors().forEach(function (a) {
@@ -247,7 +247,7 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 			});
 			state.loading = { title: 'Collecting requirements', sub: 'Gathering the quality requirements your documents state.' };
 			render(true);
-			return api('/api/new-project/ai', { step: 'requirements', input: payload('requirements') });
+			return api('api/new-project/ai', { step: 'requirements', input: payload('requirements') });
 		}).then(function (res) {
 			state.nfrs = (Array.isArray(res.data) ? res.data : []).map(function (r) { return { name: r.name, desc: r.description, cat: r.category, on: true }; });
 			state.loading = null;
@@ -369,7 +369,7 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 		state.error = null;
 		state.loading = LOADING[step]();
 		render(true);
-		api('/api/new-project/ai', { step: step, input: payload(step) }).then(function (res) {
+		api('api/new-project/ai', { step: step, input: payload(step) }).then(function (res) {
 			apply(step, res.data);
 			state.loading = null;
 			render(true);
@@ -397,11 +397,11 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 		var timer = setInterval(function () {
 			if (state.creating && state.creating.done < CREATE_STEPS.length - 1) { state.creating.done++; render(false); }
 		}, 3500);
-		api('/api/new-project/create', payload('create')).then(function () {
+		api('api/new-project/create', payload('create')).then(function () {
 			clearInterval(timer);
 			state.creating = { done: CREATE_STEPS.length };
 			render(false);
-			setTimeout(function () { location.href = '/?view=spec'; }, 700);
+			setTimeout(function () { location.href = './?view=spec'; }, 700);
 		}).catch(function (err) {
 			clearInterval(timer);
 			fail(err, create, null);
@@ -498,7 +498,7 @@ export function generateNewProjectHTML(workspaceName: string, logoDataUrl: strin
 		else if (a === 'remove-doc') { state.docs.splice(+t.getAttribute('data-idx'), 1); render(false); }
 		else if (a === 'retry') state.error.retry();
 		else if (a === 'skip-suggestions') state.error.skip();
-		else if (a === 'skip') { api('/api/new-project/skip', {}).then(function () { location.href = '/'; }, function () { location.href = '/'; }); }
+		else if (a === 'skip') { api('api/new-project/skip', {}).then(function () { location.href = './'; }, function () { location.href = './'; }); }
 		else if (a === 'add-actor') {
 			var v = document.getElementById('add-actor').value.trim();
 			if (v) { state.actors = state.actors || []; addTo(state.actors, { name: v, desc: '', kind: 'person', on: true, mine: true }); render(false); }

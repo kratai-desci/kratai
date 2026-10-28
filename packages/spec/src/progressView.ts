@@ -336,7 +336,7 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 	// Every change goes through the server (it owns the spec file); it answers with the fresh rows,
 	// which also renumbers anything a restore or delete shifted.
 	function act(payload) {
-		return fetch('/api/progress', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+		return fetch('api/progress', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
 			.then(function (r) { return r.json().catch(function () { return { ok: false, error: 'Unexpected response.' }; }); })
 			.then(function (j) {
 				if (!j.ok) throw new Error(j.error || 'Could not save that.');
@@ -374,7 +374,7 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 		btn.disabled = true; btn.textContent = 'Generating...';
 		status.textContent = ''; status.classList.remove('error');
 		var order = sortedRows().filter(function (r) { return !r.removedByAi; }).map(refOf);
-		fetch('/api/progress/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order: order }) })
+		fetch('api/progress/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order: order }) })
 			.then(function (r) { return r.json(); })
 			.then(function (result) {
 				if (!result.ok && result.error) throw new Error(result.error);

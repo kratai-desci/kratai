@@ -47,6 +47,23 @@ export interface ShellStats {
 // assistant turn, and there's nothing for the model to have "said" here anyway).
 const NO_CODE_OPENER = 'Tell me about your project: what is it, who will use it, and what problem does it solve? A few sentences is enough, and I\'ll draft the use cases from your answer.';
 
+/**
+ * Set when the shell runs in the web app (kratai-web) rather than the desktop app: there is no code
+ * to show or re-scan, a project lives in a list of projects, and the account pages are ordinary links.
+ */
+export interface WebShellOptions {
+	projectsUrl: string;
+	accountUrl: string;
+	/** Where the page goes after Sign out. */
+	signedOutUrl: string;
+	/** The line under the project name, in place of the code counts. */
+	subtitle: string;
+}
+
+function escapeShellText(s: string): string {
+	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 export function generateShellHTML(
 	workspaceName: string,
 	stats: ShellStats,
@@ -56,7 +73,8 @@ export function generateShellHTML(
 	chatMode: 'code' | 'blank' | 'draft' = 'code',
 	// A project that was just set up (the wizard, or the automatic first generation) opens on the Spec,
 	// whatever view was last left on screen in some other project - see START_ON_SPEC below.
-	startOnSpec = false
+	startOnSpec = false,
+	web?: WebShellOptions
 ): string {
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -191,6 +209,11 @@ export function generateShellHTML(
 	.account-menu-sep { height: 1px; background: var(--border); margin: 4px 2px; }
 
 	#topbar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+	#projects-link {
+		font-size: 12.5px; font-weight: 600; color: var(--text-dim); text-decoration: none;
+		margin-right: 10px; padding-right: 12px; border-right: 1px solid var(--border);
+	}
+	#projects-link:hover { color: var(--accent); }
 	#theme-toggle, #refresh-btn, #chat-toggle {
 		width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
 		background: var(--surface-2); color: var(--text-dim); cursor: pointer;
@@ -259,7 +282,7 @@ export function generateShellHTML(
 	   for what's meant to feel like a narrator explaining the diagram). */
 	#chat-log { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 22px; display: flex; flex-direction: column; gap: 8px; }
 	#chat-log:empty::before {
-		content: 'Ask about this architecture - what a class does, why two folders are connected, what changed.';
+		content: '${chatMode === 'code' ? 'Ask about this architecture - what a class does, why two folders are connected, what changed.' : 'Ask for a change to your spec - add a use case, reword a requirement, fill in a main flow.'}';
 		color: var(--text-faint); font-size: 12.5px;
 	}
 	.chat-msg { font-size: 13.5px; line-height: 1.6; max-width: 720px; }
@@ -270,6 +293,9 @@ export function generateShellHTML(
 	.chat-msg.user .speaker { color: var(--accent); }
 	.chat-msg.ai .speaker { color: var(--accent-2); }
 	.chat-msg.thinking .speaker { color: var(--accent-2); }
+	.chat-msg.thinking .status { color: var(--text-dim); margin-left: 8px; }
+	.chat-msg.stopped .speaker { display: none; }
+	.chat-msg.stopped .line { color: var(--text-dim); font-style: italic; }
 	.chat-msg.error .speaker { color: #D6455B; }
 	.chat-msg.error .line { color: #D6455B; }
 	.chat-msg .line { color: var(--text); }
@@ -323,6 +349,16 @@ export function generateShellHTML(
 		font-size: 12.5px; padding: 0 18px; border-radius: 100px; cursor: pointer; flex-shrink: 0; height: 37px;
 	}
 	#chat-send:disabled { opacity: 0.5; cursor: default; }
+	#chat-send.stop { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+	/* What the chat did, under its answer: "Worked for 1m 05s - 6 steps", opening to the list. */
+	.chat-steps { font-size: 12px; color: var(--text-dim); margin: -2px 0 6px; max-width: 720px; }
+	.chat-steps summary { cursor: pointer; list-style: none; }
+	.chat-steps summary::-webkit-details-marker { display: none; }
+	.chat-steps summary::before { content: '\\25B8'; display: inline-block; margin-right: 5px; }
+	.chat-steps[open] summary::before { content: '\\25BE'; }
+	.chat-steps.no-steps summary::before { content: none; }
+	.chat-steps ul { margin: 4px 0 0; padding-left: 20px; }
+	.chat-steps li { margin: 1px 0; }
 
 	/* ---- account: sign in with a kratai-web account for hosted AI credit
 	   (replaces the earlier BYOK Settings modal - one coherent flow instead
@@ -357,14 +393,14 @@ export function generateShellHTML(
 	<div id="update-bar"><span id="update-text"></span><button class="update-go" id="update-go">Download</button><button class="update-dismiss" id="update-dismiss" title="Dismiss" aria-label="Dismiss">&times;</button></div>
 	<div id="topbar">
 		<div>
-			<h1>${workspaceName}</h1>
-			<p class="sub">${stats.classCount} classes &bull; ${stats.folderCount} folders &bull; ${stats.edgeCount} relationships</p>
+			${web ? `<a id="projects-link" href="${escapeShellText(web.projectsUrl)}">&lsaquo; Projects</a>` : ''}<h1>${workspaceName}</h1>
+			<p class="sub">${web ? escapeShellText(web.subtitle) : `${stats.classCount} classes &bull; ${stats.folderCount} folders &bull; ${stats.edgeCount} relationships`}</p>
 		</div>
 		<div id="view-pickers"></div>
 		<div id="topbar-actions">
-			<button id="refresh-btn" title="Re-scan the project">
+			${web ? '' : `<button id="refresh-btn" title="Re-scan the project">
 				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-			</button>
+			</button>`}
 			<button id="chat-toggle" class="active" title="Toggle AI dialog">
 				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
 			</button>
@@ -378,7 +414,7 @@ export function generateShellHTML(
 					<div class="account-menu-static" id="account-menu-email"></div>
 					<div class="account-menu-static" id="account-menu-balance"></div>
 					<div class="account-menu-sep"></div>
-					<div class="view-picker-item" id="account-menu-dashboard"><span class="check"></span><span>Open dashboard</span></div>
+					<div class="view-picker-item" id="account-menu-dashboard"><span class="check"></span><span>${web ? 'Account' : 'Open dashboard'}</span></div>
 					<div class="view-picker-item" id="account-menu-signout"><span class="check"></span><span>Sign out</span></div>
 				</div>
 			</div>
@@ -418,18 +454,21 @@ export function generateShellHTML(
 		var START_ON_SPEC = ${JSON.stringify(startOnSpec)};
 		var NO_CODE = ${JSON.stringify(chatMode === 'blank')};
 		var NO_CODE_OPENER = ${JSON.stringify(NO_CODE_OPENER)};
+		// The web app's links (see WebShellOptions), or null in the desktop app.
+		var WEB = ${JSON.stringify(web ?? null)};
 		// The one flat list every picker draws from - spec-driven views
 		// first, then code-exploration ones. Knowledge Graph/Stack Layer
 		// were pulled from this list (still reachable via SRC_BY_MODE - see
-		// applyAiUiActions) but stay out of the manual picker for now.
+		// applyAiUiActions) but stay out of the manual picker for now. The
+		// web app has no code, so no Class Diagram either.
 		var VIEW_OPTIONS = [
 			['srs', 'Spec'], ['usecase', 'Use Case Model'], ['data', 'Data Model'],
-			['class', 'Class Diagram'], ['progress', 'Progress']
+			${web ? '' : "['class', 'Class Diagram'], "}['progress', 'Progress']
 		];
 		var SRC_BY_MODE = {
-			graph: '/knowledge-graph', class: '/class-diagram', stack: '/stack-layer',
-			usecase: '/use-case-diagram', data: '/data-model', progress: '/progress',
-			srs: '/srs-preview'
+			graph: 'knowledge-graph', class: 'class-diagram', stack: 'stack-layer',
+			usecase: 'use-case-diagram', data: 'data-model', progress: 'progress',
+			srs: 'srs-preview'
 		};
 
 		// 1440px sits above a typical embedded/paneled browser (e.g. Claude
@@ -449,7 +488,7 @@ export function generateShellHTML(
 		// the latest layout. ----
 		var storedLayout = STORED_LAYOUT || {};
 		function saveLayout() {
-			fetch('/api/layout', {
+			fetch('api/layout', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -770,7 +809,7 @@ export function generateShellHTML(
 		// quietly; offline or no hook just means no bar). A dismissed version stays
 		// dismissed, but the next release shows the bar again.
 		function checkUpdate() {
-			fetch('/api/update-info').then(function (res) { return res.json(); }).then(function (data) {
+			fetch('api/update-info').then(function (res) { return res.json(); }).then(function (data) {
 				var update = data && data.update;
 				if (!update || !update.version) return;
 				var seen = '';
@@ -789,7 +828,7 @@ export function generateShellHTML(
 
 		function refreshBalance() {
 			if (!AUTH_STATUS.signedIn) { balanceBar.style.display = 'none'; return; }
-			fetch('/api/balance').then(function (res) { return res.json(); }).then(function (data) {
+			fetch('api/balance').then(function (res) { return res.json(); }).then(function (data) {
 				if (!data || typeof data.balanceCents !== 'number' || typeof data.totalCents !== 'number' || data.totalCents <= 0) {
 					balanceBar.style.display = 'none';
 					return;
@@ -827,7 +866,7 @@ export function generateShellHTML(
 			if (AUTH_STATUS.signedIn || statusPoll) return;
 			accountLabel.textContent = 'Waiting for sign-in\\u2026';
 			accountBtn.disabled = true;
-			fetch('/api/auth/start', { method: 'POST' }).catch(function () {});
+			fetch('api/auth/start', { method: 'POST' }).catch(function () {});
 
 			var elapsed = 0;
 			statusPoll = setInterval(function () {
@@ -841,7 +880,7 @@ export function generateShellHTML(
 					setTimeout(renderAccountButton, 2500);
 					return;
 				}
-				fetch('/api/auth/status').then(function (res) { return res.json(); }).then(function (status) {
+				fetch('api/auth/status').then(function (res) { return res.json(); }).then(function (status) {
 					if (!status.signedIn) return;
 					stopPolling();
 					AUTH_STATUS = status;
@@ -878,15 +917,16 @@ export function generateShellHTML(
 			// welcomeScreen.ts) - index.ts's will-navigate interceptor turns
 			// this into shell.openExternal rather than navigating this
 			// window itself, since the dashboard is a real kratai-web page,
-			// not something to load inside the app's own shell.
-			window.location.href = 'kratai-action://open-dashboard';
+			// not something to load inside the app's own shell. On the web it is just a page.
+			window.location.href = WEB ? WEB.accountUrl : 'kratai-action://open-dashboard';
 		});
 
 		accountMenuSignout.addEventListener('click', function (e) {
 			e.stopPropagation();
 			closeAccountMenu();
 			accountBtn.disabled = true;
-			fetch('/api/auth/sign-out', { method: 'POST' }).then(function () {
+			fetch('api/auth/sign-out', { method: 'POST' }).then(function () {
+				if (WEB) { window.location.href = WEB.signedOutUrl; return; }
 				AUTH_STATUS = { signedIn: false, email: null };
 				renderAccountButton();
 				refreshBalance();
@@ -949,7 +989,8 @@ export function generateShellHTML(
 		if (START_ON_SPEC) {
 			leftMode = 'srs';
 			narrowMode = 'srs';
-			history.replaceState(null, '', '/');
+			// Only the query goes: the page may live below the site root (a web app project's /p/<id>/).
+			history.replaceState(null, '', location.pathname);
 		}
 		applyMode();
 		renderPickers();
@@ -962,13 +1003,15 @@ export function generateShellHTML(
 		// Re-scans the whole project from disk - a frame doesn't re-parse on
 		// its own reload (see view.ts's runView: the parse is cached server-
 		// side for the process's lifetime), so this is currently the only
-		// way to pick up source changes without restarting the server.
-		document.getElementById('refresh-btn').addEventListener('click', function () {
+		// way to pick up source changes without restarting the server. The web
+		// app has no code to re-scan, so no button.
+		var refreshBtn = document.getElementById('refresh-btn');
+		if (refreshBtn) refreshBtn.addEventListener('click', function () {
 			var btn = this;
 			if (btn.disabled) return;
 			btn.disabled = true;
 			btn.classList.add('spinning');
-			fetch('/api/refresh', { method: 'POST' })
+			fetch('api/refresh', { method: 'POST' })
 				.then(function (res) { return res.json(); })
 				.then(function (result) {
 					if (!result.ok) throw new Error(result.error || 'Refresh failed');
@@ -1066,7 +1109,7 @@ export function generateShellHTML(
 			var line = document.createElement('span');
 			line.className = 'line';
 			if (role === 'thinking') {
-				line.innerHTML = '<span class="thinking-dots"><span></span><span></span><span></span></span>';
+				line.innerHTML = '<span class="thinking-dots"><span></span><span></span><span></span></span><span class="status"></span>';
 			} else if (role === 'ai') {
 				line.innerHTML = renderMarkdownLite(text);
 			} else {
@@ -1153,6 +1196,68 @@ export function generateShellHTML(
 		// button state on its own, so without this a fast double-Enter could
 		// fire two overlapping requests against the same chatHistory.
 		var chatSending = false;
+		var chatRun = null;
+
+		// "42s", then "1m 05s".
+		function formatElapsed(ms) {
+			var total = Math.floor(ms / 1000);
+			if (total < 60) return total + 's';
+			var seconds = total % 60;
+			return Math.floor(total / 60) + 'm ' + (seconds < 10 ? '0' : '') + seconds + 's';
+		}
+		// Send turns into Stop while the chat works.
+		function setChatBusy(busy) {
+			var button = document.getElementById('chat-send');
+			button.textContent = busy ? 'Stop' : 'Send';
+			button.classList.toggle('stop', busy);
+			button.title = busy ? 'Stop (Esc)' : '';
+		}
+		// A dim line under an answer (or a stopped run): how long it took and, opening to a list, what it did.
+		function appendChatSteps(summary, steps) {
+			var log = document.getElementById('chat-log');
+			var box = document.createElement('details');
+			box.className = 'chat-steps';
+			var head = document.createElement('summary');
+			head.textContent = summary;
+			box.appendChild(head);
+			var list = document.createElement('ul');
+			steps.forEach(function (label) {
+				var item = document.createElement('li');
+				item.textContent = label;
+				list.appendChild(item);
+			});
+			box.appendChild(list);
+			if (!steps.length) { box.removeChild(list); head.style.cursor = 'default'; head.style.listStyle = 'none'; box.className += ' no-steps'; }
+			log.appendChild(box);
+			log.scrollTop = log.scrollHeight;
+		}
+		function stepCount(steps) { return steps.length + (steps.length === 1 ? ' step' : ' steps'); }
+
+		// The chat answers as a stream of one-line JSON events (see chatActivity.ts): what it is doing now,
+		// view changes as they happen, then the answer. Calls onEvent for each; resolves when the stream ends.
+		function readChatEvents(res, onEvent) {
+			var reader = res.body.getReader();
+			var decoder = new TextDecoder();
+			var pending = '';
+			function pump() {
+				return reader.read().then(function (chunk) {
+					if (chunk.done) {
+						if (pending.trim()) onEvent(JSON.parse(pending));
+						return;
+					}
+					pending += decoder.decode(chunk.value, { stream: true });
+					var lines = pending.split('\\n');
+					pending = lines.pop();
+					lines.forEach(function (line) { if (line.trim()) onEvent(JSON.parse(line)); });
+					return pump();
+				});
+			}
+			return pump();
+		}
+
+		function stopChat() {
+			if (chatRun) chatRun.controller.abort();
+		}
 
 		function sendChatMessage() {
 			if (chatSending) return;
@@ -1164,36 +1269,69 @@ export function generateShellHTML(
 			chatHistory.push({ role: 'user', text: text });
 			input.value = '';
 			growChatInput();
-			document.getElementById('chat-send').disabled = true;
 			input.disabled = true;
-			// A tool-call loop server-side (view.ts) can mean several real
-			// model round trips before a reply comes back - previously
-			// nothing showed between sending and the reply appearing, which
-			// read as the app having frozen on anything but an instant
-			// answer. This placeholder is removed the moment a real
-			// message (reply or error) is appended in its place.
+			setChatBusy(true);
+			// A tool-call loop server-side (view.ts) can mean many real model round trips before the answer, so
+			// this line says what it is doing and for how long, and Stop (or Esc) ends it.
+			var run = chatRun = { controller: new AbortController(), startedAt: Date.now(), detail: 'Thinking', steps: [], changed: false, finished: false };
 			var thinkingEntry = appendChatMessage('thinking', '');
-			fetch('/api/chat', {
+			var statusEl = thinkingEntry.querySelector('.status');
+			function drawStatus() {
+				statusEl.textContent = run.detail + ' \\u00B7 ' + formatElapsed(Date.now() - run.startedAt) + ' \\u00B7 Esc to stop';
+			}
+			drawStatus();
+			var timer = setInterval(drawStatus, 1000);
+
+			function onEvent(event) {
+				if (event.type === 'thinking') { run.detail = 'Thinking'; drawStatus(); }
+				else if (event.type === 'tool') { run.detail = event.label; run.steps.push(event.label); if (event.editsSpec) run.changed = true; drawStatus(); }
+				else if (event.type === 'ui') { applyAiUiActions(event.actions); }
+				else if (event.type === 'error') { throw new Error(event.error); }
+				else if (event.type === 'done') {
+					run.finished = true;
+					thinkingEntry.remove();
+					appendChatMessage('ai', event.reply);
+					chatHistory.push({ role: 'assistant', text: event.reply });
+					if (event.steps.length || event.elapsedMs >= 3000) {
+						appendChatSteps('Worked for ' + formatElapsed(event.elapsedMs) + (event.steps.length ? ' \\u00B7 ' + stepCount(event.steps) : ''), event.steps);
+					}
+				}
+			}
+
+			fetch('api/chat', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ messages: chatHistory })
+				body: JSON.stringify({ messages: chatHistory }),
+				signal: run.controller.signal
 			})
-				.then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
-				.then(function (result) {
-					thinkingEntry.remove();
-					if (!result.ok) throw new Error(result.data.error || 'Chat request failed.');
-					applyAiUiActions(result.data.uiActions);
-					appendChatMessage('ai', result.data.reply);
-					chatHistory.push({ role: 'assistant', text: result.data.reply });
-					refreshBalance();
+				.then(function (res) {
+					if (!res.ok) return res.json().then(function (data) { throw new Error(data.error || 'Chat request failed.'); });
+					return readChatEvents(res, onEvent);
+				})
+				.then(function () {
+					if (!run.finished) throw new Error('The connection ended before kratai finished. Try again.');
 				})
 				.catch(function (error) {
 					thinkingEntry.remove();
-					appendChatMessage('error', error.message);
+					if (run.controller.signal.aborted) {
+						// Stopped by the user. The question goes back in the box to edit or send again, and out of what
+						// the model is shown next time. Spec edits already made are kept, which the note says.
+						if (chatHistory.length && chatHistory[chatHistory.length - 1].role === 'user') chatHistory.pop();
+						input.value = text;
+						growChatInput();
+						appendChatMessage('stopped', 'Stopped after ' + formatElapsed(Date.now() - run.startedAt) + (run.changed ? ' \\u00B7 edits already made to your spec were kept' : ''));
+						if (run.steps.length) appendChatSteps(stepCount(run.steps) + ' before stopping', run.steps);
+					} else {
+						appendChatMessage('error', error.message);
+					}
+					refreshBalance();
 				})
+				.then(function () { if (run.finished) refreshBalance(); })
 				.finally(function () {
+					clearInterval(timer);
 					chatSending = false;
-					document.getElementById('chat-send').disabled = false;
+					chatRun = null;
+					setChatBusy(false);
 					input.disabled = false;
 					input.focus();
 				});
@@ -1209,7 +1347,11 @@ export function generateShellHTML(
 			input.setSelectionRange(input.value.length, input.value.length);
 		}
 
-		document.getElementById('chat-send').addEventListener('click', sendChatMessage);
+		document.getElementById('chat-send').addEventListener('click', function () { if (chatSending) stopChat(); else sendChatMessage(); });
+		// Esc stops a chat that is working, as in a terminal.
+		document.addEventListener('keydown', function (e) {
+			if (e.key === 'Escape' && chatSending) { e.preventDefault(); stopChat(); }
+		});
 		// A box that grows with what you type (up to its max height). Enter sends; Shift+Enter adds a
 		// line. While an input method (Thai, Japanese, Chinese...) is composing, Enter confirms the
 		// characters and must not send, so composing keystrokes are ignored here.

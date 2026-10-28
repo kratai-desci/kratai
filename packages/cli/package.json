@@ -31,7 +31,7 @@
     "@kratai-desci/llm": "*",
     "@kratai/analysis": "*",
     "@kratai/diagram-view": "*",
-    "unpdf": "^1.8.1"
+    "@kratai-desci/spec": "*"
   },
   "devDependencies": {
     "@types/node": "22.x",

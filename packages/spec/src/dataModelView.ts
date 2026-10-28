@@ -1,4 +1,4 @@
-import { DataModelData, DataEntity } from './dataModelData.js';
+import { DataModelData, DataEntity } from '@kratai-desci/llm';
 
 // PAD_TOP deliberately smaller than PAD_BOTTOM (and matches the Class
 // Diagram's own .section { padding: 6px 0 } convention) - equal top/bottom
@@ -437,7 +437,7 @@ export function generateDataModelEmptyHTML(signedIn: boolean, hasCode = true): s
 		btn.disabled = true;
 		btn.textContent = 'Generating...';
 		errEl.style.display = 'none';
-		fetch('/api/data-model/generate', { method: 'POST' })
+		fetch('api/data-model/generate', { method: 'POST' })
 			.then(function (r) { return r.json(); })
 			.then(function (result) {
 				if (result.ok) {

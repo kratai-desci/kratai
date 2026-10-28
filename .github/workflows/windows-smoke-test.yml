@@ -32,6 +32,7 @@ jobs:
       # diagram-view + llm's output, desktop needs cli + llm's output.
       - run: npm run build --workspace=packages/analysis
       - run: npm run build --workspace=packages/llm
+      - run: npm run build --workspace=packages/spec
       - run: npm run build --workspace=packages/diagram-view
       - run: npm run build --workspace=packages/cli
       - run: npm run build --workspace=packages/desktop

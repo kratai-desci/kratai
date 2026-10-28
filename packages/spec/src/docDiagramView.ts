@@ -1,4 +1,4 @@
-import { UseCaseDiagramData, UseCaseActor, UseCaseItem, UseCaseNFR } from './useCaseDiagramData.js';
+import { UseCaseDiagramData, UseCaseActor, UseCaseItem, UseCaseNFR } from '@kratai-desci/llm';
 
 /**
  * The use case diagram as it appears in the DOCUMENTS (the SRS and the progress report, and so

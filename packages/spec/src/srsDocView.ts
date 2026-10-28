@@ -1,7 +1,7 @@
-import { UseCaseDiagramData, UseCaseNFR } from './useCaseDiagramData.js';
+import { UseCaseDiagramData, UseCaseNFR } from '@kratai-desci/llm';
 import { buildDocumentDiagrams, DOC_DIAGRAM_STYLE, type DocumentDiagrams } from './docDiagramView.js';
 import { stripStepNumber } from '@kratai-desci/llm';
-import { DataModelData } from './dataModelData.js';
+import { DataModelData } from '@kratai-desci/llm';
 import { buildDataModelSvg, DATA_MODEL_SVG_STYLE } from './dataModelView.js';
 
 function escapeXml(s: string): string {
@@ -478,7 +478,7 @@ ${SRS_PAGE_CSS}
 			var field = el.getAttribute('data-field');
 			var payload = {};
 			payload[field] = el.textContent.trim();
-			fetch('/api/requirements/metadata', {
+			fetch('api/requirements/metadata', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload)
@@ -493,7 +493,7 @@ ${SRS_PAGE_CSS}
 		btn.textContent = 'Generating...';
 		pdfStatus.textContent = '';
 		pdfStatus.classList.remove('error');
-		fetch('/api/requirements/export', { method: 'POST' })
+		fetch('api/requirements/export', { method: 'POST' })
 			.then(function (r) { return r.json(); })
 			.then(function (result) {
 				if (!result.ok && result.error) throw new Error(result.error);
@@ -572,7 +572,7 @@ ${DOC_STYLE}
 		btn.disabled = true;
 		btn.textContent = 'Generating...';
 		errEl.style.display = 'none';
-		fetch('/api/use-case-diagram/generate', { method: 'POST' })
+		fetch('api/use-case-diagram/generate', { method: 'POST' })
 			.then(function (r) { return r.json(); })
 			.then(function (result) {
 				if (result.ok) { location.reload(); return; }
