@@ -63,6 +63,10 @@ export interface WebShellOptions {
 	logoUrl: string;
 	/** The numbers beside the views in the sidebar (kept current from the project's api/counts). */
 	counts: ViewCounts;
+	/** The project's members page, linked from the sidebar. */
+	membersUrl?: string;
+	/** A viewer: everything can be read, nothing changed, so there is no chat. */
+	readOnly?: boolean;
 }
 
 export interface ViewCounts {
@@ -444,6 +448,10 @@ export function generateShellHTML(
 	body.web #chat-toggle { width: 100%; height: auto; border: none; background: none; justify-content: flex-start; }
 	body.web #chat-toggle.active { background: none; color: var(--accent); }
 	body.web #chat-toggle:hover { background: var(--surface-2); }
+	/* A viewer has no chat: it changes the spec. */
+	body.read-only #chat-toggle, body.read-only #chat-panel, body.read-only #chat-resizer { display: none !important; }
+	#side-view-only { cursor: default; }
+	#side-view-only:hover { background: none; color: var(--text-dim); }
 	#chat-head {
 		flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
 		padding: 6px 8px 6px 22px; border-bottom: 1px solid var(--border); font-size: 13.5px; font-weight: 700;
@@ -481,7 +489,7 @@ export function generateShellHTML(
 	}
 </style>
 </head>
-<body${web ? ' class="web"' : ''}>
+<body${web ? (web.readOnly ? ' class="web read-only"' : ' class="web"') : ''}>
 	<div id="update-bar"><span id="update-text"></span><button class="update-go" id="update-go">Download</button><button class="update-dismiss" id="update-dismiss" title="Dismiss" aria-label="Dismiss">&times;</button></div>
 ${web ? `	<nav id="sidebar" aria-label="Project">
 		<a id="side-logo" href="${escapeShellText(web.projectsUrl)}" title="All projects"><img src="${escapeShellText(web.logoUrl)}" alt=""><span>kratai</span></a>
@@ -491,6 +499,8 @@ ${web ? `	<nav id="sidebar" aria-label="Project">
 		</div>
 		<div id="view-pickers"></div>
 		<div class="side-sep"></div>
+		${web.membersUrl ? `<a class="side-item" id="side-members" href="${escapeShellText(web.membersUrl)}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.6.8 2.6 2.6 3 5.2"/></svg><span>Members</span></a>` : ''}
+		${web.readOnly ? `<span class="side-item" id="side-view-only" title="Ask the owner to make you a member to change it"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>View only</span></span>` : ''}
 		<button id="chat-toggle" class="side-item active" type="button" title="Show or hide the chat">
 			<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><span>Chat</span>
 		</button>
