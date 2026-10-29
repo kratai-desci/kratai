@@ -3,7 +3,7 @@ import {
 	parseWizardChoices, buildProjectSpec, describeWizardOutcome
 } from '@kratai-desci/llm';
 import type { ConversationMessage, ChatStepResult, NewProjectStep, SpecDetails, UseCaseDiagramData, DataModelData } from '@kratai-desci/llm';
-import { generateShellHTML, type WebShellOptions } from './viewShell.js';
+import { generateShellHTML, type WebShellOptions, type ViewCounts } from './viewShell.js';
 import { generateUseCaseDiagramHTML, generateUseCaseDiagramEmptyHTML } from './useCaseDiagramView.js';
 import { generateDataModelHTML, generateDataModelEmptyHTML } from './dataModelView.js';
 import { generateProgressHTML } from './progressView.js';
@@ -52,7 +52,7 @@ export interface SpecAppDeps {
 	newProjectStep(step: NewProjectStep, input: unknown): Promise<unknown>;
 	/** Reads a scanned document (a picture, or a PDF of page pictures) into text, billed to the user. */
 	readDocument(file: { name: string; mimeType: string; data: string }): Promise<string>;
-	links: Omit<WebShellOptions, 'subtitle'>;
+	links: Omit<WebShellOptions, 'counts'>;
 	/** The app icon as a data URI, for the wizard's header. */
 	logoDataUrl?: string;
 }
@@ -93,11 +93,16 @@ export function buildSpecOnlyChatSummary(projectName: string, useCaseData: UseCa
 	return `# ${projectName}\n\nNOTE: This workspace has NO CODE yet - there is nothing to read or extract from. The user is starting from scratch.\n` + specSection(useCaseData, dataModelData);
 }
 
-/** The line under the project name in the shell. */
-function specCounts(useCaseData: UseCaseDiagramData | undefined): string {
-	if (!useCaseData) return 'No spec yet';
-	const spec = visibleSpec(useCaseData);
-	return `${spec.actors.length} actors • ${spec.useCases.length} use cases • ${(spec.nfrs || []).length} requirements`;
+/** The numbers beside the views in the sidebar; done/total counts use cases and requirements, as on the Projects page. */
+function viewCounts(useCaseData: UseCaseDiagramData | undefined, dataModelData: DataModelData | undefined): ViewCounts {
+	const spec = useCaseData ? visibleSpec(useCaseData) : undefined;
+	const items: { status?: string }[] = [...(spec?.useCases ?? []), ...(spec?.nfrs ?? [])];
+	return {
+		useCases: spec?.useCases.length ?? 0,
+		entities: dataModelData?.entities.length ?? 0,
+		done: items.filter(i => i.status === 'done').length,
+		total: items.length
+	};
 }
 
 export async function handleSpecRequest(deps: SpecAppDeps, req: SpecRequest): Promise<Response> {
@@ -114,7 +119,7 @@ export async function handleSpecRequest(deps: SpecAppDeps, req: SpecRequest): Pr
 			const chatMode = useCaseData ? 'draft' : 'blank';
 			return html(generateShellHTML(name(), { classCount: 0, folderCount: 0, edgeCount: 0 }, await deps.getLayout(),
 				{ signedIn: true, email: deps.email }, project.chatHistory, chatMode, req.search.get('view') === 'spec',
-				{ ...deps.links, subtitle: specCounts(useCaseData) }));
+				{ ...deps.links, counts: viewCounts(useCaseData, dataModelData) }));
 		}
 		if (path === 'new-project') return wizardApplies() ? html(generateNewProjectHTML(name(), deps.logoDataUrl ?? '')) : redirect('./');
 		if (path === 'use-case-diagram') return html(useCaseData ? generateUseCaseDiagramHTML(visibleSpec(useCaseData)) : generateUseCaseDiagramEmptyHTML(true, false));
@@ -133,6 +138,7 @@ export async function handleSpecRequest(deps: SpecAppDeps, req: SpecRequest): Pr
 		}
 		if (path === 'api/auth/status') return json(200, { signedIn: true, email: deps.email });
 		if (path === 'api/balance') return json(200, await deps.getBalance());
+		if (path === 'api/counts') return json(200, viewCounts(useCaseData, dataModelData));
 		if (path === 'api/update-info') return json(200, { update: null });
 		return json(404, { ok: false, error: 'Not found.' });
 	}

@@ -56,8 +56,20 @@ export interface WebShellOptions {
 	accountUrl: string;
 	/** Where the page goes after Sign out. */
 	signedOutUrl: string;
-	/** The line under the project name, in place of the code counts. */
-	subtitle: string;
+	/** The account's projects ({ projects: [{ id, name }] }), for the sidebar's project switcher. */
+	projectsApiUrl: string;
+	/** A project's address, with "{id}" where its id goes. */
+	projectUrlTemplate: string;
+	logoUrl: string;
+	/** The numbers beside the views in the sidebar (kept current from the project's api/counts). */
+	counts: ViewCounts;
+}
+
+export interface ViewCounts {
+	useCases: number;
+	entities: number;
+	done: number;
+	total: number;
 }
 
 function escapeShellText(s: string): string {
@@ -387,20 +399,127 @@ export function generateShellHTML(
 		display: block; height: 100%; width: 100%; background: var(--accent);
 		transition: width 0.3s ease, background-color 0.3s ease;
 	}
+
+	/* ---- the web app's left sidebar, in place of the topbar: the project (and a switcher to the
+	   others), its views one click away, the chat toggle, then credit and the account at the foot. ---- */
+	body.web { flex-direction: row; }
+	#sidebar {
+		flex-shrink: 0; width: 232px; display: flex; flex-direction: column; gap: 2px;
+		padding: 14px 12px; background: var(--surface); border-right: 1px solid var(--border);
+	}
+	#side-logo {
+		display: flex; align-items: center; gap: 9px; padding: 2px 8px 12px;
+		font-size: 16px; font-weight: 650; color: var(--text); text-decoration: none;
+	}
+	#side-logo img { width: 26px; height: 26px; }
+	:root[data-theme="dark"] #side-logo img { filter: invert(1); }
+	@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #side-logo img { filter: invert(1); } }
+	.side-item {
+		display: flex; align-items: center; gap: 10px; width: 100%; min-height: 38px; padding: 0 10px;
+		border: none; border-radius: 8px; background: none; color: var(--text-dim);
+		font: inherit; font-size: 13.5px; font-weight: 600; text-align: left; text-decoration: none; cursor: pointer;
+	}
+	.side-item:hover { background: var(--surface-2); color: var(--text); }
+	.side-item.on { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent); }
+	.side-item svg { flex-shrink: 0; }
+	.side-count {
+		margin-left: auto; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+		font-size: 11.5px; font-weight: 600; color: var(--text-dim); font-variant-numeric: tabular-nums;
+	}
+	#project-switch {
+		justify-content: space-between; border: 1px solid var(--border); color: var(--text);
+		font-weight: 650; margin-bottom: 12px;
+	}
+	#project-switch span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	#project-menu { width: 100%; min-width: 0; }
+	#project-menu .view-picker-item { cursor: pointer; }
+	#project-menu .view-picker-item span:last-child { overflow: hidden; text-overflow: ellipsis; }
+	body.web #view-pickers { flex-direction: column; align-items: stretch; gap: 2px; }
+	.side-sep { height: 1px; background: var(--border); margin: 10px 4px; flex-shrink: 0; }
+	.side-spacer { flex: 1; }
+	body.web #chat-toggle { width: 100%; height: auto; border: none; background: none; justify-content: flex-start; }
+	body.web #chat-toggle.active { background: none; color: var(--accent); }
+	body.web #chat-toggle:hover { background: var(--surface-2); }
+	#chat-head {
+		flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+		padding: 6px 8px 6px 22px; border-bottom: 1px solid var(--border); font-size: 13.5px; font-weight: 700;
+	}
+	#chat-close {
+		width: 32px; height: 32px; border: none; border-radius: 8px; background: none;
+		color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center;
+	}
+	#chat-close:hover { background: var(--surface-2); color: var(--text); }
+	#side-credit { font-size: 12.5px; color: var(--text-dim); text-decoration: none; padding: 4px 10px 8px; }
+	#side-credit:hover { color: var(--accent); }
+	#side-credit b { color: var(--text); font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-weight: 650; }
+	#side-account-row { display: flex; align-items: center; gap: 6px; }
+	body.web #account-wrap { flex: 1; min-width: 0; }
+	body.web #account-btn { width: 100%; max-width: none; height: 36px; }
+	/* Opens upward from the foot of the sidebar. */
+	body.web #account-menu { top: auto; bottom: calc(100% + 5px); left: 0; right: auto; }
+	/* A narrow window has no room for a column: the sidebar becomes a strip across the top. */
+	@media (max-width: 800px) {
+		body.web { flex-direction: column; }
+		#sidebar { width: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 6px 8px; border-right: none; border-bottom: 1px solid var(--border); }
+		#side-logo { padding: 0 6px; }
+		#side-logo span, .side-sep, .side-spacer, #side-credit { display: none; }
+		#project-switch-wrap { max-width: 180px; }
+		#project-switch { margin-bottom: 0; }
+		/* The views get a row of their own below, scrolling sideways if they do not fit. */
+		body.web #view-pickers { order: 1; flex: 1 0 100%; flex-direction: row; overflow-x: auto; }
+		body.web #view-pickers .side-item { flex-shrink: 0; }
+		.side-item, #project-switch { width: auto; }
+		body.web #chat-toggle { width: auto; margin-left: auto; }
+		body.web #account-wrap { flex: none; }
+		body.web #account-btn { width: auto; padding: 0 10px; }
+		body.web #account-label { display: none; }
+		body.web #account-menu { top: calc(100% + 5px); bottom: auto; left: auto; right: 0; }
+	}
 </style>
 </head>
-<body>
+<body${web ? ' class="web"' : ''}>
 	<div id="update-bar"><span id="update-text"></span><button class="update-go" id="update-go">Download</button><button class="update-dismiss" id="update-dismiss" title="Dismiss" aria-label="Dismiss">&times;</button></div>
-	<div id="topbar">
+${web ? `	<nav id="sidebar" aria-label="Project">
+		<a id="side-logo" href="${escapeShellText(web.projectsUrl)}" title="All projects"><img src="${escapeShellText(web.logoUrl)}" alt=""><span>kratai</span></a>
+		<div class="view-picker-wrap" id="project-switch-wrap">
+			<button id="project-switch" class="side-item" type="button" aria-haspopup="menu" title="Switch project"><span>${workspaceName}</span><svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></button>
+			<div class="view-picker-menu" id="project-menu" style="display:none"></div>
+		</div>
+		<div id="view-pickers"></div>
+		<div class="side-sep"></div>
+		<button id="chat-toggle" class="side-item active" type="button" title="Show or hide the chat">
+			<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><span>Chat</span>
+		</button>
+		<div class="side-spacer"></div>
+		<a id="side-credit" href="${escapeShellText(web.accountUrl)}" title="Open Account"></a>
+		<div id="side-account-row">
+			<div class="view-picker-wrap" id="account-wrap">
+				<button id="account-btn" title="Sign in">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+					<span id="account-label">Sign in</span>
+					<span id="balance-bar"><span id="balance-bar-fill"></span></span>
+				</button>
+				<div class="view-picker-menu" id="account-menu" style="display:none">
+					<div class="account-menu-static" id="account-menu-email"></div>
+					<div class="account-menu-static" id="account-menu-balance"></div>
+					<div class="account-menu-sep"></div>
+					<div class="view-picker-item" id="account-menu-dashboard"><span class="check"></span><span>Account</span></div>
+					<div class="view-picker-item" id="account-menu-signout"><span class="check"></span><span>Sign out</span></div>
+				</div>
+			</div>
+			<button id="theme-toggle" title="Toggle theme"></button>
+		</div>
+	</nav>
+` : `	<div id="topbar">
 		<div>
-			${web ? `<a id="projects-link" href="${escapeShellText(web.projectsUrl)}">&lsaquo; Projects</a>` : ''}<h1>${workspaceName}</h1>
-			<p class="sub">${web ? escapeShellText(web.subtitle) : `${stats.classCount} classes &bull; ${stats.folderCount} folders &bull; ${stats.edgeCount} relationships`}</p>
+			<h1>${workspaceName}</h1>
+			<p class="sub">${stats.classCount} classes &bull; ${stats.folderCount} folders &bull; ${stats.edgeCount} relationships</p>
 		</div>
 		<div id="view-pickers"></div>
 		<div id="topbar-actions">
-			${web ? '' : `<button id="refresh-btn" title="Re-scan the project">
+			<button id="refresh-btn" title="Re-scan the project">
 				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-			</button>`}
+			</button>
 			<button id="chat-toggle" class="active" title="Toggle AI dialog">
 				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
 			</button>
@@ -414,13 +533,14 @@ export function generateShellHTML(
 					<div class="account-menu-static" id="account-menu-email"></div>
 					<div class="account-menu-static" id="account-menu-balance"></div>
 					<div class="account-menu-sep"></div>
-					<div class="view-picker-item" id="account-menu-dashboard"><span class="check"></span><span>${web ? 'Account' : 'Open dashboard'}</span></div>
+					<div class="view-picker-item" id="account-menu-dashboard"><span class="check"></span><span>Open dashboard</span></div>
 					<div class="view-picker-item" id="account-menu-signout"><span class="check"></span><span>Sign out</span></div>
 				</div>
 			</div>
 			<button id="theme-toggle" title="Toggle theme"></button>
 		</div>
 	</div>
+`}
 	<div id="main-row">
 		<div id="view-container">
 			<div id="panel-a" class="view-panel"><iframe id="frame-a" title="Left view"></iframe></div>
@@ -429,6 +549,7 @@ export function generateShellHTML(
 		</div>
 		<div id="chat-resizer" class="resizer"></div>
 		<div id="chat-panel">
+			${web ? `<div id="chat-head"><span>Chat</span><button id="chat-close" type="button" title="Close the chat" aria-label="Close the chat"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div>` : ''}
 			<div id="chat-log"></div>
 			<div id="chat-input-row">
 				<textarea id="chat-input" rows="1" placeholder="${chatMode === 'blank' ? 'Describe your project...' : chatMode === 'draft' ? 'Ask me to change anything in your spec...' : 'Ask about this architecture...'}"></textarea>
@@ -509,12 +630,15 @@ export function generateShellHTML(
 		var leftMode = knownMode(storedLayout.leftMode, 'srs', true);
 		var rightMode = knownMode(storedLayout.rightMode, 'class', true);
 		var narrowMode = knownMode(storedLayout.narrowMode, 'srs', false);
+		// The web app shows one view at a time (picked in the sidebar), and only its own views.
+		if (WEB && !VIEW_OPTIONS.some(function (opt) { return opt[0] === narrowMode; })) narrowMode = 'srs';
 		// What each generic frame is currently showing - drives which
 		// content-specific fixups (see applyFrameFixups) apply on load, and
 		// which frames a folder-config-changed message should reload.
 		var frameKind = { 'frame-a': null, 'frame-b': null };
 
 		function isWide() {
+			if (WEB) return false;
 			return window.matchMedia(WIDE_QUERY).matches;
 		}
 
@@ -698,11 +822,63 @@ export function generateShellHTML(
 			container.appendChild(wrap);
 		}
 
+		// ---- the web app's sidebar: its views as a list, with how many of each there are ----
+		var VIEW_ICONS = {
+			srs: '<path d="M6 2h9l5 5v15H6z"/><path d="M9 12h8M9 16h8"/>',
+			usecase: '<ellipse cx="12" cy="12" rx="9" ry="5.5"/>',
+			data: '<rect x="3" y="4" width="8" height="6" rx="1"/><rect x="13" y="14" width="8" height="6" rx="1"/><path d="M7 10v7h6"/>',
+			progress: '<path d="M4 12.5l5 5L20 6.5"/>'
+		};
+		var counts = WEB ? WEB.counts : null;
+		function countFor(mode) {
+			if (!counts) return '';
+			if (mode === 'usecase') return String(counts.useCases);
+			if (mode === 'data') return String(counts.entities);
+			if (mode === 'progress') return counts.total ? counts.done + '/' + counts.total : '';
+			return '';
+		}
+		function renderSidebarViews(container) {
+			VIEW_OPTIONS.forEach(function (opt) {
+				var btn = document.createElement('button');
+				btn.type = 'button';
+				btn.className = 'side-item' + (opt[0] === narrowMode ? ' on' : '');
+				if (opt[0] === narrowMode) btn.setAttribute('aria-current', 'page');
+				btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (VIEW_ICONS[opt[0]] || '') + '</svg>';
+				var label = document.createElement('span');
+				label.textContent = opt[1];
+				btn.appendChild(label);
+				var count = countFor(opt[0]);
+				if (count) {
+					var badge = document.createElement('span');
+					badge.className = 'side-count';
+					badge.textContent = count;
+					btn.appendChild(badge);
+				}
+				btn.addEventListener('click', function () {
+					if (opt[0] === narrowMode) return;
+					narrowMode = opt[0]; applyMode(); renderPickers(); saveLayout();
+				});
+				container.appendChild(btn);
+			});
+		}
+		// The numbers change as the spec does (a chat edit, a status set in Progress); any view reloading
+		// after a change, or a chat finishing, asks again.
+		function refreshCounts() {
+			if (!WEB) return;
+			fetch('api/counts').then(function (res) { return res.json(); }).then(function (data) {
+				if (!data || typeof data.useCases !== 'number') return;
+				counts = data;
+				renderPickers();
+			}).catch(function () {});
+		}
+
 		function renderPickers() {
 			var wide = isWide();
 			var container = document.getElementById('view-pickers');
 			container.innerHTML = '';
-			if (wide) {
+			if (WEB) {
+				renderSidebarViews(container);
+			} else if (wide) {
 				renderPicker(container, VIEW_OPTIONS, [['none', 'None']], leftMode, function (v) { leftMode = v; applyMode(); renderPickers(); saveLayout(); });
 				var sep = document.createElement('span');
 				sep.id = 'picker-sep';
@@ -732,6 +908,7 @@ export function generateShellHTML(
 		['frame-a', 'frame-b'].forEach(function (frameId) {
 			document.getElementById(frameId).addEventListener('load', function () {
 				applyFrameFixups(frameId);
+				refreshCounts();
 				pushTheme(frameId);
 				// A highlight_class the AI chat panel queued (see
 				// applyAiUiActions/highlightInFrame below) against a frame
@@ -840,6 +1017,8 @@ export function generateShellHTML(
 				accountBtn.title = (AUTH_STATUS.email || 'Signed in') + ' \\u2022 ' + balanceText;
 				accountMenuBalance.textContent = balanceText;
 				balanceBar.style.display = 'block';
+				var sideCredit = document.getElementById('side-credit');
+				if (sideCredit) sideCredit.innerHTML = '<b>$' + (data.balanceCents / 100).toFixed(2) + '</b> credit left';
 			}).catch(function () {});
 		}
 
@@ -982,6 +1161,57 @@ export function generateShellHTML(
 			applyTheme();
 		});
 
+		// ---- the web app's project switcher: the account's other projects, loaded when it is first opened ----
+		var projectSwitch = document.getElementById('project-switch');
+		if (projectSwitch) {
+			var projectMenu = document.getElementById('project-menu');
+			var projectSwitchWrap = document.getElementById('project-switch-wrap');
+			var projectsLoaded = false;
+			function addProjectItem(label, href, current) {
+				var item = document.createElement('div');
+				item.className = 'view-picker-item' + (current ? ' selected' : '');
+				item.setAttribute('role', 'menuitem');
+				var check = document.createElement('span');
+				check.className = 'check';
+				check.textContent = current ? '\u2713' : '';
+				var text = document.createElement('span');
+				text.textContent = label;
+				item.appendChild(check);
+				item.appendChild(text);
+				item.addEventListener('click', function () { window.location.href = href; });
+				projectMenu.appendChild(item);
+			}
+			function loadProjects() {
+				projectsLoaded = true;
+				projectMenu.textContent = 'Loading\u2026';
+				fetch(WEB.projectsApiUrl).then(function (res) { return res.json(); }).then(function (data) {
+					projectMenu.textContent = '';
+					(data && data.projects || []).forEach(function (p) {
+						var href = WEB.projectUrlTemplate.replace('{id}', encodeURIComponent(p.id));
+						addProjectItem(p.name, href, href === location.pathname);
+					});
+					var sep = document.createElement('div');
+					sep.className = 'account-menu-sep';
+					projectMenu.appendChild(sep);
+					addProjectItem('All projects', WEB.projectsUrl, false);
+				}).catch(function () {
+					projectsLoaded = false;
+					projectMenu.textContent = '';
+					addProjectItem('All projects', WEB.projectsUrl, false);
+				});
+			}
+			projectSwitch.addEventListener('click', function (e) {
+				e.stopPropagation();
+				if (openPickerMenu && openPickerMenu.btn === projectSwitch) { closeOpenPickerMenu(); return; }
+				closeOpenPickerMenu();
+				closeAccountMenu();
+				if (!projectsLoaded) loadProjects();
+				projectMenu.style.display = 'block';
+				projectSwitch.classList.add('open');
+				openPickerMenu = { btn: projectSwitch, menu: projectMenu, wrap: projectSwitchWrap };
+			});
+		}
+
 		// The saved layout is one setting for every project, so a project set up right after leaving some other
 		// view on screen (Progress, say) would open on that instead of its new Spec. Only the Spec-showing sides
 		// change (the left panel, and the single panel of a narrow window); the right panel and sizes stay as
@@ -1041,13 +1271,16 @@ export function generateShellHTML(
 		if (storedLayout.chatWidth) {
 			document.getElementById('chat-panel').style.width = storedLayout.chatWidth;
 		}
-		if (storedLayout.chatOpen === false) {
+		// On a phone the open chat covers the page, so the web app starts it closed there (not saved).
+		if (storedLayout.chatOpen === false || (WEB && window.matchMedia('(max-width: 720px)').matches)) {
 			document.getElementById('chat-panel').classList.add('collapsed');
 			document.getElementById('chat-toggle').classList.remove('active');
 		} else {
 			// Matches the toggle button's initial "active" state (chat starts open).
 			document.getElementById('chat-resizer').classList.add('active');
 		}
+		var chatClose = document.getElementById('chat-close');
+		if (chatClose) chatClose.addEventListener('click', function () { document.getElementById('chat-toggle').click(); });
 		document.getElementById('chat-toggle').addEventListener('click', function () {
 			var panel = document.getElementById('chat-panel');
 			var collapsed = panel.classList.toggle('collapsed');
@@ -1292,6 +1525,7 @@ export function generateShellHTML(
 					thinkingEntry.remove();
 					appendChatMessage('ai', event.reply);
 					chatHistory.push({ role: 'assistant', text: event.reply });
+					refreshCounts();
 					if (event.steps.length || event.elapsedMs >= 3000) {
 						appendChatSteps('Worked for ' + formatElapsed(event.elapsedMs) + (event.steps.length ? ' \\u00B7 ' + stepCount(event.steps) : ''), event.steps);
 					}
