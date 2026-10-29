@@ -1,4 +1,4 @@
-import { ConversationMessage, LlmClient, LlmUsage, ToolCall } from './llmClient.js';
+import { ConversationMessage, LlmClient, LlmUsage, ToolCall, ToolDefinition } from './llmClient.js';
 import { CHAT_TOOL_DEFINITIONS } from './chatToolDefinitions.js';
 import { NFR_TESTABLE_RULE } from './useCaseSchema.js';
 
@@ -56,9 +56,11 @@ export async function chatAboutArchitecture(
 	client: LlmClient,
 	messages: ConversationMessage[],
 	workspaceName: string,
-	summary: string
+	summary: string,
+	// Tools only some callers can carry out (the web app's ADD_TASKS_TOOL), offered on top of the shared ones.
+	extraTools: ToolDefinition[] = []
 ): Promise<ChatStepResult> {
-	const turn = await client.converse(messages, buildSystemPrompt(workspaceName, summary), CHAT_TOOL_DEFINITIONS);
+	const turn = await client.converse(messages, buildSystemPrompt(workspaceName, summary), [...CHAT_TOOL_DEFINITIONS, ...extraTools]);
 	if (turn.toolCalls.length === 0) {
 		return { done: true, reply: turn.text, usage: turn.usage, model: turn.model };
 	}

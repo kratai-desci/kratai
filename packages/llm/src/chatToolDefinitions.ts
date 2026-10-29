@@ -274,3 +274,31 @@ export const SPEC_TOOL_NAMES = new Set([
 	'update_srs_metadata', 'update_use_case_model', 'update_data_model',
 	'generate_use_case_model', 'generate_data_model'
 ]);
+
+/**
+ * The web app's task board: offered to the model only by callers that have a board (see
+ * chatAboutArchitecture's extraTools) - the desktop app has none, so it never sees this.
+ */
+export const ADD_TASKS_TOOL: ToolDefinition = {
+	name: 'add_tasks',
+	description: 'Add tasks to the project\'s task board, in its To do column. Use it when the user asks to plan, break down or create tasks or work items - not for changes to the spec itself. Keep each task small (about a day of work), concrete and buildable, and link it to the one use case or requirement it delivers by that item\'s id from the spec (e.g. "book-court"). Check the Board section of the summary first and do not add tasks that are already there.',
+	inputSchema: {
+		type: 'object',
+		properties: {
+			tasks: {
+				type: 'array',
+				description: 'The tasks to add, in the order they should be done.',
+				items: {
+					type: 'object',
+					properties: {
+						title: { type: 'string', description: 'A short imperative title, e.g. "Waitlist table and Join waitlist endpoint".' },
+						notes: { type: 'string', description: 'One to three sentences on what the task covers, when the title alone is not enough.' },
+						delivers: { type: 'string', description: 'The id of the use case or non-functional requirement this task delivers, from the spec. Leave out for set-up work that belongs to none.' }
+					},
+					required: ['title']
+				}
+			}
+		},
+		required: ['tasks']
+	}
+};

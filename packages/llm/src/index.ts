@@ -15,3 +15,4 @@ export * from './chatToolDefinitions.js';
 export * from './chatAboutArchitecture.js';
 export * from './projectWizard.js';
 export * from './documentReading.js';
+export * from './taskPrompt.js';
