@@ -422,13 +422,17 @@ export function generateShellHTML(
 	.side-item:hover { background: var(--surface-2); color: var(--text); }
 	.side-item.on { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent); }
 	.side-item svg { flex-shrink: 0; }
+	.side-group {
+		padding: 14px 10px 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+		text-transform: uppercase; color: var(--text-dim);
+	}
 	.side-count {
 		margin-left: auto; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 		font-size: 11.5px; font-weight: 600; color: var(--text-dim); font-variant-numeric: tabular-nums;
 	}
 	#project-switch {
 		justify-content: space-between; border: 1px solid var(--border); color: var(--text);
-		font-weight: 650; margin-bottom: 12px;
+		font-weight: 650; margin-bottom: 4px;
 	}
 	#project-switch span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	#project-menu { width: 100%; min-width: 0; }
@@ -462,7 +466,7 @@ export function generateShellHTML(
 		body.web { flex-direction: column; }
 		#sidebar { width: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 6px 8px; border-right: none; border-bottom: 1px solid var(--border); }
 		#side-logo { padding: 0 6px; }
-		#side-logo span, .side-sep, .side-spacer, #side-credit { display: none; }
+		#side-logo span, .side-sep, .side-spacer, #side-credit, .side-group { display: none; }
 		#project-switch-wrap { max-width: 180px; }
 		#project-switch { margin-bottom: 0; }
 		/* The views get a row of their own below, scrolling sideways if they do not fit. */
@@ -837,8 +841,16 @@ ${web ? `	<nav id="sidebar" aria-label="Project">
 			if (mode === 'progress') return counts.total ? counts.done + '/' + counts.total : '';
 			return '';
 		}
+		// The sidebar's two halves: what to build (the spec), then building it.
+		var GROUP_BEFORE = { srs: 'Requirements', progress: 'Delivery' };
 		function renderSidebarViews(container) {
 			VIEW_OPTIONS.forEach(function (opt) {
+				if (GROUP_BEFORE[opt[0]]) {
+					var group = document.createElement('div');
+					group.className = 'side-group';
+					group.textContent = GROUP_BEFORE[opt[0]];
+					container.appendChild(group);
+				}
 				var btn = document.createElement('button');
 				btn.type = 'button';
 				btn.className = 'side-item' + (opt[0] === narrowMode ? ' on' : '');
