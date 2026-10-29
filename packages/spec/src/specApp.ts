@@ -187,12 +187,12 @@ export async function handleSpecRequest(deps: SpecAppDeps, req: SpecRequest): Pr
 		if (path === 'new-project') return wizardApplies() ? html(generateNewProjectHTML(name(), deps.logoDataUrl ?? '')) : redirect('./');
 		if (path === 'use-case-diagram') return html(useCaseData ? generateUseCaseDiagramHTML(visibleSpec(useCaseData)) : generateUseCaseDiagramEmptyHTML(true, false));
 		if (path === 'data-model') return html(dataModelData ? generateDataModelHTML(dataModelData) : generateDataModelEmptyHTML(true, false));
-		if (path === 'srs-preview') return html(useCaseData ? generateSrsDocHTML(visibleSpec(useCaseData), dataModelData) : generateSrsEmptyHTML(true, false));
+		if (path === 'srs-preview') return html(useCaseData ? generateSrsDocHTML(visibleSpec(useCaseData), dataModelData, !!deps.links.readOnly) : generateSrsEmptyHTML(true, false));
 		if (path === 'progress') {
 			// With a board, each row shows its tasks and its status comes from them.
 			const boardTasks = board ? await loadTasks() : null;
 			return html(generateProgressHTML(name(), useCaseData ? buildProgressRows(useCaseData) : [],
-				boardTasks ? { tasks: boardTasks, members: board!.members } : undefined));
+				boardTasks ? { tasks: boardTasks, members: board!.members, readOnly: board!.readOnly } : undefined));
 		}
 		if (path === 'board' && board) {
 			return html(generateBoardHTML(name(), { tasks: await loadTasks(), members: board.members, links: linkOptions(useCaseData), me: board.me.uid, readOnly: board.readOnly }));

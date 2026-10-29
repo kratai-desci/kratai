@@ -81,6 +81,8 @@ export const SRS_PAGE_CSS = `${DOC_STYLE}
 	}
 	.meta-value:hover, .meta-value:focus { border-bottom-color: var(--accent); }
 	.meta-value:empty:before { content: attr(data-placeholder); color: var(--text-faint); }
+	.read-only .meta-value { border-bottom: none; }
+	.read-only .meta-field:has(.meta-value:empty) { display: none; }
 	/* "About this document" only now - front matter that lives on the
 	   cover page itself, deliberately not styled like .section (no card
 	   background/border, no numbered h2). Overview moved to a real
@@ -372,7 +374,8 @@ const ABOUT_DOC_TEXT = "This Software Requirements Specification (SRS) describes
  * its section only appears when there's actually something in it, same
  * skip-empty-sections rule as Overview/Project-wide NFRs below.
  */
-export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelData?: DataModelData): string {
+/** readOnly: a viewer's copy, where Prepared by and Client are shown but not edited. */
+export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelData?: DataModelData, readOnly = false): string {
 	const diagrams = buildDocumentDiagrams(useCaseData);
 
 	const nfrInfo = numberNfrs(useCaseData);
@@ -445,9 +448,9 @@ ${SRS_PAGE_CSS}
 			<div class="cover-top">
 				<div class="kicker">Software Requirements Specification</div>
 				<h1>${escapeXml(useCaseData.systemName || useCaseData.workspaceName)}</h1>
-				<div class="doc-meta">
-					<div class="meta-field"><span class="meta-label">Prepared by</span><span class="meta-value" contenteditable="true" data-field="preparedBy" data-placeholder="add name or company">${escapeXml(useCaseData.preparedBy || '')}</span></div>
-					<div class="meta-field"><span class="meta-label">Client</span><span class="meta-value" contenteditable="true" data-field="clientName" data-placeholder="add client (optional)">${escapeXml(useCaseData.clientName || '')}</span></div>
+				<div class="doc-meta${readOnly ? ' read-only' : ''}">
+					<div class="meta-field"><span class="meta-label">Prepared by</span><span class="meta-value" contenteditable="${readOnly ? 'false' : 'true'}" data-field="preparedBy" data-placeholder="add name or company">${escapeXml(useCaseData.preparedBy || '')}</span></div>
+					<div class="meta-field"><span class="meta-label">Client</span><span class="meta-value" contenteditable="${readOnly ? 'false' : 'true'}" data-field="clientName" data-placeholder="add client (optional)">${escapeXml(useCaseData.clientName || '')}</span></div>
 				</div>
 			</div>
 			<div class="cover-block cover-about">

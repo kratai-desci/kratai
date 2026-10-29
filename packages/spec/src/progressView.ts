@@ -18,6 +18,8 @@ function escapeXml(s: string): string {
 export interface ProgressTasks {
 	tasks: Task[];
 	members: BoardMember[];
+	/** A viewer's Progress: shown as it is, with nothing to change. */
+	readOnly?: boolean;
 }
 
 export function generateProgressHTML(workspaceName: string, rows: ProgressRow[], board?: ProgressTasks): string {
@@ -220,6 +222,7 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[],
 	var ROWS = ${rowsJson};
 	// With a board: each row's tasks (see generateProgressHTML); its status comes from them and is not set here.
 	var TASKS = ${taskJson};
+	var READONLY = ${board?.readOnly ? 'true' : 'false'};
 	var NCOLS = TASKS ? 6 : 5;
 	function tasksOf(r) { return (TASKS && TASKS[refOf(r)]) || { total: 0, done: 0, doing: 0, people: [] }; }
 	var sortChain = [];
@@ -344,11 +347,13 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[],
 					'The AI changed this ' + kind + ' since you last checked. Have a look at it in the Spec, then acknowledge.</div>' +
 					'<div class="btns"><button data-ack="' + esc(ref) + '">Acknowledge</button></div></div></td></tr>';
 			}
+			// The AI's changes are the owner's and members' to settle; a viewer just sees the row.
+			if (READONLY) callout = '';
 			var cls = r.type + (r.removedByAi ? ' removed' : '') + (callout ? ' has-callout' : '');
 			var nameCell = '<td class="name"><span class="t">' + esc(r.name) + '</span>' + note + '</td>' + (TASKS ? tasksCell(r) : '');
-			if (r.removedByAi) {
+			if (r.removedByAi || READONLY) {
 				return '<tr class="' + cls + '"><td class="num">' + label(r) + '</td>' + nameCell +
-					'<td class="static">' + (r.priority ? PRIO_LABEL[r.priority] : '') + '</td><td class="static">' + STATUS_LABEL[r.status] + '</td><td class="by"></td></tr>' + callout;
+					'<td class="static">' + (shownPrio(r) ? PRIO_LABEL[shownPrio(r)] : '') + '</td><td class="static">' + STATUS_LABEL[r.status] + '</td><td class="by">' + (r.status === 'done' && !r.removedByAi ? esc(r.closedBy || '') : '') + '</td></tr>' + callout;
 			}
 			return '<tr class="' + cls + '"><td class="num">' + label(r) + '</td>' + nameCell +
 				(r.status === 'done' ? '<td></td>' :
@@ -370,7 +375,7 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[],
 	function tasksCell(r) {
 		if (r.removedByAi) return '<td></td>';
 		var t = tasksOf(r);
-		if (!t.total) return '<td><span class="no-tasks">No tasks yet</span> <button class="plan" data-plan="' + esc(refOf(r)) + '">Plan with AI</button></td>';
+		if (!t.total) return '<td><span class="no-tasks">No tasks yet</span>' + (READONLY ? '' : ' <button class="plan" data-plan="' + esc(refOf(r)) + '">Plan with AI</button>') + '</td>';
 		var segs = '';
 		for (var i = 0; i < t.total; i++) segs += '<span class="' + (i < t.done ? 'done' : i < t.done + t.doing ? 'doing' : '') + '"></span>';
 		return '<td><span class="tbar" role="img" aria-label="' + t.done + ' of ' + t.total + ' tasks done">' + segs + '</span> ' +
