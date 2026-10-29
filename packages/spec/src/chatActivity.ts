@@ -17,7 +17,7 @@ export type ChatEvent =
 
 const VIEW_NAMES: Record<string, string> = {
 	graph: 'the Knowledge Graph', class: 'the Class Diagram', stack: 'the Stack Layer',
-	usecase: 'the Use Case Model', data: 'the Data Model', srs: 'the Spec', progress: 'Progress'
+	usecase: 'the Use Case Model', data: 'the Data Model', srs: 'the Spec', progress: 'Progress', board: 'the Board'
 };
 
 function text(value: unknown, max = 60): string {
@@ -42,6 +42,10 @@ export function describeToolCall(name: string, input: Record<string, unknown>): 
 		case 'update_data_model': return 'Updating the data model';
 		case 'generate_use_case_model': return 'Generating the use case model';
 		case 'generate_data_model': return 'Generating the data model';
+		case 'add_tasks': {
+			const count = Array.isArray(input.tasks) ? input.tasks.length : 0;
+			return count ? `Adding ${count} task${count === 1 ? '' : 's'} to the board` : 'Adding tasks to the board';
+		}
 		default: return `Running ${name}`;
 	}
 }

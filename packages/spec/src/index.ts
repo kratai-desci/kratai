@@ -17,3 +17,5 @@ export * from './specSummary.js';
 export * from './newProjectView.js';
 export * from './documentText.js';
 export * from './specApp.js';
+export * from './tasks.js';
+export * from './boardView.js';

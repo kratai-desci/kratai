@@ -1,6 +1,6 @@
 {
   "name": "@kratai-desci/spec",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Everything about a kratai project's Spec that does not need its code - the views, the progress and AI-edit rules, the chat's spec tools and document reading - shared by the desktop app and the web app.",
   "license": "MIT",
   "type": "module",

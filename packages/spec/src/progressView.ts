@@ -1,3 +1,4 @@
+import type { Task, BoardMember } from './tasks.js';
 import type { ProgressRow } from './progressData.js';
 
 function escapeXml(s: string): string {
@@ -13,9 +14,29 @@ function escapeXml(s: string): string {
  * item that has progress, a callout row under it asks the user to acknowledge it,
  * or to restore / delete it for good. Same theme variables as the other views.
  */
-export function generateProgressHTML(workspaceName: string, rows: ProgressRow[]): string {
+/** With a task board (the web app): each row's tasks, which decide its status. */
+export interface ProgressTasks {
+	tasks: Task[];
+	members: BoardMember[];
+}
+
+export function generateProgressHTML(workspaceName: string, rows: ProgressRow[], board?: ProgressTasks): string {
 	// JSON inside a <script>: "<" is escaped so a name can never close the tag.
 	const rowsJson = JSON.stringify(rows).replace(/</g, '\\u003c');
+	// Per row ("uc:<id>"): how many tasks, how many done and started, and who has them.
+	const taskInfo: Record<string, { total: number; done: number; doing: number; people: string[] }> | null = board ? {} : null;
+	if (board && taskInfo) {
+		board.tasks.forEach(t => {
+			if (!t.link) return;
+			const info = taskInfo[t.link.type + ':' + t.link.id] ??= { total: 0, done: 0, doing: 0, people: [] };
+			info.total++;
+			if (t.status === 'done') info.done++;
+			if (t.status === 'doing') info.doing++;
+			const who = t.assigneeUid ? board.members.find(m => m.uid === t.assigneeUid)?.name : undefined;
+			if (who && !info.people.includes(who)) info.people.push(who);
+		});
+	}
+	const taskJson = JSON.stringify(taskInfo).replace(/</g, '\\u003c');
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -156,6 +177,20 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 	}
 	#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 	@media (max-width: 760px) { #overview { grid-template-columns: repeat(2, 1fr); } }
+	.status-pill { font-size: 12.5px; font-weight: 650; }
+	.status-pill.status-in-progress { color: var(--accent); }
+	.status-pill.status-done { color: var(--ok); }
+	.status-pill.status-open { color: var(--text-dim); }
+	.tasks-col { font-size: 12px; color: var(--text-dim); text-align: left; padding: 9px 12px; }
+	.tbar { display: inline-flex; gap: 2px; vertical-align: middle; }
+	.tbar span { width: 12px; height: 7px; border-radius: 2px; background: var(--border); }
+	.tbar span.done { background: var(--ok); }
+	.tbar span.doing { background: var(--accent); }
+	.tcount { font-size: 12.5px; color: var(--text-dim); margin-left: 4px; }
+	.tpeople { display: block; font-size: 11.5px; color: var(--text-faint); margin-top: 3px; }
+	.no-tasks { font-size: 12.5px; color: var(--warn); font-weight: 600; }
+	button.plan { margin-left: 6px; border: 1px solid var(--border); background: var(--surface); border-radius: 6px; padding: 2px 8px; font-size: 12px; font-weight: 600; color: var(--accent); cursor: pointer; }
+	button.plan:hover { border-color: var(--accent); }
 	#empty { padding: 40px 0; text-align: center; color: var(--text-dim); font-size: 13.5px; line-height: 1.6; }
 </style>
 </head>
@@ -172,7 +207,7 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 		<div id="empty" style="display:none">There is nothing to track yet.<br>Once your Spec has use cases and requirements, they are listed here so you can follow their progress.</div>
 		<div id="overview"></div>
 		<div class="section" id="sec-req"></div>
-		<p id="footnote">Rows keep their numbers (UC-n for use cases, NFR-n for non-functional requirements) whatever the sort - sorting only changes what you see here, never the spec. With no sort, each use case is followed by its own requirements and the project-wide ones come last. A Done item shows no priority (it comes back if the item is reopened). If the AI edits or removes an item that has progress, a note appears right under it until you act on it; a removed item stays crossed out until you restore it or delete it for good. Click a column to sort by it, click other columns to break ties (the numbers show the order), click again to reverse, and once more to remove it. Clear sorting returns to the starting order.</p>
+		<p id="footnote">${board ? 'Each status comes from the Board: Done when all of an item&rsquo;s tasks are done, In progress once one has started. ' : ''}Rows keep their numbers (UC-n for use cases, NFR-n for non-functional requirements) whatever the sort - sorting only changes what you see here, never the spec. With no sort, each use case is followed by its own requirements and the project-wide ones come last. A Done item shows no priority (it comes back if the item is reopened). If the AI edits or removes an item that has progress, a note appears right under it until you act on it; a removed item stays crossed out until you restore it or delete it for good. Click a column to sort by it, click other columns to break ties (the numbers show the order), click again to reverse, and once more to remove it. Clear sorting returns to the starting order.</p>
 	</div>
 	<div id="toast"></div>
 <script>
@@ -183,6 +218,10 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 	// n is the number the Spec uses (UC-n / NFR-n) - null while the AI has removed the item.
 	// Nothing here changes the order of the spec: sorting is only ever a view.
 	var ROWS = ${rowsJson};
+	// With a board: each row's tasks (see generateProgressHTML); its status comes from them and is not set here.
+	var TASKS = ${taskJson};
+	var NCOLS = TASKS ? 6 : 5;
+	function tasksOf(r) { return (TASKS && TASKS[refOf(r)]) || { total: 0, done: 0, doing: 0, people: [] }; }
 	var sortChain = [];
 	var STATUS_LABEL = { 'open': 'Open', 'in-progress': 'In progress', 'done': 'Done' };
 	var PRIO_LABEL = { '': 'No priority', low: 'Low', medium: 'Medium', high: 'High' };
@@ -264,9 +303,12 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 				'<div class="note">' + count(list, 'in-progress') + ' in progress</div></div>';
 		}
 		var openHigh = ROWS.filter(function (r) { return !r.removedByAi && r.status === 'open' && r.priority === 'high'; }).length;
+		var noTasks = ROWS.filter(function (r) { return !r.removedByAi && tasksOf(r).total === 0; }).length;
 		document.getElementById('overview').innerHTML =
 			stat('Use cases', ofType('uc')) + stat('Non-functional', ofType('nfr')) + stat('Overall', ofType('all')) +
-			'<div class="stat attention"><div class="label">Open, high priority</div><div class="value">' + openHigh + '</div><div class="note">still to start and important</div></div>';
+			(TASKS
+				? '<div class="stat attention"><div class="label">No tasks yet</div><div class="value">' + noTasks + '</div><div class="note">nothing planned to build them</div></div>'
+				: '<div class="stat attention"><div class="label">Open, high priority</div><div class="value">' + openHigh + '</div><div class="note">still to start and important</div></div>');
 	}
 	function section() {
 		var cols = [['n', '#'], ['name', 'Requirement'], ['prio', 'Priority'], ['status', 'Status'], ['closedBy', 'Closed by']];
@@ -275,7 +317,10 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 			var rank = i === -1 ? '' : '<span class="sort-rank">' + (i + 1) + '</span><span class="sort-arrow">' + (sortChain[i].dir === 'asc' ? '&#9650;' : '&#9660;') + '</span>';
 			var tip = i === -1 ? 'Sort by ' + c[1] : (sortChain[i].dir === 'asc' ? 'Click to reverse' : 'Click to remove this sort');
 			return '<th class="' + (i === -1 ? '' : 'sorted') + '"><button data-sort="' + c[0] + '" title="' + esc(tip) + '">' + esc(c[1]) + rank + '</button></th>';
-		}).join('');
+		});
+		// The tasks column goes after Requirement; it is not one to sort by.
+		if (TASKS) head.splice(2, 0, '<th class="tasks-col">Tasks</th>');
+		head = head.join('');
 		var rows = sortedRows().map(function (r) {
 			var ref = refOf(r);
 			var kind = r.type === 'uc' ? 'use case' : 'requirement';
@@ -288,19 +333,19 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 			var ownerGone = r.type === 'nfr' && r.ucId && ucFor(r) && ucFor(r).removedByAi;
 			if (r.removedByAi && ownerGone) {
 				// It went with its use case, so there is one decision to make, on that use case.
-				callout = '<tr class="callout"><td colspan="5"><div class="dialog removed"><div class="msg"><strong>Removed along with its use case</strong>' +
+				callout = '<tr class="callout"><td colspan="' + NCOLS + '"><div class="dialog removed"><div class="msg"><strong>Removed along with its use case</strong>' +
 					'Restore or delete the use case above and this requirement follows.</div></div></td></tr>';
 			} else if (r.removedByAi) {
-				callout = '<tr class="callout"><td colspan="5"><div class="dialog removed"><div class="msg"><strong>Removed by AI</strong>' +
+				callout = '<tr class="callout"><td colspan="' + NCOLS + '"><div class="dialog removed"><div class="msg"><strong>Removed by AI</strong>' +
 					'The AI removed this ' + kind + '. It stays here, crossed out, until you decide - nothing is lost yet.</div>' +
 					'<div class="btns"><button data-restore="' + esc(ref) + '">Restore</button><button class="danger" data-purge="' + esc(ref) + '">Delete for good</button></div></div></td></tr>';
 			} else if (r.editedByAi) {
-				callout = '<tr class="callout"><td colspan="5"><div class="dialog edited"><div class="msg"><strong>Edited by AI</strong>' +
+				callout = '<tr class="callout"><td colspan="' + NCOLS + '"><div class="dialog edited"><div class="msg"><strong>Edited by AI</strong>' +
 					'The AI changed this ' + kind + ' since you last checked. Have a look at it in the Spec, then acknowledge.</div>' +
 					'<div class="btns"><button data-ack="' + esc(ref) + '">Acknowledge</button></div></div></td></tr>';
 			}
 			var cls = r.type + (r.removedByAi ? ' removed' : '') + (callout ? ' has-callout' : '');
-			var nameCell = '<td class="name"><span class="t">' + esc(r.name) + '</span>' + note + '</td>';
+			var nameCell = '<td class="name"><span class="t">' + esc(r.name) + '</span>' + note + '</td>' + (TASKS ? tasksCell(r) : '');
 			if (r.removedByAi) {
 				return '<tr class="' + cls + '"><td class="num">' + label(r) + '</td>' + nameCell +
 					'<td class="static">' + (r.priority ? PRIO_LABEL[r.priority] : '') + '</td><td class="static">' + STATUS_LABEL[r.status] + '</td><td class="by"></td></tr>' + callout;
@@ -309,8 +354,10 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 				(r.status === 'done' ? '<td></td>' :
 					'<td><select class="prio-' + (r.priority || 'none') + '" data-field="priority" data-row="' + esc(ref) + '" aria-label="Priority">' +
 					Object.keys(PRIO_LABEL).map(function (p) { return '<option value="' + p + '"' + (p === r.priority ? ' selected' : '') + '>' + PRIO_LABEL[p] + '</option>'; }).join('') + '</select></td>') +
-				'<td><select class="status-' + r.status + '" data-field="status" data-row="' + esc(ref) + '" aria-label="Status">' +
-					Object.keys(STATUS_LABEL).map(function (s) { return '<option value="' + s + '"' + (s === r.status ? ' selected' : '') + '>' + STATUS_LABEL[s] + '</option>'; }).join('') + '</select></td>' +
+				(TASKS
+					? '<td><span class="status-pill status-' + r.status + '">' + STATUS_LABEL[r.status] + '</span></td>'
+					: '<td><select class="status-' + r.status + '" data-field="status" data-row="' + esc(ref) + '" aria-label="Status">' +
+						Object.keys(STATUS_LABEL).map(function (s) { return '<option value="' + s + '"' + (s === r.status ? ' selected' : '') + '>' + STATUS_LABEL[s] + '</option>'; }).join('') + '</select></td>') +
 				'<td class="by">' + (r.status === 'done' ? esc(r.closedBy || '') : '') + '</td></tr>' + callout;
 		}).join('');
 		var pending = ROWS.filter(function (r) { return r.removedByAi; }).length;
@@ -318,6 +365,17 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 			'<div class="section-head"><h2>Requirements</h2><span class="count">' + (ROWS.length - pending) + ' items' + (pending ? ', ' + pending + ' removed' : '') + '</span>' +
 			'<button class="clear-sort' + (sortChain.length ? ' on' : '') + '" data-clear="1">Clear sorting</button></div>' +
 			'<div class="table-wrap"><table><thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+	}
+	// A row's tasks: a bar and "2 of 3 done", the people on them, or a way to plan some.
+	function tasksCell(r) {
+		if (r.removedByAi) return '<td></td>';
+		var t = tasksOf(r);
+		if (!t.total) return '<td><span class="no-tasks">No tasks yet</span> <button class="plan" data-plan="' + esc(refOf(r)) + '">Plan with AI</button></td>';
+		var segs = '';
+		for (var i = 0; i < t.total; i++) segs += '<span class="' + (i < t.done ? 'done' : i < t.done + t.doing ? 'doing' : '') + '"></span>';
+		return '<td><span class="tbar" role="img" aria-label="' + t.done + ' of ' + t.total + ' tasks done">' + segs + '</span> ' +
+			'<span class="tcount">' + t.done + ' of ' + t.total + '</span>' +
+			(t.people.length ? '<span class="tpeople">' + esc(t.people.join(', ')) + '</span>' : '') + '</td>';
 	}
 	function renderAll() {
 		var empty = ROWS.length === 0;
@@ -358,6 +416,11 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[])
 			if (window.confirm('Delete "' + (row ? row.name : 'this item') + '" for good? This cannot be undone.')) act({ action: 'purge', type: z.type, id: z.id });
 		}
 		else if (t.closest('#download-btn')) exportReport();
+		else if (t.closest('[data-plan]')) {
+			// Puts the request in the chat for the person to read and send (the shell opens the chat).
+			var r = findRow(t.closest('[data-plan]').getAttribute('data-plan'));
+			if (r) window.parent.postMessage({ command: 'prefillChat', text: 'Plan the tasks for ' + label(r) + ' ' + r.name + '.' }, '*');
+		}
 	});
 	document.addEventListener('change', function (e) {
 		var el = e.target; if (!el.getAttribute || !el.getAttribute('data-field')) return;

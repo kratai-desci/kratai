@@ -15,6 +15,11 @@ import { executeSpecTool } from './chatSpecTools.js';
 import { specSection } from './specSummary.js';
 import { extractDocument, DocumentError } from './documentText.js';
 import { describeToolCall, editsSpec, ChatStoppedError, type ChatEvent, type UiAction } from './chatActivity.js';
+import { generateBoardHTML } from './boardView.js';
+import {
+	TASK_STATUSES, linkOptions, resolveLink, deriveStatuses, carriedOverTasks, boardSection, taskContext,
+	type Task, type NewTask, type TaskStatus, type TaskLink, type BoardMember
+} from './tasks.js';
 
 /**
  * One project's Spec served over plain web Request/Response - the web app's counterpart of
@@ -55,6 +60,26 @@ export interface SpecAppDeps {
 	links: Omit<WebShellOptions, 'counts'>;
 	/** The app icon as a data URI, for the wizard's header. */
 	logoDataUrl?: string;
+	/** The task board, where the caller keeps one (the web app). Without it there is no Board view. */
+	board?: BoardDeps;
+}
+
+export interface BoardDeps {
+	listTasks(): Promise<Task[]>;
+	/** Adds tasks; answers their ids, in order. */
+	createTasks(tasks: NewTask[]): Promise<string[]>;
+	updateTask(id: string, patch: Partial<NewTask>): Promise<void>;
+	deleteTask(id: string): Promise<void>;
+	/** Who can be assigned a task: the owner and the members (not viewers). */
+	members: BoardMember[];
+	/** The person making the request: their uid, and the name recorded when they finish a task. */
+	me: { uid: string; name: string };
+	readOnly: boolean;
+	/** Whether the statuses Progress recorded before the board were carried over into tasks yet (once per project). */
+	carriedOver: boolean;
+	markCarriedOver(): Promise<void>;
+	/** Writes the coding agent's brief from a task's context (taskContext), billed to the person asking. */
+	writePrompt(context: string): Promise<string>;
 }
 
 export interface SpecRequest {
@@ -94,15 +119,23 @@ export function buildSpecOnlyChatSummary(projectName: string, useCaseData: UseCa
 }
 
 /** The numbers beside the views in the sidebar; done/total counts use cases and requirements, as on the Projects page. */
-function viewCounts(useCaseData: UseCaseDiagramData | undefined, dataModelData: DataModelData | undefined): ViewCounts {
+function viewCounts(useCaseData: UseCaseDiagramData | undefined, dataModelData: DataModelData | undefined, tasks: Task[] | null): ViewCounts {
 	const spec = useCaseData ? visibleSpec(useCaseData) : undefined;
 	const items: { status?: string }[] = [...(spec?.useCases ?? []), ...(spec?.nfrs ?? [])];
 	return {
 		useCases: spec?.useCases.length ?? 0,
 		entities: dataModelData?.entities.length ?? 0,
 		done: items.filter(i => i.status === 'done').length,
-		total: items.length
+		total: items.length,
+		...(tasks ? { openTasks: tasks.filter(t => t.status !== 'done').length } : {})
 	};
+}
+
+const MAX_TITLE = 200;
+const MAX_NOTES = 5000;
+
+function cleanTitle(value: unknown): string | null {
+	return typeof value === 'string' && value.trim() ? value.trim().slice(0, MAX_TITLE) : null;
 }
 
 export async function handleSpecRequest(deps: SpecAppDeps, req: SpecRequest): Promise<Response> {
@@ -112,6 +145,36 @@ export async function handleSpecRequest(deps: SpecAppDeps, req: SpecRequest): Pr
 	const name = () => useCaseData?.systemName || project.name;
 	const wizardApplies = () => !useCaseData && !project.wizardSkipped;
 	const { method, path } = req;
+	const board = deps.board;
+
+	// ---- the board: its tasks, read once per request ----
+	let tasks: Task[] | null = null;
+	async function loadTasks(): Promise<Task[]> {
+		if (!board) return [];
+		if (tasks) return tasks;
+		if (!board.carriedOver) {
+			const carried = carriedOverTasks(useCaseData);
+			if (carried.length) await board.createTasks(carried);
+			await board.markCarriedOver();
+			board.carriedOver = true;
+		}
+		tasks = await board.listTasks();
+		return tasks;
+	}
+	// After any change to the tasks: read them again, and keep each item's Progress status in step.
+	async function afterTaskChange(): Promise<Task[]> {
+		tasks = null;
+		const fresh = await loadTasks();
+		if (useCaseData && deriveStatuses(useCaseData, fresh)) await deps.saveUseCaseData(useCaseData);
+		return fresh;
+	}
+	const isMember = (uid: unknown) => typeof uid === 'string' && !!board?.members.some(m => m.uid === uid);
+	const knownLink = (link: unknown): TaskLink | null | undefined => {
+		if (link === null) return null;
+		const l = link as TaskLink | undefined;
+		if (!l || (l.type !== 'uc' && l.type !== 'nfr') || typeof l.id !== 'string') return undefined;
+		return linkOptions(useCaseData).some(o => o.type === l.type && o.id === l.id) ? { type: l.type, id: l.id } : undefined;
+	};
 
 	if (method === 'GET') {
 		if (path === '' || path === 'index.html') {
@@ -119,13 +182,22 @@ export async function handleSpecRequest(deps: SpecAppDeps, req: SpecRequest): Pr
 			const chatMode = useCaseData ? 'draft' : 'blank';
 			return html(generateShellHTML(name(), { classCount: 0, folderCount: 0, edgeCount: 0 }, await deps.getLayout(),
 				{ signedIn: true, email: deps.email }, project.chatHistory, chatMode, req.search.get('view') === 'spec',
-				{ ...deps.links, counts: viewCounts(useCaseData, dataModelData) }));
+				{ ...deps.links, counts: viewCounts(useCaseData, dataModelData, board ? await loadTasks() : null), board: !!board }));
 		}
 		if (path === 'new-project') return wizardApplies() ? html(generateNewProjectHTML(name(), deps.logoDataUrl ?? '')) : redirect('./');
 		if (path === 'use-case-diagram') return html(useCaseData ? generateUseCaseDiagramHTML(visibleSpec(useCaseData)) : generateUseCaseDiagramEmptyHTML(true, false));
 		if (path === 'data-model') return html(dataModelData ? generateDataModelHTML(dataModelData) : generateDataModelEmptyHTML(true, false));
 		if (path === 'srs-preview') return html(useCaseData ? generateSrsDocHTML(visibleSpec(useCaseData), dataModelData) : generateSrsEmptyHTML(true, false));
-		if (path === 'progress') return html(generateProgressHTML(name(), useCaseData ? buildProgressRows(useCaseData) : []));
+		if (path === 'progress') {
+			// With a board, each row shows its tasks and its status comes from them.
+			const boardTasks = board ? await loadTasks() : null;
+			return html(generateProgressHTML(name(), useCaseData ? buildProgressRows(useCaseData) : [],
+				boardTasks ? { tasks: boardTasks, members: board!.members } : undefined));
+		}
+		if (path === 'board' && board) {
+			return html(generateBoardHTML(name(), { tasks: await loadTasks(), members: board.members, links: linkOptions(useCaseData), me: board.me.uid, readOnly: board.readOnly }));
+		}
+		if (path === 'api/tasks' && board) return json(200, { ok: true, tasks: await loadTasks() });
 		if (path === 'progress-report') {
 			if (!useCaseData) return html('<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px">There is nothing to report yet.</body></html>');
 			const all = buildProgressRows(useCaseData);
@@ -138,7 +210,7 @@ export async function handleSpecRequest(deps: SpecAppDeps, req: SpecRequest): Pr
 		}
 		if (path === 'api/auth/status') return json(200, { signedIn: true, email: deps.email });
 		if (path === 'api/balance') return json(200, await deps.getBalance());
-		if (path === 'api/counts') return json(200, viewCounts(useCaseData, dataModelData));
+		if (path === 'api/counts') return json(200, viewCounts(useCaseData, dataModelData, board ? await loadTasks() : null));
 		if (path === 'api/update-info') return json(200, { update: null });
 		return json(404, { ok: false, error: 'Not found.' });
 	}
@@ -171,13 +243,31 @@ export async function handleSpecRequest(deps: SpecAppDeps, req: SpecRequest): Pr
 			}
 			case 'api/progress': {
 				if (!useCaseData) throw new Error('There is no spec to track yet.');
-				const result = applyProgressAction(useCaseData, (await req.json()) as ProgressAction, userNameFromEmail(deps.email));
+				const action = (await req.json()) as ProgressAction;
+				if (board && action.action === 'update' && action.status !== undefined) {
+					throw new Error('A status comes from its tasks now - move them on the Board.');
+				}
+				const result = applyProgressAction(useCaseData, action, userNameFromEmail(deps.email));
 				if (!result.ok) throw new Error(result.error);
 				await deps.saveUseCaseData(useCaseData);
 				return json(200, { ok: true, rows: buildProgressRows(useCaseData) });
 			}
 			case 'api/chat':
 				return await chatResponse();
+			case 'api/tasks': {
+				if (!board) return json(404, { ok: false, error: 'Not found.' });
+				return json(200, { ok: true, ...(await changeTasks((await req.json()) as Record<string, unknown>)) });
+			}
+			case 'api/tasks/prompt': {
+				if (!board) return json(404, { ok: false, error: 'Not found.' });
+				const { id } = (await req.json()) as { id?: string };
+				const all = await loadTasks();
+				const task = all.find(t => t.id === id);
+				if (!task) throw new Error('That task no longer exists.');
+				const text = (await board.writePrompt(taskContext(task, useCaseData, dataModelData, all))).trim();
+				await board.updateTask(task.id, { prompt: { text, at: new Date().toISOString() } });
+				return json(200, { ok: true, tasks: await afterTaskChange() });
+			}
 			case 'api/new-project/ai': {
 				const { step, input } = (await req.json()) as { step?: string; input?: unknown };
 				if (!NEW_PROJECT_STEPS.includes(step as NewProjectStep) || step === 'draft') throw new Error('Unknown wizard step.');
@@ -256,8 +346,107 @@ export async function handleSpecRequest(deps: SpecAppDeps, req: SpecRequest): Pr
 		return new Response(stream, { status: 200, headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-cache' } });
 	}
 
+	/** One change on the board (see boardView.ts); answers the whole board again. */
+	async function changeTasks(body: Record<string, unknown>): Promise<{ tasks: Task[]; created?: string }> {
+		const all = await loadTasks();
+		const endOf = (status: TaskStatus) => Math.max(-1, ...all.filter(t => t.status === status).map(t => t.order)) + 1;
+		const task = all.find(t => t.id === body.id);
+		if (body.action !== 'create' && !task) throw new Error('That task no longer exists - the board has been refreshed.');
+
+		if (body.action === 'create') {
+			const input = (body.task ?? {}) as Record<string, unknown>;
+			const title = cleanTitle(input.title);
+			if (!title) throw new Error('A task needs a title.');
+			const status = TASK_STATUSES.includes(input.status as TaskStatus) ? input.status as TaskStatus : 'todo';
+			const [created] = await board!.createTasks([{
+				title, notes: typeof input.notes === 'string' ? input.notes.slice(0, MAX_NOTES) : '',
+				status, order: endOf(status), link: knownLink(input.link ?? null) ?? null,
+				assigneeUid: isMember(input.assigneeUid) ? input.assigneeUid as string : null,
+				createdByAi: false, doneBy: status === 'done' ? board!.me.name : null, prompt: null
+			}]);
+			return { tasks: await afterTaskChange(), created };
+		}
+		if (body.action === 'delete') {
+			await board!.deleteTask(task!.id);
+			return { tasks: await afterTaskChange() };
+		}
+		if (body.action === 'move') {
+			const status = body.status as TaskStatus;
+			if (!TASK_STATUSES.includes(status)) throw new Error('Unknown column.');
+			// The column as it will be, top to bottom, and each task's new place in it.
+			const column = all.filter(t => t.status === status && t.id !== task!.id).sort((a, b) => a.order - b.order);
+			const at = column.findIndex(t => t.id === body.beforeId);
+			column.splice(at === -1 ? column.length : at, 0, task!);
+			await Promise.all(column.map((t, i) => {
+				if (t.id === task!.id) {
+					const moved = t.status !== status;
+					return board!.updateTask(t.id, {
+						order: i, status,
+						...(moved ? { doneBy: status === 'done' ? board!.me.name : null } : {})
+					});
+				}
+				return t.order === i ? undefined : board!.updateTask(t.id, { order: i });
+			}));
+			return { tasks: await afterTaskChange() };
+		}
+		if (body.action === 'update') {
+			const input = (body.patch ?? {}) as Record<string, unknown>;
+			const patch: Partial<NewTask> = {};
+			if (input.title !== undefined) {
+				const title = cleanTitle(input.title);
+				if (!title) throw new Error('A task needs a title.');
+				patch.title = title;
+			}
+			if (typeof input.notes === 'string') patch.notes = input.notes.slice(0, MAX_NOTES);
+			if (input.status !== undefined && input.status !== task!.status) {
+				if (!TASK_STATUSES.includes(input.status as TaskStatus)) throw new Error('Unknown status.');
+				patch.status = input.status as TaskStatus;
+				patch.order = endOf(patch.status);
+				patch.doneBy = patch.status === 'done' ? board!.me.name : null;
+			}
+			if (input.link !== undefined) {
+				const link = knownLink(input.link);
+				if (link === undefined) throw new Error('That use case or requirement is no longer in the spec.');
+				patch.link = link;
+			}
+			if (input.assigneeUid !== undefined) {
+				if (input.assigneeUid !== null && !isMember(input.assigneeUid)) throw new Error('Only the project\'s members can be assigned a task.');
+				patch.assigneeUid = input.assigneeUid as string | null;
+			}
+			if (Object.keys(patch).length) await board!.updateTask(task!.id, patch);
+			return { tasks: await afterTaskChange() };
+		}
+		throw new Error('Unknown change.');
+	}
+
+	/** The chat's add_tasks tool: tasks the AI planned, at the end of To do. */
+	async function addTasksFromChat(input: Record<string, unknown>): Promise<string> {
+		const list = Array.isArray(input.tasks) ? input.tasks as Record<string, unknown>[] : [];
+		const all = await loadTasks();
+		let order = Math.max(-1, ...all.filter(t => t.status === 'todo').map(t => t.order)) + 1;
+		const unknown: string[] = [];
+		const planned: NewTask[] = [];
+		list.slice(0, 30).forEach(item => {
+			const title = cleanTitle(item.title);
+			if (!title) return;
+			const link = resolveLink(useCaseData, item.delivers);
+			if (item.delivers && !link) unknown.push(String(item.delivers));
+			planned.push({
+				title, notes: typeof item.notes === 'string' ? item.notes.slice(0, MAX_NOTES) : '',
+				status: 'todo', order: order++, link, assigneeUid: null, createdByAi: true, doneBy: null, prompt: null
+			});
+		});
+		if (!planned.length) return 'No tasks were added: each task needs a title.';
+		await board!.createTasks(planned);
+		await afterTaskChange();
+		return `Added ${planned.length} task${planned.length === 1 ? '' : 's'} to To do on the board.` +
+			(unknown.length ? ` These ids are not in the spec, so those tasks are not linked: ${unknown.join(', ')}.` : '');
+	}
+
 	async function runChatLoop(initialMessages: ConversationMessage[], onEvent: (event: ChatEvent) => void): Promise<{ reply: string; steps: string[] }> {
-		let summary = buildSpecOnlyChatSummary(name(), useCaseData, dataModelData);
+		const summarize = async () => buildSpecOnlyChatSummary(name(), useCaseData, dataModelData) +
+			(board ? boardSection(useCaseData, await loadTasks(), board.members) : '');
+		let summary = await summarize();
 		const conversation: ConversationMessage[] = [...initialMessages];
 		const uiActions: UiAction[] = [];
 		const steps: string[] = [];
@@ -305,11 +494,17 @@ export async function handleSpecRequest(deps: SpecAppDeps, req: SpecRequest): Pr
 					toolResults.push({ toolCallId: call.id, output: result.output });
 					continue;
 				}
+				if (call.name === 'add_tasks' && board && !board.readOnly) {
+					toolResults.push({ toolCallId: call.id, output: await addTasksFromChat(call.input) });
+					uiActions.push({ type: 'show_view', view: 'board' }, { type: 'refresh_view', view: 'board' }, { type: 'refresh_view', view: 'progress' });
+					specChanged = true;
+					continue;
+				}
 				toolResults.push({ toolCallId: call.id, output: NO_CODE_TOOL_OUTPUT });
 			}
 			sendUi();
 			conversation.push({ role: 'user', toolResults });
-			if (specChanged) summary = buildSpecOnlyChatSummary(name(), useCaseData, dataModelData);
+			if (specChanged) summary = await summarize();
 		}
 		// Out of turns: say so rather than pretend (same reasoning as view.ts's runChatLoop).
 		return { reply: 'I could not finish that within my step budget. Try asking for one change at a time.', steps };

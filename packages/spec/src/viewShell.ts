@@ -67,6 +67,8 @@ export interface WebShellOptions {
 	membersUrl?: string;
 	/** A viewer: everything can be read, nothing changed, so there is no chat. */
 	readOnly?: boolean;
+	/** The project has a task board (a Board view under Delivery). */
+	board?: boolean;
 }
 
 export interface ViewCounts {
@@ -74,6 +76,8 @@ export interface ViewCounts {
 	entities: number;
 	done: number;
 	total: number;
+	/** Tasks on the board not done yet, when the project has a board. */
+	openTasks?: number;
 }
 
 function escapeShellText(s: string): string {
@@ -598,11 +602,11 @@ ${web ? `	<nav id="sidebar" aria-label="Project">
 		// web app has no code, so no Class Diagram either.
 		var VIEW_OPTIONS = [
 			['srs', 'Spec'], ['usecase', 'Use Case Model'], ['data', 'Data Model'],
-			${web ? '' : "['class', 'Class Diagram'], "}['progress', 'Progress']
+			${web ? '' : "['class', 'Class Diagram'], "}${web?.board ? "['board', 'Board'], " : ''}['progress', 'Progress']
 		];
 		var SRC_BY_MODE = {
 			graph: 'knowledge-graph', class: 'class-diagram', stack: 'stack-layer',
-			usecase: 'use-case-diagram', data: 'data-model', progress: 'progress',
+			usecase: 'use-case-diagram', data: 'data-model', progress: 'progress', board: 'board',
 			srs: 'srs-preview'
 		};
 
@@ -841,7 +845,8 @@ ${web ? `	<nav id="sidebar" aria-label="Project">
 			srs: '<path d="M6 2h9l5 5v15H6z"/><path d="M9 12h8M9 16h8"/>',
 			usecase: '<ellipse cx="12" cy="12" rx="9" ry="5.5"/>',
 			data: '<rect x="3" y="4" width="8" height="6" rx="1"/><rect x="13" y="14" width="8" height="6" rx="1"/><path d="M7 10v7h6"/>',
-			progress: '<path d="M4 12.5l5 5L20 6.5"/>'
+			progress: '<path d="M4 12.5l5 5L20 6.5"/>',
+			board: '<rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="4" height="13" rx="1"/>'
 		};
 		var counts = WEB ? WEB.counts : null;
 		function countFor(mode) {
@@ -849,10 +854,12 @@ ${web ? `	<nav id="sidebar" aria-label="Project">
 			if (mode === 'usecase') return String(counts.useCases);
 			if (mode === 'data') return String(counts.entities);
 			if (mode === 'progress') return counts.total ? counts.done + '/' + counts.total : '';
+			if (mode === 'board') return counts.openTasks ? String(counts.openTasks) : '';
 			return '';
 		}
 		// The sidebar's two halves: what to build (the spec), then building it.
-		var GROUP_BEFORE = { srs: 'Requirements', progress: 'Delivery' };
+		var GROUP_BEFORE = { srs: 'Requirements' };
+		GROUP_BEFORE[VIEW_OPTIONS.some(function (opt) { return opt[0] === 'board'; }) ? 'board' : 'progress'] = 'Delivery';
 		function renderSidebarViews(container) {
 			VIEW_OPTIONS.forEach(function (opt) {
 				if (GROUP_BEFORE[opt[0]]) {
@@ -973,6 +980,8 @@ ${web ? `	<nav id="sidebar" aria-label="Project">
 			// startSignIn above, the balance display lives in the shell, not
 			// in whichever iframe just triggered the spend.
 			if (e.data.command === 'balanceChanged') refreshBalance();
+			// The board changed a task: its count, and the statuses it decides, may have moved.
+			if (e.data.command === 'countsChanged') refreshCounts();
 			// A view's "Add detail with AI" button: put a ready-made request in the chat box
 			// (opening the chat if it is closed) for the user to read and send themselves.
 			if (e.data.command === 'prefillChat' && typeof e.data.text === 'string') prefillChat(e.data.text);
