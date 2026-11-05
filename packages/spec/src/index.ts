@@ -19,3 +19,4 @@ export * from './documentText.js';
 export * from './specApp.js';
 export * from './tasks.js';
 export * from './boardView.js';
+export * from './webDownload.js';

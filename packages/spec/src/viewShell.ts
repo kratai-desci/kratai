@@ -69,6 +69,8 @@ export interface WebShellOptions {
 	readOnly?: boolean;
 	/** The project has a task board (a Board view under Delivery). */
 	board?: boolean;
+	/** Where the `docx` browser bundle is served: with it, the SRS and progress report are downloaded from the page (webDownload.ts). */
+	docxUrl?: string;
 }
 
 export interface ViewCounts {

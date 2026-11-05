@@ -3,6 +3,7 @@ import { buildDocumentDiagrams, DOC_DIAGRAM_STYLE, type DocumentDiagrams } from 
 import { stripStepNumber } from '@kratai-desci/llm';
 import { DataModelData } from '@kratai-desci/llm';
 import { buildDataModelSvg, DATA_MODEL_SVG_STYLE } from './dataModelView.js';
+import { WEB_DOWNLOAD_BUTTONS, WEB_DOWNLOAD_CSS, webDownloadScriptTag, type WebDownloadOptions } from './webDownload.js';
 
 function escapeXml(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -374,8 +375,9 @@ const ABOUT_DOC_TEXT = "This Software Requirements Specification (SRS) describes
  * its section only appears when there's actually something in it, same
  * skip-empty-sections rule as Overview/Project-wide NFRs below.
  */
-/** readOnly: a viewer's copy, where Prepared by and Client are shown but not edited. */
-export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelData?: DataModelData, readOnly = false): string {
+/** readOnly: a viewer's copy, where Prepared by and Client are shown but not edited.
+ * download: set in the web app, where the page writes the Word file / PDF itself (webDownload.ts). */
+export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelData?: DataModelData, readOnly = false, download?: WebDownloadOptions): string {
 	const diagrams = buildDocumentDiagrams(useCaseData);
 
 	const nfrInfo = numberNfrs(useCaseData);
@@ -435,13 +437,13 @@ export function generateSrsDocHTML(useCaseData: UseCaseDiagramData, dataModelDat
 <title>${escapeXml(useCaseData.systemName || useCaseData.workspaceName)} - Software Requirements Specification</title>
 ${THEME_SYNC_SCRIPT}
 <style>
-${SRS_PAGE_CSS}
+${SRS_PAGE_CSS}${download ? WEB_DOWNLOAD_CSS : ''}
 </style>
 </head>
 <body>
 	<div id="pdf-download">
 		<span id="pdf-status"></span>
-		<button id="download-btn">Download SRS</button>
+		${download ? WEB_DOWNLOAD_BUTTONS : '<button id="download-btn">Download SRS</button>'}
 	</div>
 	<div id="doc">
 		<div id="doc-header">
@@ -491,7 +493,8 @@ ${SRS_PAGE_CSS}
 
 	var pdfStatus = document.getElementById('pdf-status');
 	var btn = document.getElementById('download-btn');
-	btn.addEventListener('click', function () {
+	// Only the desktop app has this button; the web app's two are wired by webDownload.ts.
+	if (btn) btn.addEventListener('click', function () {
 		btn.disabled = true;
 		btn.textContent = 'Generating...';
 		pdfStatus.textContent = '';
@@ -517,6 +520,8 @@ ${SRS_PAGE_CSS}
 	});
 })();
 </script>
+${download ? webDownloadScriptTag(download) + `
+<script>krataiWireDownloads(KRATAI_DOWNLOAD, function () { return { docUrl: 'srs-preview', docType: 'Software Requirements Specification', fileSuffix: 'requirements' }; });</script>` : ''}
 </body>
 </html>`;
 }

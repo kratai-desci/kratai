@@ -1,5 +1,6 @@
 import type { Task, BoardMember } from './tasks.js';
 import type { ProgressRow } from './progressData.js';
+import { WEB_DOWNLOAD_BUTTONS, WEB_DOWNLOAD_CSS, webDownloadScriptTag, type WebDownloadOptions } from './webDownload.js';
 
 function escapeXml(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -22,7 +23,8 @@ export interface ProgressTasks {
 	readOnly?: boolean;
 }
 
-export function generateProgressHTML(workspaceName: string, rows: ProgressRow[], board?: ProgressTasks): string {
+/** download: set in the web app, where the page writes the report's Word file / PDF itself (webDownload.ts). */
+export function generateProgressHTML(workspaceName: string, rows: ProgressRow[], board?: ProgressTasks, download?: WebDownloadOptions): string {
 	// JSON inside a <script>: "<" is escaped so a name can never close the tag.
 	const rowsJson = JSON.stringify(rows).replace(/</g, '\\u003c');
 	// Per row ("uc:<id>"): how many tasks, how many done and started, and who has them.
@@ -193,10 +195,11 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[],
 	.no-tasks { font-size: 12.5px; color: var(--warn); font-weight: 600; }
 	button.plan { margin-left: 6px; border: 1px solid var(--border); background: var(--surface); border-radius: 6px; padding: 2px 8px; font-size: 12px; font-weight: 600; color: var(--accent); cursor: pointer; }
 	button.plan:hover { border-color: var(--accent); }
-	#empty { padding: 40px 0; text-align: center; color: var(--text-dim); font-size: 13.5px; line-height: 1.6; }
+	#empty { padding: 40px 0; text-align: center; color: var(--text-dim); font-size: 13.5px; line-height: 1.6; }${download ? WEB_DOWNLOAD_CSS : ''}
 </style>
 </head>
 <body>
+${download ? webDownloadScriptTag(download) : ''}
 	<div id="page">
 		<div id="header">
 			<h1>Progress</h1>
@@ -204,7 +207,7 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[],
 		</div>
 		<div id="pdf-download">
 			<span id="pdf-status"></span>
-			<button id="download-btn">Download Progress</button>
+			${download ? WEB_DOWNLOAD_BUTTONS : '<button id="download-btn">Download Progress</button>'}
 		</div>
 		<div id="empty" style="display:none">There is nothing to track yet.<br>Once your Spec has use cases and requirements, they are listed here so you can follow their progress.</div>
 		<div id="overview"></div>
@@ -455,6 +458,11 @@ export function generateProgressHTML(workspaceName: string, rows: ProgressRow[],
 
 	computeSandwich();
 	renderAll();
+${download ? `	// The report follows what is on screen: same sort, removed items left out.
+	krataiWireDownloads(KRATAI_DOWNLOAD, function () {
+		var order = sortedRows().filter(function (r) { return !r.removedByAi; }).map(refOf);
+		return { docUrl: 'progress-report?order=' + encodeURIComponent(order.join(',')), docType: 'Progress report', fileSuffix: 'progress-report' };
+	});` : ''}
 })();
 </script>
 </body>

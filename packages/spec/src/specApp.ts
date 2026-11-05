@@ -146,6 +146,8 @@ export async function handleSpecRequest(deps: SpecAppDeps, req: SpecRequest): Pr
 	const wizardApplies = () => !useCaseData && !project.wizardSkipped;
 	const { method, path } = req;
 	const board = deps.board;
+	// The web app writes the SRS and progress report in the page (webDownload.ts); the desktop app does it in its own window.
+	const download = () => deps.links.docxUrl ? { docxUrl: deps.links.docxUrl, projectName: name() } : undefined;
 
 	// ---- the board: its tasks, read once per request ----
 	let tasks: Task[] | null = null;
@@ -187,12 +189,12 @@ export async function handleSpecRequest(deps: SpecAppDeps, req: SpecRequest): Pr
 		if (path === 'new-project') return wizardApplies() ? html(generateNewProjectHTML(name(), deps.logoDataUrl ?? '')) : redirect('./');
 		if (path === 'use-case-diagram') return html(useCaseData ? generateUseCaseDiagramHTML(visibleSpec(useCaseData)) : generateUseCaseDiagramEmptyHTML(true, false));
 		if (path === 'data-model') return html(dataModelData ? generateDataModelHTML(dataModelData) : generateDataModelEmptyHTML(true, false));
-		if (path === 'srs-preview') return html(useCaseData ? generateSrsDocHTML(visibleSpec(useCaseData), dataModelData, !!deps.links.readOnly) : generateSrsEmptyHTML(true, false));
+		if (path === 'srs-preview') return html(useCaseData ? generateSrsDocHTML(visibleSpec(useCaseData), dataModelData, !!deps.links.readOnly, download()) : generateSrsEmptyHTML(true, false));
 		if (path === 'progress') {
 			// With a board, each row shows its tasks and its status comes from them.
 			const boardTasks = board ? await loadTasks() : null;
 			return html(generateProgressHTML(name(), useCaseData ? buildProgressRows(useCaseData) : [],
-				boardTasks ? { tasks: boardTasks, members: board!.members, readOnly: board!.readOnly } : undefined));
+				boardTasks ? { tasks: boardTasks, members: board!.members, readOnly: board!.readOnly } : undefined, download()));
 		}
 		if (path === 'board' && board) {
 			return html(generateBoardHTML(name(), { tasks: await loadTasks(), members: board.members, links: linkOptions(useCaseData), me: board.me.uid, readOnly: board.readOnly }));
@@ -201,9 +203,15 @@ export async function handleSpecRequest(deps: SpecAppDeps, req: SpecRequest): Pr
 		if (path === 'progress-report') {
 			if (!useCaseData) return html('<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px">There is nothing to report yet.</body></html>');
 			const all = buildProgressRows(useCaseData);
+			// In the order the person had on screen when they pressed Download ("uc:1,nfr:2,..."); the rest follow.
+			const live = all.filter(r => !r.removedByAi);
+			const order = (req.search.get('order') ?? '').split(',').filter(Boolean);
+			const byRef = new Map(live.map(r => [`${r.type}:${r.id}`, r]));
+			const ordered = order.map(ref => byRef.get(ref)).filter((r): r is NonNullable<typeof r> => !!r);
+			const missing = live.filter(r => !order.includes(`${r.type}:${r.id}`));
 			return html(generateProgressReportHTML({
 				spec: visibleSpec(useCaseData),
-				rows: all.filter(r => !r.removedByAi),
+				rows: [...ordered, ...missing],
 				allRows: all,
 				asOf: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 			}));
